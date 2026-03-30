@@ -1,0 +1,90 @@
+version: 1
+defaults:
+  enabled: true
+  timeout_ms: 8000
+  max_items_per_poll: 50
+  supports_pagination: false
+  supports_detail_fetch: false
+  fallback_language: en
+
+parsers:
+  - parser_key: rss_v1
+    display_name: RSS / Atom Entry Parser
+    enabled: true
+    input_types: [rss, atom]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 100
+    supports_pagination: false
+    supports_detail_fetch: true
+    extraction:
+      id_fields: [guid, id, link]
+      title_fields: [title]
+      summary_fields: [summary, description]
+      body_fields: [content, content_encoded]
+      published_at_fields: [published, pubDate, updated]
+      author_fields: [author, dc_creator]
+      category_fields: [category, tags]
+    normalization:
+      trim_html: true
+      decode_entities: true
+      collapse_whitespace: true
+      timezone_strategy: source_default
+      missing_summary_strategy: first_paragraph
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_future_timestamps: true
+
+  - parser_key: html_article_list_v1
+    display_name: HTML Article List Parser
+    enabled: true
+    input_types: [html]
+    output_contract: canonical_document_v1
+    timeout_ms: 9000
+    max_items_per_poll: 30
+    supports_pagination: true
+    supports_detail_fetch: false
+    extraction:
+      article_selector: article, .o-teaser, .headline, li
+      title_selector: h1, h2, h3, a
+      url_selector: a
+      summary_selector: p, .summary, .standfirst
+      published_at_selector: time
+      category_selector: .tag, .topic, .category
+    normalization:
+      trim_html: true
+      decode_entities: true
+      collapse_whitespace: true
+      absolutize_urls: true
+      remove_tracking_query_params: true
+    quality:
+      minimum_title_length: 12
+      reject_empty_url: true
+      reject_duplicate_titles_within_poll: true
+
+  - parser_key: json_feed_v1
+    display_name: JSON Feed / API Parser
+    enabled: true
+    input_types: [json_feed, api]
+    output_contract: canonical_document_v1
+    timeout_ms: 8000
+    max_items_per_poll: 100
+    supports_pagination: true
+    supports_detail_fetch: false
+    extraction:
+      items_path: items
+      id_fields: [id, external_id, guid]
+      title_fields: [title, headline]
+      summary_fields: [summary, description, dek]
+      body_fields: [content_text, content_html, body]
+      published_at_fields: [date_published, published_at, updated_at]
+      author_fields: [author, byline]
+      category_fields: [tags, categories]
+    normalization:
+      decode_entities: true
+      collapse_whitespace: true
+      timezone_strategy: utc
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
