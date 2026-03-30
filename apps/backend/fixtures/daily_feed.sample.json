@@ -1,0 +1,118 @@
+{
+  "digest_date": "2026-03-30",
+  "edition": "apac-open",
+  "timezone": "Asia/Seoul",
+  "generated_at": "2026-03-30T07:25:00Z",
+  "generated_by": "fixture",
+  "item_count": 3,
+  "items": [
+    {
+      "story_key": "apac-open-2026-03-30-fed-liquidity",
+      "priority_rank": 1,
+      "headline": "Fed signals ongoing liquidity monitoring after cross-asset volatility",
+      "summary": "Global rates desks and large-cap brokers highlighted follow-through risk across Asia open.",
+      "canonical_url": "https://example.com/fed-liquidity",
+      "published_at": "2026-03-29T22:45:00Z",
+      "source": {
+        "source_key": "fed_press_releases",
+        "display_name": "Federal Reserve Press Releases"
+      },
+      "tickers": [
+        "MSCI",
+        "CME"
+      ],
+      "regions": [
+        "us",
+        "apac"
+      ],
+      "sectors": [
+        "rates",
+        "exchanges"
+      ],
+      "sentiment_label": "mixed",
+      "relevance_score": 0.944,
+      "duplicate_group_key": "macro-liquidity-20260329",
+      "metadata": {
+        "source_type": "rss",
+        "coverage_tags": [
+          "macro",
+          "rates",
+          "central-bank"
+        ]
+      }
+    },
+    {
+      "story_key": "apac-open-2026-03-30-boj-ycc",
+      "priority_rank": 2,
+      "headline": "BOJ operational note keeps yield-curve focus in play for exporters",
+      "summary": "Yen-sensitive industrial names stayed in focus after the central-bank release.",
+      "canonical_url": "https://example.com/boj-ycc",
+      "published_at": "2026-03-29T23:30:00Z",
+      "source": {
+        "source_key": "boj_announcements",
+        "display_name": "Bank of Japan Announcements"
+      },
+      "tickers": [
+        "7203.T",
+        "6758.T"
+      ],
+      "regions": [
+        "japan",
+        "apac"
+      ],
+      "sectors": [
+        "autos",
+        "electronics"
+      ],
+      "sentiment_label": "neutral",
+      "relevance_score": 0.901,
+      "duplicate_group_key": "boj-ycc-20260329",
+      "metadata": {
+        "source_type": "rss",
+        "coverage_tags": [
+          "apac",
+          "central-bank",
+          "currency"
+        ]
+      }
+    },
+    {
+      "story_key": "apac-open-2026-03-30-nyse-listings",
+      "priority_rank": 3,
+      "headline": "NYSE listing pipeline update points to stronger second-quarter issuance",
+      "summary": "Exchange commentary suggested a healthier capital-markets calendar than the prior quarter.",
+      "canonical_url": "https://example.com/nyse-listings",
+      "published_at": "2026-03-29T20:15:00Z",
+      "source": {
+        "source_key": "nyse_press_room",
+        "display_name": "NYSE Press Room"
+      },
+      "tickers": [
+        "ICE"
+      ],
+      "regions": [
+        "us"
+      ],
+      "sectors": [
+        "exchanges",
+        "capital-markets"
+      ],
+      "sentiment_label": "positive",
+      "relevance_score": 0.873,
+      "duplicate_group_key": "nyse-listings-20260329",
+      "metadata": {
+        "source_type": "rss",
+        "coverage_tags": [
+          "exchange",
+          "listings",
+          "corporate-actions"
+        ]
+      }
+    }
+  ],
+  "metadata": {
+    "fallback_to_fixture": true,
+    "fixture_path": "apps/backend/fixtures/daily_feed.sample.json",
+    "top_n": 12
+  }
+}
