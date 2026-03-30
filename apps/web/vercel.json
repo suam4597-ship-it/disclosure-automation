@@ -1,0 +1,6 @@
+{
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/", "destination": "/global-pulse-dashboard-v2.html" }
+  ]
+}
