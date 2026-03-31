@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Disclosure Automation</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="hero">
+    <div class="container">
+      <p class="eyebrow">Investment Event Intelligence · Phase 0</p>
+      <h1>해외 공시 · 매크로 · 거래소 · 금융미디어 이벤트 기반 피드 구축</h1>
+      <p class="subtitle">
+        이 브랜치는 완성형 제품보다 먼저, 소스 레지스트리·딜리버리 윈도우·피드 API·운영 문서를
+        고정하는 Phase 0 foundation 작업을 담고 있습니다.
+      </p>
+      <div class="actions">
+        <a class="button primary" href="./docs/blueprint/investment_news_blueprint_v2.md">설계서 보기</a>
+        <button class="button secondary" id="show-status">현재 상태 확인</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container grid">
+    <section class="card">
+      <h2>현재 진행 단계</h2>
+      <ol>
+        <li>Codespaces / Vercel / runbook 기반 정리</li>
+        <li>Phase 0 SQL 및 Ecto migration 자산 추가</li>
+        <li>digest / source health OpenAPI 계약 추가</li>
+        <li>fixture 기반 reference runtime 경계 정리</li>
+        <li>Phoenix API-only 통합 준비</li>
+      </ol>
+    </section>
+
+    <section class="card">
+      <h2>현재 포함된 핵심 자산</h2>
+      <ul>
+        <li>source registry / delivery window / parser capability 샘플 YAML</li>
+        <li>Phase 0 core schema SQL + rollback</li>
+        <li>Ecto migrations 4개 + Oban 경계</li>
+        <li>feed digest / admin source health OpenAPI</li>
+        <li>daily digest fixture 및 validation script</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>권장 다음 작업</h2>
+      <p>
+        이제는 생성할 Phoenix API-only 앱에 Phase 0 자산을 주입하고,
+        fixture fallback에서 실제 canonical feed read path로 점진적으로 전환하면 됩니다.
+      </p>
+      <p id="status-text">현재는 Phase 0 foundation 계약 자산과 경량 runtime/helper 경계가 반영된 상태입니다.</p>
+    </section>
+  </main>
+
+  <script src="./script.js"></script>
+</body>
+</html>
