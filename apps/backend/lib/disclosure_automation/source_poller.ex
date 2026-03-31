@@ -5,10 +5,12 @@ defmodule DisclosureAutomation.SourcePoller do
   The runtime is intentionally fixture-friendly:
   - source metadata comes from `Sources`
   - parser capabilities are consulted when available
+  - source fixture payloads can be loaded from the checked-in sample assets
   - the returned map is shaped so future ingestion persistence can slot in
     without changing worker/controller contracts
   """
 
+  alias DisclosureAutomation.Fixtures
   alias DisclosureAutomation.Parser
   alias DisclosureAutomation.ParserCapabilities
   alias DisclosureAutomation.Sources
@@ -17,7 +19,10 @@ defmodule DisclosureAutomation.SourcePoller do
     trigger_kind = Keyword.get(opts, :trigger_kind, "scheduled")
 
     with {:ok, source} <- fetch_source(source_key),
-         :ok <- ensure_parser_known(source) do
+         :ok <- ensure_parser_known(source),
+         {:ok, parse_input, fixture_info} <- load_parse_input(source, opts),
+         {:ok, parse_result} <-
+           Parser.parse(source["parser_key"] || source[:parser_key], parse_input, cache: parser_cache()) do
       {:ok,
        %{
          source_key: source_key,
@@ -26,7 +31,8 @@ defmodule DisclosureAutomation.SourcePoller do
          parser_key: source["parser_key"] || source[:parser_key],
          request_url: source["base_url"] || source[:base_url],
          polled_at: DateTime.utc_now(),
-         parse_result: Parser.parse(source["parser_key"] || source[:parser_key], [], cache: parser_cache())
+         fixture: fixture_info,
+         parse_result: parse_result
        }}
     end
   end
@@ -59,6 +65,43 @@ defmodule DisclosureAutomation.SourcePoller do
       {:ok, _capability} -> :ok
       :error -> {:error, {:unknown_parser_key, parser_key}}
     end
+  end
+
+  defp load_parse_input(source, opts) do
+    fixture_override = Keyword.get(opts, :fixture_path)
+    fixture_path = fixture_override || source_fixture_path(source)
+
+    if is_binary(fixture_path) and fixture_path != "" do
+      with {:ok, payload} <- Fixtures.load_source_payload(fixture_path) do
+        parse_input = [build_fixture_record(source, payload)]
+
+        {:ok,
+         parse_input,
+         %{
+           relative_path: payload.relative_path,
+           path: payload.path,
+           bytes: payload.bytes,
+           loaded: true
+         }}
+      end
+    else
+      {:ok, [], %{loaded: false}}
+    end
+  end
+
+  defp source_fixture_path(source) do
+    config = source["config"] || source[:config] || %{}
+    config["fixture_path"] || config[:fixture_path]
+  end
+
+  defp build_fixture_record(source, payload) do
+    %{
+      source_key: source["source_key"] || source[:source_key],
+      parser_key: source["parser_key"] || source[:parser_key],
+      fixture_path: payload.relative_path,
+      raw_payload: payload.raw,
+      bytes: payload.bytes
+    }
   end
 
   defp parser_cache do

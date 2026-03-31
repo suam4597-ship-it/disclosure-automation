@@ -3,9 +3,12 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import re
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
+SOURCE_REGISTRY_PATH = ROOT / "apps/backend/config/source_registry.sample.yaml"
+FIXTURE_ROOT = ROOT / "apps/backend/fixtures"
 
 REQUIRED_FILES = [
     "apps/backend/config/source_registry.sample.yaml",
@@ -16,6 +19,11 @@ REQUIRED_FILES = [
     "apps/backend/openapi/feed-digest.openapi.yaml",
     "apps/backend/openapi/admin-source-health.openapi.yaml",
     "apps/backend/fixtures/daily_feed.sample.json",
+    "apps/backend/fixtures/source_payloads/sec_press_releases.xml",
+    "apps/backend/fixtures/source_payloads/fed_press_releases.xml",
+    "apps/backend/fixtures/source_payloads/nyse_press_room.xml",
+    "apps/backend/fixtures/source_payloads/ft_markets_news.html",
+    "apps/backend/fixtures/source_payloads/boj_announcements.xml",
 ]
 
 
@@ -81,6 +89,28 @@ def validate_fixture() -> str | None:
     return None
 
 
+def validate_source_registry_fixture_paths() -> str | None:
+    try:
+        text = SOURCE_REGISTRY_PATH.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return "source registry yaml missing"
+
+    fixture_paths = re.findall(r"fixture_path:\s*([^\s]+)", text)
+    if not fixture_paths:
+        return "no fixture_path entries found in source registry"
+
+    missing = []
+    for relative_path in fixture_paths:
+        candidate = FIXTURE_ROOT / relative_path
+        if not candidate.exists():
+            missing.append(relative_path)
+
+    if missing:
+        return "source registry fixture paths missing files: " + ", ".join(missing)
+
+    return None
+
+
 def main() -> int:
     missing = validate_files()
     if missing:
@@ -90,8 +120,12 @@ def main() -> int:
     if fixture_error:
         return fail(fixture_error)
 
+    source_registry_error = validate_source_registry_fixture_paths()
+    if source_registry_error:
+        return fail(source_registry_error)
+
     print("[phase0-validate] OK")
-    print("[phase0-validate] Required files present and sample fixture shape looks consistent.")
+    print("[phase0-validate] Required files present, digest fixture shape is valid, and source payload fixture paths resolve.")
     return 0
 
 
