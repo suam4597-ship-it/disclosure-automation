@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Architecture · Disclosure Automation</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="hero">
+    <div class="container">
+      <p class="eyebrow">Architecture</p>
+      <h1>Phase 0 Architecture Contract</h1>
+      <p class="subtitle">
+        Phase 0의 목적은 전체 제품을 끝내는 것이 아니라, source registry, delivery window,
+        digest/source-health API, fixture-backed startup path, background-job boundary를 보수적으로 고정하는 것입니다.
+      </p>
+      <div class="actions">
+        <a class="button primary" href="./index.html">홈으로</a>
+        <a class="button secondary" href="./blueprint.html">Blueprint 보기</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="container grid">
+    <section class="card">
+      <h2>고정된 경계</h2>
+      <ul>
+        <li>Source contract</li>
+        <li>Delivery-window contract</li>
+        <li>Ingestion pipeline contract</li>
+        <li>Domain-event contract</li>
+        <li>Read API contract</li>
+        <li>Bootstrap contract</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>현재 데이터 흐름</h2>
+      <ol>
+        <li>configured source polling</li>
+        <li>raw document capture</li>
+        <li>parser/canonicalization boundary</li>
+        <li>digest read via fixture-backed fallback</li>
+        <li>event dispatch / source-health recheck job boundary</li>
+      </ol>
+    </section>
+
+    <section class="card">
+      <h2>아직 안 하는 것</h2>
+      <ul>
+        <li>완전한 live source fetching</li>
+        <li>production-grade dedupe / ranking</li>
+        <li>full notification fanout</li>
+        <li>실제 Phoenix/Ecto app 전체 커밋</li>
+      </ul>
+    </section>
+  </main>
+</body>
+</html>
