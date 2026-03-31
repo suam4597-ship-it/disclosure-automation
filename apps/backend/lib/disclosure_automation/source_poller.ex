@@ -6,11 +6,14 @@ defmodule DisclosureAutomation.SourcePoller do
   - source metadata comes from `Sources`
   - parser capabilities are consulted when available
   - source fixture payloads can be loaded from the checked-in sample assets
+  - real HTTP fetches can be attempted explicitly via opts while keeping
+    fixture-first behaviour as the default
   - the returned map is shaped so future ingestion persistence can slot in
     without changing worker/controller contracts
   """
 
   alias DisclosureAutomation.Fixtures
+  alias DisclosureAutomation.Http
   alias DisclosureAutomation.Parser
   alias DisclosureAutomation.ParserCapabilities
   alias DisclosureAutomation.Sources
@@ -20,7 +23,7 @@ defmodule DisclosureAutomation.SourcePoller do
 
     with {:ok, source} <- fetch_source(source_key),
          :ok <- ensure_parser_known(source),
-         {:ok, parse_input, fixture_info} <- load_parse_input(source, opts),
+         {:ok, parse_input, fetch_info} <- load_parse_input(source, opts),
          {:ok, parse_result} <-
            Parser.parse(source["parser_key"] || source[:parser_key], parse_input, cache: parser_cache()) do
       {:ok,
@@ -31,7 +34,7 @@ defmodule DisclosureAutomation.SourcePoller do
          parser_key: source["parser_key"] || source[:parser_key],
          request_url: source["base_url"] || source[:base_url],
          polled_at: DateTime.utc_now(),
-         fixture: fixture_info,
+         fetch: fetch_info,
          parse_result: parse_result
        }}
     end
@@ -68,16 +71,55 @@ defmodule DisclosureAutomation.SourcePoller do
   end
 
   defp load_parse_input(source, opts) do
+    prefer_live_fetch = Keyword.get(opts, :use_live_fetch, false)
+
+    case maybe_load_live_payload(source, opts, prefer_live_fetch) do
+      {:ok, payload} ->
+        parse_input = [build_payload_record(source, payload)]
+        {:ok, parse_input, payload.fetch_info}
+
+      {:error, _reason} when prefer_live_fetch ->
+        load_fixture_payload(source, opts)
+
+      :skip ->
+        load_fixture_payload(source, opts)
+    end
+  end
+
+  defp maybe_load_live_payload(source, opts, true) do
+    url = source["base_url"] || source[:base_url]
+    timeout = Keyword.get(opts, :timeout, 8_000)
+
+    with {:ok, response} <- Http.fetch(url, timeout: timeout) do
+      {:ok,
+       %{
+         raw_payload: response.body,
+         bytes: response.bytes,
+         fetch_info: %{
+           mode: :live,
+           loaded: true,
+           url: url,
+           status_code: response.status_code,
+           bytes: response.bytes
+         }
+       }}
+    end
+  end
+
+  defp maybe_load_live_payload(_source, _opts, false), do: :skip
+
+  defp load_fixture_payload(source, opts) do
     fixture_override = Keyword.get(opts, :fixture_path)
     fixture_path = fixture_override || source_fixture_path(source)
 
     if is_binary(fixture_path) and fixture_path != "" do
       with {:ok, payload} <- Fixtures.load_source_payload(fixture_path) do
-        parse_input = [build_fixture_record(source, payload)]
+        parse_input = [build_payload_record(source, payload)]
 
         {:ok,
          parse_input,
          %{
+           mode: :fixture,
            relative_path: payload.relative_path,
            path: payload.path,
            bytes: payload.bytes,
@@ -85,7 +127,7 @@ defmodule DisclosureAutomation.SourcePoller do
          }}
       end
     else
-      {:ok, [], %{loaded: false}}
+      {:ok, [], %{mode: :none, loaded: false}}
     end
   end
 
@@ -94,13 +136,13 @@ defmodule DisclosureAutomation.SourcePoller do
     config["fixture_path"] || config[:fixture_path]
   end
 
-  defp build_fixture_record(source, payload) do
+  defp build_payload_record(source, payload) do
     %{
       source_key: source["source_key"] || source[:source_key],
       parser_key: source["parser_key"] || source[:parser_key],
-      fixture_path: payload.relative_path,
-      raw_payload: payload.raw,
-      bytes: payload.bytes
+      raw_payload: payload.raw_payload || payload.raw,
+      bytes: payload.bytes,
+      fixture_path: Map.get(payload, :relative_path)
     }
   end
 
