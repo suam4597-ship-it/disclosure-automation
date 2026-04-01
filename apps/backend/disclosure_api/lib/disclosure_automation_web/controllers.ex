@@ -1,8 +1,11 @@
 defmodule DisclosureAutomationWeb.ErrorJSON do
   @moduledoc false
 
-  def render("404.json", _assigns), do: %{error: %{code: "not_found", message: "resource not found"}}
-  def render("500.json", _assigns), do: %{error: %{code: "server_error", message: "internal server error"}}
+  def render("404.json", _assigns),
+    do: %{error: %{code: "not_found", message: "resource not found"}}
+
+  def render("500.json", _assigns),
+    do: %{error: %{code: "server_error", message: "internal server error"}}
 end
 
 defmodule DisclosureAutomationWeb.FeedDigestJSON do
@@ -100,7 +103,8 @@ defmodule DisclosureAutomationWeb.FeedDigestController do
     end
   end
 
-  def latest(conn, _params), do: render_error(conn, :bad_request, "missing_edition", "edition is required")
+  def latest(conn, _params),
+    do: render_error(conn, :bad_request, "missing_edition", "edition is required")
 
   def show(conn, %{"digest_date" => digest_date, "edition" => edition}) do
     case Digest.get_digest_by_date_and_edition(digest_date, edition, fallback_to_fixture: true) do
