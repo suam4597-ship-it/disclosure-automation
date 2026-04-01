@@ -222,7 +222,9 @@ defmodule DisclosureAutomation.Ingestion do
             |> Enum.with_index(1)
             |> Enum.map(fn {record, rank} ->
               {:ok, raw_document} = upsert_raw_document(run, source, record)
-              {:ok, canonical_item} = upsert_canonical_item(raw_document, source, record, edition, rank, payload.fetch_info)
+              {:ok, canonical_item} =
+                upsert_canonical_item(raw_document, source, record, edition, rank, payload.fetch_info)
+
               %{raw_document: raw_document, canonical_item: canonical_item}
             end)
 
@@ -473,7 +475,9 @@ defmodule DisclosureAutomation.Digest do
       items =
         from(item in CanonicalFeedItem,
           join: source in assoc(item, :source),
-          where: item.digest_date == ^digest_date and item.edition == ^edition and item.status in ["ready", "published"],
+          where:
+            item.digest_date == ^digest_date and item.edition == ^edition and
+              item.status in ["ready", "published"],
           order_by: [asc: item.priority_rank, desc: item.published_at],
           limit: ^limit,
           select: {item, source}
@@ -488,7 +492,8 @@ defmodule DisclosureAutomation.Digest do
            "digest_date" => Date.to_iso8601(digest_date),
            "edition" => edition,
            "timezone" => timezone,
-           "generated_at" => DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.to_iso8601(),
+           "generated_at" =>
+             DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.to_iso8601(),
            "generated_by" => "repo",
            "item_count" => length(items),
            "items" => Enum.map(items, &present_item/1),
