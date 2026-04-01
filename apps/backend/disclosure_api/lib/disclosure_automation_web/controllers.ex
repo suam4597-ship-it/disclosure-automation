@@ -124,10 +124,8 @@ defmodule DisclosureAutomationWeb.AdminSourceHealthController do
   alias DisclosureAutomationWeb.SourceHealthJSON
 
   def index(conn, params) do
-    case Sources.list_source_health(params) do
-      {:ok, page} -> json(conn, SourceHealthJSON.index(%{page: page}))
-      {:error, reason} -> render_error(conn, :bad_request, "invalid_filter", inspect(reason))
-    end
+    {:ok, page} = Sources.list_source_health(params)
+    json(conn, SourceHealthJSON.index(%{page: page}))
   end
 
   def show(conn, %{"source_key" => source_key}) do

@@ -3,9 +3,12 @@ import Config
 config :disclosure_automation,
   ecto_repos: [DisclosureAutomation.Repo],
   generators: [binary_id: true],
-  source_registry_path: Path.expand("../priv/config_samples/source_registry.sample.yaml", __DIR__),
-  delivery_windows_path: Path.expand("../priv/config_samples/delivery_windows.sample.yaml", __DIR__),
-  parser_capabilities_path: Path.expand("../priv/config_samples/parser_capabilities.sample.yaml", __DIR__),
+  source_registry_path:
+    Path.expand("../priv/config_samples/source_registry.sample.yaml", __DIR__),
+  delivery_windows_path:
+    Path.expand("../priv/config_samples/delivery_windows.sample.yaml", __DIR__),
+  parser_capabilities_path:
+    Path.expand("../priv/config_samples/parser_capabilities.sample.yaml", __DIR__),
   fixtures_root: Path.expand("../priv/fixtures", __DIR__),
   daily_digest_fixture_path: Path.expand("../priv/fixtures/daily_feed.sample.json", __DIR__)
 
