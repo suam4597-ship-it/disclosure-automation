@@ -63,29 +63,32 @@ jobs:
       - name: Compile
         run: mix compile
 
-      - name: Start server
+      - name: Run runtime smoke
         run: |
+          rm -f health.json poll.json digest.json server.log
           mix phx.server > server.log 2>&1 &
-          echo $! > server.pid
+          SERVER_PID=$!
 
-      - name: Health check
-        run: |
-          for i in $(seq 1 30); do
+          cleanup() {
+            kill "$SERVER_PID" >/dev/null 2>&1 || true
+          }
+
+          trap cleanup EXIT
+
+          for i in $(seq 1 60); do
             if curl -sf http://127.0.0.1:4000/api/health > health.json; then
-              exit 0
+              break
             fi
             sleep 2
           done
-          echo 'health check failed'
-          tail -n 50 server.log
-          exit 1
 
-      - name: Poll source
-        run: |
+          if [ ! -s health.json ]; then
+            echo 'health check failed'
+            tail -n 200 server.log || true
+            exit 1
+          fi
+
           curl -sf -X POST http://127.0.0.1:4000/api/admin/sources/sec_press_releases/poll > poll.json
-
-      - name: Fetch digest
-        run: |
           curl -sf "http://127.0.0.1:4000/api/feed/digest/latest?edition=breaking" > digest.json
 
       - name: Comment smoke result on PR
@@ -96,9 +99,17 @@ jobs:
             const fs = require('fs');
             const path = require('path');
             const root = path.join(process.env.GITHUB_WORKSPACE, 'apps/backend/disclosure_api');
-            const read = (name) => {
+            const read = (name, max = 1500) => {
               try {
-                return fs.readFileSync(path.join(root, name), 'utf8').slice(0, 1500);
+                return fs.readFileSync(path.join(root, name), 'utf8').slice(0, max);
+              } catch (e) {
+                return '(missing)';
+              }
+            };
+            const tail = (name, lines = 80) => {
+              try {
+                const raw = fs.readFileSync(path.join(root, name), 'utf8');
+                return raw.split('\n').slice(-lines).join('\n').slice(0, 4000);
               } catch (e) {
                 return '(missing)';
               }
@@ -125,7 +136,7 @@ jobs:
               '',
               '#### server.log tail',
               '```',
-              read('server.log').split('\n').slice(-20).join('\n'),
+              tail('server.log'),
               '```'
             ].join('\n');
 
