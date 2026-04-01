@@ -82,7 +82,7 @@ defmodule DisclosureAutomation.Parser do
   defp parse_rss(raw_payload) do
     with {:ok, document} <- parse_xml(raw_payload) do
       items =
-        :xmerl_xpath.string('/rss/channel/item', document)
+        :xmerl_xpath.string(~c"/rss/channel/item", document)
         |> Enum.map(&parse_item/1)
         |> Enum.filter(&(&1.url && &1.title))
 
@@ -102,15 +102,15 @@ defmodule DisclosureAutomation.Parser do
   end
 
   defp parse_item(item) do
-    link = xpath_string(item, 'string(link)')
+    link = xpath_string(item, ~c"string(link)")
 
     %{
-      external_id: xpath_string(item, 'string(guid)') || link,
-      title: xpath_string(item, 'string(title)'),
+      external_id: xpath_string(item, ~c"string(guid)") || link,
+      title: xpath_string(item, ~c"string(title)"),
       url: link,
-      summary: xpath_string(item, 'string(description)'),
-      published_at: xpath_pub_date(item, 'string(pubDate)'),
-      category: xpath_string(item, 'string(category)')
+      summary: xpath_string(item, ~c"string(description)"),
+      published_at: xpath_pub_date(item, ~c"string(pubDate)"),
+      category: xpath_string(item, ~c"string(category)")
     }
   end
 

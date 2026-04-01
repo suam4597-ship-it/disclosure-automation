@@ -48,7 +48,14 @@ defmodule DisclosureAutomation.Schema.SourceRegistry do
       :last_failure_at,
       :last_error
     ])
-    |> validate_required([:source_key, :display_name, :source_type, :base_url, :parser_key, :poll_cron])
+    |> validate_required([
+      :source_key,
+      :display_name,
+      :source_type,
+      :base_url,
+      :parser_key,
+      :poll_cron
+    ])
     |> unique_constraint(:source_key)
   end
 end
