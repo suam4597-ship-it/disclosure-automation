@@ -2,7 +2,9 @@ defmodule DisclosureAutomation.Canonicalizer do
   @moduledoc false
 
   def canonicalize_document(document, source, attrs \\ %{}) do
-    published_at = document[:published_at] || Map.get(document, "published_at") || DateTime.utc_now()
+    published_at =
+      document[:published_at] || Map.get(document, "published_at") || DateTime.utc_now()
+
     digest_date = Map.get(attrs, :digest_date, DateTime.to_date(published_at))
     edition = Map.get(attrs, :edition, "breaking")
     story_seed = document[:external_id] || document[:url] || document[:title] || "story"
@@ -69,7 +71,8 @@ defmodule DisclosureAutomation.Parser do
 
   alias DisclosureAutomation.ParserCapabilities
 
-  def parse(parser_key, raw_payload, opts \\ []) when is_binary(parser_key) and is_binary(raw_payload) do
+  def parse(parser_key, raw_payload, opts \\ [])
+      when is_binary(parser_key) and is_binary(raw_payload) do
     case ParserCapabilities.get(parser_key, opts) do
       {:ok, _capability} -> parse_by_key(parser_key, raw_payload)
       :error -> {:error, {:unknown_parser_key, parser_key}}
@@ -199,7 +202,8 @@ defmodule DisclosureAutomation.Ingestion do
 
     with {:ok, %SourceRegistry{} = source} <- Sources.get_source_by_key(source_key),
          {:ok, payload} <- load_payload(source, use_live_fetch: use_live_fetch),
-         {:ok, records} <- Parser.parse(source.parser_key, payload.raw_payload, cache: parser_cache()) do
+         {:ok, records} <-
+           Parser.parse(source.parser_key, payload.raw_payload, cache: parser_cache()) do
       result =
         Repo.transaction(fn ->
           {:ok, run} =
