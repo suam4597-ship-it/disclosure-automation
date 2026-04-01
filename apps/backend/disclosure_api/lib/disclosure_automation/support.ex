@@ -4,7 +4,10 @@ defmodule DisclosureAutomation.EnvInterpolation do
   @pattern ~r/\$\{(?<name>[A-Z0-9_]+)(:-(?<default>[^}]*))?\}/
 
   def resolve(value, env \\ System.get_env())
-  def resolve(%{} = map, env), do: map |> Enum.map(fn {k, v} -> {k, resolve(v, env)} end) |> Enum.into(%{})
+
+  def resolve(%{} = map, env),
+    do: map |> Enum.map(fn {k, v} -> {k, resolve(v, env)} end) |> Enum.into(%{})
+
   def resolve(list, env) when is_list(list), do: Enum.map(list, &resolve(&1, env))
 
   def resolve(value, env) when is_binary(value) do
