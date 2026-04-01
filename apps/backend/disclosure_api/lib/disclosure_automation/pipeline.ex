@@ -222,8 +222,16 @@ defmodule DisclosureAutomation.Ingestion do
             |> Enum.with_index(1)
             |> Enum.map(fn {record, rank} ->
               {:ok, raw_document} = upsert_raw_document(run, source, record)
+
               {:ok, canonical_item} =
-                upsert_canonical_item(raw_document, source, record, edition, rank, payload.fetch_info)
+                upsert_canonical_item(
+                  raw_document,
+                  source,
+                  record,
+                  edition,
+                  rank,
+                  payload.fetch_info
+                )
 
               %{raw_document: raw_document, canonical_item: canonical_item}
             end)
@@ -398,7 +406,11 @@ defmodule DisclosureAutomation.Ingestion do
   defp upsert_canonical_item(raw_document, source, record, edition, priority_rank, fetch_info) do
     canonical_attrs =
       record
-      |> Canonicalizer.canonicalize_document(source, edition: edition, fetch_mode: fetch_info["mode"])
+      |> Canonicalizer.canonicalize_document(
+        source,
+        edition: edition,
+        fetch_mode: fetch_info["mode"]
+      )
       |> Map.merge(%{
         raw_document_id: raw_document.id,
         source_registry_id: source.id,
