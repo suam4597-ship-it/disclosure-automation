@@ -38,7 +38,8 @@ defmodule DisclosureAutomation.Repo.Migrations.CreateIngestionPipelineTables do
            )
 
     create constraint(:ingestion_runs, :ingestion_runs_status_check,
-             check: "status in ('queued', 'running', 'succeeded', 'failed', 'partial', 'cancelled')"
+             check:
+               "status in ('queued', 'running', 'succeeded', 'failed', 'partial', 'cancelled')"
            )
 
     create table(:raw_documents, primary_key: false) do
