@@ -1,0 +1,60 @@
+version: 1
+defaults:
+  timezone: UTC
+  poll_cron: "*/15 * * * *"
+  parser_key: rss_v1
+  ranking_weight: 1.0
+  active: true
+
+sources:
+  - source_key: sec_press_releases
+    display_name: SEC Press Releases
+    source_type: rss
+    base_url: https://www.sec.gov/news/pressreleases.rss
+    healthcheck_url: https://www.sec.gov
+    parser_key: rss_v1
+    poll_cron: "*/10 * * * *"
+    ranking_weight: 1.4
+    coverage_tags: [regulatory, enforcement, markets]
+    active: true
+    config:
+      fixture_path: source_payloads/sec_press_releases.xml
+
+  - source_key: fed_press_releases
+    display_name: Federal Reserve Press Releases
+    source_type: rss
+    base_url: https://www.federalreserve.gov/feeds/press_all.xml
+    healthcheck_url: https://www.federalreserve.gov
+    parser_key: rss_v1
+    poll_cron: "*/15 * * * *"
+    ranking_weight: 1.5
+    coverage_tags: [macro, rates, central-bank]
+    active: true
+    config:
+      fixture_path: source_payloads/fed_press_releases.xml
+
+  - source_key: nyse_press_room
+    display_name: NYSE Press Room
+    source_type: rss
+    base_url: https://www.nyse.com/rss/nyse-press-room
+    healthcheck_url: https://www.nyse.com
+    parser_key: rss_v1
+    poll_cron: "*/20 * * * *"
+    ranking_weight: 1.2
+    coverage_tags: [exchange, listings, corporate-actions]
+    active: true
+    config:
+      fixture_path: source_payloads/nyse_press_room.xml
+
+  - source_key: boj_announcements
+    display_name: Bank of Japan Announcements
+    source_type: rss
+    base_url: https://www.boj.or.jp/en/announcements/release/rss/index.xml
+    healthcheck_url: https://www.boj.or.jp
+    parser_key: rss_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.3
+    coverage_tags: [apac, central-bank, currency]
+    active: true
+    config:
+      fixture_path: source_payloads/boj_announcements.xml

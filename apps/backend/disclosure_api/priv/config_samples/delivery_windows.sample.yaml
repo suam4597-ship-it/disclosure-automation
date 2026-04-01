@@ -1,0 +1,19 @@
+version: 1
+defaults:
+  channel: dashboard
+  cutoff_minutes: 30
+  active: true
+
+windows:
+  - window_key: breaking-dashboard
+    edition: breaking
+    channel: dashboard
+    timezone: UTC
+    weekdays: [1, 2, 3, 4, 5, 6, 7]
+    opens_at_local: "00:00"
+    closes_at_local: "23:59"
+    cutoff_minutes: 0
+    active: true
+    config:
+      minimum_relevance_score: 0.85
+      top_n: 12

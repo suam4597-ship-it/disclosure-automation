@@ -1,0 +1,272 @@
+openapi: 3.1.0
+info:
+  title: Disclosure Automation Admin Source Health API
+  version: 0.1.0
+  summary: Source health list, detail, and recheck APIs for the Phase 0 reference runtime.
+  description: |
+    Admin endpoints exposed by the lightweight router:
+    - `GET /api/admin/source-health`
+    - `GET /api/admin/source-health/{source_key}`
+    - `POST /api/admin/source-health/{source_key}/recheck`
+
+    The list response is intentionally simple and mirrors the controller contract:
+    a page envelope with `data` and optional paging metadata.
+servers:
+  - url: http://localhost:4000
+    description: Local Phoenix endpoint
+tags:
+  - name: source-health
+    description: Operational visibility for configured sources
+paths:
+  /api/admin/source-health:
+    get:
+      tags: [source-health]
+      operationId: listSourceHealth
+      summary: List source health records
+      parameters:
+        - in: query
+          name: health_status
+          required: false
+          schema:
+            $ref: '#/components/schemas/HealthStatus'
+        - in: query
+          name: active
+          required: false
+          schema:
+            type: boolean
+        - in: query
+          name: source_type
+          required: false
+          schema:
+            $ref: '#/components/schemas/SourceType'
+        - in: query
+          name: page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - in: query
+          name: page_size
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        '200':
+          description: Source health page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SourceHealthPage'
+              examples:
+                default:
+                  value:
+                    data:
+                      - source_key: sec_press_releases
+                        display_name: SEC Press Releases
+                        source_type: rss
+                        active: true
+                        health_status: healthy
+                        poll_cron: '*/10 * * * *'
+                        ranking_weight: 1.4
+                        last_seen_published_at: '2026-03-30T02:10:00Z'
+                        last_success_at: '2026-03-30T02:12:14Z'
+                        last_failure_at: null
+                        last_error: null
+                        coverage_tags: [regulatory, enforcement, markets]
+                      - source_key: ft_markets_news
+                        display_name: Financial Times Markets News
+                        source_type: html
+                        active: true
+                        health_status: degraded
+                        poll_cron: '*/30 * * * *'
+                        ranking_weight: 1.1
+                        last_seen_published_at: '2026-03-30T01:55:00Z'
+                        last_success_at: '2026-03-30T01:58:21Z'
+                        last_failure_at: '2026-03-30T00:58:21Z'
+                        last_error: selector .o-teaser__heading returned no results
+                        coverage_tags: [equities, rates, commodities]
+                    page: 1
+                    page_size: 50
+                    total_entries: 2
+        '400':
+          description: Invalid filter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /api/admin/source-health/{source_key}:
+    get:
+      tags: [source-health]
+      operationId: getSourceHealth
+      summary: Fetch health for a single source
+      parameters:
+        - in: path
+          name: source_key
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Single source health record
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/SourceHealthRecord'
+        '404':
+          description: Source not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /api/admin/source-health/{source_key}/recheck:
+    post:
+      tags: [source-health]
+      operationId: recheckSourceHealth
+      summary: Enqueue a health recheck job
+      parameters:
+        - in: path
+          name: source_key
+          required: true
+          schema:
+            type: string
+      responses:
+        '202':
+          description: Recheck accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AcceptedJob'
+              examples:
+                accepted:
+                  value:
+                    status: accepted
+                    job:
+                      queue: health_checks
+                      worker: Elixir.DisclosureAutomation.Workers.RecomputeSourceHealthWorker
+                      args:
+                        source_key: sec_press_releases
+        '404':
+          description: Source not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '400':
+          description: Enqueue failed or invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+components:
+  schemas:
+    SourceType:
+      type: string
+      enum: [rss, atom, json_feed, html, api, email]
+    HealthStatus:
+      type: string
+      enum: [healthy, degraded, failed, paused, unknown]
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+    SourceHealthPage:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/SourceHealthRecord'
+        page:
+          type: integer
+        page_size:
+          type: integer
+        total_entries:
+          type: integer
+    SourceHealthRecord:
+      type: object
+      required:
+        - source_key
+        - display_name
+        - source_type
+        - active
+        - health_status
+        - poll_cron
+        - ranking_weight
+        - coverage_tags
+      properties:
+        source_key:
+          type: string
+        display_name:
+          type: string
+        source_type:
+          $ref: '#/components/schemas/SourceType'
+        active:
+          type: boolean
+        health_status:
+          $ref: '#/components/schemas/HealthStatus'
+        poll_cron:
+          type: string
+        ranking_weight:
+          type: number
+        last_seen_published_at:
+          type: string
+          format: date-time
+          nullable: true
+        last_success_at:
+          type: string
+          format: date-time
+          nullable: true
+        last_failure_at:
+          type: string
+          format: date-time
+          nullable: true
+        last_error:
+          type: string
+          nullable: true
+        coverage_tags:
+          type: array
+          items:
+            type: string
+        healthcheck_url:
+          type: string
+          format: uri
+        parser_key:
+          type: string
+        config:
+          type: object
+          additionalProperties: true
+    AcceptedJob:
+      type: object
+      required: [status, job]
+      properties:
+        status:
+          type: string
+          enum: [accepted]
+        job:
+          type: object
+          required: [queue, worker, args]
+          properties:
+            queue:
+              type: string
+            worker:
+              type: string
+            args:
+              type: object
+              additionalProperties: true

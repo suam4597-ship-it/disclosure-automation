@@ -1,0 +1,44 @@
+{
+  "name": "disclosure-automation-codespace",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
+  "hostRequirements": {
+    "cpus": 4,
+    "memory": "8gb",
+    "storage": "32gb"
+  },
+  "forwardPorts": [
+    4000,
+    5432,
+    3000
+  ],
+  "portsAttributes": {
+    "4000": {
+      "label": "Phoenix API",
+      "onAutoForward": "notify"
+    },
+    "3000": {
+      "label": "Static Web Preview",
+      "onAutoForward": "notify"
+    },
+    "5432": {
+      "label": "PostgreSQL",
+      "onAutoForward": "silent"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "elixir-lsp.vscode-elixir-ls",
+        "bradlc.vscode-tailwindcss",
+        "redhat.vscode-yaml",
+        "ms-azuretools.vscode-docker"
+      ],
+      "settings": {
+        "files.trimTrailingWhitespace": true,
+        "editor.formatOnSave": true,
+        "terminal.integrated.defaultProfile.linux": "bash"
+      }
+    }
+  },
+  "postCreateCommand": "bash .devcontainer/post-create.sh"
+}

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Federal Reserve Press Releases</title>
+    <link>https://www.federalreserve.gov/feeds/press_all.xml</link>
+    <description>Federal Reserve policy and liquidity updates</description>
+    <item>
+      <guid>fed-2026-03-30-liquidity</guid>
+      <title>Federal Reserve outlines liquidity monitoring measures after market volatility</title>
+      <link>https://www.federalreserve.gov/newsevents/pressreleases/monetary20260330a.htm</link>
+      <description>Officials said liquidity conditions across rates and credit markets remained a focus.</description>
+      <pubDate>Mon, 30 Mar 2026 05:20:00 GMT</pubDate>
+      <category>macro</category>
+    </item>
+    <item>
+      <guid>fed-2026-03-30-balance-sheet</guid>
+      <title>Fed operational note discusses balance-sheet implementation cadence</title>
+      <link>https://www.federalreserve.gov/newsevents/pressreleases/monetary20260330b.htm</link>
+      <description>Desk guidance emphasized orderly implementation and market-function support.</description>
+      <pubDate>Mon, 30 Mar 2026 08:10:00 GMT</pubDate>
+      <category>rates</category>
+    </item>
+  </channel>
+</rss>

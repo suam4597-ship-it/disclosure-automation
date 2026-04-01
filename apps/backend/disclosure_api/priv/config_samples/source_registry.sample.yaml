@@ -1,0 +1,28 @@
+version: 1
+defaults:
+  timezone: UTC
+  poll_cron: "*/15 * * * *"
+  parser_key: rss_v1
+  ranking_weight: 1.0
+  active: true
+
+sources:
+  - source_key: sec_press_releases
+    display_name: SEC Press Releases
+    source_type: rss
+    base_url: https://www.sec.gov/news/pressreleases.rss
+    healthcheck_url: https://www.sec.gov
+    parser_key: rss_v1
+    poll_cron: "*/10 * * * *"
+    ranking_weight: 1.4
+    coverage_tags:
+      - regulatory
+      - enforcement
+      - markets
+    active: true
+    config:
+      canonical_domain: sec.gov
+      dedupe_strategy: canonical_url
+      summary_mode: first_paragraph
+      category_bias: high_signal
+      fixture_path: source_payloads/sec_press_releases.xml
