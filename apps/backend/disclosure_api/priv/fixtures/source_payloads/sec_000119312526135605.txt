@@ -1,0 +1,9 @@
+<SEC-DOCUMENT>
+<ACCEPTANCE-DATETIME>20260401101502
+<COMPANY CONFORMED NAME>Wallbox N.V.
+<CENTRAL INDEX KEY>1866501
+<FILING DATE>20260401
+<TEXT>
+Wallbox announces a comprehensive recapitalization and restructuring plan with key creditors, shareholders, and a new investor.
+</TEXT>
+</SEC-DOCUMENT>
