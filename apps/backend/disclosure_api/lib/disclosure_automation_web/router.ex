@@ -10,6 +10,10 @@ defmodule DisclosureAutomationWeb.Router do
 
     get "/health", HealthController, :show
 
+    get "/feed/hero", FeedController, :hero
+    get "/feed/region/:region_code", FeedController, :region
+    get "/events/:event_id", EventController, :show
+
     get "/feed/digest/latest", FeedDigestController, :latest
     get "/feed/digest/:digest_date/:edition", FeedDigestController, :show
 
