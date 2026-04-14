@@ -18,6 +18,26 @@ defmodule DisclosureAutomationWeb.FeedDigestJSON do
   end
 end
 
+defmodule DisclosureAutomationWeb.FeedJSON do
+  @moduledoc false
+
+  def show(%{feed: feed}), do: feed
+
+  def error(%{code: code, message: message}) do
+    %{error: %{code: code, message: message}}
+  end
+end
+
+defmodule DisclosureAutomationWeb.EventJSON do
+  @moduledoc false
+
+  def show(%{event: event}), do: %{data: event}
+
+  def error(%{code: code, message: message}) do
+    %{error: %{code: code, message: message}}
+  end
+end
+
 defmodule DisclosureAutomationWeb.SourceHealthJSON do
   @moduledoc false
 
@@ -30,7 +50,9 @@ defmodule DisclosureAutomationWeb.SourceHealthJSON do
     }
   end
 
-  def show(%{source: source}), do: %{data: source(source)}
+  def show(%{source: source, cursors: cursors}),
+    do: %{data: Map.put(source(source), :cursors, cursors)}
+
   def accepted_job(%{job: job}), do: job
   def poll_result(%{result: result}), do: result
 
@@ -43,6 +65,13 @@ defmodule DisclosureAutomationWeb.SourceHealthJSON do
       source_key: source.source_key,
       display_name: source.display_name,
       source_type: source.source_type,
+      adapter_key: source.adapter_key,
+      region_code: source.region_code,
+      discovery_mode: source.discovery_mode,
+      hydrate_mode: source.hydrate_mode,
+      default_home_market_region_code: source.default_home_market_region_code,
+      source_class: source.source_class,
+      default_source_tier: source.default_source_tier,
       base_url: source.base_url,
       healthcheck_url: source.healthcheck_url,
       parser_key: source.parser_key,
@@ -70,6 +99,7 @@ defmodule DisclosureAutomationWeb.HealthController do
   use DisclosureAutomationWeb, :controller
 
   alias DisclosureAutomation.Repo
+  alias DisclosureAutomation.Runtime.QueueGraph
 
   def show(conn, _params) do
     repo_status =
@@ -82,7 +112,8 @@ defmodule DisclosureAutomationWeb.HealthController do
       status: "ok",
       service: "disclosure_automation",
       phase: "phase1",
-      repo: repo_status
+      repo: repo_status,
+      queue_graph: QueueGraph.definition()
     })
   end
 end
@@ -121,6 +152,54 @@ defmodule DisclosureAutomationWeb.FeedDigestController do
   end
 end
 
+defmodule DisclosureAutomationWeb.FeedController do
+  use DisclosureAutomationWeb, :controller
+
+  alias DisclosureAutomation.Feed
+  alias DisclosureAutomationWeb.FeedJSON
+
+  def hero(conn, _params) do
+    case Feed.get_hero() do
+      {:ok, feed} -> json(conn, FeedJSON.show(%{feed: feed}))
+      {:error, reason} -> render_error(conn, :bad_request, "feed_unavailable", inspect(reason))
+    end
+  end
+
+  def region(conn, %{"region_code" => region_code}) do
+    case Feed.get_region(region_code) do
+      {:ok, feed} -> json(conn, FeedJSON.show(%{feed: feed}))
+      {:error, reason} -> render_error(conn, :bad_request, "feed_unavailable", inspect(reason))
+    end
+  end
+
+  defp render_error(conn, status, code, message) do
+    conn
+    |> put_status(status)
+    |> json(FeedJSON.error(%{code: code, message: message}))
+  end
+end
+
+defmodule DisclosureAutomationWeb.EventController do
+  use DisclosureAutomationWeb, :controller
+
+  alias DisclosureAutomation.Feed
+  alias DisclosureAutomationWeb.EventJSON
+
+  def show(conn, %{"event_id" => event_id}) do
+    case Feed.get_event(event_id) do
+      {:ok, event} -> json(conn, EventJSON.show(%{event: event}))
+      {:error, :not_found} -> render_error(conn, :not_found, "not_found", "event not found")
+      {:error, reason} -> render_error(conn, :bad_request, "invalid_request", inspect(reason))
+    end
+  end
+
+  defp render_error(conn, status, code, message) do
+    conn
+    |> put_status(status)
+    |> json(EventJSON.error(%{code: code, message: message}))
+  end
+end
+
 defmodule DisclosureAutomationWeb.AdminSourceHealthController do
   use DisclosureAutomationWeb, :controller
 
@@ -134,9 +213,14 @@ defmodule DisclosureAutomationWeb.AdminSourceHealthController do
 
   def show(conn, %{"source_key" => source_key}) do
     case Sources.get_source_health(source_key) do
-      {:ok, %{data: source}} -> json(conn, SourceHealthJSON.show(%{source: source}))
-      {:error, :not_found} -> render_error(conn, :not_found, "not_found", "source not found")
-      {:error, reason} -> render_error(conn, :bad_request, "invalid_request", inspect(reason))
+      {:ok, %{data: source, cursors: cursors}} ->
+        json(conn, SourceHealthJSON.show(%{source: source, cursors: cursors}))
+
+      {:error, :not_found} ->
+        render_error(conn, :not_found, "not_found", "source not found")
+
+      {:error, reason} ->
+        render_error(conn, :bad_request, "invalid_request", inspect(reason))
     end
   end
 
@@ -171,11 +255,14 @@ defmodule DisclosureAutomationWeb.AdminSourcePollController do
   def create(conn, %{"source_key" => source_key} = params) do
     edition = Map.get(params, "edition", "breaking")
     use_live_fetch = parse_bool(Map.get(params, "use_live_fetch", "true"))
+    # inline_feed is smoke/admin/debug only; operational default is async feed rebuild
+    inline_feed = parse_bool(Map.get(params, "inline_feed", "false"))
 
     case Ingestion.poll_source(source_key,
            trigger_kind: "manual",
            edition: edition,
-           use_live_fetch: use_live_fetch
+           use_live_fetch: use_live_fetch,
+           inline_feed: inline_feed
          ) do
       {:ok, result} ->
         conn
