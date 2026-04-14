@@ -11,6 +11,13 @@ defmodule DisclosureAutomation.Schema.SourceRegistry do
     field :source_key, :string
     field :display_name, :string
     field :source_type, :string
+    field :adapter_key, :string
+    field :region_code, :string
+    field :discovery_mode, :string
+    field :hydrate_mode, :string
+    field :default_home_market_region_code, :string
+    field :source_class, :string
+    field :default_source_tier, :string
     field :base_url, :string
     field :healthcheck_url, :string
     field :parser_key, :string
@@ -34,6 +41,13 @@ defmodule DisclosureAutomation.Schema.SourceRegistry do
       :source_key,
       :display_name,
       :source_type,
+      :adapter_key,
+      :region_code,
+      :discovery_mode,
+      :hydrate_mode,
+      :default_home_market_region_code,
+      :source_class,
+      :default_source_tier,
       :base_url,
       :healthcheck_url,
       :parser_key,
@@ -171,6 +185,41 @@ defmodule DisclosureAutomation.Schema.IngestionRun do
   end
 end
 
+defmodule DisclosureAutomation.Schema.SourceCursor do
+  @moduledoc false
+
+  use Ecto.Schema
+  import Ecto.Changeset
+
+  alias DisclosureAutomation.Schema.SourceRegistry
+
+  @primary_key {:id, :binary_id, autogenerate: true}
+  @foreign_key_type :binary_id
+
+  schema "source_cursors" do
+    belongs_to :source, SourceRegistry, foreign_key: :source_registry_id
+    field :cursor_key, :string
+    field :cursor_value, :string
+    field :cursor_meta, :map, default: %{}
+    field :last_polled_at, :utc_datetime_usec
+
+    timestamps(type: :utc_datetime_usec)
+  end
+
+  def changeset(cursor, attrs) do
+    cursor
+    |> cast(attrs, [
+      :source_registry_id,
+      :cursor_key,
+      :cursor_value,
+      :cursor_meta,
+      :last_polled_at
+    ])
+    |> validate_required([:source_registry_id, :cursor_key])
+    |> unique_constraint(:cursor_key, name: :source_cursors_source_key_uidx)
+  end
+end
+
 defmodule DisclosureAutomation.Schema.RawDocument do
   @moduledoc false
 
@@ -187,6 +236,10 @@ defmodule DisclosureAutomation.Schema.RawDocument do
     belongs_to :ingestion_run, IngestionRun
     belongs_to :source, SourceRegistry, foreign_key: :source_registry_id
     field :external_id, :string
+    field :document_identity, :string
+    field :document_type, :string
+    field :document_role, :string
+    field :mime_type, :string
     field :content_hash, :string
     field :fetched_at, :utc_datetime_usec
     field :published_at, :utc_datetime_usec
@@ -196,6 +249,7 @@ defmodule DisclosureAutomation.Schema.RawDocument do
     field :language, :string
     field :raw_text, :string
     field :payload, :map, default: %{}
+    field :source_metadata, :map, default: %{}
     field :status, :string, default: "captured"
 
     timestamps(type: :utc_datetime_usec)
@@ -207,6 +261,10 @@ defmodule DisclosureAutomation.Schema.RawDocument do
       :ingestion_run_id,
       :source_registry_id,
       :external_id,
+      :document_identity,
+      :document_type,
+      :document_role,
+      :mime_type,
       :content_hash,
       :fetched_at,
       :published_at,
@@ -216,6 +274,7 @@ defmodule DisclosureAutomation.Schema.RawDocument do
       :language,
       :raw_text,
       :payload,
+      :source_metadata,
       :status
     ])
     |> validate_required([
@@ -227,7 +286,56 @@ defmodule DisclosureAutomation.Schema.RawDocument do
       :payload
     ])
     |> unique_constraint(:external_id, name: :raw_documents_source_external_id_uidx)
+    |> unique_constraint(:external_id, name: :raw_documents_source_external_id_partial_uidx)
     |> unique_constraint(:content_hash, name: :raw_documents_source_content_hash_uidx)
+  end
+end
+
+defmodule DisclosureAutomation.Schema.RawEvent do
+  @moduledoc false
+
+  use Ecto.Schema
+  import Ecto.Changeset
+
+  alias DisclosureAutomation.Schema.RawDocument
+  alias DisclosureAutomation.Schema.SourceRegistry
+
+  @primary_key {:id, :binary_id, autogenerate: true}
+  @foreign_key_type :binary_id
+
+  schema "raw_events" do
+    belongs_to :source, SourceRegistry, foreign_key: :source_registry_id
+    belongs_to :raw_document, RawDocument
+    field :event_key, :string
+    field :external_event_key, :string
+    field :parser_key, :string
+    field :event_family, :string
+    field :occurred_at, :utc_datetime_usec
+    field :parsed_at, :utc_datetime_usec
+    field :status, :string, default: "parsed"
+    field :payload, :map, default: %{}
+    field :metadata, :map, default: %{}
+
+    timestamps(type: :utc_datetime_usec)
+  end
+
+  def changeset(event, attrs) do
+    event
+    |> cast(attrs, [
+      :source_registry_id,
+      :raw_document_id,
+      :event_key,
+      :external_event_key,
+      :parser_key,
+      :event_family,
+      :occurred_at,
+      :parsed_at,
+      :status,
+      :payload,
+      :metadata
+    ])
+    |> validate_required([:source_registry_id, :event_key, :parser_key, :payload])
+    |> unique_constraint(:event_key, name: :raw_events_source_event_key_uidx)
   end
 end
 
@@ -246,6 +354,11 @@ defmodule DisclosureAutomation.Schema.CanonicalFeedItem do
   schema "canonical_feed_items" do
     belongs_to :raw_document, RawDocument
     belongs_to :source, SourceRegistry, foreign_key: :source_registry_id
+    field :event_id, :string
+    field :region_code, :string
+    field :home_market_region_code, :string
+    field :canonical_event_type, :string
+    field :event_family, :string
     field :digest_date, :date
     field :edition, :string
     field :story_key, :string
@@ -262,6 +375,7 @@ defmodule DisclosureAutomation.Schema.CanonicalFeedItem do
     field :duplicate_group_key, :string
     field :status, :string, default: "draft"
     field :metadata, :map, default: %{}
+    field :contract_v1, :map, default: %{}
 
     timestamps(type: :utc_datetime_usec)
   end
@@ -271,6 +385,11 @@ defmodule DisclosureAutomation.Schema.CanonicalFeedItem do
     |> cast(attrs, [
       :raw_document_id,
       :source_registry_id,
+      :event_id,
+      :region_code,
+      :home_market_region_code,
+      :canonical_event_type,
+      :event_family,
       :digest_date,
       :edition,
       :story_key,
@@ -286,7 +405,8 @@ defmodule DisclosureAutomation.Schema.CanonicalFeedItem do
       :priority_rank,
       :duplicate_group_key,
       :status,
-      :metadata
+      :metadata,
+      :contract_v1
     ])
     |> validate_required([
       :source_registry_id,
@@ -296,8 +416,112 @@ defmodule DisclosureAutomation.Schema.CanonicalFeedItem do
       :headline,
       :summary,
       :canonical_url,
-      :published_at
+      :published_at,
+      :contract_v1
     ])
     |> unique_constraint(:story_key)
+    |> unique_constraint(:event_id)
+  end
+end
+
+defmodule DisclosureAutomation.Schema.CanonicalItemSource do
+  @moduledoc false
+
+  use Ecto.Schema
+  import Ecto.Changeset
+
+  alias DisclosureAutomation.Schema.CanonicalFeedItem
+  alias DisclosureAutomation.Schema.RawDocument
+  alias DisclosureAutomation.Schema.RawEvent
+  alias DisclosureAutomation.Schema.SourceRegistry
+
+  @primary_key {:id, :binary_id, autogenerate: true}
+  @foreign_key_type :binary_id
+
+  schema "canonical_item_sources" do
+    belongs_to :canonical_item, CanonicalFeedItem, foreign_key: :canonical_feed_item_id
+    belongs_to :raw_event, RawEvent
+    belongs_to :raw_document, RawDocument
+    belongs_to :source, SourceRegistry, foreign_key: :source_registry_id
+    field :source_name, :string
+    field :source_tier, :string
+    field :source_role, :string
+    field :authority_rank, :integer
+    field :is_representative, :boolean, default: false
+    field :linked_at, :utc_datetime_usec
+    field :promoted_at, :utc_datetime_usec
+    field :metadata, :map, default: %{}
+
+    timestamps(type: :utc_datetime_usec)
+  end
+
+  def changeset(item_source, attrs) do
+    item_source
+    |> cast(attrs, [
+      :canonical_feed_item_id,
+      :raw_event_id,
+      :raw_document_id,
+      :source_registry_id,
+      :source_name,
+      :source_tier,
+      :source_role,
+      :authority_rank,
+      :is_representative,
+      :linked_at,
+      :promoted_at,
+      :metadata
+    ])
+    |> validate_required([
+      :canonical_feed_item_id,
+      :source_registry_id,
+      :source_role
+    ])
+    |> unique_constraint(:canonical_feed_item_id,
+      name: :canonical_item_sources_item_event_role_uidx
+    )
+    |> unique_constraint(:canonical_feed_item_id,
+      name: :canonical_item_sources_single_representative_uidx
+    )
+  end
+end
+
+defmodule DisclosureAutomation.Schema.FeedSnapshot do
+  @moduledoc false
+
+  use Ecto.Schema
+  import Ecto.Changeset
+
+  alias DisclosureAutomation.Schema.IngestionRun
+
+  @primary_key {:id, :binary_id, autogenerate: true}
+  @foreign_key_type :binary_id
+
+  schema "feed_snapshots" do
+    belongs_to :ingestion_run, IngestionRun
+    field :snapshot_key, :string
+    field :slot_id, :string
+    field :region_code, :string
+    field :generated_at, :utc_datetime_usec
+    field :item_event_ids, {:array, :string}, default: []
+    field :payload, :map, default: %{}
+    field :metadata, :map, default: %{}
+
+    timestamps(type: :utc_datetime_usec)
+  end
+
+  def changeset(snapshot, attrs) do
+    snapshot
+    |> cast(attrs, [
+      :ingestion_run_id,
+      :snapshot_key,
+      :slot_id,
+      :region_code,
+      :generated_at,
+      :item_event_ids,
+      :payload,
+      :metadata
+    ])
+    |> validate_required([:snapshot_key, :slot_id, :region_code, :generated_at, :payload])
+    |> unique_constraint(:snapshot_key)
   end
 end
