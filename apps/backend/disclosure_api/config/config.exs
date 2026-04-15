@@ -4,7 +4,7 @@ config :disclosure_automation,
   ecto_repos: [DisclosureAutomation.Repo],
   generators: [binary_id: true],
   source_registry_path:
-    Path.expand("../priv/config_samples/source_registry.sample.yaml", __DIR__),
+    Path.expand("../priv/config_samples/source_registry.sec_current_forms.sample.yaml", __DIR__),
   delivery_windows_path:
     Path.expand("../priv/config_samples/delivery_windows.sample.yaml", __DIR__),
   parser_capabilities_path:
