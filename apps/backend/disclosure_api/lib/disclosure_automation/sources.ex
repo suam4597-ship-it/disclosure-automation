@@ -6,6 +6,7 @@ defmodule DisclosureAutomation.Sources do
   alias DisclosureAutomation.Jobs
   alias DisclosureAutomation.Repo
   alias DisclosureAutomation.Schema.DeliveryWindow
+  alias DisclosureAutomation.Schema.SourceCursor
   alias DisclosureAutomation.Schema.SourceRegistry
   alias DisclosureAutomation.Workers.RecomputeSourceHealthWorker
 
@@ -35,6 +36,25 @@ defmodule DisclosureAutomation.Sources do
     |> Repo.insert_or_update()
   end
 
+  def upsert_source_cursor(%SourceRegistry{} = source, cursor_key, cursor_value, cursor_meta \\ %{})
+      when is_binary(cursor_key) do
+    cursor =
+      Repo.get_by(SourceCursor,
+        source_registry_id: source.id,
+        cursor_key: cursor_key
+      ) || %SourceCursor{}
+
+    cursor
+    |> SourceCursor.changeset(%{
+      source_registry_id: source.id,
+      cursor_key: cursor_key,
+      cursor_value: cursor_value,
+      cursor_meta: cursor_meta || %{},
+      last_polled_at: DateTime.utc_now()
+    })
+    |> Repo.insert_or_update()
+  end
+
   def list_source_health(params \\ %{}) do
     params = stringify_keys(params)
     page = parse_positive_int(params["page"], 1)
@@ -60,8 +80,18 @@ defmodule DisclosureAutomation.Sources do
 
   def get_source_health(source_key) when is_binary(source_key) do
     case Repo.get_by(SourceRegistry, source_key: source_key) do
-      nil -> {:error, :not_found}
-      source -> {:ok, %{data: source}}
+      nil ->
+        {:error, :not_found}
+
+      source ->
+        cursors =
+          from(cursor in SourceCursor,
+            where: cursor.source_registry_id == ^source.id,
+            order_by: [asc: cursor.cursor_key]
+          )
+          |> Repo.all()
+
+        {:ok, %{data: source, cursors: cursors}}
     end
   end
 
@@ -129,6 +159,13 @@ defmodule DisclosureAutomation.Sources do
       source_key: get_value(attrs, "source_key"),
       display_name: get_value(attrs, "display_name"),
       source_type: get_value(attrs, "source_type"),
+      adapter_key: get_value(attrs, "adapter_key"),
+      region_code: get_value(attrs, "region_code"),
+      discovery_mode: get_value(attrs, "discovery_mode"),
+      hydrate_mode: get_value(attrs, "hydrate_mode"),
+      default_home_market_region_code: get_value(attrs, "default_home_market_region_code"),
+      source_class: get_value(attrs, "source_class"),
+      default_source_tier: get_value(attrs, "default_source_tier"),
       base_url: get_value(attrs, "base_url"),
       healthcheck_url: get_value(attrs, "healthcheck_url"),
       parser_key: get_value(attrs, "parser_key"),
