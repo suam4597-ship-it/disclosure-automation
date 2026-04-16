@@ -81,7 +81,7 @@ defmodule DisclosureAutomation.Feed do
       )
       |> Repo.all()
 
-    {:ok, snapshot_payload("hero.global_priority", "global", items)}
+    {:ok, snapshot_payload("hero.global_priority", "global", items, DateTime.utc_now())}
   end
 
   defp build_ephemeral_slot(slot_id, region_code, _opts) do
@@ -93,7 +93,7 @@ defmodule DisclosureAutomation.Feed do
       )
       |> Repo.all()
 
-    {:ok, snapshot_payload(slot_id, region_code, items)}
+    {:ok, snapshot_payload(slot_id, region_code, items, DateTime.utc_now())}
   end
 
   defp build_region_snapshot(region_code, ingestion_run_id) do
@@ -123,16 +123,21 @@ defmodule DisclosureAutomation.Feed do
   end
 
   defp upsert_snapshot(slot_id, region_code, items, ingestion_run_id) do
-    generated_at = DateTime.utc_now() |> DateTime.truncate(:second)
+    generated_at = DateTime.utc_now()
+
+    snapshot_key =
+      [slot_id, DateTime.to_unix(generated_at, :microsecond), ingestion_run_id || Ecto.UUID.generate()]
+      |> Enum.map(&to_string/1)
+      |> Enum.join(":")
 
     attrs = %{
       ingestion_run_id: ingestion_run_id,
-      snapshot_key: "#{slot_id}:#{generated_at}",
+      snapshot_key: snapshot_key,
       slot_id: slot_id,
       region_code: region_code,
       generated_at: generated_at,
       item_event_ids: Enum.map(items, &(&1.event_id || &1.story_key)),
-      payload: snapshot_payload(slot_id, region_code, items),
+      payload: snapshot_payload(slot_id, region_code, items, generated_at),
       metadata: %{"item_count" => length(items)}
     }
 
@@ -141,12 +146,11 @@ defmodule DisclosureAutomation.Feed do
     |> Repo.insert()
   end
 
-  defp snapshot_payload(slot_id, region_code, items) do
+  defp snapshot_payload(slot_id, region_code, items, generated_at) do
     %{
       "slot_id" => slot_id,
       "region_code" => region_code,
-      "generated_at_utc" =>
-        DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.to_iso8601(),
+      "generated_at_utc" => DateTime.to_iso8601(generated_at),
       "item_event_ids" => Enum.map(items, &(&1.event_id || &1.story_key)),
       "items" => Enum.map(items, &present_item/1)
     }
