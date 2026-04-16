@@ -1,0 +1,9 @@
+<SEC-DOCUMENT>
+<ACCEPTANCE-DATETIME>20260225152028
+<COMPANY CONFORMED NAME>AmBase Corp
+<CENTRAL INDEX KEY>20639
+<FILING DATE>20260225
+<TEXT>
+AmBase Corp entered into a material definitive agreement and filed a current report on Form 8-K.
+</TEXT>
+</SEC-DOCUMENT>
