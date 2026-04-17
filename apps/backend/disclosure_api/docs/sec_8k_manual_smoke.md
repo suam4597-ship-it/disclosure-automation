@@ -5,6 +5,16 @@ Use this checklist after the 8-K isolated runtime patch is in place.
 ## Base endpoint
 - http://127.0.0.1:4000
 
+## Prerequisite
+Before the HTTP smoke sequence, upsert the isolated 8-K sample onto `sec_current_forms` in the dev database.
+
+### PowerShell
+1. `$env:MIX_ENV="dev"; mix run priv/ops/bootstrap_sec_8k_source.exs`
+2. `$env:PHX_SERVER="true"; mix run --no-halt`
+
+The bootstrap script updates the dev DB row only. It does not replace the default 6-K sample file.
+After the manual smoke is done, restore the default bootstrap sample with `$env:MIX_ENV="dev"; mix run -e "DisclosureAutomation.Bootstrap.bootstrap()"`.
+
 ## Smoke sequence
 1. GET /api/health
 2. POST /api/admin/sources/sec_current_forms/poll?edition=breaking&use_live_fetch=false&inline_feed=true
