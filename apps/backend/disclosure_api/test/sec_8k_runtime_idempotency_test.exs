@@ -7,6 +7,7 @@ defmodule DisclosureAutomation.SEC8KRuntimeIdempotencyTest do
   alias DisclosureAutomation.Digest
   alias DisclosureAutomation.Feed
   alias DisclosureAutomation.Ingestion
+  alias DisclosureAutomation.Ops.SEC8KSource
   alias DisclosureAutomation.Repo
   alias DisclosureAutomation.Schema.CanonicalFeedItem
   alias DisclosureAutomation.Schema.CanonicalItemSource
@@ -14,7 +15,6 @@ defmodule DisclosureAutomation.SEC8KRuntimeIdempotencyTest do
   alias DisclosureAutomation.Schema.RawEvent
   alias DisclosureAutomation.Schema.SourceRegistry
   alias DisclosureAutomation.Sources
-  alias DisclosureAutomation.TestSupport.SEC8KSource
 
   setup do
     :ok = Bootstrap.bootstrap()
