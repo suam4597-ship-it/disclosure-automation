@@ -2,8 +2,8 @@ defmodule DisclosureAutomationWeb.SEC8KHttpSmokeTest do
   use DisclosureAutomationWeb.ConnCase, async: false
 
   alias DisclosureAutomation.Bootstrap
+  alias DisclosureAutomation.Ops.SEC8KSource
   alias DisclosureAutomation.Sources
-  alias DisclosureAutomation.TestSupport.SEC8KSource
 
   setup do
     :ok = Bootstrap.bootstrap()
