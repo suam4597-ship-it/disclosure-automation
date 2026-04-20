@@ -13,4 +13,11 @@ config :disclosure_automation, DisclosureAutomationWeb.Endpoint,
   secret_key_base: "test-key",
   server: false
 
+config :disclosure_automation, Oban,
+  repo: DisclosureAutomation.Repo,
+  testing: :manual,
+  plugins: false,
+  queues: false,
+  peer: false
+
 config :logger, level: :warning
