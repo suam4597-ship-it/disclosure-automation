@@ -1,0 +1,24 @@
+alias DisclosureAutomation.Ops.SEC8KSource
+
+Application.put_env(
+  :disclosure_automation,
+  :source_registry_path,
+  SEC8KSource.sample_path()
+)
+
+endpoint_config =
+  Application.get_env(:disclosure_automation, DisclosureAutomationWeb.Endpoint, [])
+  |> Keyword.put(:server, true)
+
+Application.put_env(
+  :disclosure_automation,
+  DisclosureAutomationWeb.Endpoint,
+  endpoint_config
+)
+
+{:ok, _started} = Application.ensure_all_started(:disclosure_automation)
+
+IO.puts("SEC 8-K isolated dev server started on http://127.0.0.1:4000")
+IO.puts("source_registry_path override: #{SEC8KSource.sample_path()}")
+
+Process.sleep(:infinity)
