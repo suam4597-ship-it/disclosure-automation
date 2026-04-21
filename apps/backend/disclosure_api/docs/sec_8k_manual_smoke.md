@@ -9,7 +9,10 @@ Use this checklist after the 8-K isolated runtime patch is in place.
 Run the dedicated 8-K dev server runner so startup bootstrap also uses the isolated 8-K sample.
 
 ### PowerShell
-1. `$env:MIX_ENV="dev"; mix run priv/ops/run_sec_8k_server.exs`
+1. `$env:POSTGRES_USER="postgres"`
+2. `$env:POSTGRES_PASSWORD="<your-password>"`
+3. `$env:MIX_ENV="dev"; mix ecto.reset`
+4. `mix run --no-start priv/ops/run_sec_8k_server.exs`
 
 Keep that PowerShell window open while running the HTTP smoke sequence from a second window.
 
