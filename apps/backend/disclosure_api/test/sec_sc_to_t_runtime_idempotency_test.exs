@@ -96,11 +96,7 @@ defmodule DisclosureAutomation.SECSCToTRuntimeIdempotencyTest do
            ) == 1
 
     assert Repo.aggregate(
-             from(e in RawEvent,
-               where:
-                 e.source_registry_id == ^source.id and
-                   e.event_key == ^"sec:sc-to-t:0000950123-26-001234"
-             ),
+             from(e in RawEvent, where: e.source_registry_id == ^source.id),
              :count
            ) == 1
 
