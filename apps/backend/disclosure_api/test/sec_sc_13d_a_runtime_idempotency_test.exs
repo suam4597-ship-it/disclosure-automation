@@ -38,20 +38,20 @@ defmodule DisclosureAutomation.SECSC13DARuntimeIdempotencyTest do
     assert digest1["item_count"] == 1
 
     [item1] = digest1["items"]
-    assert is_binary(item1["event_id"]) and item1["event_id"] != ""
-    assert item1["published_at_local"] == "2026-03-10T09:42:18-05:00"
-    assert String.starts_with?(item1["published_at_utc"], "2026-03-10T14:42:18")
+    assert item1["event_id"] == "us.sec.1512345.20260310.major_shareholding_or_insider_trade.control_change_watch.000789"
+    assert item1["published_at_local"] == "2026-03-10T09:42:18-04:00"
+    assert String.starts_with?(item1["published_at_utc"], "2026-03-10T13:42:18")
     assert item1["filing_date_local"] == "2026-03-10"
     assert get_in(item1, ["source_meta", "accepted_time_fallback"]) == false
-    assert is_binary(item1["event_family"]) and item1["event_family"] != ""
-    assert is_binary(item1["canonical_event_type"]) and item1["canonical_event_type"] != ""
+    assert item1["event_family"] == "control_change_watch"
+    assert item1["canonical_event_type"] == "major_shareholding_or_insider_trade"
     refute String.contains?(item1["fact_summary_ko"], "</TEXT>")
     refute String.contains?(item1["fact_summary_ko"], "</SEC-DOCUMENT>")
 
     assert {:ok, event_payload} = Feed.get_event(item1["event_id"])
     assert event_payload["event_id"] == item1["event_id"]
-    assert is_binary(event_payload["event_family"]) and event_payload["event_family"] != ""
-    assert is_binary(event_payload["canonical_event_type"]) and event_payload["canonical_event_type"] != ""
+    assert event_payload["event_family"] == "control_change_watch"
+    assert event_payload["canonical_event_type"] == "major_shareholding_or_insider_trade"
 
     assert {:ok, hero_payload} = Feed.get_hero()
     assert hero_payload["slot_id"] == "hero.global_priority"
