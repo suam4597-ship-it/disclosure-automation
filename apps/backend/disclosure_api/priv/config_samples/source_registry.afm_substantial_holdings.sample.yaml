@@ -1,0 +1,30 @@
+version: 1
+defaults:
+  timezone: Europe/Amsterdam
+  poll_cron: "0 6 * * 2-6"
+  parser_key: afm_substantial_holdings_xml_v1
+  ranking_weight: 1.0
+  active: true
+
+sources:
+  - source_key: afm_substantial_holdings
+    display_name: AFM Substantial Holdings and Gross Short Positions
+    source_type: api
+    adapter_key: afm_substantial_holdings_v1
+    region_code: nl
+    discovery_mode: register_export_fixture
+    hydrate_mode: register_row_and_detail_page
+    default_home_market_region_code: nl
+    source_class: regulatory_filing_feed
+    default_source_tier: official_regulatory_storage
+    base_url: https://www.afm.nl/en/sector/registers/meldingenregisters/substantiele-deelnemingen
+    healthcheck_url: https://www.afm.nl/en/sector/registers
+    parser_key: afm_substantial_holdings_xml_v1
+    poll_cron: "0 6 * * 2-6"
+    ranking_weight: 1.5
+    coverage_tags: [nl, regulatory, filings, shareholding]
+    active: true
+    config:
+      register_kind: substantial_holdings
+      fixtures:
+        register_export: source_payloads/afm_substantial_holdings_export.xml

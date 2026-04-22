@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<register register_kind="substantial_holdings" generated_at="2026-03-12T16:45:00Z">
+  <notification>
+    <notification_id>afm-sh-20260312-0001</notification_id>
+    <transaction_date>2026-03-12</transaction_date>
+    <published_at_local>2026-03-12T17:45:00+01:00</published_at_local>
+    <published_at_utc>2026-03-12T16:45:00Z</published_at_utc>
+    <issuing_institution>Example Dutch Holdings N.V.</issuing_institution>
+    <person_obliged_to_notify>Example Capital Management B.V.</person_obliged_to_notify>
+    <threshold>5%</threshold>
+    <capital_interest>5.10%</capital_interest>
+    <voting_rights>5.10%</voting_rights>
+    <detail_url>https://www.afm.nl/en/sector/registers/meldingenregisters/substantiele-deelnemingen/details/afm-sh-20260312-0001</detail_url>
+    <position_kind>substantial_holding</position_kind>
+    <register_kind>substantial_holdings</register_kind>
+  </notification>
+</register>

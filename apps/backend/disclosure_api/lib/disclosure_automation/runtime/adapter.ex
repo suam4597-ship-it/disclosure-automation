@@ -2,6 +2,7 @@ defmodule DisclosureAutomation.Runtime.Adapter do
   @moduledoc false
 
   alias DisclosureAutomation.Schema.SourceRegistry
+  alias DisclosureAutomation.Runtime.AFMSubstantialHoldingsAdapter
   alias DisclosureAutomation.Runtime.SECAdapter
 
   @type source :: SourceRegistry.t()
@@ -17,6 +18,10 @@ defmodule DisclosureAutomation.Runtime.Adapter do
               {:ok, canonical_item()} | {:error, term()}
 
   def resolve(%SourceRegistry{adapter_key: "sec_edgar_forms_v1"}), do: {:ok, SECAdapter}
+
+  def resolve(%SourceRegistry{adapter_key: "afm_substantial_holdings_v1"}),
+    do: {:ok, AFMSubstantialHoldingsAdapter}
+
   def resolve(%SourceRegistry{adapter_key: nil}), do: :error
   def resolve(%SourceRegistry{adapter_key: _unknown}), do: :error
 end
