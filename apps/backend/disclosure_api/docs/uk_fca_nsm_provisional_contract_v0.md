@@ -3,15 +3,31 @@
 This is a provisional contract draft based on currently confirmed FCA public materials.
 It is more concrete than the generic template, but it is still not a runtime lock spec.
 
+## Direction change
+
+The earlier AFR-first recommendation is now deprioritized.
+
+Reason:
+
+- the product goal is to follow important listed-company disclosures as they happen
+- a periodic AFR slice is a weaker fit for that goal
+- the first UK lock should prefer a narrower, higher-signal family with lower volume
+
+Current preferred first-slice order:
+
+1. `takeover / scheme related update`
+2. `major holdings / director dealings`
+3. `annual financial report`
+
 ## Provisional source identity
 
 Recommended first source key:
 
-- `uk_fca_nsm_annual_reports`
+- `uk_fca_nsm_takeover_scheme_updates`
 
 Recommended display name:
 
-- `UK FCA National Storage Mechanism Annual Financial Reports`
+- `UK FCA National Storage Mechanism Takeover and Scheme Updates`
 
 Recommended region code:
 
@@ -29,13 +45,28 @@ Recommended source tier:
 
 Recommended first thin slice:
 
-- Annual Financial Reports available through the FCA National Storage Mechanism
+- takeover and scheme related updates discoverable via the FCA National Storage Mechanism
 
 Why this is the current preferred first slice:
 
-- official FCA materials explicitly describe Annual Financial Reports as an NSM submission path
-- official FCA materials explicitly describe viewing and downloading structured AFRs on the NSM
-- annual report disclosures are easy to observe in current NSM-linked examples
+- it is closer to the user goal of important company disclosures in real time
+- expected document volume should be lower than AFR and broader announcement streams
+- event semantics should be sharper and easier to lock cleanly
+
+Backup first slice if the above is not isolatable enough:
+
+- major holdings / director dealings
+
+Why the backup is still attractive:
+
+- it is also high-signal and time-sensitive
+- it maps more naturally to ownership / control-watch style event families already used elsewhere in the repo
+
+Why AFR is now demoted:
+
+- it is periodic rather than event-driven
+- it may be heavier than needed for the first UK lock
+- it is better treated as a later UK expansion once a high-signal path is stable
 
 ## Provisional discovery model
 
@@ -49,9 +80,10 @@ Recommended detail/archive surface:
 
 Still to confirm before implementation:
 
-- whether the first slice will use only HTML artefact pages
+- whether the public NSM search surface can be narrowed cleanly enough for takeover / scheme related updates
+- whether the first slice should use only HTML artefact pages
 - whether a deterministic CSV export path should be used as the fixture source
-- whether a search query can reliably isolate Annual Financial Reports without overmatching
+- whether the backup family `major holdings / director dealings` is easier to isolate than takeover / scheme items
 
 ## Provisional identity model
 
@@ -80,7 +112,7 @@ Do not freeze the cursor until the public result surface is inspected directly.
 
 Recommended adapter key once implementation starts:
 
-- `uk_fca_nsm_annual_reports_v1`
+- `uk_fca_nsm_takeover_scheme_updates_v1`
 
 Recommended parser strategy once implementation starts:
 
@@ -91,7 +123,11 @@ Recommended parser strategy once implementation starts:
 
 Recommended first event family:
 
-- `annual_financial_report`
+- `takeover_or_scheme_update`
+
+Backup first event family:
+
+- `ownership_or_director_change_watch`
 
 Canonical event type is still open and must be aligned with the repo's canonical taxonomy before code is added.
 
@@ -99,4 +135,4 @@ Canonical event type is still open and must be aligned with the repo's canonical
 
 This document is enough to start a targeted implementation PR only after one more step is complete:
 
-- direct inspection of the public search result structure to confirm the stable identity and cursor fields
+- direct inspection of the public search result structure to confirm the stable identity and cursor fields for the chosen high-signal family
