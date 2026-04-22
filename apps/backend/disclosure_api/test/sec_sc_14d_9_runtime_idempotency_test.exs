@@ -43,11 +43,15 @@ defmodule DisclosureAutomation.SECSC14D9RuntimeIdempotencyTest do
     assert String.starts_with?(item1["published_at_utc"], "2026-03-03T15:15:45")
     assert item1["filing_date_local"] == "2026-03-03"
     assert get_in(item1, ["source_meta", "accepted_time_fallback"]) == false
+    assert is_binary(item1["event_family"]) and item1["event_family"] != ""
+    assert is_binary(item1["canonical_event_type"]) and item1["canonical_event_type"] != ""
     refute String.contains?(item1["fact_summary_ko"], "</TEXT>")
     refute String.contains?(item1["fact_summary_ko"], "</SEC-DOCUMENT>")
 
     assert {:ok, event_payload} = Feed.get_event(item1["event_id"])
     assert event_payload["event_id"] == item1["event_id"]
+    assert is_binary(event_payload["event_family"]) and event_payload["event_family"] != ""
+    assert is_binary(event_payload["canonical_event_type"]) and event_payload["canonical_event_type"] != ""
 
     assert {:ok, hero_payload} = Feed.get_hero()
     assert hero_payload["slot_id"] == "hero.global_priority"
@@ -73,6 +77,8 @@ defmodule DisclosureAutomation.SECSC14D9RuntimeIdempotencyTest do
 
     [item2] = digest2["items"]
     assert item2["event_id"] == item1["event_id"]
+    assert item2["event_family"] == item1["event_family"]
+    assert item2["canonical_event_type"] == item1["canonical_event_type"]
 
     source = Repo.get_by!(SourceRegistry, source_key: "sec_current_forms")
     canonical_item = Repo.get_by!(CanonicalFeedItem, event_id: item1["event_id"])
