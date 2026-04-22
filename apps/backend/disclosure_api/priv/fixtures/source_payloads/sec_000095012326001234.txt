@@ -1,0 +1,9 @@
+<SEC-DOCUMENT>
+<ACCEPTANCE-DATETIME>20260226111111
+<COMPANY CONFORMED NAME>Example Tender Offer Corp
+<CENTRAL INDEX KEY>950123
+<FILING DATE>20260226
+<TEXT>
+Example Tender Offer Corp filed a tender offer statement on Schedule TO for a cash tender offer transaction.
+</TEXT>
+</SEC-DOCUMENT>
