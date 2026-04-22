@@ -42,9 +42,13 @@ defmodule DisclosureAutomationWeb.SECSC14D9HttpSmokeTest do
     assert String.starts_with?(item["published_at_utc"], "2026-03-03T15:15:45")
     assert item["filing_date_local"] == "2026-03-03"
     assert get_in(item, ["source_meta", "accepted_time_fallback"]) == false
+    assert is_binary(item["event_family"]) and item["event_family"] != ""
+    assert is_binary(item["canonical_event_type"]) and item["canonical_event_type"] != ""
 
     event = get(build_conn(), "/api/events/#{event_id}") |> json_response(200)
     assert get_in(event, ["data", "event_id"]) == event_id
+    assert is_binary(get_in(event, ["data", "event_family"])) and get_in(event, ["data", "event_family"]) != ""
+    assert is_binary(get_in(event, ["data", "canonical_event_type"])) and get_in(event, ["data", "canonical_event_type"]) != ""
 
     source_health = get(build_conn(), "/api/admin/source-health/sec_current_forms") |> json_response(200)
     assert get_in(source_health, ["data", "health_status"]) == "healthy"
@@ -60,5 +64,7 @@ defmodule DisclosureAutomationWeb.SECSC14D9HttpSmokeTest do
     digest2 = get(build_conn(), "/api/feed/digest/latest?edition=breaking") |> json_response(200)
     assert digest2["item_count"] == 1
     assert hd(digest2["items"])["event_id"] == event_id
+    assert hd(digest2["items"])["event_family"] == item["event_family"]
+    assert hd(digest2["items"])["canonical_event_type"] == item["canonical_event_type"]
   end
 end
