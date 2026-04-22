@@ -1,0 +1,9 @@
+<SEC-DOCUMENT>
+<ACCEPTANCE-DATETIME>20260303101545
+<COMPANY CONFORMED NAME>Example Recommendation Corp
+<CENTRAL INDEX KEY>1409999
+<FILING DATE>20260303
+<TEXT>
+Example Recommendation Corp filed a solicitation/recommendation statement on Schedule 14D-9 in connection with a tender offer transaction.
+</TEXT>
+</SEC-DOCUMENT>
