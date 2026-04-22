@@ -1,0 +1,35 @@
+version: 1
+defaults:
+  timezone: UTC
+  poll_cron: "*/15 * * * *"
+  parser_key: rss_v1
+  ranking_weight: 1.0
+  active: true
+
+sources:
+  - source_key: sec_current_forms
+    display_name: SEC Current Major Forms
+    source_type: api
+    adapter_key: sec_edgar_forms_v1
+    region_code: us
+    discovery_mode: current_filings_atom
+    hydrate_mode: filing_detail_index_and_submission_text
+    default_home_market_region_code: null
+    source_class: regulatory_filing_feed
+    default_source_tier: official_regulatory_storage
+    base_url: https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&owner=include&output=atom
+    healthcheck_url: https://www.sec.gov/edgar/search/
+    parser_key: sec_current_filing_atom_v1
+    poll_cron: "*/15 * * * *"
+    ranking_weight: 1.7
+    coverage_tags: [us, regulatory, filings]
+    active: true
+    config:
+      supported_forms_now: [SC 13D/A]
+      planned_forms_next: []
+      fixtures:
+        discovery_feed: source_payloads/sec_current_filings_atom_sc_13d_a.xml
+        detail_pages:
+          0001512345-26-000789: source_payloads/sec_0001512345-26-000789_index.html
+        submission_texts:
+          "000151234526000789": source_payloads/sec_000151234526000789.txt
