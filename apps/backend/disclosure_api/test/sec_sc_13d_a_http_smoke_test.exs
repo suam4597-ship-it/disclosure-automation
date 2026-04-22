@@ -37,18 +37,18 @@ defmodule DisclosureAutomationWeb.SECSC13DAHttpSmokeTest do
     [item] = digest["items"]
     event_id = item["event_id"]
 
-    assert is_binary(event_id) and event_id != ""
-    assert item["published_at_local"] == "2026-03-10T09:42:18-05:00"
-    assert String.starts_with?(item["published_at_utc"], "2026-03-10T14:42:18")
+    assert event_id == "us.sec.1512345.20260310.major_shareholding_or_insider_trade.control_change_watch.000789"
+    assert item["published_at_local"] == "2026-03-10T09:42:18-04:00"
+    assert String.starts_with?(item["published_at_utc"], "2026-03-10T13:42:18")
     assert item["filing_date_local"] == "2026-03-10"
     assert get_in(item, ["source_meta", "accepted_time_fallback"]) == false
-    assert is_binary(item["event_family"]) and item["event_family"] != ""
-    assert is_binary(item["canonical_event_type"]) and item["canonical_event_type"] != ""
+    assert item["event_family"] == "control_change_watch"
+    assert item["canonical_event_type"] == "major_shareholding_or_insider_trade"
 
     event = get(build_conn(), "/api/events/#{event_id}") |> json_response(200)
     assert get_in(event, ["data", "event_id"]) == event_id
-    assert is_binary(get_in(event, ["data", "event_family"])) and get_in(event, ["data", "event_family"]) != ""
-    assert is_binary(get_in(event, ["data", "canonical_event_type"])) and get_in(event, ["data", "canonical_event_type"]) != ""
+    assert get_in(event, ["data", "event_family"]) == "control_change_watch"
+    assert get_in(event, ["data", "canonical_event_type"]) == "major_shareholding_or_insider_trade"
 
     source_health = get(build_conn(), "/api/admin/source-health/sec_current_forms") |> json_response(200)
     assert get_in(source_health, ["data", "health_status"]) == "healthy"
