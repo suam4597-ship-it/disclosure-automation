@@ -33,8 +33,8 @@ Keep that PowerShell window open while running the HTTP smoke sequence from a se
 - second poll also returns success
 - latest digest item_count remains 1 after repeated poll
 - event_id remains stable after repeated poll
-- published_at_local remains 2026-03-10T09:42:18-05:00
-- published_at_utc remains 2026-03-10T14:42:18Z
+- published_at_local remains 2026-03-10T09:42:18-04:00
+- published_at_utc remains 2026-03-10T13:42:18Z
 - filing_date_local remains 2026-03-10
 - accepted_time_fallback remains false on the verified detail path
 - fact_summary_ko does not contain SEC closing tags
