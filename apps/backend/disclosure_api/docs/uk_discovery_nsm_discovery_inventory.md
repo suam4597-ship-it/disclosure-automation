@@ -17,6 +17,23 @@ The following are now confirmed from FCA public materials and current NSM exampl
 
 These findings are enough to move the UK work from a pure blank page into a partially frozen discovery state.
 
+## Product-direction update
+
+The initial AFR-first idea is now deprioritized.
+
+Why:
+
+- the user goal is to follow important company disclosures as they happen, not primarily periodic reporting
+- AFRs are a weaker fit for that goal and may introduce more volume than the first UK slice needs
+- the first UK slice should prefer a narrower, higher-signal event family with lower document volume
+
+Current direction:
+
+- UK first slice should target a high-signal major-announcement family
+- current first preference: `takeover / scheme related update`
+- current second preference: `major holdings / director dealings`
+- AFR remains a valid later expansion path, but not the preferred first lock target
+
 ## Discovery questions to close
 
 ### 1) What is the primary discovery surface?
@@ -28,6 +45,7 @@ Current best answer:
 Still to close:
 
 - whether there is any structured export or easier machine-consumable search layer worth using instead of the browser search surface
+- whether the public search surface can be queried narrowly enough for one high-signal family without broad overmatching
 
 ### 2) What is the NSM role?
 
@@ -38,7 +56,7 @@ Current best answer:
 Still to close:
 
 - whether the first thin slice should treat NSM as both discovery and detail
-- whether a separate issuer or RNS surface should still be used as a supporting discovery channel
+- whether a separate issuer or RNS surface should still be used as a supporting discovery channel for high-signal announcements
 
 ### 3) What is the stable external identity?
 
@@ -54,11 +72,13 @@ Observed candidate patterns:
 - artefact URL token
 - RNS number
 - company + date + title combination
+- public result surface unique announcement id when exposed
 
 Still to close:
 
 - which of these is always present on the chosen first thin slice
 - which one survives corrections best
+- whether takeover/scheme items and director-dealing or holdings items expose the same stable id field
 
 ### 4) What should the cursor be?
 
@@ -68,6 +88,7 @@ Candidate cursor shapes:
 - latest artefact id seen
 - latest search result sequence seen
 - latest document id seen
+- latest unique announcement id seen
 
 Current recommendation:
 
@@ -77,24 +98,31 @@ The runtime path should not be written until this is explicit.
 
 ### 5) What is the first event family?
 
-The first UK thin slice should use a deliberately narrow family.
+The first UK thin slice should use a deliberately narrow, high-signal family.
 
-Current recommendation:
+Current recommendation order:
 
-- start with annual financial reports
+1. `takeover / scheme related update`
+2. `major holdings / director dealings`
+3. `annual financial report`
+4. broader regulated disclosure
 
-Why this is the current best first slice:
+Why `takeover / scheme related update` is now the preferred first slice:
 
-- FCA materials explicitly describe Annual Financial Reports as a submission path into the NSM
-- structured and unstructured annual reports are clearly discussed in the official guidance
-- annual report examples are easy to observe in current NSM-linked disclosures
+- it is closer to the user goal of following important company disclosures as they happen
+- expected document volume is lower than AFR and broader announcement streams
+- event semantics are usually sharper, which should make the first UK lock easier
 
-Alternative families for later expansion:
+Why `major holdings / director dealings` stays a strong backup candidate:
 
-- half-year financial report
-- director dealing
-- takeover / scheme related update
-- broader regulated disclosure
+- it is also high-signal and time-sensitive
+- it is closer to the shareholding / control-watch logic already used in AFM and SEC ownership-related work
+
+Why AFR is now demoted:
+
+- it is periodic rather than event-driven
+- it may be heavier than needed for the first UK lock
+- it is a better later expansion once a high-signal UK path is already stable
 
 ## Implementation gate
 
