@@ -302,8 +302,8 @@ defmodule DisclosureAutomation.Ingestion do
                       raw_event_record,
                       primary_raw_document,
                       source,
-                      source_name: "SEC EDGAR Complete Submission Text File",
-                      source_tier: "official_regulatory_storage",
+                      source_name: runtime_source_name(source, primary_raw_document, "primary"),
+                      source_tier: source.default_source_tier || "official_regulatory_storage",
                       source_role: "primary",
                       authority_rank: 1,
                       is_representative: true,
@@ -316,8 +316,8 @@ defmodule DisclosureAutomation.Ingestion do
                       raw_event_record,
                       detail_raw_document,
                       source,
-                      source_name: "SEC EDGAR Filing Detail Index",
-                      source_tier: "official_regulatory_storage",
+                      source_name: runtime_source_name(source, detail_raw_document, "discovery"),
+                      source_tier: source.default_source_tier || "official_regulatory_storage",
                       source_role: "discovery",
                       authority_rank: 2,
                       is_representative: false,
@@ -345,7 +345,8 @@ defmodule DisclosureAutomation.Ingestion do
 
           latest_cursor =
             persisted
-            |> Enum.map(& &1.discovery_item.accession_no)
+            |> Enum.map(&runtime_cursor_value(&1.discovery_item))
+            |> Enum.reject(&is_nil/1)
             |> Enum.sort()
             |> List.last()
 
@@ -824,6 +825,39 @@ defmodule DisclosureAutomation.Ingestion do
         %CanonicalItemSource{}
         |> CanonicalItemSource.changeset(payload)
         |> Repo.insert()
+    end
+  end
+
+  defp runtime_cursor_value(discovery_item) when is_map(discovery_item) do
+    runtime_item_value(discovery_item, :accession_no) ||
+      runtime_item_value(discovery_item, :notification_id) ||
+      runtime_item_value(discovery_item, :external_id)
+  end
+
+  defp runtime_cursor_value(_), do: nil
+
+  defp runtime_item_value(item, key) when is_map(item) do
+    Map.get(item, key) || Map.get(item, Atom.to_string(key))
+  end
+
+  defp runtime_item_value(_, _), do: nil
+
+  defp runtime_source_name(source, raw_document, _source_role) do
+    case raw_document.document_type do
+      "submission_text" ->
+        "SEC EDGAR Complete Submission Text File"
+
+      "detail_index" ->
+        "SEC EDGAR Filing Detail Index"
+
+      "register_export" ->
+        "AFM register export"
+
+      "register_detail" ->
+        "AFM notification detail page"
+
+      _ ->
+        source.display_name || "Official source document"
     end
   end
 
