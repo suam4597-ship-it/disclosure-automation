@@ -1,0 +1,36 @@
+version: 1
+defaults:
+  timezone: Europe/London
+  poll_cron: "*/15 * * * *"
+  parser_key: uk_fca_nsm_takeover_scheme_html_v1
+  ranking_weight: 1.0
+  active: true
+
+sources:
+  - source_key: uk_fca_nsm_takeover_scheme_updates
+    display_name: UK FCA National Storage Mechanism Takeover and Scheme Updates
+    source_type: api
+    adapter_key: uk_fca_nsm_takeover_scheme_updates_v1
+    region_code: uk
+    discovery_mode: nsm_csv_export_fixture
+    hydrate_mode: nsm_artefact_html_detail
+    default_home_market_region_code: uk
+    source_class: regulatory_filing_feed
+    default_source_tier: official_regulatory_storage
+    base_url: https://data.fca.org.uk/#/nsm/nationalstoragemechanism
+    healthcheck_url: https://data.fca.org.uk/#/nsm/nationalstoragemechanism
+    parser_key: uk_fca_nsm_takeover_scheme_html_v1
+    poll_cron: "*/15 * * * *"
+    ranking_weight: 1.8
+    coverage_tags: [uk, regulatory, filings, takeover, scheme]
+    active: true
+    config:
+      family: takeover_or_scheme_update
+      filter:
+        category: Scheme of Arrangement
+        source: Regulatory News Services (RNS)
+        source_namespace: RNS
+      fixtures:
+        discovery_csv: source_payloads/uk_fca_nsm_takeover_scheme_search_results.csv
+        detail_pages:
+          5c9e4a51-b4c6-4977-86d3-ac8567261289: source_payloads/uk_fca_nsm_5c9e4a51-b4c6-4977-86d3-ac8567261289.html
