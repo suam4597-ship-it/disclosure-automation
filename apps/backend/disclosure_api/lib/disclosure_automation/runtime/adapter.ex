@@ -4,6 +4,7 @@ defmodule DisclosureAutomation.Runtime.Adapter do
   alias DisclosureAutomation.Schema.SourceRegistry
   alias DisclosureAutomation.Runtime.AFMSubstantialHoldingsAdapter
   alias DisclosureAutomation.Runtime.SECAdapter
+  alias DisclosureAutomation.Runtime.UKFCA NSMTakeoverSchemeUpdatesAdapter
 
   @type source :: SourceRegistry.t()
   @type discovery_item :: map()
@@ -21,6 +22,9 @@ defmodule DisclosureAutomation.Runtime.Adapter do
 
   def resolve(%SourceRegistry{adapter_key: "afm_substantial_holdings_v1"}),
     do: {:ok, AFMSubstantialHoldingsAdapter}
+
+  def resolve(%SourceRegistry{adapter_key: "uk_fca_nsm_takeover_scheme_updates_v1"}),
+    do: {:ok, UKFCA NSMTakeoverSchemeUpdatesAdapter}
 
   def resolve(%SourceRegistry{adapter_key: nil}), do: :error
   def resolve(%SourceRegistry{adapter_key: _unknown}), do: :error
