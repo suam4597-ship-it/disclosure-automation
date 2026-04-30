@@ -1,0 +1,36 @@
+version: 1
+defaults:
+  timezone: Asia/Tokyo
+  poll_cron: "*/15 * * * *"
+  parser_key: jp_tdnet_timely_disclosure_v1
+  ranking_weight: 1.0
+  active: true
+
+sources:
+  - source_key: jp_tdnet_timely_disclosure
+    display_name: Japan TDnet Timely Disclosure
+    source_type: public_web
+    adapter_key: jp_tdnet_timely_disclosure_v1
+    region_code: jp
+    discovery_mode: tdnet_current_list_row_fixture
+    hydrate_mode: tdnet_pdf_attachment
+    default_home_market_region_code: jp
+    source_class: regulatory_filing_feed
+    default_source_tier: official_exchange_storage
+    base_url: https://www.release.tdnet.info/inbs/I_list_001_20260430.html
+    healthcheck_url: https://www.release.tdnet.info/inbs/I_main_00.html
+    parser_key: jp_tdnet_timely_disclosure_v1
+    poll_cron: "*/15 * * * *"
+    ranking_weight: 1.8
+    coverage_tags: [jp, regulatory, filings, tdnet, timely_disclosure]
+    active: true
+    config:
+      family: material_information_update
+      filter:
+        normalized_security_code: "4527"
+        pdf_document_token: "140120260430515474"
+        row_date: "2026-04-30"
+      fixtures:
+        discovery_result: source_payloads/jp_tdnet_timely_disclosure_discovery_4527_20260430_1900_140120260430515474.json
+        pdf_pages:
+          "TDNET:4527:20260430:1900:140120260430515474": source_payloads/jp_tdnet_timely_disclosure_pdf_4527_20260430_1900_140120260430515474.txt

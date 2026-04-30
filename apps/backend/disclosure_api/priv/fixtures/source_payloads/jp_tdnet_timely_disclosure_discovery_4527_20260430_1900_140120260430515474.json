@@ -1,0 +1,24 @@
+{
+  "announcements": [
+    {
+      "source": "TDnet Company Announcements Disclosure Service",
+      "rowListUrl": "https://www.release.tdnet.info/inbs/I_list_001_20260430.html",
+      "rowDate": "2026-04-30",
+      "disclosureTime": "19:00",
+      "publishedAtLocal": "2026-04-30T19:00:00+09:00",
+      "publishedAtUtc": "2026-04-30T10:00:00.000000Z",
+      "tdnetRawRowCode": "45270",
+      "normalizedSecurityCode": "4527",
+      "rowDisplayName": "ロート薬",
+      "issuerName": "ロート製薬株式会社",
+      "title": "株主提案に関する書面受領のお知らせ",
+      "exchange": "東",
+      "xbrl": null,
+      "updateHistory": null,
+      "sourceCategory": null,
+      "materialCategory": "unknown",
+      "pdfDocumentToken": "140120260430515474",
+      "attachmentUrl": "https://www.release.tdnet.info/inbs/140120260430515474.pdf"
+    }
+  ]
+}
