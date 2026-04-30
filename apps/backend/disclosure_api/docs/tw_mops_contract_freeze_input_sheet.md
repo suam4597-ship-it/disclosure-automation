@@ -1,59 +1,63 @@
 # TW MOPS contract-freeze input sheet
 
-Fill this sheet only after the public surface inspection worksheet has been completed for one family.
-The goal is to translate live inspection into implementation-ready contract values.
+This sheet translates the TSMC MOPS material-information sample into implementation-ready contract values.
 
 ## Frozen family
 
-- chosen family: `TODO`
-- chosen source key: `TODO`
-- chosen display name: `TODO`
+- chosen family: `material information / major announcement`
+- chosen source key: `tw_mops_material_information`
+- chosen display name: `Taiwan MOPS Material Information`
 - chosen region code: `tw`
 
 ## Runtime contract
 
-- adapter key: `TODO`
-- parser strategy: `TODO`
-- discovery mode: `TODO`
-- hydrate mode: `TODO`
-- cursor key: `TODO`
+- adapter key: `tw_mops_material_information_v1`
+- parser strategy: `MOPS action-target/result row parser + MOPS material-information detail parser`
+- discovery mode: `mops_material_information_result_fixture`
+- hydrate mode: `mops_material_information_detail`
+- cursor key: `latest_spoke_date_time_and_sequence_seen`
 
 ## Identity rules
 
-- raw document external id rule: `TODO`
-- document identity rule: `TODO`
-- raw event key seed: `TODO`
-- duplicate group seed: `TODO`
-- canonical event id shape: `TODO`
+- raw document external id rule: `MOPS:<co_id>:<spoke_date>:<spoke_time>:<seq_no>:<document_role>`
+- document identity rule: `MOPS:<co_id>:<spoke_date>:<spoke_time>:<seq_no>:<document_role>`
+- raw event key seed: `mops:<co_id>:<spoke_date>:<spoke_time>:<seq_no>`
+- duplicate group seed: `MOPS:<co_id>:<spoke_date>:<spoke_time>:<seq_no>`
+- canonical event id shape: `tw.mops.<co_id>.<spoke_date>.<canonical_event_type>.<event_family>.<seq_no>`
 
 ## First event mapping
 
-- first event family: `TODO`
-- first canonical event type: `TODO`
-- source-appropriate canonical item source names: `TODO`
+- first event family: `material_information_update`
+- first canonical event type: `major_investment_or_asset_sale`
+- source-appropriate canonical item source names:
+  - primary: `MOPS Material Information Detail Page`
+  - discovery: `MOPS Material Information Result Row`
 
 ## Fixture scope
 
-- discovery fixture path: `TODO`
-- detail fixture path: `TODO`
-- linked attachment fixture path if required: `TODO`
-- expected raw-document count per item: `TODO`
-- expected canonical item source count per item: `TODO`
+- discovery fixture path: `source_payloads/tw_mops_material_information_result_2330_20260430_162938_1.html`
+- detail fixture path: `source_payloads/tw_mops_material_information_detail_2330_20260430_162938_1.html`
+- linked attachment fixture path if required: `none for v0`
+- expected raw-document count per item: `2`
+- expected canonical item source count per item: `2`
 
 ## Exact values to lock after first green run
 
-- `event_id`: `TODO`
-- `event_family`: `TODO`
-- `canonical_event_type`: `TODO`
-- `published_at_local`: `TODO`
-- `published_at_utc`: `TODO`
-- chosen stable external identity value: `TODO`
-- chosen cursor value: `TODO`
+- `event_id`: `TODO after first implementation run`
+- `event_family`: `material_information_update`
+- `canonical_event_type`: `major_investment_or_asset_sale`
+- `published_at_local`: `2026-04-30T16:29:38+08:00`
+- `published_at_utc`: `2026-04-30T08:29:38.000000Z`
+- chosen stable external identity value: `MOPS:2330:20260430:162938:1`
+- chosen cursor value: `20260430|162938|2330|1`
 
 ## Decision
 
-Complete only one:
-
-- [ ] contract freeze complete — open isolated implementation PR
+- [x] contract freeze complete — open isolated implementation PR
 - [ ] contract freeze incomplete — stay in discovery stage
 - [ ] current family rejected — promote backup family
+
+## Remaining first-run confirmation
+
+The contract is ready for an isolated v0 implementation PR.
+During first-run verification, confirm the exact canonical event id produced by the adapter and lock it after green tests.
