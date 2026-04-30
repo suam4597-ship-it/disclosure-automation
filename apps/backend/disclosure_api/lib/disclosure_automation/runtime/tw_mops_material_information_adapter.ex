@@ -8,16 +8,22 @@ defmodule DisclosureAutomation.Runtime.TWMOPSMaterialInformationAdapter do
   alias DisclosureAutomation.Schema.SourceRegistry
 
   @cursor_key "latest_spoke_date_time_and_sequence_seen"
+  @event_family "material_information_update"
+  @canonical_event_type "major_investment_or_asset_sale"
+  @taipei_offset_seconds 8 * 60 * 60
 
   @impl true
   def discover(%SourceRegistry{} = source, opts \\ []) do
     use_live_fetch = Keyword.get(opts, :use_live_fetch, true)
 
     with {:ok, payload} <- load_discovery_payload(source, use_live_fetch) do
-      {:ok,
-       payload
-       |> parse_discovery_items()
-       |> Enum.sort_by(& &1.cursor_value)}
+      items =
+        payload
+        |> parse_discovery_items()
+        |> Enum.filter(&target_row?(&1, source))
+        |> Enum.sort_by(& &1.cursor_value)
+
+      {:ok, items}
     end
   end
 
@@ -49,9 +55,9 @@ defmodule DisclosureAutomation.Runtime.TWMOPSMaterialInformationAdapter do
            }
          },
          submission_document: %{
-           external_id: "#{discovery_item.stable_external_id}:detail-html",
-           document_identity: "#{discovery_item.stable_external_id}:detail-html",
-           document_type: "mops_material_information_detail",
+           external_id: "#{discovery_item.stable_external_id}:detail-page",
+           document_identity: "#{discovery_item.stable_external_id}:detail-page",
+           document_type: "mops_material_information_detail_html",
            document_role: "primary_regulatory_disclosure",
            mime_type: "text/html",
            url: discovery_item.detail_url,
@@ -80,7 +86,7 @@ defmodule DisclosureAutomation.Runtime.TWMOPSMaterialInformationAdapter do
          event_key: "mops:#{item.co_id}:#{item.spoke_date}:#{item.spoke_time}:#{item.seq_no}",
          external_event_key: item.stable_external_id,
          parser_key: source.parser_key || "tw_mops_material_information_html_v1",
-         event_family: "material_information_update",
+         event_family: @event_family,
          occurred_at: item.published_at_utc,
          status: "parsed",
          payload: %{
@@ -128,13 +134,12 @@ defmodule DisclosureAutomation.Runtime.TWMOPSMaterialInformationAdapter do
       )
 
     edition = Keyword.get(opts, :edition, "breaking")
-    canonical_event_type = "major_investment_or_asset_sale"
-    event_family = raw_event.event_family || "material_information_update"
+    event_family = raw_event.event_family || @event_family
     co_id = payload["co_id"]
     spoke_date = payload["spoke_date"]
     seq_no = payload["seq_no"]
 
-    event_id = "tw.mops.#{co_id}.#{spoke_date}.#{canonical_event_type}.#{event_family}.#{seq_no}"
+    event_id = "tw.mops.#{co_id}.#{spoke_date}.#{@canonical_event_type}.#{event_family}.#{seq_no}"
     region_code = source.region_code || "tw"
     home_market_region_code = source.default_home_market_region_code || region_code
 
@@ -149,7 +154,7 @@ defmodule DisclosureAutomation.Runtime.TWMOPSMaterialInformationAdapter do
       "headline_ko" => "Taiwan MOPS material information update",
       "fact_summary_ko" => payload["fact_summary_ko"],
       "why_important_ko" => payload["why_important_ko"],
-      "canonical_event_type" => canonical_event_type,
+      "canonical_event_type" => @canonical_event_type,
       "event_family" => event_family,
       "official_storage_name" => "Taiwan MOPS",
       "official_source_name" => "MOPS Material Information Detail Page",
@@ -157,7 +162,7 @@ defmodule DisclosureAutomation.Runtime.TWMOPSMaterialInformationAdapter do
       "discovery_source_name" => "MOPS Material Information Result Row",
       "discovery_source_url" => source.base_url,
       "raw_source_type" => payload["clause"],
-      "source_tier" => "official_regulatory_storage",
+      "source_tier" => source.default_source_tier || "official_regulatory_storage",
       "country" => "TW",
       "region_code" => region_code,
       "home_market_region_code" => home_market_region_code,
@@ -177,6 +182,7 @@ defmodule DisclosureAutomation.Runtime.TWMOPSMaterialInformationAdapter do
         "spoke_time" => payload["spoke_time"],
         "roc_date" => payload["roc_date"],
         "clause" => payload["clause"],
+        "detail_url" => payload["detail_url"],
         "fact_date_roc" => payload["fact_date_roc"]
       },
       "risk_flags" => ["tw_mops_fixture_v0", "roc_year_conversion_used"],
@@ -218,23 +224,31 @@ defmodule DisclosureAutomation.Runtime.TWMOPSMaterialInformationAdapter do
   def cursor_key, do: @cursor_key
 
   defp load_discovery_payload(source, true) do
-    fixture_path = get_in(source.config, ["fixtures", "discovery_html"]) || get_in(source.config, [:fixtures, :discovery_html])
+    fixture_path = discovery_fixture_path(source)
 
     with {:ok, response} <- Http.fetch(source.base_url, timeout: 8_000),
-         true <- response.status_code in 200..299 do
+         true <- response.status_code in 200..299,
+         true <- String.contains?(response.body, "mops-result") do
       {:ok, response.body}
     else
       _ -> load_fixture(fixture_path)
     end
   end
 
-  defp load_discovery_payload(source, false) do
-    fixture_path = get_in(source.config, ["fixtures", "discovery_html"]) || get_in(source.config, [:fixtures, :discovery_html])
-    load_fixture(fixture_path)
+  defp load_discovery_payload(source, false), do: load_fixture(discovery_fixture_path(source))
+
+  defp discovery_fixture_path(source) do
+    get_in(source.config || %{}, ["fixtures", "discovery_result"]) ||
+      get_in(source.config || %{}, [:fixtures, :discovery_result]) ||
+      get_in(source.config || %{}, ["fixtures", "discovery_html"]) ||
+      get_in(source.config || %{}, [:fixtures, :discovery_html])
   end
 
   defp detail_fixture_path(source, stable_external_id) do
-    detail_pages = get_in(source.config, ["fixtures", "detail_pages"]) || get_in(source.config, [:fixtures, :detail_pages]) || %{}
+    detail_pages =
+      get_in(source.config || %{}, ["fixtures", "detail_pages"]) ||
+        get_in(source.config || %{}, [:fixtures, :detail_pages]) || %{}
+
     Map.get(detail_pages, stable_external_id) || Map.get(detail_pages, to_string(stable_external_id))
   end
 
@@ -262,7 +276,7 @@ defmodule DisclosureAutomation.Runtime.TWMOPSMaterialInformationAdapter do
   end
 
   defp parse_discovery_items(html) do
-    Regex.scan(~r/<article\s+class="mops-result"([\s\S]*?)>([\s\S]*?)<\/article>/i, html)
+    Regex.scan(~r/<article\s+class="mops-result"([\s\S]*?)>([\s\S]*?)<\/article>/i, html || "")
     |> Enum.map(fn [_, attrs, inner] -> discovery_item_from(attrs, inner) end)
   end
 
@@ -305,8 +319,20 @@ defmodule DisclosureAutomation.Runtime.TWMOPSMaterialInformationAdapter do
     }
   end
 
+  defp target_row?(item, %SourceRegistry{} = source) do
+    filter = source.config["filter"] || source.config[:filter] || %{}
+
+    same?(item.co_id, filter["co_id"] || filter[:co_id]) and
+      same?(item.seq_no, filter["seq_no"] || filter[:seq_no]) and
+      same?(item.spoke_date, filter["spoke_date"] || filter[:spoke_date]) and
+      same?(item.spoke_time, filter["spoke_time"] || filter[:spoke_time])
+  end
+
+  defp same?(_value, nil), do: true
+  defp same?(value, expected), do: to_string(value) == to_string(expected)
+
   defp attr(attrs, name) do
-    case Regex.run(~r/#{Regex.escape(name)}="([^"]*)"/, attrs) do
+    case Regex.run(~r/#{Regex.escape(name)}="([^"]*)"/, attrs || "") do
       [_, value] -> html_entities_to_text(value)
       _ -> nil
     end
@@ -327,7 +353,7 @@ defmodule DisclosureAutomation.Runtime.TWMOPSMaterialInformationAdapter do
   end
 
   defp taipei_local_to_utc(%NaiveDateTime{} = local) do
-    utc_naive = NaiveDateTime.add(local, -8 * 3600, :second)
+    utc_naive = NaiveDateTime.add(local, -@taipei_offset_seconds, :second)
     {:ok, utc} = DateTime.from_naive(utc_naive, "Etc/UTC")
     utc
   end
@@ -342,6 +368,7 @@ defmodule DisclosureAutomation.Runtime.TWMOPSMaterialInformationAdapter do
     html
     |> String.replace(~r/<script[\s\S]*?<\/script>/i, " ")
     |> String.replace(~r/<style[\s\S]*?<\/style>/i, " ")
+    |> String.replace(~r/<br\s*\/?>/i, "\n")
     |> String.replace(~r/<[^>]+>/, " ")
     |> html_entities_to_text()
     |> String.replace(~r/\s+/, " ")
@@ -359,14 +386,14 @@ defmodule DisclosureAutomation.Runtime.TWMOPSMaterialInformationAdapter do
   end
 
   defp extract_fact_date(text) do
-    case Regex.run(~r/事實發生日\s*(\d{3}\/\d{2}\/\d{2})/, text) do
+    case Regex.run(~r/事實發生日\s*(\d{3}\/\d{2}\/\d{2})/, text || "") do
       [_, value] -> value
       _ -> nil
     end
   end
 
   defp extract_after_label(text, label) do
-    case Regex.run(~r/#{Regex.escape(label)}\s+([^\s]+)/u, text) do
+    case Regex.run(~r/#{Regex.escape(label)}\s+([^\s]+)/u, text || "") do
       [_, value] -> value
       _ -> nil
     end
