@@ -1,0 +1,37 @@
+version: 1
+defaults:
+  timezone: Asia/Taipei
+  poll_cron: "*/15 * * * *"
+  parser_key: tw_mops_material_information_html_v1
+  ranking_weight: 1.0
+  active: true
+
+sources:
+  - source_key: tw_mops_material_information
+    display_name: Taiwan MOPS Material Information
+    source_type: api
+    adapter_key: tw_mops_material_information_v1
+    region_code: tw
+    discovery_mode: mops_material_information_result_fixture
+    hydrate_mode: mops_material_information_detail
+    default_home_market_region_code: tw
+    source_class: regulatory_filing_feed
+    default_source_tier: official_regulatory_storage
+    base_url: https://mops.twse.com.tw/mops/web/t05st01
+    healthcheck_url: https://mops.twse.com.tw/mops/web/index
+    parser_key: tw_mops_material_information_html_v1
+    poll_cron: "*/15 * * * *"
+    ranking_weight: 1.8
+    coverage_tags: [tw, regulatory, filings, material_information]
+    active: true
+    config:
+      family: material_information_update
+      filter:
+        co_id: "2330"
+        seq_no: "1"
+        spoke_date: "20260430"
+        spoke_time: "162938"
+      fixtures:
+        discovery_result: source_payloads/tw_mops_material_information_result_2330_20260430_162938_1.html
+        detail_pages:
+          "MOPS:2330:20260430:162938:1": source_payloads/tw_mops_material_information_detail_2330_20260430_162938_1.html
