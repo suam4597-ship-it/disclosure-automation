@@ -4,6 +4,7 @@ defmodule DisclosureAutomation.Runtime.Adapter do
   alias DisclosureAutomation.Schema.SourceRegistry
   alias DisclosureAutomation.Runtime.AFMSubstantialHoldingsAdapter
   alias DisclosureAutomation.Runtime.SECAdapter
+  alias DisclosureAutomation.Runtime.TWMOPSMaterialInformationAdapter
   alias DisclosureAutomation.Runtime.UKFCANSMTakeoverSchemeUpdatesAdapter
 
   @type source :: SourceRegistry.t()
@@ -25,6 +26,9 @@ defmodule DisclosureAutomation.Runtime.Adapter do
 
   def resolve(%SourceRegistry{adapter_key: "uk_fca_nsm_takeover_scheme_updates_v1"}),
     do: {:ok, UKFCANSMTakeoverSchemeUpdatesAdapter}
+
+  def resolve(%SourceRegistry{adapter_key: "tw_mops_material_information_v1"}),
+    do: {:ok, TWMOPSMaterialInformationAdapter}
 
   def resolve(%SourceRegistry{adapter_key: nil}), do: :error
   def resolve(%SourceRegistry{adapter_key: _unknown}), do: :error
