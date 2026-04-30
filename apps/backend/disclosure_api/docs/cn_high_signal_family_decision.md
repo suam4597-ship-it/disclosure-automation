@@ -1,6 +1,6 @@
 # CN high-signal family decision
 
-This document records the provisional first-family direction for the China regional vertical.
+This document records the first-family decision from the initial China source-surface inspection pass.
 
 ## Goal
 
@@ -9,8 +9,15 @@ It should not start with broad all-announcements ingestion.
 
 ## Decision status
 
-No first CN family is frozen yet.
-This document defines the discovery order and the promotion/disqualification rules for the later contract-freeze decision.
+The discovery-freeze candidate is now:
+
+- source: `CNInfo / 巨潮资讯网`
+- source key: `cn_cninfo_disclosure_announcements`
+- first family: `major_asset_transaction_update`
+- first canonical event type: `major_investment_or_asset_sale`
+- first fixture item: `CNINFO:1222441277`
+
+This is still not a runtime lock. The later runtime PR must verify the candidate with one fixture item, tests, manual smoke, and dedupe SQL.
 
 ## Candidate families
 
@@ -20,32 +27,42 @@ Pros:
 
 - high-signal and generally narrower than a broad announcement feed
 - maps naturally to existing canonical families around major investment, asset sale, merger, acquisition, or restructuring
-- likely easier to lock with one deterministic sample if the source exposes category filters or stable document metadata
+- can lock one deterministic CNInfo sample using `announcementId`
+- the selected sample is an asset-disposal progress announcement, which fits this family without ingesting all CN announcements
 
 Cons:
 
 - may appear under different source-specific category names across SSE, SZSE, BSE, CNInfo, or regulator surfaces
-- may require attachment/PDF capture if the detail page is only a summary shell
+- requires static PDF capture because the PDF is the primary disclosure artifact
+- the selected CNInfo sample currently has date-only `announcementTime`, so timestamp handling must be explicit in runtime verification
 
 Current rank:
 
 - `1`
+
+Decision:
+
+- selected as first CN family via `major_asset_transaction_update`
 
 ### 2) Material information / major announcement
 
 Pros:
 
 - close fit to the product goal of important as-it-happens company disclosures
-- likely useful as a user-facing CN disclosure lane
+- likely useful as a later user-facing CN disclosure lane
 
 Cons:
 
-- may be broad and high-volume
+- broader and potentially high-volume
 - may include many subtypes that require source-specific classification before runtime lock
 
 Current rank:
 
 - `2`
+
+Decision:
+
+- keep for later expansion after the first CNInfo major-asset-transaction slice is locked
 
 ### 3) Shareholding / ownership change
 
@@ -56,12 +73,16 @@ Pros:
 
 Cons:
 
-- may require a different official source surface or separate category taxonomy
+- may require a different source surface or separate category taxonomy
 - stable identity/cursor still must be confirmed directly
 
 Current rank:
 
 - `3`
+
+Decision:
+
+- keep for later expansion
 
 ### 4) Takeover / tender-offer style update
 
@@ -79,6 +100,10 @@ Current rank:
 
 - `4`
 
+Decision:
+
+- keep for later expansion or fallback if a better source-specific sample emerges
+
 ### 5) Periodic report
 
 Pros:
@@ -95,19 +120,35 @@ Current rank:
 
 - `5`
 
-## Provisional direction
+Decision:
 
-Start discovery with `M&A / restructuring / major asset transaction style disclosure` as the preferred first family.
+- not selected for first CN lock
 
-Promote `material information / major announcement` if it is the only family with deterministic public identity/cursor fields and a small first raw-document set.
+## Selected sample
 
-Promote `shareholding / ownership change` or `takeover / tender-offer style update` if either provides a cleaner official-source fixture and stable cursor than the first two options.
+- issuer: `大连华锐重工集团股份有限公司`
+- security code: `002204`
+- title: `关于挂牌转让大重宾馆资产的进展公告`
+- announcement date: `2025-01-27`
+- announcement id: `1222441277`
+- detail URL: `https://www.cninfo.com.cn/new/disclosure/detail?plate=szse&orgId=9900004001&stockCode=002204&announcementId=1222441277&announcementTime=2025-01-27`
+- static PDF URL: `https://static.cninfo.com.cn/finalpage/2025-01-27/1222441277.PDF`
 
-Use `periodic report` only if the higher-signal families cannot satisfy contract-freeze criteria.
+## Why this family wins first
 
-## Disqualification rules
+`major_asset_transaction_update` is selected because it satisfies the first-lock constraints better than broad material-information ingestion:
 
-A family should not become the first CN implementation slice if:
+- one exact `announcementId`
+- one exact issuer/security code
+- one exact detail page URL
+- one exact static PDF URL
+- one narrow canonical event type
+- one deterministic cursor candidate
+- no need for broad all-disclosures ingestion
+
+## Disqualification rules for replacing this decision
+
+A replacement family should not become the first CN implementation slice if:
 
 - the public search cannot isolate it without broad ambiguity
 - no stable public id, URL token, or document id is visible
@@ -119,3 +160,10 @@ A family should not become the first CN implementation slice if:
 
 Do not open runtime code for multiple CN families at once.
 Freeze one source and one family, lock it, then expand.
+
+The next runtime PR must stay limited to:
+
+- source: `cn_cninfo_disclosure_announcements`
+- family: `major_asset_transaction_update`
+- canonical event type: `major_investment_or_asset_sale`
+- sample: `CNINFO:1222441277`
