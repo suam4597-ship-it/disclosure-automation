@@ -2,28 +2,52 @@
 
 This document tracks the official-source discovery work for the first Taiwan vertical.
 
+## Confirmed initial findings
+
+The current first-source candidate is Taiwan's Market Observation Post System / public information observation system (`MOPS`, `公開資訊觀測站`).
+
+Initial evidence gathered:
+
+- TWSE materials describe MOPS as an information disclosure platform established by TWSE and TPEx so investors can access material information about listed companies
+- public companies, including TWSE/TPEx-listed companies, are required to disclose relevant material, periodic, and non-periodic information on MOPS
+- company investor-relations pages commonly point shareholders to MOPS for `重大訊息` / material information
+- common public paths observed in company guidance include:
+  - `https://mops.twse.com.tw/mops/web/index`
+  - `https://mops.twse.com.tw/mops/web/t05st01` for past material information by company / period
+
+This is enough to make MOPS the current preferred TW official source candidate, but not enough to freeze a runtime contract.
+
 ## Discovery questions to close
 
 ### 1) What is the official public source?
 
-Need to confirm the primary official public disclosure surface.
+Current best answer:
 
-Candidate source family to investigate:
+- primary official candidate: `MOPS / 公開資訊觀測站`
+- likely first source family: `重大訊息 / material information`
 
-- Taiwan public listed-company disclosure system / Market Observation Post System style public disclosure surface
+Still to close:
 
-Do not freeze source names, URLs, adapter keys, or parser keys until the official surface is verified.
+- exact public query endpoint for discovery fixture
+- whether the result page is HTML-only or can be exported/queried deterministically
+- detail page URL stability
+- whether listed/TWSE and TPEx disclosures need separate filters or can share one first source
 
 ### 2) What is the first high-signal family?
 
 The first TW slice should not ingest every announcement type.
 
-Candidate priority order:
+Current priority order:
 
 1. material information / major announcement
 2. M&A / merger / acquisition / tender-offer style update
 3. shareholding / director / insider related update
 4. periodic report
+
+Current recommendation:
+
+- start with `material information / major announcement` only if one deterministic category/sample can be isolated
+- otherwise promote a narrower M&A/tender-offer style family
 
 ### 3) What is the stable external identity?
 
