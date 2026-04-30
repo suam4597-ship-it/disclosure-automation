@@ -26,7 +26,12 @@ sources:
     active: true
     config:
       family: material_information_update
+      filter:
+        co_id: "2330"
+        seq_no: "1"
+        spoke_date: "20260430"
+        spoke_time: "162938"
       fixtures:
-        discovery_html: source_payloads/tw_mops_material_information_result_2330_20260430_162938_1.html
+        discovery_result: source_payloads/tw_mops_material_information_result_2330_20260430_162938_1.html
         detail_pages:
           "MOPS:2330:20260430:162938:1": source_payloads/tw_mops_material_information_detail_2330_20260430_162938_1.html
