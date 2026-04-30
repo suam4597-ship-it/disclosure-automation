@@ -1,0 +1,37 @@
+version: 1
+defaults:
+  timezone: Asia/Shanghai
+  poll_cron: "*/15 * * * *"
+  parser_key: cn_cninfo_ownership_change_v1
+  ranking_weight: 1.0
+  active: true
+
+sources:
+  - source_key: cn_cninfo_ownership_change
+    display_name: China CNInfo Ownership Change Announcements
+    source_type: api
+    adapter_key: cn_cninfo_ownership_change_v1
+    region_code: cn
+    discovery_mode: cninfo_announcement_query_fixture
+    hydrate_mode: cninfo_pdf_attachment
+    default_home_market_region_code: cn
+    source_class: regulatory_filing_feed
+    default_source_tier: official_exchange_storage
+    base_url: https://www.cninfo.com.cn/new/hisAnnouncement/query
+    healthcheck_url: https://www.cninfo.com.cn/new/commonUrl?url=disclosure/list/notice
+    parser_key: cn_cninfo_ownership_change_v1
+    poll_cron: "*/15 * * * *"
+    ranking_weight: 1.8
+    coverage_tags: [cn, regulatory, filings, ownership_change, cninfo]
+    active: true
+    config:
+      family: ownership_change_update
+      static_base_url: https://static.cninfo.com.cn
+      filter:
+        sec_code: "000404"
+        announcement_id: "1225049497"
+        announcement_date: "2026-03-30"
+      fixtures:
+        discovery_result: source_payloads/cn_cninfo_ownership_change_discovery_000404_20260330_1225049497.json
+        pdf_pages:
+          "CNINFO:1225049497": source_payloads/cn_cninfo_ownership_change_pdf_000404_20260330_1225049497.txt
