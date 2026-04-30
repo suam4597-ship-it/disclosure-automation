@@ -4,7 +4,6 @@ defmodule DisclosureAutomation.Runtime.JPTDnetTimelyDisclosureAdapter do
   @behaviour DisclosureAutomation.Runtime.Adapter
 
   alias DisclosureAutomation.Fixtures
-  alias DisclosureAutomation.Http
   alias DisclosureAutomation.Schema.SourceRegistry
 
   @cursor_key "latest_disclosure_datetime_security_code_and_pdf_token_seen"
@@ -12,10 +11,8 @@ defmodule DisclosureAutomation.Runtime.JPTDnetTimelyDisclosureAdapter do
   @canonical_event_type "material_information_update"
 
   @impl true
-  def discover(%SourceRegistry{} = source, opts \\ []) do
-    use_live_fetch = Keyword.get(opts, :use_live_fetch, true)
-
-    with {:ok, payload} <- load_discovery_payload(source, use_live_fetch),
+  def discover(%SourceRegistry{} = source, _opts \\ []) do
+    with {:ok, payload} <- load_discovery_payload(source),
          {:ok, decoded} <- Jason.decode(payload) do
       items =
         decoded
@@ -29,11 +26,10 @@ defmodule DisclosureAutomation.Runtime.JPTDnetTimelyDisclosureAdapter do
   end
 
   @impl true
-  def hydrate(%SourceRegistry{} = source, discovery_item, opts \\ []) do
-    use_live_fetch = Keyword.get(opts, :use_live_fetch, true)
+  def hydrate(%SourceRegistry{} = source, discovery_item, _opts \\ []) do
     pdf_fixture_path = pdf_fixture_path(source, discovery_item.stable_external_id)
 
-    with {:ok, pdf_payload} <- load_document(discovery_item.attachment_url, pdf_fixture_path, use_live_fetch) do
+    with {:ok, pdf_payload} <- fixture_document(pdf_fixture_path) do
       {:ok,
        %{
          discovery_item: discovery_item,
@@ -66,7 +62,7 @@ defmodule DisclosureAutomation.Runtime.JPTDnetTimelyDisclosureAdapter do
            body_text: pdf_payload.raw,
            published_at: discovery_item.published_at_utc,
            metadata: %{
-             "mode" => pdf_payload.mode,
+             "mode" => "fixture",
              "fixture" => pdf_payload.fixture_path,
              "pdf_document_token" => discovery_item.pdf_document_token,
              "attachment_url" => discovery_item.attachment_url
@@ -239,19 +235,7 @@ defmodule DisclosureAutomation.Runtime.JPTDnetTimelyDisclosureAdapter do
 
   def cursor_key, do: @cursor_key
 
-  defp load_discovery_payload(source, true) do
-    fixture_path = discovery_fixture_path(source)
-
-    with {:ok, response} <- Http.fetch(source.base_url, timeout: 8_000),
-         true <- response.status_code in 200..299,
-         true <- String.contains?(response.body, "140120260430515474") do
-      {:ok, response.body}
-    else
-      _ -> load_fixture(fixture_path)
-    end
-  end
-
-  defp load_discovery_payload(source, false), do: load_fixture(discovery_fixture_path(source))
+  defp load_discovery_payload(source), do: load_fixture(discovery_fixture_path(source))
 
   defp discovery_fixture_path(source) do
     get_in(source.config || %{}, ["fixtures", "discovery_result"]) ||
@@ -266,20 +250,9 @@ defmodule DisclosureAutomation.Runtime.JPTDnetTimelyDisclosureAdapter do
     Map.get(pdf_pages, stable_external_id) || Map.get(pdf_pages, to_string(stable_external_id))
   end
 
-  defp load_document(url, fixture_path, true) do
-    with {:ok, response} <- Http.fetch(url, timeout: 8_000),
-         true <- response.status_code in 200..299 do
-      {:ok, %{raw: response.body, mode: "live", fixture_path: nil}}
-    else
-      _ -> fixture_document(fixture_path)
-    end
-  end
-
-  defp load_document(_url, fixture_path, false), do: fixture_document(fixture_path)
-
   defp fixture_document(fixture_path) do
     with {:ok, payload} <- Fixtures.load_source_payload(fixture_path) do
-      {:ok, %{raw: payload.raw, mode: "fixture", fixture_path: payload.relative_path}}
+      {:ok, %{raw: payload.raw, fixture_path: payload.relative_path}}
     end
   end
 
