@@ -1,0 +1,34 @@
+version: 1
+defaults:
+  timezone: Asia/Tokyo
+  poll_cron: "*/15 * * * *"
+  parser_key: jp_edinet_statutory_report_v1
+  ranking_weight: 1.0
+  active: true
+
+sources:
+  - source_key: jp_edinet_statutory_report
+    display_name: Japan EDINET Statutory Report
+    source_type: api
+    adapter_key: jp_edinet_statutory_report_v1
+    region_code: jp
+    discovery_mode: edinet_documents_api_fixture
+    hydrate_mode: edinet_type1_primary_document_text_fixture
+    default_home_market_region_code: jp
+    source_class: regulatory_filing_feed
+    default_source_tier: official_regulatory_storage
+    base_url: https://api.edinet-fsa.go.jp/api/v2/documents.json?date=2026-04-30&type=2&Subscription-Key=<redacted>
+    healthcheck_url: https://api.edinet-fsa.go.jp/api/v2/documents.json
+    parser_key: jp_edinet_statutory_report_v1
+    poll_cron: "*/15 * * * *"
+    ranking_weight: 1.8
+    coverage_tags: [jp, regulatory, filings, edinet, statutory_report]
+    active: true
+    config:
+      family: statutory_report_update
+      filter:
+        doc_id: S100XZXO
+      fixtures:
+        discovery_result: source_payloads/jp_edinet_statutory_report_document_list_20260430_S100XZXO.json
+        primary_documents:
+          "EDINET:S100XZXO": source_payloads/jp_edinet_statutory_report_primary_document_S100XZXO.txt

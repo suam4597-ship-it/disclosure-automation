@@ -1,0 +1,37 @@
+{
+  "metadata": {
+    "parameter": {
+      "date": "2026-04-30",
+      "type": "2"
+    },
+    "resultset": {
+      "count": 384
+    },
+    "processDateTime": "2026-05-01 00:03",
+    "status": 200,
+    "message": "OK"
+  },
+  "results": [
+    {
+      "seqNumber": 1,
+      "docID": "S100XZXO",
+      "edinetCode": "E12460",
+      "secCode": null,
+      "filerName": "野村アセットマネジメント株式会社",
+      "docTypeCode": "180",
+      "submitDateTime": "2026-04-30 09:00",
+      "submitDateTimeLocal": "2026-04-30T09:00:00+09:00",
+      "submitDateTimeUtc": "2026-04-30T00:00:00.000000Z",
+      "submitDateLocal": "2026-04-30",
+      "docDescription": "臨時報告書（内国特定有価証券）",
+      "xbrlFlag": "1",
+      "pdfFlag": "1",
+      "csvFlag": "1",
+      "discoveryRequestShape": "https://api.edinet-fsa.go.jp/api/v2/documents.json?date=2026-04-30&type=2&Subscription-Key=<redacted>",
+      "primaryDocumentRequestShape": "https://api.edinet-fsa.go.jp/api/v2/documents/S100XZXO?type=1&Subscription-Key=<redacted>",
+      "primaryDocumentZipFile": "S100XZXO_1.zip",
+      "primaryDocumentContentType": "html/iXBRL",
+      "primaryDocumentSourcePath": "XBRL/PublicDoc/0101010_honbun_jpsps000000-esr-001_G05711-000_2026-04-20_01_2026-04-30_ixbrl.htm"
+    }
+  ]
+}
