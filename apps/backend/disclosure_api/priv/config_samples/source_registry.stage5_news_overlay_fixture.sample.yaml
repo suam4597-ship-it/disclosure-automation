@@ -15,7 +15,7 @@ sources:
     discovery_mode: fixture
     hydrate_mode: local_fixture
     default_home_market_region_code: jp
-    source_class: news_overlay_feed
+    source_class: regulatory_filing_feed
     default_source_tier: reputable_news_source
     base_url: https://jp.reuters.com/markets/global-markets/JKGTTV5MI5PFRGFVTC37DW73GE-2026-04-30/
     healthcheck_url: https://jp.reuters.com/
