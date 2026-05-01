@@ -12,10 +12,10 @@ source_key: jp_edinet_statutory_report
 adapter_key: jp_edinet_statutory_report_v1
 docID: S100XZXO
 stable_external_id: EDINET:S100XZXO
-runtime status: blocked
+runtime status: extraction pending
 ```
 
-Runtime remains blocked because the type=1 primary document payload/text has not been captured.
+The type=1 primary document endpoint now returns a real ZIP payload for `S100XZXO`, but the ZIP contents have not yet been listed or converted into a non-secret text fixture.
 
 ## Secret handling policy
 
@@ -90,14 +90,22 @@ request shape with Subscription-Key=<redacted>
 
 ## Current observed type=1 result
 
-The latest type=1 attempt returned an HTTP 200 transport response with a JSON body that indicated EDINET authorization failure:
+The latest type=1 attempt returned a real ZIP payload.
 
 ```text
-statusCode: 401
-message: Access denied due to invalid subscription key. Make sure to provide a valid key for an active subscription.
+docID: S100XZXO
+request shape: https://api.edinet-fsa.go.jp/api/v2/documents/S100XZXO?type=1&Subscription-Key=<redacted>
+HTTP status: 200 OK
+content-type: application/octet-stream
+content-length: 10329
+content-disposition: inline; filename="S100XZXO_1.zip"
+payload_file_name: edinet_S100XZXO_type1_payload.bin
+payload_size_bytes: 10329
+payload_check: ZIP payload
+first bytes: 50 4B 03 04 14 00 00 00
 ```
 
-The documents list endpoint still returned:
+The documents list endpoint also returned:
 
 ```text
 metadata.status: 200
@@ -108,8 +116,8 @@ metadata.resultset.count: 384
 Interpretation:
 
 ```text
-the current list API access is not enough to implement EDINET runtime
-primary document access remains blocked until a key/subscription with type=1 access succeeds
+type=1 access is confirmed for docID S100XZXO
+primary document runtime still needs a non-secret text fixture or stable extraction plan from the ZIP payload
 ```
 
 ## Required payload before runtime
@@ -118,7 +126,7 @@ Provide one of:
 
 ```text
 1. extracted primary document text for docID S100XZXO
-2. type=1 response headers plus a stable extraction plan and a non-secret payload fixture
+2. ZIP file listing plus selected text/XBRL/PDF extraction plan and a non-secret text fixture
 ```
 
 Minimum acceptable runtime fixture evidence:
@@ -126,9 +134,11 @@ Minimum acceptable runtime fixture evidence:
 ```text
 docID: S100XZXO
 request shape: https://api.edinet-fsa.go.jp/api/v2/documents/S100XZXO?type=1&Subscription-Key=<redacted>
-content-type: TODO
-content-disposition: TODO
-content-length: TODO
+content-type: application/octet-stream
+content-disposition: inline; filename="S100XZXO_1.zip"
+content-length: 10329
+zip first bytes: 50 4B 03 04 14 00 00 00
+zip file list: TODO
 primary document text excerpt: TODO
 extraction method: TODO
 ```
@@ -149,4 +159,4 @@ mixing TDnet or CNInfo code changes into EDINET runtime
 
 ## Next safe step
 
-If type=1 access continues to fail, create only a docs PR marking EDINET runtime as blocked and proceed to Stage 5 kickoff with EDINET explicitly deferred.
+Extract or list the local ZIP payload, choose the primary text/XBRL/PDF source, and create a non-secret text fixture plan. Then implement the isolated `jp_edinet_statutory_report_v1` runtime with one fixture item only.
