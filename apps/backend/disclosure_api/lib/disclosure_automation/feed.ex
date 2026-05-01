@@ -60,7 +60,7 @@ defmodule DisclosureAutomation.Feed do
   defp get_slot(slot_id, region_code, opts) do
     case latest_snapshot(slot_id) do
       nil -> build_ephemeral_slot(slot_id, region_code, opts)
-      snapshot -> {:ok, snapshot.payload}
+      snapshot -> {:ok, present_snapshot_payload(snapshot.payload)}
     end
   end
 
@@ -157,6 +157,18 @@ defmodule DisclosureAutomation.Feed do
     }
   end
 
+  defp present_snapshot_payload(%{} = payload) do
+    Map.update(payload, "items", [], fn items -> Enum.map(items || [], &present_snapshot_item/1) end)
+  end
+
+  defp present_snapshot_payload(payload), do: payload
+
+  defp present_snapshot_item(%{} = item_payload) do
+    Map.put(item_payload, "news_overlays", news_overlays_for(item_payload["event_id"] || item_payload["story_key"]))
+  end
+
+  defp present_snapshot_item(item_payload), do: item_payload
+
   defp present_item(item) do
     item_payload =
       if map_size(item.contract_v1 || %{}) > 0 do
@@ -177,7 +189,7 @@ defmodule DisclosureAutomation.Feed do
         }
       end
 
-    Map.put_new(item_payload, "news_overlays", news_overlays_for(item.event_id || item.story_key))
+    Map.put(item_payload, "news_overlays", news_overlays_for(item.event_id || item.story_key))
   end
 
   defp news_overlays_for(nil), do: []
