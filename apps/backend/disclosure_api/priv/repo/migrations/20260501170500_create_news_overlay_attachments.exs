@@ -37,9 +37,9 @@ defmodule DisclosureAutomation.Repo.Migrations.CreateNewsOverlayAttachments do
       add :language, :text
       add :jurisdiction, :text
       add :overlay_payload, :map, null: false, default: fragment("'{}'::jsonb")
-      add :conflict_flags, :map, null: false, default: fragment("'[]'::jsonb")
-      add :overlay_claims, :map, null: false, default: fragment("'[]'::jsonb")
-      add :citations, :map, null: false, default: fragment("'[]'::jsonb")
+      add :conflict_flags, :map, null: false, default: fragment("'{\"items\": []}'::jsonb")
+      add :overlay_claims, :map, null: false, default: fragment("'{\"items\": []}'::jsonb")
+      add :citations, :map, null: false, default: fragment("'{\"items\": []}'::jsonb")
 
       timestamps(type: :utc_datetime_usec)
     end
