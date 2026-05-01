@@ -4,6 +4,7 @@ defmodule DisclosureAutomation.Runtime.Adapter do
   alias DisclosureAutomation.Schema.SourceRegistry
   alias DisclosureAutomation.Runtime.AFMSubstantialHoldingsAdapter
   alias DisclosureAutomation.Runtime.CNCNInfoOwnershipChangeAdapter
+  alias DisclosureAutomation.Runtime.JPTDnetBroadTimelyDisclosureAdapter
   alias DisclosureAutomation.Runtime.JPTDnetTimelyDisclosureAdapter
   alias DisclosureAutomation.Runtime.SECAdapter
   alias DisclosureAutomation.Runtime.TWMOPSMaterialInformationAdapter
@@ -37,6 +38,9 @@ defmodule DisclosureAutomation.Runtime.Adapter do
 
   def resolve(%SourceRegistry{adapter_key: "jp_tdnet_timely_disclosure_v1"}),
     do: {:ok, JPTDnetTimelyDisclosureAdapter}
+
+  def resolve(%SourceRegistry{adapter_key: "jp_tdnet_broad_timely_disclosure_v1"}),
+    do: {:ok, JPTDnetBroadTimelyDisclosureAdapter}
 
   def resolve(%SourceRegistry{adapter_key: nil}), do: :error
   def resolve(%SourceRegistry{adapter_key: _unknown}), do: :error
