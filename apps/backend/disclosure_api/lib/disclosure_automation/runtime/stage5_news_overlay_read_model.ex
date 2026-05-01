@@ -117,6 +117,22 @@ defmodule DisclosureAutomation.Runtime.Stage5NewsOverlayReadModel do
   end
 
   defp overlays_for(official, opts) do
+    prefer_materialized? = Keyword.get(opts, :prefer_materialized, true)
+
+    materialized_overlays =
+      if prefer_materialized? do
+        materialized_overlays_for(official, opts)
+      else
+        []
+      end
+
+    case materialized_overlays do
+      [] -> raw_staging_overlays_for(official, opts)
+      overlays -> overlays
+    end
+  end
+
+  defp raw_staging_overlays_for(official, opts) do
     include_hidden? = Keyword.get(opts, :include_hidden, false)
 
     official.eventId
@@ -124,6 +140,95 @@ defmodule DisclosureAutomation.Runtime.Stage5NewsOverlayReadModel do
     |> Enum.map(fn {external_event_key, payload} -> overlay_from_payload(official, external_event_key, payload || %{}) end)
     |> Enum.filter(fn overlay -> include_hidden? or overlay.displayState == "visible" end)
     |> Enum.sort_by(fn overlay -> {overlay.displayState, overlay.publishedAt || "", overlay.articleExternalId || ""} end)
+  end
+
+  defp materialized_overlays_for(official, opts) do
+    include_hidden? = Keyword.get(opts, :include_hidden, false)
+
+    display_filter =
+      if include_hidden? do
+        ""
+      else
+        "and display_state = 'visible'"
+      end
+
+    result =
+      Repo.query!(
+        """
+        select
+          overlay_id,
+          overlay_provider,
+          overlay_source_key,
+          source_tier,
+          document_role,
+          overlay_external_id,
+          overlay_mode,
+          display_state,
+          title,
+          published_at,
+          url,
+          language,
+          jurisdiction,
+          canonical_fact_override,
+          overlay_payload,
+          conflict_flags,
+          overlay_claims,
+          citations
+        from news_overlay_attachments
+        where official_canonical_feed_item_id = $1
+          #{display_filter}
+        order by display_state, published_at, overlay_external_id
+        """,
+        [uuid_param(official.id)]
+      )
+
+    Enum.map(result.rows, &materialized_overlay_from_row/1)
+  end
+
+  defp materialized_overlay_from_row([
+         overlay_id,
+         overlay_provider,
+         overlay_source_key,
+         source_tier,
+         document_role,
+         overlay_external_id,
+         overlay_mode,
+         display_state,
+         title,
+         published_at,
+         url,
+         language,
+         jurisdiction,
+         canonical_fact_override,
+         overlay_payload,
+         conflict_flags,
+         overlay_claims,
+         citations
+       ]) do
+    overlay_payload = overlay_payload || %{}
+
+    %{
+      overlayId: overlay_id,
+      overlayType: overlay_payload["overlay_type"] || "news_article_context",
+      overlayMode: overlay_mode,
+      displayState: display_state,
+      sourceKey: overlay_source_key,
+      provider: overlay_provider,
+      sourceTier: source_tier,
+      documentRole: document_role,
+      articleExternalId: overlay_external_id,
+      rawDocumentExternalId: overlay_payload["raw_document_external_id"],
+      rawEventExternalId: overlay_payload["raw_event_external_id"],
+      title: title,
+      publishedAt: first_present([overlay_payload["published_at"], datetime_iso8601(published_at)]),
+      url: url,
+      language: language,
+      jurisdiction: jurisdiction,
+      canonicalFactOverride: canonical_fact_override || false,
+      overlayClaims: materialized_overlay_claims(overlay_claims),
+      conflictFlags: json_items(conflict_flags),
+      citations: materialized_citations(citations)
+    }
   end
 
   defp raw_overlay_rows(event_id) do
@@ -299,6 +404,40 @@ defmodule DisclosureAutomation.Runtime.Stage5NewsOverlayReadModel do
     }
   end
 
+  defp materialized_overlay_claims(claims) do
+    claims
+    |> json_items()
+    |> Enum.map(fn claim ->
+      %{
+        claimId: claim["claim_id"],
+        claimType: claim["claim_type"],
+        text: claim["text"],
+        sourceKey: claim["source_key"],
+        sourceTier: claim["source_tier"],
+        documentRole: claim["document_role"],
+        citationId: claim["citation_id"],
+        canonicalFactOverride: false
+      }
+    end)
+  end
+
+  defp materialized_citations(citations) do
+    citations
+    |> json_items()
+    |> Enum.map(fn citation ->
+      %{
+        citationId: citation["citation_id"],
+        sourceKey: citation["source_key"],
+        sourceTier: citation["source_tier"],
+        documentRole: citation["document_role"],
+        provider: citation["provider"],
+        url: citation["url"],
+        label: citation["label"],
+        isCanonicalSource: citation["is_canonical_source"]
+      }
+    end)
+  end
+
   defp overlay_claims(payload) do
     payload
     |> Map.get("overlay_claims", [])
@@ -367,6 +506,14 @@ defmodule DisclosureAutomation.Runtime.Stage5NewsOverlayReadModel do
   end
 
   defp raw_document_external_id(_payload), do: nil
+
+  defp json_items(%{"items" => items}) when is_list(items), do: items
+  defp json_items(items) when is_list(items), do: items
+  defp json_items(_value), do: []
+
+  defp datetime_iso8601(nil), do: nil
+  defp datetime_iso8601(%DateTime{} = value), do: DateTime.to_iso8601(value)
+  defp datetime_iso8601(value), do: value
 
   defp first_present(values) do
     Enum.find(values, &present?/1)
