@@ -74,9 +74,11 @@ defmodule DisclosureAutomation.Runtime.Stage5NewsOverlayRawStaging do
 
   defp create_ingestion_run(%SourceRegistry{} = source, overlay) do
     now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+    run_id = Ecto.UUID.generate()
 
     attrs = %{
-      "id" => Ecto.UUID.generate(),
+      "id" => run_id,
+      "run_key" => "stage5_news_overlay_fixture:raw_staging:#{run_id}",
       "source_registry_id" => source.id,
       "source_key" => @source_key,
       "trigger_kind" => "manual",
@@ -219,7 +221,7 @@ defmodule DisclosureAutomation.Runtime.Stage5NewsOverlayRawStaging do
       attrs
       |> Enum.filter(fn {column, _value} -> Map.has_key?(columns, column) end)
 
-    {column_names, values} = Enum.unzip(insert_attrs)
+    {column_names, _values} = Enum.unzip(insert_attrs)
 
     placeholders =
       column_names
