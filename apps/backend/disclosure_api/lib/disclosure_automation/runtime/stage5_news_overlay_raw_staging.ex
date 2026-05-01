@@ -72,7 +72,7 @@ defmodule DisclosureAutomation.Runtime.Stage5NewsOverlayRawStaging do
 
   defp upsert_raw_document(%SourceRegistry{} = source, fixture, overlay, published_at) do
     external_id = raw_document_external_id(overlay)
-    now = DateTime.utc_now() |> DateTime.truncate(:second)
+    now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
 
     attrs = %{
       "external_id" => external_id,
@@ -102,7 +102,7 @@ defmodule DisclosureAutomation.Runtime.Stage5NewsOverlayRawStaging do
 
   defp upsert_raw_event(%SourceRegistry{} = source, overlay, occurred_at) do
     external_id = raw_event_external_id(overlay)
-    now = DateTime.utc_now() |> DateTime.truncate(:second)
+    now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
 
     payload = %{
       "overlay_id" => overlay["overlayId"],
