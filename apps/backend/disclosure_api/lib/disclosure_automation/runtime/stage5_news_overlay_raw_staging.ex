@@ -122,6 +122,7 @@ defmodule DisclosureAutomation.Runtime.Stage5NewsOverlayRawStaging do
       "document_role" => "news_article",
       "mime_type" => "application/json",
       "url" => overlay["sourceUrl"],
+      "payload" => raw_document_payload(overlay),
       "content_hash" => raw_document_content_hash(overlay),
       "published_at" => published_at,
       "inserted_at" => now,
@@ -323,6 +324,25 @@ defmodule DisclosureAutomation.Runtime.Stage5NewsOverlayRawStaging do
 
   defp raw_document_external_id(overlay), do: "#{overlay["articleExternalId"]}:article-metadata"
   defp raw_event_external_id(overlay), do: "#{overlay["overlayId"]}:overlay-candidate"
+
+  defp raw_document_payload(overlay) do
+    %{
+      "mode" => "raw_staging",
+      "source_key" => @source_key,
+      "source_tier" => overlay["sourceTier"],
+      "document_role" => overlay["documentRole"],
+      "article_external_id" => overlay["articleExternalId"],
+      "overlay_id" => overlay["overlayId"],
+      "canonical_event_id" => overlay["canonicalEventId"],
+      "source_name" => overlay["sourceName"],
+      "source_url" => overlay["sourceUrl"],
+      "article_title" => overlay["articleTitle"],
+      "article_published_at" => overlay["articlePublishedAt"],
+      "article_retrieved_at" => overlay["articleRetrievedAt"],
+      "canonical_feed_mutation" => false,
+      "news_only_event_creation" => false
+    }
+  end
 
   defp raw_document_content_hash(overlay) do
     %{
