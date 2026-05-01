@@ -117,7 +117,7 @@ defmodule DisclosureAutomation.Stage5NewsOverlayRawStagingRuntimeIdempotencyTest
     %{rows: [[count]]} =
       Repo.query!(
         "select count(*) from raw_documents where source_registry_id = $1 and external_id = $2",
-        [source_registry_id, external_id]
+        [uuid_param(source_registry_id), external_id]
       )
 
     count
@@ -127,7 +127,7 @@ defmodule DisclosureAutomation.Stage5NewsOverlayRawStagingRuntimeIdempotencyTest
     %{rows: [[count]]} =
       Repo.query!(
         "select count(*) from raw_events where source_registry_id = $1 and external_event_key = $2",
-        [source_registry_id, external_event_key]
+        [uuid_param(source_registry_id), external_event_key]
       )
 
     count
@@ -137,9 +137,18 @@ defmodule DisclosureAutomation.Stage5NewsOverlayRawStagingRuntimeIdempotencyTest
     %{rows: [[payload]]} =
       Repo.query!(
         "select payload from raw_events where source_registry_id = $1 and external_event_key = $2",
-        [source_registry_id, external_event_key]
+        [uuid_param(source_registry_id), external_event_key]
       )
 
     payload
   end
+
+  defp uuid_param(value) when is_binary(value) do
+    case Ecto.UUID.dump(value) do
+      {:ok, dumped} -> dumped
+      :error -> value
+    end
+  end
+
+  defp uuid_param(value), do: value
 end
