@@ -316,7 +316,7 @@ defmodule DisclosureAutomation.Runtime.Stage5NewsOverlayRawStaging do
   end
 
   defp encode_value(_column, value, %{udt_name: "uuid"}), do: uuid_param(value)
-  defp encode_value(_column, value, %{data_type: data_type}) when data_type in ["json", "jsonb"], do: Jason.encode!(value)
+  defp encode_value(_column, value, %{data_type: data_type}) when data_type in ["json", "jsonb"], do: value
   defp encode_value("content_hash", value, %{data_type: "bytea"}), do: Base.decode16!(String.upcase(value))
   defp encode_value(_column, value, _column_info), do: value
 
