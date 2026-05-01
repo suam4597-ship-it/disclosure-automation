@@ -18,8 +18,9 @@ defmodule DisclosureAutomation.Runtime.Stage5NewsOverlayRawStaging do
          {:ok, fixture} <- load_fixture(source),
          {:ok, overlay} <- single_overlay(fixture),
          {:ok, article_published_at} <- parse_datetime(overlay["articlePublishedAt"]),
-         {:ok, _raw_document} <- upsert_raw_document(source, overlay, article_published_at),
-         {:ok, _raw_event} <- upsert_raw_event(source, overlay, article_published_at),
+         {:ok, ingestion_run_id} <- create_ingestion_run(source, overlay),
+         {:ok, _raw_document} <- upsert_raw_document(source, overlay, article_published_at, ingestion_run_id),
+         {:ok, _raw_event} <- upsert_raw_event(source, overlay, article_published_at, ingestion_run_id),
          {:ok, _cursor} <- Sources.upsert_source_cursor(source, @cursor_key, cursor_value(overlay), cursor_meta(overlay)),
          {:ok, _source} <- Sources.mark_poll_success(source, article_published_at) do
       {:ok,
@@ -32,6 +33,7 @@ defmodule DisclosureAutomation.Runtime.Stage5NewsOverlayRawStaging do
          overlay_id: overlay["overlayId"],
          raw_document_external_id: raw_document_external_id(overlay),
          raw_event_external_id: raw_event_external_id(overlay),
+         ingestion_run_id: ingestion_run_id,
          cursor_key: @cursor_key,
          cursor_value: cursor_value(overlay)
        }}
@@ -70,27 +72,66 @@ defmodule DisclosureAutomation.Runtime.Stage5NewsOverlayRawStaging do
   defp single_overlay(%{"overlays" => overlays}) when is_list(overlays), do: {:error, {:expected_one_overlay, length(overlays)}}
   defp single_overlay(_payload), do: {:error, :missing_overlays}
 
-  defp upsert_raw_document(%SourceRegistry{} = source, overlay, published_at) do
+  defp create_ingestion_run(%SourceRegistry{} = source, overlay) do
+    now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+
+    attrs = %{
+      "id" => Ecto.UUID.generate(),
+      "source_registry_id" => source.id,
+      "source_key" => @source_key,
+      "trigger_kind" => "manual",
+      "edition" => "breaking",
+      "status" => "completed",
+      "started_at" => now,
+      "completed_at" => now,
+      "records_seen" => 1,
+      "raw_documents_count" => 1,
+      "raw_events_count" => 1,
+      "canonical_items_count" => 0,
+      "use_live_fetch" => false,
+      "inline_feed" => false,
+      "metadata" => %{
+        "mode" => "raw_staging",
+        "source_key" => @source_key,
+        "overlay_id" => overlay["overlayId"],
+        "article_external_id" => overlay["articleExternalId"],
+        "canonical_event_id" => overlay["canonicalEventId"],
+        "canonical_feed_mutation" => false,
+        "news_only_event_creation" => false
+      },
+      "inserted_at" => now,
+      "updated_at" => now
+    }
+
+    insert_dynamic("ingestion_runs", attrs)
+  end
+
+  defp upsert_raw_document(%SourceRegistry{} = source, overlay, published_at, ingestion_run_id) do
     external_id = raw_document_external_id(overlay)
     now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
 
     attrs = %{
+      "id" => Ecto.UUID.generate(),
+      "ingestion_run_id" => ingestion_run_id,
+      "source_registry_id" => source.id,
       "external_id" => external_id,
       "document_identity" => external_id,
       "document_type" => "stage5_news_overlay_article_metadata_fixture",
       "document_role" => "news_article",
       "mime_type" => "application/json",
       "url" => overlay["sourceUrl"],
-      "published_at" => published_at
+      "published_at" => published_at,
+      "inserted_at" => now,
+      "updated_at" => now
     }
 
     case lookup_id("raw_documents", source.id, external_id) do
-      {:ok, nil} -> insert_raw_document(source.id, attrs, now)
-      {:ok, id} -> update_raw_document(id, attrs, now)
+      {:ok, nil} -> insert_dynamic("raw_documents", attrs)
+      {:ok, id} -> update_dynamic("raw_documents", id, Map.delete(attrs, "id"))
     end
   end
 
-  defp upsert_raw_event(%SourceRegistry{} = source, overlay, occurred_at) do
+  defp upsert_raw_event(%SourceRegistry{} = source, overlay, occurred_at, ingestion_run_id) do
     external_id = raw_event_external_id(overlay)
     now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
 
@@ -116,6 +157,9 @@ defmodule DisclosureAutomation.Runtime.Stage5NewsOverlayRawStaging do
     }
 
     attrs = %{
+      "id" => Ecto.UUID.generate(),
+      "ingestion_run_id" => ingestion_run_id,
+      "source_registry_id" => source.id,
       "event_key" => external_id,
       "external_event_key" => external_id,
       "parser_key" => "stage5_news_overlay_fixture_v1",
@@ -131,12 +175,14 @@ defmodule DisclosureAutomation.Runtime.Stage5NewsOverlayRawStaging do
         "canonical_event_id" => overlay["canonicalEventId"],
         "canonical_feed_mutation" => false,
         "news_only_event_creation" => false
-      }
+      },
+      "inserted_at" => now,
+      "updated_at" => now
     }
 
     case lookup_raw_event_id(source.id, external_id) do
-      {:ok, nil} -> insert_raw_event(source.id, attrs, now)
-      {:ok, id} -> update_raw_event(id, attrs, now)
+      {:ok, nil} -> insert_dynamic("raw_events", attrs)
+      {:ok, id} -> update_dynamic("raw_events", id, Map.delete(attrs, "id"))
     end
   end
 
@@ -166,114 +212,77 @@ defmodule DisclosureAutomation.Runtime.Stage5NewsOverlayRawStaging do
     end
   end
 
-  defp insert_raw_document(source_registry_id, attrs, now) do
-    Repo.query!(
-      """
-      insert into raw_documents
-        (source_registry_id, external_id, document_identity, document_type, document_role, mime_type, url, published_at, inserted_at, updated_at)
-      values
-        ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-      returning id
-      """,
-      [
-        uuid_param(source_registry_id),
-        attrs["external_id"],
-        attrs["document_identity"],
-        attrs["document_type"],
-        attrs["document_role"],
-        attrs["mime_type"],
-        attrs["url"],
-        attrs["published_at"],
-        now,
-        now
-      ]
-    )
+  defp insert_dynamic(table, attrs) do
+    columns = table_columns(table)
+
+    insert_attrs =
+      attrs
+      |> Enum.filter(fn {column, _value} -> Map.has_key?(columns, column) end)
+
+    {column_names, values} = Enum.unzip(insert_attrs)
+
+    placeholders =
+      column_names
+      |> Enum.with_index(1)
+      |> Enum.map(fn {column, idx} -> placeholder(idx, columns[column]) end)
+
+    sql = "insert into #{table} (#{Enum.join(column_names, ", ")}) values (#{Enum.join(placeholders, ", ")}) returning id"
+
+    encoded_values = encode_values(insert_attrs, columns)
+
+    Repo.query!(sql, encoded_values)
     |> one_id()
   end
 
-  defp update_raw_document(id, attrs, now) do
-    Repo.query!(
-      """
-      update raw_documents
-      set document_identity = $2,
-          document_type = $3,
-          document_role = $4,
-          mime_type = $5,
-          url = $6,
-          published_at = $7,
-          updated_at = $8
-      where id = $1
-      returning id
-      """,
-      [
-        id,
-        attrs["document_identity"],
-        attrs["document_type"],
-        attrs["document_role"],
-        attrs["mime_type"],
-        attrs["url"],
-        attrs["published_at"],
-        now
-      ]
-    )
+  defp update_dynamic(table, id, attrs) do
+    columns = table_columns(table)
+
+    update_attrs =
+      attrs
+      |> Enum.reject(fn {column, _value} -> column == "id" end)
+      |> Enum.filter(fn {column, _value} -> Map.has_key?(columns, column) end)
+
+    set_clause =
+      update_attrs
+      |> Enum.with_index(2)
+      |> Enum.map(fn {{column, _value}, idx} -> "#{column} = #{placeholder(idx, columns[column])}" end)
+      |> Enum.join(", ")
+
+    sql = "update #{table} set #{set_clause} where id = $1 returning id"
+
+    encoded_values = [id | encode_values(update_attrs, columns)]
+
+    Repo.query!(sql, encoded_values)
     |> one_id()
   end
 
-  defp insert_raw_event(source_registry_id, attrs, now) do
-    Repo.query!(
-      """
-      insert into raw_events
-        (source_registry_id, event_key, external_event_key, parser_key, event_family, occurred_at, status, payload, metadata, inserted_at, updated_at)
-      values
-        ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10, $11)
-      returning id
-      """,
-      [
-        uuid_param(source_registry_id),
-        attrs["event_key"],
-        attrs["external_event_key"],
-        attrs["parser_key"],
-        attrs["event_family"],
-        attrs["occurred_at"],
-        attrs["status"],
-        Jason.encode!(attrs["payload"]),
-        Jason.encode!(attrs["metadata"]),
-        now,
-        now
-      ]
-    )
-    |> one_id()
+  defp table_columns(table) do
+    result =
+      Repo.query!(
+        """
+        select column_name, data_type, udt_name
+        from information_schema.columns
+        where table_schema = 'public' and table_name = $1
+        """,
+        [table]
+      )
+
+    Map.new(result.rows, fn [column_name, data_type, udt_name] ->
+      {column_name, %{data_type: data_type, udt_name: udt_name}}
+    end)
   end
 
-  defp update_raw_event(id, attrs, now) do
-    Repo.query!(
-      """
-      update raw_events
-      set event_key = $2,
-          parser_key = $3,
-          event_family = $4,
-          occurred_at = $5,
-          status = $6,
-          payload = $7::jsonb,
-          metadata = $8::jsonb,
-          updated_at = $9
-      where id = $1
-      returning id
-      """,
-      [
-        id,
-        attrs["event_key"],
-        attrs["parser_key"],
-        attrs["event_family"],
-        attrs["occurred_at"],
-        attrs["status"],
-        Jason.encode!(attrs["payload"]),
-        Jason.encode!(attrs["metadata"]),
-        now
-      ]
-    )
-    |> one_id()
+  defp placeholder(index, %{data_type: "jsonb"}), do: "$#{index}::jsonb"
+  defp placeholder(index, %{data_type: "json"}), do: "$#{index}::json"
+  defp placeholder(index, _column), do: "$#{index}"
+
+  defp encode_values(attrs, columns) do
+    Enum.map(attrs, fn {column, value} -> encode_value(value, columns[column]) end)
   end
+
+  defp encode_value(value, %{udt_name: "uuid"}), do: uuid_param(value)
+  defp encode_value(value, %{data_type: data_type}) when data_type in ["json", "jsonb"], do: Jason.encode!(value)
+  defp encode_value(value, _column), do: value
 
   defp one_id(%Postgrex.Result{rows: [[id]]}), do: {:ok, id}
 
