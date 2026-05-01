@@ -68,10 +68,12 @@ Use a local shell only. Do not paste the real key into the command history if av
 ```powershell
 $env:EDINET_API_KEY = '<local secret value>'
 $DOCID = 'S100XZXO'
+$requestShape = "https://api.edinet-fsa.go.jp/api/v2/documents/${DOCID}?type=1&Subscription-Key=<redacted>"
+$requestUrl = $requestShape.Replace('<redacted>', [uri]::EscapeDataString($env:EDINET_API_KEY))
 
 curl.exe -sS -D "edinet_${DOCID}_headers.txt" `
   -o "edinet_${DOCID}_type1_payload.bin" `
-  "https://api.edinet-fsa.go.jp/api/v2/documents/${DOCID}?type=1&Subscription-Key=$env:EDINET_API_KEY"
+  $requestUrl
 ```
 
 Before sharing output, redact any secret-bearing value.
