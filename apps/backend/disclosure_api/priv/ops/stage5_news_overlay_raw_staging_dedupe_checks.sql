@@ -42,7 +42,7 @@ select
   cursor_value,
   count(*) as row_count
 from source_cursors c
-join source_registries s on s.id = c.source_registry_id
+join source_registry s on s.id = c.source_registry_id
 where s.source_key = 'stage5_news_overlay_fixture'
   and c.cursor_key = 'latest_article_published_at_and_article_external_id_seen'
   and c.cursor_value = '2026-04-30T10:30:00Z|NEWS-FIXTURE:jp:jp_tdnet_timely_disclosure:140120260430515474:reuters-jp-article-001'
