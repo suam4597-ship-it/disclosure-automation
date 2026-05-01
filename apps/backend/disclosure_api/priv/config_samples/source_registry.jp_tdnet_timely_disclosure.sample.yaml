@@ -9,7 +9,7 @@ defaults:
 sources:
   - source_key: jp_tdnet_timely_disclosure
     display_name: Japan TDnet Timely Disclosure
-    source_type: public_web
+    source_type: api
     adapter_key: jp_tdnet_timely_disclosure_v1
     region_code: jp
     discovery_mode: tdnet_current_list_row_fixture
