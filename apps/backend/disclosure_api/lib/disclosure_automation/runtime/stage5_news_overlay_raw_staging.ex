@@ -154,7 +154,7 @@ defmodule DisclosureAutomation.Runtime.Stage5NewsOverlayRawStaging do
     result =
       Repo.query!(
         "select id from #{table} where source_registry_id = $1 and external_id = $2 limit 1",
-        [source_registry_id, external_id]
+        [uuid_param(source_registry_id), external_id]
       )
 
     case result.rows do
@@ -167,7 +167,7 @@ defmodule DisclosureAutomation.Runtime.Stage5NewsOverlayRawStaging do
     result =
       Repo.query!(
         "select id from raw_events where source_registry_id = $1 and external_event_key = $2 limit 1",
-        [source_registry_id, external_event_key]
+        [uuid_param(source_registry_id), external_event_key]
       )
 
     case result.rows do
@@ -186,7 +186,7 @@ defmodule DisclosureAutomation.Runtime.Stage5NewsOverlayRawStaging do
       returning id
       """,
       [
-        source_registry_id,
+        uuid_param(source_registry_id),
         attrs["external_id"],
         attrs["document_identity"],
         attrs["document_type"],
@@ -245,7 +245,7 @@ defmodule DisclosureAutomation.Runtime.Stage5NewsOverlayRawStaging do
       returning id
       """,
       [
-        source_registry_id,
+        uuid_param(source_registry_id),
         attrs["event_key"],
         attrs["external_event_key"],
         attrs["parser_key"],
@@ -313,6 +313,15 @@ defmodule DisclosureAutomation.Runtime.Stage5NewsOverlayRawStaging do
       {:error, reason} -> {:error, {:invalid_datetime, value, reason}}
     end
   end
+
+  defp uuid_param(value) when is_binary(value) do
+    case Ecto.UUID.dump(value) do
+      {:ok, dumped} -> dumped
+      :error -> value
+    end
+  end
+
+  defp uuid_param(value), do: value
 
   defp maybe_mark_failure(reason) do
     case Sources.get_source_by_key(@source_key) do
