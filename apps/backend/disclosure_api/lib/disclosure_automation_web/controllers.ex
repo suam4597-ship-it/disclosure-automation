@@ -11,10 +11,84 @@ end
 defmodule DisclosureAutomationWeb.FeedDigestJSON do
   @moduledoc false
 
-  def show(%{digest: digest}), do: digest
+  alias DisclosureAutomation.Runtime.Stage5NewsOverlayReadModel
+
+  def show(%{digest: digest}), do: decorate_digest(digest)
 
   def error(%{code: code, message: message}) do
     %{error: %{code: code, message: message}}
+  end
+
+  defp decorate_digest(%{} = digest) do
+    Map.update(digest, "items", [], fn items -> Enum.map(items || [], &decorate_item/1) end)
+  end
+
+  defp decorate_digest(digest), do: digest
+
+  defp decorate_item(%{} = item) do
+    Map.put(item, "news_overlays", news_overlays_for(item["event_id"] || item["story_key"]))
+  end
+
+  defp decorate_item(item), do: item
+
+  defp news_overlays_for(nil), do: []
+
+  defp news_overlays_for(event_id) when is_binary(event_id) do
+    case Stage5NewsOverlayReadModel.get_by_event_id(event_id) do
+      {:ok, %{item: %{overlays: overlays}}} -> Enum.map(overlays, &present_overlay/1)
+      _ -> []
+    end
+  end
+
+  defp present_overlay(overlay) do
+    %{
+      "overlay_id" => overlay.overlayId,
+      "overlay_type" => overlay.overlayType,
+      "overlay_mode" => overlay.overlayMode,
+      "display_state" => overlay.displayState,
+      "source_key" => overlay.sourceKey,
+      "provider" => overlay.provider,
+      "source_tier" => overlay.sourceTier,
+      "document_role" => overlay.documentRole,
+      "article_external_id" => overlay.articleExternalId,
+      "raw_document_external_id" => overlay.rawDocumentExternalId,
+      "raw_event_external_id" => overlay.rawEventExternalId,
+      "title" => overlay.title,
+      "published_at" => overlay.publishedAt,
+      "url" => overlay.url,
+      "language" => overlay.language,
+      "jurisdiction" => overlay.jurisdiction,
+      "canonical_fact_override" => overlay.canonicalFactOverride,
+      "overlay_claims" => Enum.map(overlay.overlayClaims || [], &present_overlay_claim/1),
+      "conflict_flags" => overlay.conflictFlags || [],
+      "citations" => Enum.map(overlay.citations || [], &present_overlay_citation/1)
+    }
+  end
+
+  defp present_overlay_claim(claim) do
+    %{
+      "claim_id" => claim.claimId,
+      "claim_type" => claim.claimType,
+      "text" => claim.text,
+      "source_key" => claim.sourceKey,
+      "source_tier" => claim.sourceTier,
+      "document_role" => claim.documentRole,
+      "citation_id" => claim.citationId,
+      "canonical_fact_override" => claim.canonicalFactOverride
+    }
+  end
+
+  defp present_overlay_citation(citation) do
+    %{
+      "citation_id" => citation.citationId,
+      "source_key" => citation.sourceKey,
+      "source_tier" => citation.sourceTier,
+      "document_role" => citation.documentRole,
+      "provider" => citation.provider,
+      "url" => citation.url,
+      "label" => citation.label,
+      "is_canonical_source" => citation.isCanonicalSource
+    }
   end
 end
 
