@@ -42,9 +42,9 @@ defmodule DisclosureAutomation.Schema.NewsOverlayAttachment do
     field :language, :string
     field :jurisdiction, :string
     field :overlay_payload, :map, default: %{}
-    field :conflict_flags, :map, default: []
-    field :overlay_claims, :map, default: []
-    field :citations, :map, default: []
+    field :conflict_flags, :map, default: %{"items" => []}
+    field :overlay_claims, :map, default: %{"items" => []}
+    field :citations, :map, default: %{"items" => []}
 
     timestamps(type: :utc_datetime_usec)
   end
@@ -77,7 +77,10 @@ defmodule DisclosureAutomation.Schema.NewsOverlayAttachment do
       :title,
       :language,
       :jurisdiction,
-      :overlay_payload
+      :overlay_payload,
+      :conflict_flags,
+      :overlay_claims,
+      :citations
     ])
     |> validate_required([
       :official_canonical_feed_item_id,
