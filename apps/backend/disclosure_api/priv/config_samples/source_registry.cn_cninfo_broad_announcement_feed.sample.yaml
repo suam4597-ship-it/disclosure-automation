@@ -1,0 +1,40 @@
+version: 1
+defaults:
+  timezone: Asia/Shanghai
+  poll_cron: "*/15 * * * *"
+  parser_key: cn_cninfo_broad_announcement_feed_v1
+  ranking_weight: 1.0
+  active: true
+
+sources:
+  - source_key: cn_cninfo_broad_announcement_feed
+    display_name: China CNInfo Broad Announcement Feed
+    source_type: api
+    adapter_key: cn_cninfo_broad_announcement_feed_v1
+    region_code: cn
+    discovery_mode: cninfo_broad_announcement_rows_fixture
+    hydrate_mode: cninfo_pdf_attachment
+    default_home_market_region_code: cn
+    source_class: regulatory_filing_feed
+    default_source_tier: official_exchange_storage
+    base_url: https://www.cninfo.com.cn/
+    healthcheck_url: https://www.cninfo.com.cn/new/commonUrl?url=disclosure/list/notice
+    parser_key: cn_cninfo_broad_announcement_feed_v1
+    poll_cron: "*/15 * * * *"
+    ranking_weight: 1.8
+    coverage_tags: [cn, regulatory, filings, cninfo, broad]
+    active: true
+    config:
+      family: controlled_broad_announcement_feed
+      filter:
+        announcement_date: "2026-05-01"
+        announcement_ids:
+          - "1225274841"
+          - "1225274838"
+          - "1225274454"
+      fixtures:
+        discovery_result: source_payloads/cn_cninfo_broad_announcement_feed_discovery_20260501.json
+        pdf_pages:
+          "CNINFO:603660:20260501:1225274841": source_payloads/cn_cninfo_broad_announcement_feed_pdf_603660_20260501_1225274841.txt
+          "CNINFO:603350:20260501:1225274838": source_payloads/cn_cninfo_broad_announcement_feed_pdf_603350_20260501_1225274838.txt
+          "CNINFO:300376:20260501:1225274454": source_payloads/cn_cninfo_broad_announcement_feed_pdf_300376_20260501_1225274454.txt
