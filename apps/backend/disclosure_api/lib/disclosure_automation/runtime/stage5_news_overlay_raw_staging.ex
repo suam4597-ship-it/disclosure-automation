@@ -18,7 +18,7 @@ defmodule DisclosureAutomation.Runtime.Stage5NewsOverlayRawStaging do
          {:ok, fixture} <- load_fixture(source),
          {:ok, overlay} <- single_overlay(fixture),
          {:ok, article_published_at} <- parse_datetime(overlay["articlePublishedAt"]),
-         {:ok, _raw_document} <- upsert_raw_document(source, fixture, overlay, article_published_at),
+         {:ok, _raw_document} <- upsert_raw_document(source, overlay, article_published_at),
          {:ok, _raw_event} <- upsert_raw_event(source, overlay, article_published_at),
          {:ok, _cursor} <- Sources.upsert_source_cursor(source, @cursor_key, cursor_value(overlay), cursor_meta(overlay)),
          {:ok, _source} <- Sources.mark_poll_success(source, article_published_at) do
@@ -70,7 +70,7 @@ defmodule DisclosureAutomation.Runtime.Stage5NewsOverlayRawStaging do
   defp single_overlay(%{"overlays" => overlays}) when is_list(overlays), do: {:error, {:expected_one_overlay, length(overlays)}}
   defp single_overlay(_payload), do: {:error, :missing_overlays}
 
-  defp upsert_raw_document(%SourceRegistry{} = source, fixture, overlay, published_at) do
+  defp upsert_raw_document(%SourceRegistry{} = source, overlay, published_at) do
     external_id = raw_document_external_id(overlay)
     now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
 
@@ -81,17 +81,7 @@ defmodule DisclosureAutomation.Runtime.Stage5NewsOverlayRawStaging do
       "document_role" => "news_article",
       "mime_type" => "application/json",
       "url" => overlay["sourceUrl"],
-      "published_at" => published_at,
-      "metadata" => %{
-        "mode" => "raw_staging",
-        "fixture" => fixture["_fixture_path"],
-        "fixture_snapshot" => fixture,
-        "article_external_id" => overlay["articleExternalId"],
-        "overlay_id" => overlay["overlayId"],
-        "canonical_event_id" => overlay["canonicalEventId"],
-        "canonical_feed_mutation" => false,
-        "news_only_event_creation" => false
-      }
+      "published_at" => published_at
     }
 
     case lookup_id("raw_documents", source.id, external_id) do
@@ -180,9 +170,9 @@ defmodule DisclosureAutomation.Runtime.Stage5NewsOverlayRawStaging do
     Repo.query!(
       """
       insert into raw_documents
-        (source_registry_id, external_id, document_identity, document_type, document_role, mime_type, url, published_at, metadata, inserted_at, updated_at)
+        (source_registry_id, external_id, document_identity, document_type, document_role, mime_type, url, published_at, inserted_at, updated_at)
       values
-        ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11)
+        ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       returning id
       """,
       [
@@ -194,7 +184,6 @@ defmodule DisclosureAutomation.Runtime.Stage5NewsOverlayRawStaging do
         attrs["mime_type"],
         attrs["url"],
         attrs["published_at"],
-        Jason.encode!(attrs["metadata"]),
         now,
         now
       ]
@@ -212,8 +201,7 @@ defmodule DisclosureAutomation.Runtime.Stage5NewsOverlayRawStaging do
           mime_type = $5,
           url = $6,
           published_at = $7,
-          metadata = $8::jsonb,
-          updated_at = $9
+          updated_at = $8
       where id = $1
       returning id
       """,
@@ -225,7 +213,6 @@ defmodule DisclosureAutomation.Runtime.Stage5NewsOverlayRawStaging do
         attrs["mime_type"],
         attrs["url"],
         attrs["published_at"],
-        Jason.encode!(attrs["metadata"]),
         now
       ]
     )
