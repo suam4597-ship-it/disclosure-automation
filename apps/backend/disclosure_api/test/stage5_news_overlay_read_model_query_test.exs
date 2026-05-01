@@ -12,6 +12,7 @@ defmodule DisclosureAutomation.Stage5NewsOverlayReadModelQueryTest do
 
   @official_event_id "jp.tdnet.4527.20260430.material_information_update.material_information_update.140120260430515474"
   @official_stable_external_id "TDNET:4527:20260430:1900:140120260430515474"
+  @official_published_at_utc "2026-04-30T10:00:00.000000Z"
   @overlay_id "news_overlay:jp.tdnet.4527.20260430.material_information_update.material_information_update.140120260430515474:ba9e08fb9a92ac57"
   @article_external_id "NEWS-FIXTURE:jp:jp_tdnet_timely_disclosure:140120260430515474:reuters-jp-article-001"
   @raw_event_external_id "news_overlay:jp.tdnet.4527.20260430.material_information_update.material_information_update.140120260430515474:ba9e08fb9a92ac57:overlay-candidate"
@@ -36,7 +37,7 @@ defmodule DisclosureAutomation.Stage5NewsOverlayReadModelQueryTest do
     assert response.item.documentRole == "official_exchange_disclosure"
     assert response.item.securityCode == "4527"
     assert response.item.title == "株主提案に関する書面受領のお知らせ"
-    assert response.item.publishedAt == "2026-04-30T10:00:00Z"
+    assert response.item.publishedAt == @official_published_at_utc
     assert response.item.overlays == []
   end
 
