@@ -31,6 +31,8 @@ defmodule DisclosureAutomationWeb.Stage5NewsOverlayApiExposureTest do
 
     item = response["item"]
 
+    assert is_binary(item["id"])
+    assert String.match?(item["id"], ~r/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/)
     assert item["eventId"] == @official_event_id
     assert item["sourceKey"] == "jp_tdnet_timely_disclosure"
     assert item["sourceTier"] == "official_exchange_storage"
@@ -57,6 +59,8 @@ defmodule DisclosureAutomationWeb.Stage5NewsOverlayApiExposureTest do
 
     item = response["item"]
 
+    assert is_binary(item["id"])
+    assert String.match?(item["id"], ~r/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/)
     assert item["eventId"] == @official_event_id
     assert item["sourceKey"] == "jp_tdnet_timely_disclosure"
     assert item["title"] == official_before["headline_local"]
