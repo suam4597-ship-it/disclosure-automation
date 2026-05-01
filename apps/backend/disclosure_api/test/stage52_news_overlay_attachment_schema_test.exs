@@ -58,10 +58,10 @@ defmodule DisclosureAutomation.Stage52NewsOverlayAttachmentSchemaTest do
     changeset = NewsOverlayAttachment.changeset(%NewsOverlayAttachment{}, @valid_attrs)
 
     assert changeset.valid?
-    assert Ecto.Changeset.get_change(changeset, :canonical_fact_override) == false
-    assert Ecto.Changeset.get_change(changeset, :overlay_mode) == "attach_only"
-    assert Ecto.Changeset.get_change(changeset, :source_tier) == "reputable_news_source"
-    assert Ecto.Changeset.get_change(changeset, :document_role) == "news_article"
+    assert Ecto.Changeset.get_field(changeset, :canonical_fact_override) == false
+    assert Ecto.Changeset.get_field(changeset, :overlay_mode) == "attach_only"
+    assert Ecto.Changeset.get_field(changeset, :source_tier) == "reputable_news_source"
+    assert Ecto.Changeset.get_field(changeset, :document_role) == "news_article"
   end
 
   test "rejects canonical_fact_override true" do
