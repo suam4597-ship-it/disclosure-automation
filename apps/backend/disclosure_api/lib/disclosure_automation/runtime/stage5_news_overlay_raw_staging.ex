@@ -81,11 +81,11 @@ defmodule DisclosureAutomation.Runtime.Stage5NewsOverlayRawStaging do
       "document_role" => "news_article",
       "mime_type" => "application/json",
       "url" => overlay["sourceUrl"],
-      "body_text" => Jason.encode!(fixture),
       "published_at" => published_at,
       "metadata" => %{
         "mode" => "raw_staging",
         "fixture" => fixture["_fixture_path"],
+        "fixture_snapshot" => fixture,
         "article_external_id" => overlay["articleExternalId"],
         "overlay_id" => overlay["overlayId"],
         "canonical_event_id" => overlay["canonicalEventId"],
@@ -180,9 +180,9 @@ defmodule DisclosureAutomation.Runtime.Stage5NewsOverlayRawStaging do
     Repo.query!(
       """
       insert into raw_documents
-        (source_registry_id, external_id, document_identity, document_type, document_role, mime_type, url, body_text, published_at, metadata, inserted_at, updated_at)
+        (source_registry_id, external_id, document_identity, document_type, document_role, mime_type, url, published_at, metadata, inserted_at, updated_at)
       values
-        ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11, $12)
+        ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11)
       returning id
       """,
       [
@@ -193,7 +193,6 @@ defmodule DisclosureAutomation.Runtime.Stage5NewsOverlayRawStaging do
         attrs["document_role"],
         attrs["mime_type"],
         attrs["url"],
-        attrs["body_text"],
         attrs["published_at"],
         Jason.encode!(attrs["metadata"]),
         now,
@@ -212,10 +211,9 @@ defmodule DisclosureAutomation.Runtime.Stage5NewsOverlayRawStaging do
           document_role = $4,
           mime_type = $5,
           url = $6,
-          body_text = $7,
-          published_at = $8,
-          metadata = $9::jsonb,
-          updated_at = $10
+          published_at = $7,
+          metadata = $8::jsonb,
+          updated_at = $9
       where id = $1
       returning id
       """,
@@ -226,7 +224,6 @@ defmodule DisclosureAutomation.Runtime.Stage5NewsOverlayRawStaging do
         attrs["document_role"],
         attrs["mime_type"],
         attrs["url"],
-        attrs["body_text"],
         attrs["published_at"],
         Jason.encode!(attrs["metadata"]),
         now
