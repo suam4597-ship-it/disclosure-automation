@@ -1,0 +1,169 @@
+{
+  "version": 1,
+  "sourceKey": "stage5_news_overlay_fixture",
+  "adapterKey": "stage5_news_overlay_fixture_v1",
+  "sourceTier": "reputable_news_source",
+  "documentRole": "news_article",
+  "fixtureStatus": "candidate_frozen_from_user_supplied_public_article_metadata",
+  "networkAccess": "forbidden",
+  "overlayMode": "attach_only",
+  "newsOnlyEventCreation": false,
+  "overlays": [
+    {
+      "overlayId": "news_overlay:jp.tdnet.4527.20260430.material_information_update.material_information_update.140120260430515474:ba9e08fb9a92ac57",
+      "articleExternalId": "NEWS-FIXTURE:jp:jp_tdnet_timely_disclosure:140120260430515474:reuters-jp-article-001",
+      "canonicalEventId": "jp.tdnet.4527.20260430.material_information_update.material_information_update.140120260430515474",
+      "sourceKey": "stage5_news_overlay_fixture",
+      "sourceTier": "reputable_news_source",
+      "documentRole": "news_article",
+      "sourceName": "Reuters Japan / ロイター",
+      "sourceUrl": "https://jp.reuters.com/markets/global-markets/JKGTTV5MI5PFRGFVTC37DW73GE-2026-04-30/",
+      "articleTitle": "英ファンドＡＶＩ、ロートの会長解任議案を提出　企業統治改善求める",
+      "articlePublishedAt": "2026-04-30T10:30:00Z",
+      "articlePublishedAtSourceDisplay": "2026年4月30日 午前 10:30 UTC",
+      "articleRetrievedAt": "2026-05-01T07:04:55Z",
+      "articleRetrievedAtSourceDisplay": "2026-05-01 16:04:55 KST/JST",
+      "articleLanguage": "ja",
+      "articleAuthorOrWire": "Reuters Japan / ロイター",
+      "claimSupported": "transaction_context_reported_by_news",
+      "overlayContextType": "transaction_context",
+      "articleSummary": "Reuters Japan reports that Asset Value Investors submitted a shareholder proposal to Rohto Pharmaceutical seeking the dismissal of chairman Kunio Yamada and calling for governance and business-portfolio reforms. The article also connects the news to Rohto's same-day disclosure that it received shareholder proposal documents and would disclose the board's opinion after review.",
+      "officialAnchor": {
+        "officialSourceKey": "jp_tdnet_timely_disclosure",
+        "officialAdapterKey": "jp_tdnet_timely_disclosure_v1",
+        "officialSourceTier": "official_exchange_storage",
+        "officialDocumentRole": "official_exchange_disclosure",
+        "eventId": "jp.tdnet.4527.20260430.material_information_update.material_information_update.140120260430515474",
+        "stableExternalId": "TDNET:4527:20260430:1900:140120260430515474",
+        "issuerName": "ロート製薬株式会社",
+        "securityCode": "4527",
+        "officialTitle": "株主提案に関する書面受領のお知らせ",
+        "officialPdfToken": "140120260430515474",
+        "officialPdfUrl": "https://www.release.tdnet.info/inbs/140120260430515474.pdf",
+        "officialPublishedAtLocal": "2026-04-30T19:00:00+09:00",
+        "officialPublishedAtUtc": "2026-04-30T10:00:00.000000Z"
+      },
+      "overlayClaims": [
+        {
+          "claimId": "reuters_context_avi_chairman_dismissal_proposal",
+          "claimKind": "news_only_context",
+          "claimSupported": "transaction_context_reported_by_news",
+          "summary": "Reuters reports that AVI submitted a shareholder proposal seeking dismissal of Rohto chairman Kunio Yamada.",
+          "canonicalFactOverride": false,
+          "sourceCitationRef": "citation:reuters-jp-article-001"
+        },
+        {
+          "claimId": "reuters_context_governance_business_portfolio_reforms",
+          "claimKind": "news_only_context",
+          "claimSupported": "article_reported_background",
+          "summary": "Reuters reports that AVI called for governance and business-portfolio reforms as part of the campaign context.",
+          "canonicalFactOverride": false,
+          "sourceCitationRef": "citation:reuters-jp-article-001"
+        },
+        {
+          "claimId": "reuters_context_same_day_rohto_disclosure_link",
+          "claimKind": "secondary_confirmation",
+          "claimSupported": "secondary_confirmation",
+          "summary": "Reuters reports that Rohto disclosed on the same day that it had received shareholder proposal documents and would disclose the board's opinion after review.",
+          "canonicalFactOverride": false,
+          "sourceCitationRef": "citation:reuters-jp-article-001"
+        }
+      ],
+      "officialFactsPreserved": {
+        "eventIdUnchanged": true,
+        "stableExternalIdUnchanged": true,
+        "rawDocumentIdentityUnchanged": true,
+        "officialTimestampUnchanged": true,
+        "canonicalEventTypeUnchanged": true,
+        "newsClaimsDoNotOverwriteOfficialFacts": true
+      },
+      "matchEvidence": {
+        "matchedCanonicalEventId": "jp.tdnet.4527.20260430.material_information_update.material_information_update.140120260430515474",
+        "matchedOfficialSourceKey": "jp_tdnet_timely_disclosure",
+        "matchedOfficialStableExternalId": "TDNET:4527:20260430:1900:140120260430515474",
+        "matchedOfficialEventFamily": "material_information_update",
+        "matchedOfficialCanonicalEventType": "material_information_update",
+        "matchedIssuerEvidence": {
+          "securityCode": "4527",
+          "issuerName": "ロート製薬株式会社",
+          "articleTickerMention": "4527.T",
+          "articleIssuerNameMention": "Rohto Pharmaceutical / ロート"
+        },
+        "matchedPublicationWindow": {
+          "officialPublishedAt": "2026-04-30T10:00:00Z",
+          "articlePublishedAt": "2026-04-30T10:30:00Z",
+          "windowRelation": "article_after_official",
+          "windowMinutes": 30,
+          "windowDays": 0
+        },
+        "matchRule": "issuer_identifier_and_event_family_and_date",
+        "matchInputs": {
+          "official": {
+            "eventId": "jp.tdnet.4527.20260430.material_information_update.material_information_update.140120260430515474",
+            "sourceKey": "jp_tdnet_timely_disclosure",
+            "stableExternalId": "TDNET:4527:20260430:1900:140120260430515474",
+            "issuerIdentifier": "4527",
+            "eventFamily": "material_information_update",
+            "canonicalEventType": "material_information_update",
+            "publishedAt": "2026-04-30T10:00:00Z",
+            "filingDate": "2026-04-30",
+            "officialPdfToken": "140120260430515474"
+          },
+          "overlay": {
+            "articleExternalId": "NEWS-FIXTURE:jp:jp_tdnet_timely_disclosure:140120260430515474:reuters-jp-article-001",
+            "sourceKey": "stage5_news_overlay_fixture",
+            "articleTitle": "英ファンドＡＶＩ、ロートの会長解任議案を提出　企業統治改善求める",
+            "articlePublishedAt": "2026-04-30T10:30:00Z",
+            "mentionedIssuerIdentifier": "4527.T",
+            "mentionedIssuerName": "Rohto Pharmaceutical / ロート",
+            "mentionedEventFamily": "shareholder proposal / 株主提案",
+            "referencedOfficialDisclosure": "Rohto disclosed it received shareholder proposal documents on the same day"
+          }
+        },
+        "matchDecisionSource": "manual_fixture_author",
+        "ambiguityFlags": [],
+        "conflictFlags": []
+      },
+      "citations": [
+        {
+          "citationId": "citation:tdnet-official-140120260430515474",
+          "sourceName": "TDnet Company Announcements Disclosure Service",
+          "sourceTier": "official_exchange_storage",
+          "sourceKey": "jp_tdnet_timely_disclosure",
+          "sourceUrl": "https://www.release.tdnet.info/inbs/140120260430515474.pdf",
+          "claimSupported": "official disclosure receipt of shareholder proposal documents",
+          "documentRole": "official_exchange_disclosure",
+          "publishedAt": "2026-04-30T10:00:00Z",
+          "retrievedAt": "2026-05-01T07:04:55Z",
+          "rawDocumentIdentity": "TDNET:4527:20260430:1900:140120260430515474:pdf:140120260430515474",
+          "stableExternalId": "TDNET:4527:20260430:1900:140120260430515474",
+          "eventId": "jp.tdnet.4527.20260430.material_information_update.material_information_update.140120260430515474"
+        },
+        {
+          "citationId": "citation:reuters-jp-article-001",
+          "sourceName": "Reuters Japan / ロイター",
+          "sourceTier": "reputable_news_source",
+          "sourceKey": "stage5_news_overlay_fixture",
+          "sourceUrl": "https://jp.reuters.com/markets/global-markets/JKGTTV5MI5PFRGFVTC37DW73GE-2026-04-30/",
+          "claimSupported": "news-only transaction context and secondary confirmation",
+          "documentRole": "news_article",
+          "publishedAt": "2026-04-30T10:30:00Z",
+          "retrievedAt": "2026-05-01T07:04:55Z",
+          "articleExternalId": "NEWS-FIXTURE:jp:jp_tdnet_timely_disclosure:140120260430515474:reuters-jp-article-001",
+          "overlayId": "news_overlay:jp.tdnet.4527.20260430.material_information_update.material_information_update.140120260430515474:ba9e08fb9a92ac57",
+          "canonicalEventId": "jp.tdnet.4527.20260430.material_information_update.material_information_update.140120260430515474"
+        }
+      ],
+      "manualVerification": {
+        "articleMetadataSuppliedByUser": true,
+        "officialAnchorAlreadyLocked": true,
+        "directArticleFetchRequiredBeforeRuntimeLock": true,
+        "notes": [
+          "The fixture records Reuters context as overlay-only context and secondary confirmation.",
+          "The fixture does not use Reuters to overwrite official TDnet filing facts.",
+          "Bloomberg is retained as a backup candidate in docs only and is not included as a fixture row."
+        ]
+      }
+    }
+  ]
+}
