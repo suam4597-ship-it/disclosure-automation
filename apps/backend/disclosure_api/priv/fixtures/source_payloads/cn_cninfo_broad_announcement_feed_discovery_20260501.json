@@ -1,0 +1,52 @@
+{
+  "announcements": [
+    {
+      "announcementId": "1225274841",
+      "announcementDate": "2026-05-01",
+      "secCode": "603660",
+      "secName": "苏州科达",
+      "companyName": "苏州科达",
+      "announcementTitle": "关于公司股东协议转让股份过户完成的公告",
+      "announcementType": null,
+      "announcementTypeName": "unknown",
+      "orgId": "9900026447",
+      "detailUrl": "https://www.cninfo.com.cn/new/disclosure/detail?announcementId=1225274841&announcementTime=2026-05-01&orgId=9900026447&stockCode=603660",
+      "adjunctUrl": "finalpage/2026-05-01/1225274841.PDF",
+      "pdfUrl": "https://static.cninfo.com.cn/finalpage/2026-05-01/1225274841.PDF",
+      "eventFamily": "ownership_change_update",
+      "canonicalEventType": "major_shareholding_or_insider_trade"
+    },
+    {
+      "announcementId": "1225274838",
+      "announcementDate": "2026-05-01",
+      "secCode": "603350",
+      "secName": "安乃达",
+      "companyName": "安乃达",
+      "announcementTitle": "2025年年度股东会决议公告",
+      "announcementType": null,
+      "announcementTypeName": "unknown",
+      "orgId": "gfbj0839807",
+      "detailUrl": "https://www.cninfo.com.cn/new/disclosure/detail?announcementId=1225274838&announcementTime=2026-05-01&orgId=gfbj0839807&stockCode=603350",
+      "adjunctUrl": "finalpage/2026-05-01/1225274838.PDF",
+      "pdfUrl": "https://static.cninfo.com.cn/finalpage/2026-05-01/1225274838.PDF",
+      "eventFamily": "shareholder_meeting_update",
+      "canonicalEventType": "shareholder_meeting"
+    },
+    {
+      "announcementId": "1225274454",
+      "announcementDate": "2026-05-01",
+      "secCode": "300376",
+      "secName": "易事特",
+      "companyName": "易事特",
+      "announcementTitle": "关于公司董事会换届选举的公告",
+      "announcementType": null,
+      "announcementTypeName": "unknown",
+      "orgId": "GD025312",
+      "detailUrl": "https://www.cninfo.com.cn/new/disclosure/detail?announcementId=1225274454&announcementTime=2026-05-01&orgId=GD025312&stockCode=300376",
+      "adjunctUrl": "finalpage/2026-05-01/1225274454.PDF",
+      "pdfUrl": "https://static.cninfo.com.cn/finalpage/2026-05-01/1225274454.PDF",
+      "eventFamily": "board_change_update",
+      "canonicalEventType": "board_or_management_change"
+    }
+  ]
+}
