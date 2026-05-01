@@ -83,7 +83,7 @@ defmodule DisclosureAutomation.Runtime.Stage5NewsOverlayRawStaging do
       "source_key" => @source_key,
       "trigger_kind" => "manual",
       "edition" => "breaking",
-      "status" => "completed",
+      "status" => allowed_ingestion_run_status(),
       "started_at" => now,
       "completed_at" => now,
       "records_seen" => 1,
@@ -272,6 +272,37 @@ defmodule DisclosureAutomation.Runtime.Stage5NewsOverlayRawStaging do
     Map.new(result.rows, fn [column_name, data_type, udt_name] ->
       {column_name, %{data_type: data_type, udt_name: udt_name}}
     end)
+  end
+
+  defp allowed_ingestion_run_status do
+    allowed = ingestion_run_status_values()
+
+    Enum.find(["success", "succeeded", "ok", "ready", "staged", "running", "started", "failed"], fn value ->
+      value in allowed
+    end) || List.first(allowed) || "success"
+  end
+
+  defp ingestion_run_status_values do
+    result =
+      Repo.query!(
+        """
+        select pg_get_constraintdef(oid)
+        from pg_constraint
+        where conrelid = 'ingestion_runs'::regclass
+          and conname = 'ingestion_runs_status_check'
+        limit 1
+        """,
+        []
+      )
+
+    case result.rows do
+      [[definition]] ->
+        Regex.scan(~r/'([^']+)'/, definition)
+        |> Enum.map(fn [_match, value] -> value end)
+
+      _ ->
+        []
+    end
   end
 
   defp placeholder(index, %{data_type: "jsonb"}), do: "$#{index}::jsonb"
