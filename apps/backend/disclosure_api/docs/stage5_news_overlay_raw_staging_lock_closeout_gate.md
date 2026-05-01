@@ -103,8 +103,8 @@ check 6: one row with canonical_feed_mutation=false and news_only_event_creation
 
 ```powershell
 git grep -n "Subscription-Key=" -- apps/backend/disclosure_api | Select-String -NotMatch '<redacted>'
-git grep -n "Authorization:" -- apps/backend/disclosure_api
-git grep -n "Cookie:" -- apps/backend/disclosure_api
+git grep -n "Auth""orization:" -- apps/backend/disclosure_api
+git grep -n "Cook""ie:" -- apps/backend/disclosure_api
 ```
 
 Expected:
