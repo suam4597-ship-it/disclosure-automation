@@ -122,6 +122,7 @@ defmodule DisclosureAutomation.Runtime.Stage5NewsOverlayRawStaging do
       "document_role" => "news_article",
       "mime_type" => "application/json",
       "url" => overlay["sourceUrl"],
+      "content_hash" => raw_document_content_hash(overlay),
       "published_at" => published_at,
       "inserted_at" => now,
       "updated_at" => now
@@ -310,17 +311,32 @@ defmodule DisclosureAutomation.Runtime.Stage5NewsOverlayRawStaging do
   defp placeholder(index, _column), do: "$#{index}"
 
   defp encode_values(attrs, columns) do
-    Enum.map(attrs, fn {column, value} -> encode_value(value, columns[column]) end)
+    Enum.map(attrs, fn {column, value} -> encode_value(column, value, columns[column]) end)
   end
 
-  defp encode_value(value, %{udt_name: "uuid"}), do: uuid_param(value)
-  defp encode_value(value, %{data_type: data_type}) when data_type in ["json", "jsonb"], do: Jason.encode!(value)
-  defp encode_value(value, _column), do: value
+  defp encode_value(_column, value, %{udt_name: "uuid"}), do: uuid_param(value)
+  defp encode_value(_column, value, %{data_type: data_type}) when data_type in ["json", "jsonb"], do: Jason.encode!(value)
+  defp encode_value("content_hash", value, %{data_type: "bytea"}), do: Base.decode16!(String.upcase(value))
+  defp encode_value(_column, value, _column_info), do: value
 
   defp one_id(%Postgrex.Result{rows: [[id]]}), do: {:ok, id}
 
   defp raw_document_external_id(overlay), do: "#{overlay["articleExternalId"]}:article-metadata"
   defp raw_event_external_id(overlay), do: "#{overlay["overlayId"]}:overlay-candidate"
+
+  defp raw_document_content_hash(overlay) do
+    %{
+      "article_external_id" => overlay["articleExternalId"],
+      "overlay_id" => overlay["overlayId"],
+      "canonical_event_id" => overlay["canonicalEventId"],
+      "source_url" => overlay["sourceUrl"],
+      "article_title" => overlay["articleTitle"],
+      "article_published_at" => overlay["articlePublishedAt"]
+    }
+    |> Jason.encode!()
+    |> then(&:crypto.hash(:sha256, &1))
+    |> Base.encode16(case: :lower)
+  end
 
   defp cursor_value(overlay), do: "#{overlay["articlePublishedAt"]}|#{overlay["articleExternalId"]}"
 
