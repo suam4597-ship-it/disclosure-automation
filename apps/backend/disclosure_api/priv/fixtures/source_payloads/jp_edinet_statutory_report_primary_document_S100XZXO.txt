@@ -1,0 +1,37 @@
+EDINET type=1 primary document text fixture
+request_shape: https://api.edinet-fsa.go.jp/api/v2/documents/S100XZXO?type=1&Subscription-Key=<redacted>
+zip_file: S100XZXO_1.zip
+zip_first_bytes: 50 4B 03 04 14 00 00 00
+source_path: XBRL/PublicDoc/0101010_honbun_jpsps000000-esr-001_G05711-000_2026-04-20_01_2026-04-30_ixbrl.htm
+content_type: html/iXBRL
+extraction_method: Expand-Archive, read UTF-8 HTML/iXBRL, remove script/style and HTML tags, then normalize body text.
+
+filerName: 野村アセットマネジメント株式会社
+edinetCode: E12460
+docID: S100XZXO
+docTypeCode: 180
+docDescription: 臨時報告書（内国特定有価証券）
+submitDateTime: 2026-04-30 09:00
+
+１【提出理由】
+金融商品取引法第24条の5第4項および特定有価証券の内容等の開示に関する内閣府令第29条第2項第4号に基づき本臨時報告書を提出するものです。
+
+２【報告内容】
+野村日本債券インデックスファンド
+計算期間
+第72計算期間 (2026年 1月21日～2026年 4月20日)
+1万口当り収益分配金（税込み）
+10
+円
+期末純資産総額
+513,064,878
+円
+期末受益権口数
+618,046,855
+口
+期末1万口当り純資産額（分配後）
+8,301
+円
+期中騰落率
+0.54
+％
