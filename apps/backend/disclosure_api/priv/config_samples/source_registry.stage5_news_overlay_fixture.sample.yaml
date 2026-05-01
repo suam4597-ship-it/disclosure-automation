@@ -1,0 +1,33 @@
+version: 1
+defaults:
+  timezone: Asia/Tokyo
+  poll_cron: "*/15 * * * *"
+  parser_key: stage5_news_overlay_fixture_v1
+  ranking_weight: 1.0
+  active: true
+
+sources:
+  - source_key: stage5_news_overlay_fixture
+    display_name: Stage 5 News Overlay Fixture
+    source_type: api
+    adapter_key: stage5_news_overlay_fixture_v1
+    region_code: jp
+    discovery_mode: fixture
+    hydrate_mode: local_fixture
+    default_home_market_region_code: jp
+    source_class: regulatory_filing_feed
+    default_source_tier: reputable_news_source
+    base_url: https://jp.reuters.com/markets/global-markets/JKGTTV5MI5PFRGFVTC37DW73GE-2026-04-30/
+    healthcheck_url: https://jp.reuters.com/
+    parser_key: stage5_news_overlay_fixture_v1
+    poll_cron: "*/15 * * * *"
+    ranking_weight: 0.5
+    coverage_tags: [jp, news_overlay, fixture, reuters, rohto, shareholder_proposal]
+    active: true
+    config:
+      overlay_mode: attach_only
+      storage_mode: raw_staging
+      canonical_feed_mutation: false
+      news_only_event_creation: false
+      fixtures:
+        overlay_result: source_payloads/stage5_news_overlay_fixture_jp_tdnet_140120260430515474_reuters_jp_article_001.json
