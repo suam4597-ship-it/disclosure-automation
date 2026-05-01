@@ -1,0 +1,141 @@
+{
+  "version": 1,
+  "fixtureVersion": "stage53_second_news_overlay_fixture_v1",
+  "sourceKey": "stage53_news_overlay_fixture",
+  "adapterKey": "stage53_news_overlay_fixture_v1",
+  "sourceTier": "reputable_news_source",
+  "documentRole": "news_article",
+  "fixtureStatus": "synthetic_public_article_metadata_only",
+  "networkAccess": "forbidden",
+  "overlayMode": "attach_only",
+  "newsOnlyEventCreation": false,
+  "canonicalFactOverride": false,
+  "overlays": [
+    {
+      "overlayId": "news_overlay:jp.tdnet.4527.20260430.material_information_update.material_information_update.140120260430515474:bloomberg-jp-article-001",
+      "articleExternalId": "NEWS-FIXTURE:jp:jp_tdnet_timely_disclosure:140120260430515474:bloomberg-jp-article-001",
+      "canonicalEventId": "jp.tdnet.4527.20260430.material_information_update.material_information_update.140120260430515474",
+      "sourceKey": "stage53_news_overlay_fixture",
+      "sourceTier": "reputable_news_source",
+      "documentRole": "news_article",
+      "sourceName": "Bloomberg related news article fixture",
+      "sourceUrl": "https://www.bloomberg.com/news/articles/2026-04-30/rohto-shareholder-proposal-placeholder",
+      "articleTitle": "Bloomberg fixture: Rohto shareholder proposal draws governance scrutiny",
+      "articlePublishedAt": "2026-04-30T10:45:00Z",
+      "articlePublishedAtSourceDisplay": "2026-04-30 10:45 UTC",
+      "articleRetrievedAt": "2026-05-01T09:30:00Z",
+      "articleRetrievedAtSourceDisplay": "2026-05-01 18:30 KST/JST",
+      "articleLanguage": "en",
+      "articleAuthorOrWire": "Bloomberg News fixture metadata",
+      "claimSupported": "related_news_context_reported_by_reputable_news_source",
+      "overlayContextType": "related_news_context",
+      "articleSummary": "Synthetic Bloomberg fixture metadata says a reputable business-news article discussed governance scrutiny around Rohto Pharmaceutical after the company disclosed receipt of shareholder proposal documents. This summary is metadata-only and does not reproduce article body text.",
+      "officialAnchor": {
+        "officialSourceKey": "jp_tdnet_timely_disclosure",
+        "officialAdapterKey": "jp_tdnet_timely_disclosure_v1",
+        "officialSourceTier": "official_exchange_storage",
+        "officialDocumentRole": "official_exchange_disclosure",
+        "eventId": "jp.tdnet.4527.20260430.material_information_update.material_information_update.140120260430515474",
+        "stableExternalId": "TDNET:4527:20260430:1900:140120260430515474",
+        "issuerName": "ロート製薬株式会社",
+        "securityCode": "4527",
+        "officialTitle": "株主提案に関する書面受領のお知らせ",
+        "officialPdfToken": "140120260430515474",
+        "officialPdfUrl": "https://www.release.tdnet.info/inbs/140120260430515474.pdf",
+        "officialPublishedAtLocal": "2026-04-30T19:00:00+09:00",
+        "officialPublishedAtUtc": "2026-04-30T10:00:00.000000Z"
+      },
+      "overlayClaims": [
+        {
+          "claimId": "bloomberg_context_governance_scrutiny",
+          "claimKind": "news_only_context",
+          "claimSupported": "related_news_context_reported_by_reputable_news_source",
+          "summary": "Synthetic Bloomberg fixture metadata reports related governance scrutiny context after Rohto disclosed receipt of shareholder proposal documents.",
+          "canonicalFactOverride": false,
+          "sourceCitationRef": "citation:bloomberg-jp-article-001"
+        },
+        {
+          "claimId": "bloomberg_context_second_provider_confirmation",
+          "claimKind": "article_metadata",
+          "claimSupported": "second_provider_overlay_identity",
+          "summary": "The fixture validates second-provider overlay identity and list-based API/feed behavior without storing full article text.",
+          "canonicalFactOverride": false,
+          "sourceCitationRef": "citation:bloomberg-jp-article-001"
+        }
+      ],
+      "officialFactsPreserved": {
+        "eventIdUnchanged": true,
+        "stableExternalIdUnchanged": true,
+        "rawDocumentIdentityUnchanged": true,
+        "officialTimestampUnchanged": true,
+        "canonicalEventTypeUnchanged": true,
+        "officialSourceUrlUnchanged": true,
+        "newsClaimsDoNotOverwriteOfficialFacts": true,
+        "canonicalFactOverride": false
+      },
+      "matchEvidence": {
+        "matchedCanonicalEventId": "jp.tdnet.4527.20260430.material_information_update.material_information_update.140120260430515474",
+        "matchedOfficialSourceKey": "jp_tdnet_timely_disclosure",
+        "matchedOfficialStableExternalId": "TDNET:4527:20260430:1900:140120260430515474",
+        "matchedOfficialEventFamily": "material_information_update",
+        "matchedOfficialCanonicalEventType": "material_information_update",
+        "matchedIssuerEvidence": {
+          "securityCode": "4527",
+          "issuerName": "ロート製薬株式会社",
+          "articleIssuerNameMention": "Rohto Pharmaceutical"
+        },
+        "matchedPublicationWindow": {
+          "officialPublishedAt": "2026-04-30T10:00:00Z",
+          "articlePublishedAt": "2026-04-30T10:45:00Z",
+          "windowRelation": "article_after_official",
+          "windowMinutes": 45,
+          "windowDays": 0
+        },
+        "matchRule": "direct_official_identifier_and_second_provider_fixture",
+        "matchDecisionSource": "manual_fixture_author",
+        "ambiguityFlags": [],
+        "conflictFlags": ["provider_url_not_official_url"]
+      },
+      "citations": [
+        {
+          "citationId": "citation:tdnet-official-140120260430515474",
+          "sourceName": "TDnet Company Announcements Disclosure Service",
+          "sourceTier": "official_exchange_storage",
+          "sourceKey": "jp_tdnet_timely_disclosure",
+          "sourceUrl": "https://www.release.tdnet.info/inbs/140120260430515474.pdf",
+          "claimSupported": "official disclosure receipt of shareholder proposal documents",
+          "documentRole": "official_exchange_disclosure",
+          "publishedAt": "2026-04-30T10:00:00Z",
+          "retrievedAt": "2026-05-01T09:30:00Z",
+          "rawDocumentIdentity": "TDNET:4527:20260430:1900:140120260430515474:pdf:140120260430515474",
+          "stableExternalId": "TDNET:4527:20260430:1900:140120260430515474",
+          "eventId": "jp.tdnet.4527.20260430.material_information_update.material_information_update.140120260430515474"
+        },
+        {
+          "citationId": "citation:bloomberg-jp-article-001",
+          "sourceName": "Bloomberg related news article fixture",
+          "sourceTier": "reputable_news_source",
+          "sourceKey": "stage53_news_overlay_fixture",
+          "sourceUrl": "https://www.bloomberg.com/news/articles/2026-04-30/rohto-shareholder-proposal-placeholder",
+          "claimSupported": "second-provider news-only context and fixture identity",
+          "documentRole": "news_article",
+          "publishedAt": "2026-04-30T10:45:00Z",
+          "retrievedAt": "2026-05-01T09:30:00Z",
+          "articleExternalId": "NEWS-FIXTURE:jp:jp_tdnet_timely_disclosure:140120260430515474:bloomberg-jp-article-001",
+          "overlayId": "news_overlay:jp.tdnet.4527.20260430.material_information_update.material_information_update.140120260430515474:bloomberg-jp-article-001",
+          "canonicalEventId": "jp.tdnet.4527.20260430.material_information_update.material_information_update.140120260430515474"
+        }
+      ],
+      "manualVerification": {
+        "syntheticMetadataOnly": true,
+        "fullArticleTextStored": false,
+        "officialAnchorAlreadyLocked": true,
+        "notes": [
+          "This fixture is a second-provider metadata-only overlay used to test multi-overlay behavior.",
+          "The fixture does not use Bloomberg metadata to overwrite official TDnet filing facts.",
+          "No provider credentials, request headers, or full article text are included."
+        ]
+      }
+    }
+  ]
+}
