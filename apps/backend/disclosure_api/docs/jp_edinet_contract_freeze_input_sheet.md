@@ -1,6 +1,6 @@
 # JP EDINET contract-freeze input sheet
 
-Use this sheet only if TDnet / JPX fails the final manual or Listed Company Search sample gate and EDINET is promoted as the fallback JP source.
+This sheet records the single EDINET document-list sample used to freeze the first EDINET runtime candidate contract.
 
 This sheet is docs-only. Filling it does not start runtime implementation.
 
@@ -11,177 +11,155 @@ source candidate: EDINET
 source_key candidate: jp_edinet_statutory_report
 adapter_key candidate: jp_edinet_statutory_report_v1
 source_tier candidate: official_regulatory_storage
-first family candidate: statutory_report_update or periodic_report_update
+first family candidate: statutory_report_update
 ```
 
 ## Promotion precondition
 
-- [ ] TDnet Company Announcements manual capture failed or was explicitly deferred
-- [ ] JPX Listed Company Search historical capture failed or was explicitly deferred
-- [ ] EDINET is being evaluated as a separate official-regulatory fallback, not mixed with TDnet
+- [x] TDnet timely disclosure is already locked as the first JP exchange-disclosure lane
+- [x] EDINET is being evaluated as a separate official-regulatory lane, not mixed with TDnet
+- [x] EDINET API document-list response was captured without sharing the API key
 
 ## EDINET source evidence
 
 Record the source/API evidence used for this sample:
 
 ```text
-official/API catalog URL: TODO
-EDINET API guide URL: TODO
-API version, if visible: TODO
-discovery endpoint/request shape: TODO
-primary document endpoint/request shape: TODO
+official/API catalog URL: EDINET API / FSA official API surface
+EDINET API guide URL: EDINET API v2 documents endpoint
+API version, if visible: v2
+discovery endpoint/request shape: https://api.edinet-fsa.go.jp/api/v2/documents.json?date=2026-04-30&type=2&Subscription-Key=<redacted>
+primary document endpoint/request shape: https://api.edinet-fsa.go.jp/api/v2/documents/S100XZXO?type=1&Subscription-Key=<redacted>
+```
+
+## API response metadata
+
+```text
+metadata.parameter.date: 2026-04-30
+metadata.parameter.type: 2
+metadata.resultset.count: 384
+metadata.processDateTime: 2026-05-01 00:03
+parsed results count: 384
+metadata.status: 200
+metadata.message: OK
 ```
 
 ## Sample metadata
 
-Capture exactly one EDINET document-list row and one primary document.
+Captured one EDINET document-list row.
 
 ```text
-sample filer / issuer: TODO
-sample EDINET code: TODO
-sample securities code: TODO or not available
-sample docID: TODO
-sample document type / docTypeCode: TODO
-sample document title or description: TODO
-sample submission date local: TODO
-sample submission datetime local: TODO or not available
-sample submission datetime UTC: TODO
-sample document format: TODO
-sample primary document request shape: TODO
+sample filer / issuer: 野村アセットマネジメント株式会社
+sample EDINET code: E12460
+sample securities code: null / not available
+sample docID: S100XZXO
+sample seqNumber: 1
+sample document type / docTypeCode: 180
+sample document title or description: 臨時報告書（内国特定有価証券）
+sample submission date local: 2026-04-30
+sample submission datetime local: 2026-04-30T09:00:00+09:00
+sample submission datetime UTC: 2026-04-30T00:00:00.000000Z
+sample xbrlFlag: 1
+sample pdfFlag: 1
+sample csvFlag: 1
+sample document format: type=1 primary document request shape; primary payload/text not yet captured
+sample primary document request shape: https://api.edinet-fsa.go.jp/api/v2/documents/S100XZXO?type=1&Subscription-Key=<redacted>
 ```
 
 ## Stable identity decision
 
-Preferred:
-
-```text
-stable_external_id: EDINET:<docID>
-raw_event_key_seed: EDINET:<docID>
-duplicate_group_seed: EDINET:<docID>
-```
-
-Fallback, only if `docID` is unavailable but equivalent official metadata is stable:
-
-```text
-stable_external_id: EDINET:<EDINETCode>:<submitDateTime>:<docTypeCode>
-```
-
 Chosen identity:
 
 ```text
-stable_external_id: TODO
-raw_event_key_seed: TODO
-duplicate_group_seed: TODO
+stable_external_id: EDINET:S100XZXO
+raw_event_key_seed: EDINET:S100XZXO
+duplicate_group_seed: EDINET:S100XZXO
 ```
 
-Reject if identity requires filer name, issuer name, or document title.
+This identity uses official `docID` and does not require filer name or document title.
 
 ## Cursor decision
-
-Preferred:
-
-```text
-cursor_key: latest_submit_datetime_and_doc_id_seen
-cursor_value: <YYYY-MM-DDTHH:MM:SS+09:00>|<docID>
-```
-
-Fallback for date-only sample:
-
-```text
-cursor_key: latest_submit_date_and_doc_id_seen
-cursor_value: <YYYY-MM-DD>|<docID>
-```
 
 Chosen cursor:
 
 ```text
-cursor_key: TODO
-cursor_value: TODO
+cursor_key: latest_submit_datetime_and_doc_id_seen
+cursor_value: 2026-04-30T09:00:00+09:00|S100XZXO
 ```
+
+The cursor uses official submission datetime plus docID and does not use title text.
 
 ## Family decision
-
-Preferred:
-
-```text
-event_family: statutory_report_update
-canonical_event_type: periodic_report
-```
-
-Alternative:
-
-```text
-event_family: periodic_report_update
-canonical_event_type: periodic_report
-```
 
 Chosen family:
 
 ```text
-event_family: TODO
-canonical_event_type: TODO
+event_family: statutory_report_update
+canonical_event_type: extraordinary_report
 ```
+
+Rationale:
+
+- document description is `臨時報告書（内国特定有価証券）`
+- this is a statutory EDINET filing, but not a periodic securities report sample
+- use `extraordinary_report` rather than `periodic_report` for this v0 sample
 
 ## Raw document set
 
 Preferred v0 set:
 
 ```text
-raw_document_1_external_id: EDINET:<docID>:document-list-row
+raw_document_1_external_id: EDINET:S100XZXO:document-list-row
 raw_document_1_role: discovery_metadata
 raw_document_1_mime_type: application/json
 
-raw_document_2_external_id: EDINET:<docID>:primary-document:<document_format>
+raw_document_2_external_id: EDINET:S100XZXO:primary-document:type1
 raw_document_2_role: primary_regulatory_disclosure
-raw_document_2_mime_type: TODO
+raw_document_2_mime_type: application/zip or captured EDINET type=1 response MIME type
 ```
 
-Chosen raw documents:
+Chosen raw documents for contract-freeze:
 
 ```text
-raw_document_1_external_id: TODO
+raw_document_1_external_id: EDINET:S100XZXO:document-list-row
 raw_document_1_role: discovery_metadata
 raw_document_1_mime_type: application/json
 
-raw_document_2_external_id: TODO
+raw_document_2_external_id: EDINET:S100XZXO:primary-document:type1
 raw_document_2_role: primary_regulatory_disclosure
-raw_document_2_mime_type: TODO
+raw_document_2_mime_type: TODO after type=1 payload/header capture
 ```
 
 ## Expected normalized values
-
-Fill only after capture:
 
 ```text
 source_key: jp_edinet_statutory_report
 adapter_key: jp_edinet_statutory_report_v1
 region_code: jp
 source_tier: official_regulatory_storage
-stable_external_id: TODO
-cursor_key: TODO
-cursor_value: TODO
-event_id: TODO
-event_family: TODO
-canonical_event_type: TODO
-published_at_local: TODO
-published_at_utc: TODO
-filing_date_local: TODO
+stable_external_id: EDINET:S100XZXO
+cursor_key: latest_submit_datetime_and_doc_id_seen
+cursor_value: 2026-04-30T09:00:00+09:00|S100XZXO
+event_id: jp.edinet.E12460.20260430.extraordinary_report.statutory_report_update.S100XZXO
+event_family: statutory_report_update
+canonical_event_type: extraordinary_report
+published_at_local: 2026-04-30T09:00:00+09:00
+published_at_utc: 2026-04-30T00:00:00.000000Z
+filing_date_local: 2026-04-30
 ```
 
 ## Freeze pass criteria
 
-- [ ] TDnet final gate failed or was explicitly deferred
-- [ ] one EDINET document-list row captured
-- [ ] one primary document captured or represented
-- [ ] stable `docID` or equivalent stable official ID captured
-- [ ] cursor does not use title text
-- [ ] one family selected
-- [ ] raw-document set is limited to two documents
-- [ ] timestamp convention is explicit
-- [ ] future runtime PR can stay one source, one family, one fixture item
+- [x] EDINET official API document-list row captured
+- [x] `docID` captured
+- [x] cursor does not use title text
+- [x] one family selected
+- [x] timestamp convention is explicit
+- [x] future runtime PR can stay one source, one family, one fixture item
+- [ ] primary document payload/text or response header fixture still required before runtime implementation
 
 ## Freeze decision
 
 ```text
-TODO: freeze / do not freeze / return to TDnet
+freeze contract; runtime blocked until primary document payload/text or response headers are captured
 ```
