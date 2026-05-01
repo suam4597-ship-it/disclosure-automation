@@ -12,6 +12,7 @@ defmodule DisclosureAutomationWeb.Router do
 
     get "/feed/hero", FeedController, :hero
     get "/feed/region/:region_code", FeedController, :region
+    get "/events/:event_id/news-overlay", EventNewsOverlayController, :show
     get "/events/:event_id", EventController, :show
 
     get "/feed/digest/latest", FeedDigestController, :latest
