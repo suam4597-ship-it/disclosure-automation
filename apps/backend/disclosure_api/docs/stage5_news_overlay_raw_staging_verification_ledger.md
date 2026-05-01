@@ -159,14 +159,14 @@ Run from repo root or `apps/backend/disclosure_api` as appropriate:
 
 ```powershell
 git grep -n "Subscription-Key=" -- apps/backend/disclosure_api | Select-String -NotMatch '<redacted>'
-git grep -n "Authorization:" -- apps/backend/disclosure_api
-git grep -n "Cookie:" -- apps/backend/disclosure_api
+git grep -n "Authorization" -- apps/backend/disclosure_api
+git grep -n "Cookie" -- apps/backend/disclosure_api
 ```
 
 Expected:
 
 ```text
-no secret-bearing Reuters, EDINET, Authorization, Cookie, signed URL, or API key values are present
+no secret-bearing Reuters, EDINET, Authorization header, Cookie header, signed URL, or API key values are present
 ```
 
 ## Lock close-out rule
