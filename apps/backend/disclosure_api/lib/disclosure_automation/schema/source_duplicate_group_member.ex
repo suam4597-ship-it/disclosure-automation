@@ -107,7 +107,7 @@ defmodule DisclosureAutomation.Schema.SourceDuplicateGroupMember do
       :match_reasons,
       :redaction_status
     ])
-    |> validate_required(Enum.map(@required_fields, &String.to_atom/1))
+    |> validate_required(@required_fields)
     |> validate_length(:group_id, max: 160)
     |> validate_length(:member_id, max: 160)
     |> validate_length(:source_key, max: 128)
