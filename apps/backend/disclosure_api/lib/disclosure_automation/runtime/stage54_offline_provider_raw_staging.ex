@@ -12,7 +12,9 @@ defmodule DisclosureAutomation.Runtime.Stage54OfflineProviderRawStaging do
   def source_key, do: @source_key
   def cursor_key, do: @cursor_key
 
-  def stage_once(provider_payload, opts \\ []) when is_map(provider_payload) do
+  def stage_once(provider_payload, opts \\ [])
+
+  def stage_once(provider_payload, opts) when is_map(provider_payload) do
     with {:ok, source} <- ensure_source(opts),
          {:ok, normalized} <- Stage54ProviderIngestionBoundary.normalize_result(provider_payload, opts),
          {:ok, article_published_at} <- parse_datetime(normalized.published_at),
@@ -68,8 +70,8 @@ defmodule DisclosureAutomation.Runtime.Stage54OfflineProviderRawStaging do
       "source_type" => "api",
       "adapter_key" => "stage54_offline_provider_fixture_v1",
       "region_code" => "jp",
-      "discovery_mode" => "offline_fixture",
-      "hydrate_mode" => "offline_adapter",
+      "discovery_mode" => "fixture",
+      "hydrate_mode" => "local_fixture",
       "default_home_market_region_code" => "jp",
       "source_class" => "regulatory_filing_feed",
       "default_source_tier" => "reputable_news_source",
