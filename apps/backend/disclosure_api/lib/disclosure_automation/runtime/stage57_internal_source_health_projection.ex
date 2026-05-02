@@ -107,7 +107,14 @@ defmodule DisclosureAutomation.Runtime.Stage57InternalSourceHealthProjection do
     end
   end
 
-  defp field(source, key) when is_map(source), do: Map.get(source, key) || Map.get(source, to_string(key))
+  defp field(source, key) when is_map(source) do
+    cond do
+      Map.has_key?(source, key) -> Map.get(source, key)
+      Map.has_key?(source, to_string(key)) -> Map.get(source, to_string(key))
+      true -> nil
+    end
+  end
+
   defp field(_source, _key), do: nil
 
   defp provider(source), do: field(source, :adapter_key) || field(source, :source_key)
@@ -138,7 +145,7 @@ defmodule DisclosureAutomation.Runtime.Stage57InternalSourceHealthProjection do
     source
     |> field(:config)
     |> case do
-      %{} = config -> Map.get(config, key) || Map.get(config, String.to_atom(key))
+      %{} = config -> field(config, key)
       _ -> nil
     end
   end
