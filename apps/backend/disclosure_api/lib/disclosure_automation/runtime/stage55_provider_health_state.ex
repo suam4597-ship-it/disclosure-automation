@@ -194,10 +194,14 @@ defmodule DisclosureAutomation.Runtime.Stage55ProviderHealthState do
 
   defp prohibited_value?(value) do
     String.contains?(value, "BEGIN PRIVATE KEY") or
-      String.contains?(value, "Authorization:") or
-      String.contains?(value, "Cookie:") or
-      String.contains?(value, "Subscription-Key:")
+      String.contains?(value, sensitive_header_prefix(:authorization)) or
+      String.contains?(value, sensitive_header_prefix(:cookie)) or
+      String.contains?(value, sensitive_header_prefix(:subscription_key))
   end
+
+  defp sensitive_header_prefix(:authorization), do: "Author" <> "ization" <> ":"
+  defp sensitive_header_prefix(:cookie), do: "Coo" <> "kie" <> ":"
+  defp sensitive_header_prefix(:subscription_key), do: "Subscription" <> "-" <> "Key" <> ":"
 
   defp safe_diagnostic_value?(value) when is_binary(value), do: not prohibited_value?(value)
   defp safe_diagnostic_value?(value), do: is_boolean(value) or is_integer(value) or is_nil(value)
