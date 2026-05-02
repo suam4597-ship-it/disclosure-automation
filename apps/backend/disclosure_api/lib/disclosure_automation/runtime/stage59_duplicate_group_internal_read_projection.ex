@@ -7,7 +7,7 @@ defmodule DisclosureAutomation.Runtime.Stage59DuplicateGroupInternalReadProjecti
   alias DisclosureAutomation.Schema.SourceDuplicateGroup
   alias DisclosureAutomation.Schema.SourceDuplicateGroupMember
 
-  @allowed_filters ~w(confidence source_key member_kind redaction_status limit)a
+  @allowed_filters ~w(confidence source_key member_kind redaction_status limit)
   @max_limit 100
 
   def allowed_filters, do: @allowed_filters
@@ -105,7 +105,7 @@ defmodule DisclosureAutomation.Runtime.Stage59DuplicateGroupInternalReadProjecti
       params
       |> Map.keys()
       |> Enum.map(&to_string/1)
-      |> Enum.reject(&(String.to_atom(&1) in @allowed_filters))
+      |> Enum.reject(&(&1 in @allowed_filters))
 
     case unknown do
       [] -> :ok
@@ -183,16 +183,11 @@ defmodule DisclosureAutomation.Runtime.Stage59DuplicateGroupInternalReadProjecti
 
   defp project_groups(groups, opts) do
     groups
-    |> Enum.reduce_while({:ok, []}, fn group, {:ok, acc} ->
-      case project_group(group, opts) do
-        {:ok, projected} -> {:cont, {:ok, [projected | acc]}}
-        {:error, reason} -> {:halt, {:error, reason}}
-      end
+    |> Enum.map(fn group ->
+      {:ok, projected} = project_group(group, opts)
+      projected
     end)
-    |> case do
-      {:ok, projected} -> {:ok, Enum.reverse(projected)}
-      error -> error
-    end
+    |> then(&{:ok, &1})
   end
 
   defp project_group(group, _opts) do
