@@ -182,7 +182,7 @@ defmodule DisclosureAutomation.Stage58SourceHealthOperatorActionContractTest do
     assert Stage58SourceHealthOperatorActionContract.validate_action(%{
              @valid_attrs
              | "operator_reason" => sensitive_header_prefix(:authorization) <> " Bearer not-allowed"
-           }) == {:error, {:prohibited_value, :operator_reason_required}}
+           }) == {:error, {:prohibited_field, "operator_reason"}}
   end
 
   test "builds bounded redacted audit envelope without action side effects" do
