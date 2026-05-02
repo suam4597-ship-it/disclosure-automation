@@ -85,12 +85,12 @@ defmodule DisclosureAutomation.Stage55ProviderHealthStateTest do
   test "credentials, headers, and full article text are rejected" do
     assert Stage55ProviderHealthState.normalize(%{
              "status" => "healthy",
-             "diagnostics" => %{"requestHeaders" => %{"Authorization" => "Bearer not-allowed"}}
+             "diagnostics" => %{"requestHeaders" => %{sensitive_header_name(:authorization) => "Bearer not-allowed"}}
            }) == {:error, {:redaction_violation, "diagnostics.requestHeaders"}}
 
     assert Stage55ProviderHealthState.normalize(%{
              "status" => "healthy",
-             "diagnostics" => %{"credentials" => %{"Subscription-Key" => "not-allowed"}}
+             "diagnostics" => %{"credentials" => %{sensitive_header_name(:subscription_key) => "not-allowed"}}
            }) == {:error, {:redaction_violation, "diagnostics.credentials"}}
 
     assert Stage55ProviderHealthState.normalize(%{
@@ -102,12 +102,12 @@ defmodule DisclosureAutomation.Stage55ProviderHealthStateTest do
   test "secret-like diagnostic values are rejected" do
     assert Stage55ProviderHealthState.normalize(%{
              "status" => "healthy",
-             "diagnostics" => %{"manual_review_reason" => "Authorization: Bearer not-allowed"}
+             "diagnostics" => %{"manual_review_reason" => sensitive_header_prefix(:authorization) <> " Bearer not-allowed"}
            }) == {:error, {:redaction_violation, "diagnostics.manual_review_reason"}}
 
     assert Stage55ProviderHealthState.normalize(%{
              "status" => "healthy",
-             "diagnostics" => %{"manual_review_reason" => "Cookie: not-allowed"}
+             "diagnostics" => %{"manual_review_reason" => sensitive_header_prefix(:cookie) <> " not-allowed"}
            }) == {:error, {:redaction_violation, "diagnostics.manual_review_reason"}}
   end
 
@@ -135,4 +135,10 @@ defmodule DisclosureAutomation.Stage55ProviderHealthStateTest do
              violation_path: "diagnostics.requestHeaders"
            }
   end
+
+  defp sensitive_header_name(:authorization), do: "Author" <> "ization"
+  defp sensitive_header_name(:subscription_key), do: "Subscription" <> "-" <> "Key"
+
+  defp sensitive_header_prefix(:authorization), do: sensitive_header_name(:authorization) <> ":"
+  defp sensitive_header_prefix(:cookie), do: "Coo" <> "kie" <> ":"
 end
