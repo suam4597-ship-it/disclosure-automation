@@ -28,7 +28,7 @@ defmodule DisclosureAutomation.Runtime.Stage55OfflineProviderHealthEvaluator do
 
   defp status_for(attrs, normalized) do
     cond do
-      truthy?(get_value(attrs, "paused")) or normalized.status == "paused" ->
+      paused?(attrs, normalized) ->
         "paused"
 
       manual_review_required?(attrs) ->
@@ -57,9 +57,17 @@ defmodule DisclosureAutomation.Runtime.Stage55OfflineProviderHealthEvaluator do
     end
   end
 
+  defp paused?(attrs, normalized) do
+    truthy?(get_value(attrs, "paused")) or
+      truthy?(get_value(diagnostics(attrs), "paused")) or
+      normalized.status == "paused"
+  end
+
   defp manual_review_required?(attrs) do
     truthy?(get_value(attrs, "manual_review_required")) or
+      truthy?(get_value(diagnostics(attrs), "manual_review_required")) or
       get_value(attrs, "match_status") in ["ambiguous", "missing", "conflict"] or
+      get_value(diagnostics(attrs), "match_status") in ["ambiguous", "missing", "conflict"] or
       get_value(diagnostics(attrs), "manual_review_reason") in ["ambiguous_match", "missing_match", "conflict"]
   end
 
@@ -72,7 +80,9 @@ defmodule DisclosureAutomation.Runtime.Stage55OfflineProviderHealthEvaluator do
 
   defp partial_metadata?(attrs) do
     truthy?(get_value(attrs, "partial_metadata")) or
+      truthy?(get_value(diagnostics(attrs), "partial_metadata")) or
       get_value(attrs, "metadata_quality") in ["partial", "stale"] or
+      get_value(diagnostics(attrs), "metadata_quality") in ["partial", "stale"] or
       get_value(diagnostics(attrs), "manual_review_reason") == "partial_metadata"
   end
 
@@ -80,6 +90,7 @@ defmodule DisclosureAutomation.Runtime.Stage55OfflineProviderHealthEvaluator do
     get_value(attrs, "status_code") in [200, "200", 204, "204"] or
       get_value(diagnostics(attrs), "status_code") in [200, "200", 204, "204"] or
       get_value(attrs, "result") == "success" or
+      get_value(diagnostics(attrs), "result") == "success" or
       get_value(attrs, "status") == "healthy"
   end
 
