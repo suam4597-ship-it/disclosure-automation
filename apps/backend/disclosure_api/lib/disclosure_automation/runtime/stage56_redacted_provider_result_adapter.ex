@@ -78,8 +78,6 @@ defmodule DisclosureAutomation.Runtime.Stage56RedactedProviderResultAdapter do
       "fetched_at" => first_present([get_value(transport_result, "fetched_at"), get_value(transport_diagnostics, "fetched_at")]),
       "request_id_hash" => get_value(transport_diagnostics, "request_id_hash")
     }
-    |> Enum.reject(fn {_key, value} -> is_nil(value) end)
-    |> Map.new()
   end
 
   defp require_fake_transport(transport_result) do
@@ -175,7 +173,11 @@ defmodule DisclosureAutomation.Runtime.Stage56RedactedProviderResultAdapter do
   defp get_value(map, key, default \\ nil)
 
   defp get_value(map, key, default) when is_map(map) do
-    Map.get(map, key) || Map.get(map, String.to_atom(key)) || default
+    cond do
+      Map.has_key?(map, key) -> Map.get(map, key)
+      Map.has_key?(map, String.to_atom(key)) -> Map.get(map, String.to_atom(key))
+      true -> default
+    end
   end
 
   defp get_value(_value, _key, default), do: default
