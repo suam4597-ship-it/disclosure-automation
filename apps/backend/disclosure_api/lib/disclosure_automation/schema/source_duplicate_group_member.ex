@@ -93,7 +93,6 @@ defmodule DisclosureAutomation.Schema.SourceDuplicateGroupMember do
 
   def changeset(member, attrs) do
     member
-    |> reject_forbidden_attrs(attrs)
     |> cast(attrs, [
       :group_id,
       :member_id,
@@ -107,6 +106,7 @@ defmodule DisclosureAutomation.Schema.SourceDuplicateGroupMember do
       :match_reasons,
       :redaction_status
     ])
+    |> reject_forbidden_attrs(attrs)
     |> validate_required(@required_fields)
     |> validate_length(:group_id, max: 160)
     |> validate_length(:member_id, max: 160)
