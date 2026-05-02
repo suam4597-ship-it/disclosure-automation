@@ -135,12 +135,13 @@ item.overlays[1].publishedAt: 2026-04-30T10:45:00Z
 canonicalFactOverride: false for both overlays
 ```
 
-Flattened citation order should be:
+Flattened citations should preserve separation by citation role:
 
 ```text
-1. official TDnet citation, isCanonicalSource=true
-2. Reuters overlay citation, isCanonicalSource=false
-3. Bloomberg overlay citation, isCanonicalSource=false
+- one or more official TDnet citations, isCanonicalSource=true, sourceKey=jp_tdnet_timely_disclosure
+- Reuters overlay citation, isCanonicalSource=false, sourceKey=stage5_news_overlay_fixture
+- Bloomberg overlay citation, isCanonicalSource=false, sourceKey=stage53_news_overlay_fixture
+- non-canonical overlay citations remain exactly Reuters then Bloomberg
 ```
 
 ## Step 7: verify event overlay API
