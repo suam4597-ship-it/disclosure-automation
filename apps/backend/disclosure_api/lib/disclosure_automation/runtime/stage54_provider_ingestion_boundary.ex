@@ -57,7 +57,9 @@ defmodule DisclosureAutomation.Runtime.Stage54ProviderIngestionBoundary do
     }
   end
 
-  def normalize_result(payload, opts \\ []) when is_map(payload) do
+  def normalize_result(payload, opts \\ [])
+
+  def normalize_result(payload, opts) when is_map(payload) do
     with :ok <- live_fetch_disabled(opts),
          :ok <- reject_prohibited_fields(payload),
          :ok <- require_fields(payload) do
