@@ -162,13 +162,11 @@ healthy: provider overlay may be visible if all Stage 5.4 match/redaction rules 
 degraded: provider overlay may remain visible with stale/degraded diagnostic if already materialized
 rate_limited: do not fetch automatically; keep existing overlays if safe
 timeout: do not delete existing overlays; mark provider check failed
-ailed: do not delete existing overlays; mark provider check failed
+failed: do not delete existing overlays; mark provider check failed
 paused: do not run provider ingestion
 redaction_violation: hide or quarantine provider overlay candidates until reviewed
 manual_review_required: hidden until reviewed
 ```
-
-Typographical note for future implementation: use `failed`, not `ailed`, as the actual state value.
 
 ## Failure isolation policy
 
