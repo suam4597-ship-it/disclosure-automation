@@ -93,18 +93,18 @@ defmodule DisclosureAutomation.Schema.SourceDuplicateGroup do
       :has_provider_overlay,
       :redaction_status
     ])
-    |> validate_required(Enum.map(@required_fields, &String.to_atom/1))
+    |> validate_required(@required_fields)
     |> validate_length(:group_id, max: 160)
     |> validate_inclusion(:confidence, @confidence_states)
     |> validate_inclusion(:redaction_status, @redaction_statuses)
     |> validate_number(:member_count, greater_than_or_equal_to: 2)
     |> validate_not_blank(:group_id)
-    |> validate_items(:source_keys, :bounded_source_keys, nil)
-    |> validate_items(:match_reasons, :bounded_match_reasons, @match_reasons)
+    |> validate_items(:source_keys, nil)
+    |> validate_items(:match_reasons, @match_reasons)
     |> unique_constraint(:group_id, name: :source_duplicate_groups_group_id_unique_idx)
   end
 
-  defp validate_items(changeset, field, error_tag, allowed_values) do
+  defp validate_items(changeset, field, allowed_values) do
     validate_change(changeset, field, fn ^field, value ->
       with {:ok, items} <- extract_items(value),
            :ok <- validate_non_empty_items(items),
@@ -112,7 +112,7 @@ defmodule DisclosureAutomation.Schema.SourceDuplicateGroup do
            :ok <- validate_allowed_items(items, allowed_values) do
         []
       else
-        {:error, reason} -> [{field, Atom.to_string(reason || error_tag)}]
+        {:error, reason} -> [{field, Atom.to_string(reason)}]
       end
     end)
   end
