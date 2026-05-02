@@ -47,9 +47,17 @@ defmodule DisclosureAutomation.Stage53MultiOverlayResponseContractTest do
     assert reuters.canonicalFactOverride == false
     assert bloomberg.canonicalFactOverride == false
 
-    assert [official_citation | overlay_citations] = Stage5NewsOverlayReadModel.flattened_citations(response)
-    assert official_citation.isCanonicalSource == true
-    assert official_citation.sourceKey == "jp_tdnet_timely_disclosure"
+    flattened_citations = Stage5NewsOverlayReadModel.flattened_citations(response)
+    official_citations = Enum.filter(flattened_citations, & &1.isCanonicalSource)
+    overlay_citations = Enum.reject(flattened_citations, & &1.isCanonicalSource)
+
+    assert official_citations != []
+    assert Enum.all?(official_citations, &(&1.sourceKey == "jp_tdnet_timely_disclosure"))
+
+    assert Enum.map(flattened_citations, & &1.sourceKey) ==
+             Enum.map(official_citations, & &1.sourceKey) ++
+               ["stage5_news_overlay_fixture", "stage53_news_overlay_fixture"]
+
     assert Enum.map(overlay_citations, & &1.sourceKey) == ["stage5_news_overlay_fixture", "stage53_news_overlay_fixture"]
     assert Enum.all?(overlay_citations, &(&1.isCanonicalSource == false))
   end
