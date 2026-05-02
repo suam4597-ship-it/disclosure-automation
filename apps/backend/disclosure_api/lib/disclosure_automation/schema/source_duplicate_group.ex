@@ -82,7 +82,6 @@ defmodule DisclosureAutomation.Schema.SourceDuplicateGroup do
 
   def changeset(group, attrs) do
     group
-    |> reject_forbidden_attrs(attrs)
     |> cast(attrs, [
       :group_id,
       :confidence,
@@ -93,6 +92,7 @@ defmodule DisclosureAutomation.Schema.SourceDuplicateGroup do
       :has_provider_overlay,
       :redaction_status
     ])
+    |> reject_forbidden_attrs(attrs)
     |> validate_required(@required_fields)
     |> validate_length(:group_id, max: 160)
     |> validate_inclusion(:confidence, @confidence_states)
