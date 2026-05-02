@@ -8,13 +8,16 @@ defmodule DisclosureAutomation.Runtime.Stage55OfflineProviderHealthEvaluator do
   def evaluate(attrs, opts) when is_map(attrs) do
     case Stage55ProviderHealthState.normalize(attrs, opts) do
       {:ok, normalized} ->
-        normalized
-        |> Map.put(:status, status_for(attrs, normalized))
-        |> Map.put(:evaluation_mode, "offline_provider_health_evaluator")
+        {:ok,
+         normalized
+         |> Map.put(:status, status_for(attrs, normalized))
+         |> Map.put(:evaluation_mode, "offline_provider_health_evaluator")}
 
       {:error, {:redaction_violation, path}} ->
-        Stage55ProviderHealthState.redaction_violation(path)
-        |> Map.put(:evaluation_mode, "offline_provider_health_evaluator")
+        {:ok,
+         path
+         |> Stage55ProviderHealthState.redaction_violation()
+         |> Map.put(:evaluation_mode, "offline_provider_health_evaluator")}
 
       {:error, reason} ->
         {:error, reason}
@@ -82,7 +85,9 @@ defmodule DisclosureAutomation.Runtime.Stage55OfflineProviderHealthEvaluator do
 
   defp diagnostics(attrs), do: get_value(attrs, "diagnostics", %{}) || %{}
 
-  defp get_value(map, key, default \\ nil) when is_map(map) do
+  defp get_value(map, key, default \\ nil)
+
+  defp get_value(map, key, default) when is_map(map) do
     Map.get(map, key) || Map.get(map, String.to_atom(key)) || default
   end
 
