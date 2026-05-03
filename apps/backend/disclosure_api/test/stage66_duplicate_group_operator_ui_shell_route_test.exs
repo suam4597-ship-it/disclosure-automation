@@ -60,7 +60,7 @@ defmodule DisclosureAutomation.Stage66DuplicateGroupOperatorUiShellRouteTest do
     refute body =~ "stack trace"
   end
 
-  test "GET /admin/duplicate-groups/:group_id returns a detail screen with bounded states and action controls", %{conn: conn} do
+  test "GET /admin/duplicate-groups/:group_id returns a detail screen with confirmation modal and duplicate click prevention", %{conn: conn} do
     assert group_count(@group_id) == 0
     assert member_count(@group_id) == 0
     assert action_event_count(@group_id) == 0
@@ -101,6 +101,20 @@ defmodule DisclosureAutomation.Stage66DuplicateGroupOperatorUiShellRouteTest do
     assert body =~ "Unable to submit action."
     assert body =~ "id=\"duplicate-group-action-success-state\""
     assert body =~ "Action submitted and detail refreshed."
+    assert body =~ "id=\"duplicate-group-action-confirmation-modal\""
+    assert body =~ "role=\"dialog\""
+    assert body =~ "data-confirmation-state=\"closed\""
+    assert body =~ "Confirm operator action"
+    assert body =~ "This confirmation is bounded and redacted."
+    assert body =~ "data-confirmation-field=\"group_id\""
+    assert body =~ "data-confirmation-field=\"action_label\""
+    assert body =~ "data-confirmation-field=\"locked_route_path\""
+    assert body =~ "data-confirmation-field=\"post_review_state\""
+    assert body =~ "data-confirmation-field=\"operator_reason_redacted\""
+    assert body =~ "data-confirmation-field=\"idempotency_key_hash\""
+    assert body =~ "data-redaction-warning=\"bounded\""
+    assert body =~ "id=\"duplicate-group-action-confirm-submit\""
+    assert body =~ "id=\"duplicate-group-action-confirm-cancel\""
     assert body =~ "fetch(detailRoute, { headers: { 'accept': 'application/json' } })"
     assert body =~ "item.action_event_summary || []"
     assert body =~ "review_state_summary.review_state"
@@ -134,11 +148,19 @@ defmodule DisclosureAutomation.Stage66DuplicateGroupOperatorUiShellRouteTest do
     assert body =~ "/api/admin/duplicate-groups/duplicate_group%3Ajp.tdnet.4527.20260430.material_information_update/reject"
     assert body =~ "/api/admin/duplicate-groups/duplicate_group%3Ajp.tdnet.4527.20260430.material_information_update/mark-review"
     assert body =~ "/api/admin/duplicate-groups/duplicate_group%3Ajp.tdnet.4527.20260430.material_information_update/clear-review-state"
+    assert body =~ "openConfirmation(button)"
+    assert body =~ "pendingActionButton = button"
+    assert body =~ "confirmationModal.setAttribute('data-confirmation-state', 'open')"
+    assert body =~ "setActionState('confirming', 'Confirm operator action before submitting.')"
+    assert body =~ "confirmationModal.setAttribute('data-confirmation-state', 'submitting')"
     assert body =~ "fetch(button.getAttribute('data-action-route'),"
     assert body =~ "body: JSON.stringify(actionPayload(button))"
     assert body =~ "return loadDetail();"
     assert body =~ "setPending(true)"
     assert body =~ "setPending(false)"
+    assert body =~ "confirmationSubmit.disabled = pending"
+    assert body =~ "if (actionPending) { return; }"
+    assert body =~ "if (pendingActionButton && !actionPending)"
     assert body =~ "boundedActionResult(result)"
     assert body =~ "setActionState('loading', 'Submitting action.')"
     assert body =~ "setActionState('refreshing', 'Action submitted. Refreshing detail.')"

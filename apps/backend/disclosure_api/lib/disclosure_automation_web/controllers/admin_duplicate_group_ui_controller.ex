@@ -344,6 +344,21 @@ defmodule DisclosureAutomationWeb.AdminDuplicateGroupUiController do
               <button type=\"button\" data-action-control=\"mark-review\" data-action-route=\"#{mark_review_api_route}\" data-post-review-state=\"needs_review\">Mark needs review</button>
               <button type=\"button\" data-action-control=\"clear-review-state\" data-action-route=\"#{clear_review_state_api_route}\" data-post-review-state=\"cleared\">Clear review state</button>
             </form>
+            <section id=\"duplicate-group-action-confirmation-modal\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"duplicate-group-action-confirmation-title\" data-confirmation-state=\"closed\" hidden>
+              <h2 id=\"duplicate-group-action-confirmation-title\">Confirm operator action</h2>
+              <p>This confirmation is bounded and redacted. Route-derived operation remains authoritative.</p>
+              <dl>
+                <dt>group_id</dt><dd data-confirmation-field=\"group_id\"></dd>
+                <dt>action label</dt><dd data-confirmation-field=\"action_label\"></dd>
+                <dt>locked route path</dt><dd data-confirmation-field=\"locked_route_path\"></dd>
+                <dt>post_review_state</dt><dd data-confirmation-field=\"post_review_state\"></dd>
+                <dt>operator_reason_redacted</dt><dd data-confirmation-field=\"operator_reason_redacted\"></dd>
+                <dt>idempotency_key_hash</dt><dd data-confirmation-field=\"idempotency_key_hash\"></dd>
+              </dl>
+              <p data-redaction-warning=\"bounded\">Use only hashed or redacted operator metadata. Do not paste raw identifiers or unredacted reasons.</p>
+              <button type=\"button\" id=\"duplicate-group-action-confirm-submit\">Submit confirmed action</button>
+              <button type=\"button\" id=\"duplicate-group-action-confirm-cancel\">Cancel</button>
+            </section>
             <p id=\"duplicate-group-action-status\" data-action-status=\"ready\" data-state=\"ready\" aria-live=\"polite\">Ready for an operator action.</p>
             <p id=\"duplicate-group-action-loading-state\" data-state=\"loading\" hidden>Submitting action.</p>
             <p id=\"duplicate-group-action-error-state\" data-state=\"error\" data-error-category=\"unable_to_submit_action\" hidden>Unable to submit action.</p>
@@ -368,6 +383,11 @@ defmodule DisclosureAutomationWeb.AdminDuplicateGroupUiController do
             var actionErrorState = document.getElementById('duplicate-group-action-error-state');
             var actionSuccessState = document.getElementById('duplicate-group-action-success-state');
             var actionResult = document.getElementById('duplicate-group-action-result');
+            var confirmationModal = document.getElementById('duplicate-group-action-confirmation-modal');
+            var confirmationSubmit = document.getElementById('duplicate-group-action-confirm-submit');
+            var confirmationCancel = document.getElementById('duplicate-group-action-confirm-cancel');
+            var pendingActionButton = null;
+            var actionPending = false;
 
             function text(value) {
               if (value === null || value === undefined || value === '') { return ''; }
@@ -398,6 +418,11 @@ defmodule DisclosureAutomationWeb.AdminDuplicateGroupUiController do
 
             function setField(selector, key, value) {
               var element = document.querySelector(selector + '[data-detail-field=\"' + key + '\"]');
+              if (element) { element.textContent = text(value); }
+            }
+
+            function setConfirmationField(key, value) {
+              var element = document.querySelector('[data-confirmation-field=\"' + key + '\"]');
               if (element) { element.textContent = text(value); }
             }
 
@@ -536,13 +561,25 @@ defmodule DisclosureAutomationWeb.AdminDuplicateGroupUiController do
               return 'sha256:' + prefix + '-' + String(Date.now());
             }
 
+            function ensureIdempotencyKeyHash() {
+              var input = actionForm.querySelector('[name=\"idempotency_key_hash\"]');
+              if (input && !input.value) { input.value = generatedHash('idempotency'); }
+              return input ? input.value : generatedHash('idempotency');
+            }
+
+            function ensureRequestIdHash() {
+              var input = actionForm.querySelector('[name=\"request_id_hash\"]');
+              if (input && !input.value) { input.value = generatedHash('request'); }
+              return input ? input.value : generatedHash('request');
+            }
+
             function actionPayload(button) {
               return {
                 actor_id_hash: stringValue('actor_id_hash', 'sha256:operator-001'),
                 actor_permissions: listValue('actor_permissions'),
                 roles: listValue('roles'),
-                request_id_hash: stringValue('request_id_hash', generatedHash('request')),
-                idempotency_key_hash: stringValue('idempotency_key_hash', generatedHash('idempotency')),
+                request_id_hash: ensureRequestIdHash(),
+                idempotency_key_hash: ensureIdempotencyKeyHash(),
                 operator_reason_redacted: stringValue('operator_reason_redacted', 'REDACTED_OPERATOR_REASON'),
                 result_status: 'completed',
                 redaction_status: stringValue('redaction_status', 'passed'),
@@ -568,13 +605,39 @@ defmodule DisclosureAutomationWeb.AdminDuplicateGroupUiController do
             }
 
             function setPending(pending) {
+              actionPending = pending;
               Array.prototype.forEach.call(actionForm.querySelectorAll('button[data-action-route]'), function (button) {
                 button.disabled = pending;
               });
+              confirmationSubmit.disabled = pending;
+            }
+
+            function openConfirmation(button) {
+              if (actionPending) { return; }
+              pendingActionButton = button;
+              ensureRequestIdHash();
+              ensureIdempotencyKeyHash();
+              setConfirmationField('group_id', document.body.getAttribute('data-group-id'));
+              setConfirmationField('action_label', button.textContent);
+              setConfirmationField('locked_route_path', button.getAttribute('data-action-route'));
+              setConfirmationField('post_review_state', button.getAttribute('data-post-review-state'));
+              setConfirmationField('operator_reason_redacted', stringValue('operator_reason_redacted', 'REDACTED_OPERATOR_REASON'));
+              setConfirmationField('idempotency_key_hash', stringValue('idempotency_key_hash', ''));
+              confirmationModal.hidden = false;
+              confirmationModal.setAttribute('data-confirmation-state', 'open');
+              setActionState('confirming', 'Confirm operator action before submitting.');
+            }
+
+            function closeConfirmation() {
+              pendingActionButton = null;
+              confirmationModal.hidden = true;
+              confirmationModal.setAttribute('data-confirmation-state', 'closed');
+              if (!actionPending) { setActionState('ready', 'Ready for an operator action.'); }
             }
 
             function submitAction(button) {
               setPending(true);
+              confirmationModal.setAttribute('data-confirmation-state', 'submitting');
               setActionState('loading', 'Submitting action.');
               return fetch(button.getAttribute('data-action-route'), {
                 method: 'POST',
@@ -587,6 +650,8 @@ defmodule DisclosureAutomationWeb.AdminDuplicateGroupUiController do
                 })
                 .then(function (result) {
                   actionResult.textContent = JSON.stringify(boundedActionResult(result), null, 2);
+                  confirmationModal.hidden = true;
+                  confirmationModal.setAttribute('data-confirmation-state', 'closed');
                   setActionState('refreshing', 'Action submitted. Refreshing detail.');
                   return loadDetail();
                 })
@@ -597,12 +662,21 @@ defmodule DisclosureAutomationWeb.AdminDuplicateGroupUiController do
                   setActionState('error', 'Unable to submit action.');
                 })
                 .finally(function () {
+                  pendingActionButton = null;
                   setPending(false);
                 });
             }
 
             Array.prototype.forEach.call(actionForm.querySelectorAll('button[data-action-route]'), function (button) {
-              button.addEventListener('click', function () { submitAction(button); });
+              button.addEventListener('click', function () { openConfirmation(button); });
+            });
+
+            confirmationSubmit.addEventListener('click', function () {
+              if (pendingActionButton && !actionPending) { submitAction(pendingActionButton); }
+            });
+
+            confirmationCancel.addEventListener('click', function () {
+              closeConfirmation();
             });
 
             loadDetail();
