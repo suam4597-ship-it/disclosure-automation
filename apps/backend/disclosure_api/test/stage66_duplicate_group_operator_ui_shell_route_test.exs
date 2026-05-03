@@ -11,21 +11,38 @@ defmodule DisclosureAutomation.Stage66DuplicateGroupOperatorUiShellRouteTest do
 
   @group_id "duplicate_group:jp.tdnet.4527.20260430.material_information_update"
 
-  test "GET /admin/duplicate-groups returns the Stage 6.6 operator UI shell", %{conn: conn} do
+  test "GET /admin/duplicate-groups returns the Stage 6.6 operator list screen", %{conn: conn} do
     conn = get(conn, "/admin/duplicate-groups")
     body = html_response(conn, 200)
 
     assert get_resp_header(conn, "content-type") == ["text/html; charset=utf-8"]
-    assert body =~ "Duplicate Group Operator UI"
-    assert body =~ "operator-only duplicate group review"
-    assert body =~ "advisory-only, non-canonical, bounded, and redacted"
-    assert body =~ "data-shell-status=\"stage66-shell-only\""
-    assert body =~ "/api/admin/duplicate-groups"
-    assert body =~ "/api/admin/duplicate-groups/:group_id"
-    assert body =~ "/api/admin/duplicate-groups/:group_id/confirm"
-    assert body =~ "/api/admin/duplicate-groups/:group_id/reject"
-    assert body =~ "/api/admin/duplicate-groups/:group_id/mark-review"
-    assert body =~ "/api/admin/duplicate-groups/:group_id/clear-review-state"
+    assert body =~ "Duplicate Groups"
+    assert body =~ "operator-only, advisory-only, non-canonical, bounded, and redacted"
+    assert body =~ "id=\"duplicate-group-operator-list-screen\""
+    assert body =~ "id=\"duplicate-group-list-filters\""
+    assert body =~ "data-filter-scope=\"bounded-list-filters\""
+    assert body =~ "name=\"confidence\""
+    assert body =~ "name=\"source_key\""
+    assert body =~ "name=\"member_kind\""
+    assert body =~ "name=\"redaction_status\""
+    assert body =~ "name=\"limit\""
+    assert body =~ "id=\"duplicate-group-list-table\""
+    assert body =~ "group_id"
+    assert body =~ "confidence"
+    assert body =~ "review_state_summary.review_state"
+    assert body =~ "review_state_summary.last_action_operation"
+    assert body =~ "review_state_summary.reviewed_at"
+    assert body =~ "member_count"
+    assert body =~ "source_keys"
+    assert body =~ "redaction_status"
+    assert body =~ "data-list-api-route=\"/api/admin/duplicate-groups\""
+    assert body =~ "data-detail-route-template=\"/admin/duplicate-groups/:group_id\""
+    assert body =~ "data-excludes=\"action_event_summary\""
+    assert body =~ "fetch(buildUrl(), { headers: { 'accept': 'application/json' } })"
+    refute body =~ "/api/admin/duplicate-groups/:group_id/confirm"
+    refute body =~ "/api/admin/duplicate-groups/:group_id/reject"
+    refute body =~ "/api/admin/duplicate-groups/:group_id/mark-review"
+    refute body =~ "/api/admin/duplicate-groups/:group_id/clear-review-state"
     refute body =~ "action_operation"
     refute body =~ "provider_payload"
     refute body =~ "canonical_payload"
@@ -41,6 +58,8 @@ defmodule DisclosureAutomation.Stage66DuplicateGroupOperatorUiShellRouteTest do
     conn = get(conn, "/admin/duplicate-groups/#{@group_id}")
     body = html_response(conn, 200)
 
+    assert body =~ "Duplicate Group Detail"
+    assert body =~ "data-shell-status=\"stage66-detail-deferred\""
     assert body =~ "data-group-id=\"#{@group_id}\""
     assert body =~ "/api/admin/duplicate-groups/duplicate_group%3Ajp.tdnet.4527.20260430.material_information_update"
     assert body =~ "/api/admin/duplicate-groups/duplicate_group%3Ajp.tdnet.4527.20260430.material_information_update/confirm"
