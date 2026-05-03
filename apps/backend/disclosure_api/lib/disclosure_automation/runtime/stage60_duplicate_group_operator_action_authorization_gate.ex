@@ -286,7 +286,9 @@ defmodule DisclosureAutomation.Runtime.Stage60DuplicateGroupOperatorActionAuthor
   defp sensitive_header_prefix(:cookie), do: "Coo" <> "kie" <> ":"
   defp sensitive_header_prefix(:subscription_key), do: "Subscription" <> "-" <> "Key" <> ":"
 
-  defp get_value(map, key, default \\ nil) when is_map(map) do
+  defp get_value(map, key, default \\ nil)
+
+  defp get_value(map, key, default) when is_map(map) do
     case Enum.find(map, fn {candidate, _value} -> to_string(candidate) == key end) do
       {_candidate, value} -> value
       nil -> default
