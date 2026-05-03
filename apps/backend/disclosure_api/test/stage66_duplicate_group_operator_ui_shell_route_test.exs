@@ -11,7 +11,7 @@ defmodule DisclosureAutomation.Stage66DuplicateGroupOperatorUiShellRouteTest do
 
   @group_id "duplicate_group:jp.tdnet.4527.20260430.material_information_update"
 
-  test "GET /admin/duplicate-groups returns the Stage 6.6 operator list screen", %{conn: conn} do
+  test "GET /admin/duplicate-groups returns the Stage 6.7 operator list screen states", %{conn: conn} do
     conn = get(conn, "/admin/duplicate-groups")
     body = html_response(conn, 200)
 
@@ -38,6 +38,17 @@ defmodule DisclosureAutomation.Stage66DuplicateGroupOperatorUiShellRouteTest do
     assert body =~ "data-list-api-route=\"/api/admin/duplicate-groups\""
     assert body =~ "data-detail-route-template=\"/admin/duplicate-groups/:group_id\""
     assert body =~ "data-excludes=\"action_event_summary\""
+    assert body =~ "id=\"duplicate-group-list-loading-state\""
+    assert body =~ "Loading duplicate groups."
+    assert body =~ "id=\"duplicate-group-list-empty-state\""
+    assert body =~ "No duplicate groups found."
+    assert body =~ "id=\"duplicate-group-list-error-state\""
+    assert body =~ "data-error-category=\"unable_to_load_duplicate_groups\""
+    assert body =~ "Unable to load duplicate groups."
+    assert body =~ "setListState('loading', 'Loading duplicate groups.')"
+    assert body =~ "setListState('loaded', 'Loaded '"
+    assert body =~ "setListState('empty', 'No duplicate groups found.')"
+    assert body =~ "setListState('error', 'Unable to load duplicate groups.')"
     assert body =~ "fetch(buildUrl(), { headers: { 'accept': 'application/json' } })"
     refute body =~ "/api/admin/duplicate-groups/:group_id/confirm"
     refute body =~ "/api/admin/duplicate-groups/:group_id/reject"
@@ -46,9 +57,10 @@ defmodule DisclosureAutomation.Stage66DuplicateGroupOperatorUiShellRouteTest do
     refute body =~ "provider_payload"
     refute body =~ "canonical_payload"
     refute body =~ "full_article_text"
+    refute body =~ "stack trace"
   end
 
-  test "GET /admin/duplicate-groups/:group_id returns a detail screen with bounded action controls", %{conn: conn} do
+  test "GET /admin/duplicate-groups/:group_id returns a detail screen with bounded states and action controls", %{conn: conn} do
     assert group_count(@group_id) == 0
     assert member_count(@group_id) == 0
     assert action_event_count(@group_id) == 0
@@ -64,13 +76,31 @@ defmodule DisclosureAutomation.Stage66DuplicateGroupOperatorUiShellRouteTest do
     assert body =~ "Detail data is loaded only from the locked internal JSON API."
     assert body =~ "id=\"duplicate-group-summary\""
     assert body =~ "id=\"duplicate-group-review-state\""
+    assert body =~ "id=\"duplicate-group-review-state-empty\""
+    assert body =~ "No review state recorded yet."
     assert body =~ "id=\"duplicate-group-members\""
+    assert body =~ "id=\"duplicate-group-members-empty\""
+    assert body =~ "No members found."
     assert body =~ "id=\"duplicate-group-action-event-summary\""
+    assert body =~ "id=\"duplicate-group-action-event-empty\""
+    assert body =~ "No latest actions found."
     assert body =~ "data-summary-limit=\"latest-five-from-show-response\""
     assert body =~ "data-summary-source=\"show-response-only\""
     assert body =~ "id=\"duplicate-group-action-controls\""
     assert body =~ "data-action-controls=\"enabled\""
     assert body =~ "data-operation-override=\"forbidden\""
+    assert body =~ "id=\"duplicate-group-detail-loading-state\""
+    assert body =~ "Loading duplicate group detail."
+    assert body =~ "id=\"duplicate-group-detail-error-state\""
+    assert body =~ "data-error-category=\"unable_to_load_duplicate_group_detail\""
+    assert body =~ "Unable to load duplicate group detail."
+    assert body =~ "id=\"duplicate-group-action-loading-state\""
+    assert body =~ "Submitting action."
+    assert body =~ "id=\"duplicate-group-action-error-state\""
+    assert body =~ "data-error-category=\"unable_to_submit_action\""
+    assert body =~ "Unable to submit action."
+    assert body =~ "id=\"duplicate-group-action-success-state\""
+    assert body =~ "Action submitted and detail refreshed."
     assert body =~ "fetch(detailRoute, { headers: { 'accept': 'application/json' } })"
     assert body =~ "item.action_event_summary || []"
     assert body =~ "review_state_summary.review_state"
@@ -109,15 +139,21 @@ defmodule DisclosureAutomation.Stage66DuplicateGroupOperatorUiShellRouteTest do
     assert body =~ "return loadDetail();"
     assert body =~ "setPending(true)"
     assert body =~ "setPending(false)"
+    assert body =~ "boundedActionResult(result)"
+    assert body =~ "setActionState('loading', 'Submitting action.')"
+    assert body =~ "setActionState('refreshing', 'Action submitted. Refreshing detail.')"
+    assert body =~ "setActionState('success', 'Action submitted and detail refreshed.')"
+    assert body =~ "setActionState('error', 'Unable to submit action.')"
 
     refute body =~ "name=\"action_operation\""
-    refute body =~ "action_operation:"
+    refute body =~ "action_operation: stringValue"
     refute body =~ "raw_actor_id"
     refute body =~ "raw_request_id"
     refute body =~ "raw_idempotency_key"
     refute body =~ "provider_payload"
     refute body =~ "canonical_payload"
     refute body =~ "full_article_text"
+    refute body =~ "stack trace"
 
     assert group_count(@group_id) == 0
     assert member_count(@group_id) == 0
