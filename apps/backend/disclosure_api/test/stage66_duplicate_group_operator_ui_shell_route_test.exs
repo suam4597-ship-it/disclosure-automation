@@ -37,7 +37,7 @@ defmodule DisclosureAutomation.Stage66DuplicateGroupOperatorUiShellRouteTest do
     refute body =~ "stack trace"
   end
 
-  test "GET /admin/duplicate-groups/:group_id returns permission-aware action button states and preserves action flow", %{conn: conn} do
+  test "GET /admin/duplicate-groups/:group_id returns accessible permission-aware action controls and preserves action flow", %{conn: conn} do
     assert group_count(@group_id) == 0
     assert member_count(@group_id) == 0
     assert action_event_count(@group_id) == 0
@@ -45,6 +45,25 @@ defmodule DisclosureAutomation.Stage66DuplicateGroupOperatorUiShellRouteTest do
 
     conn = get(conn, "/admin/duplicate-groups/#{@group_id}")
     body = html_response(conn, 200)
+
+    assert body =~ "Skip to action controls"
+    assert body =~ "href=\"#duplicate-group-action-controls\""
+    assert body =~ "aria-labelledby=\"duplicate-group-detail-title\""
+    assert body =~ "id=\"duplicate-group-detail-title\""
+    assert body =~ "aria-label=\"Duplicate group operator navigation\""
+    assert body =~ "role=\"status\""
+    assert body =~ "role=\"alert\""
+    assert body =~ "aria-labelledby=\"duplicate-group-action-controls-title\""
+    assert body =~ "id=\"duplicate-group-action-controls-title\""
+    assert body =~ "aria-describedby=\"duplicate-group-action-controls-description duplicate-group-action-permission-state\""
+    assert body =~ "<fieldset><legend>Operator action metadata</legend>"
+    assert body =~ "<fieldset><legend>Duplicate group actions</legend>"
+    assert body =~ "<caption>Duplicate group members</caption>"
+    assert body =~ "<caption>Latest duplicate group operator actions</caption>"
+    assert body =~ "aria-describedby=\"duplicate-group-action-confirmation-description\""
+    assert body =~ "id=\"duplicate-group-action-confirmation-description\""
+    assert body =~ "aria-describedby=\"duplicate-group-action-permission-state\""
+    assert body =~ "data-action-result=\"bounded\" aria-live=\"polite\""
 
     assert body =~ "Duplicate Group Detail"
     assert body =~ "id=\"duplicate-group-operator-detail-screen\""
@@ -59,9 +78,6 @@ defmodule DisclosureAutomation.Stage66DuplicateGroupOperatorUiShellRouteTest do
     assert body =~ "Action permission missing."
     assert body =~ "Action permissions available. Backend authorization remains authoritative."
     assert body =~ "actionPermissionList = ['duplicate_group:confirm', 'duplicate_group:reject', 'duplicate_group:mark_review', 'duplicate_group:clear_review_state']"
-    assert body =~ "function hasPermission(permission)"
-    assert body =~ "function hasAnyActionPermission()"
-    assert body =~ "function setPermissionState()"
     assert body =~ "data-required-permission=\"duplicate_group:confirm\""
     assert body =~ "data-required-permission=\"duplicate_group:reject\""
     assert body =~ "data-required-permission=\"duplicate_group:mark_review\""
