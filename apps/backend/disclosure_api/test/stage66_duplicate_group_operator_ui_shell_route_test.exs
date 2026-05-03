@@ -48,7 +48,7 @@ defmodule DisclosureAutomation.Stage66DuplicateGroupOperatorUiShellRouteTest do
     refute body =~ "full_article_text"
   end
 
-  test "GET /admin/duplicate-groups/:group_id returns a detail screen without reading or writing duplicate group state", %{conn: conn} do
+  test "GET /admin/duplicate-groups/:group_id returns a detail screen with bounded action controls", %{conn: conn} do
     assert group_count(@group_id) == 0
     assert member_count(@group_id) == 0
     assert action_event_count(@group_id) == 0
@@ -68,8 +68,9 @@ defmodule DisclosureAutomation.Stage66DuplicateGroupOperatorUiShellRouteTest do
     assert body =~ "id=\"duplicate-group-action-event-summary\""
     assert body =~ "data-summary-limit=\"latest-five-from-show-response\""
     assert body =~ "data-summary-source=\"show-response-only\""
-    assert body =~ "id=\"duplicate-group-action-controls-placeholder\""
-    assert body =~ "data-action-controls=\"deferred\""
+    assert body =~ "id=\"duplicate-group-action-controls\""
+    assert body =~ "data-action-controls=\"enabled\""
+    assert body =~ "data-operation-override=\"forbidden\""
     assert body =~ "fetch(detailRoute, { headers: { 'accept': 'application/json' } })"
     assert body =~ "item.action_event_summary || []"
     assert body =~ "review_state_summary.review_state"
@@ -84,16 +85,36 @@ defmodule DisclosureAutomation.Stage66DuplicateGroupOperatorUiShellRouteTest do
     assert body =~ "actor_id_hash"
     assert body =~ "request_id_hash"
     assert body =~ "idempotency_key_hash"
+    assert body =~ "operator_reason_redacted"
     assert body =~ "result_status"
     assert body =~ "pre_review_state"
     assert body =~ "post_review_state"
     assert body =~ "failure_code"
     assert body =~ "inserted_at"
-    refute body =~ "/confirm"
-    refute body =~ "/reject"
-    refute body =~ "/mark-review"
-    refute body =~ "/clear-review-state"
-    refute body =~ "operator_reason_redacted"
+
+    assert body =~ "data-action-control=\"confirm\""
+    assert body =~ "data-action-control=\"reject\""
+    assert body =~ "data-action-control=\"mark-review\""
+    assert body =~ "data-action-control=\"clear-review-state\""
+    assert body =~ "Confirm duplicate group"
+    assert body =~ "Reject duplicate group"
+    assert body =~ "Mark needs review"
+    assert body =~ "Clear review state"
+    assert body =~ "/api/admin/duplicate-groups/duplicate_group%3Ajp.tdnet.4527.20260430.material_information_update/confirm"
+    assert body =~ "/api/admin/duplicate-groups/duplicate_group%3Ajp.tdnet.4527.20260430.material_information_update/reject"
+    assert body =~ "/api/admin/duplicate-groups/duplicate_group%3Ajp.tdnet.4527.20260430.material_information_update/mark-review"
+    assert body =~ "/api/admin/duplicate-groups/duplicate_group%3Ajp.tdnet.4527.20260430.material_information_update/clear-review-state"
+    assert body =~ "fetch(button.getAttribute('data-action-route'),"
+    assert body =~ "body: JSON.stringify(actionPayload(button))"
+    assert body =~ "return loadDetail();"
+    assert body =~ "setPending(true)"
+    assert body =~ "setPending(false)"
+
+    refute body =~ "name=\"action_operation\""
+    refute body =~ "action_operation:"
+    refute body =~ "raw_actor_id"
+    refute body =~ "raw_request_id"
+    refute body =~ "raw_idempotency_key"
     refute body =~ "provider_payload"
     refute body =~ "canonical_payload"
     refute body =~ "full_article_text"
