@@ -336,7 +336,7 @@ defmodule DisclosureAutomation.Runtime.Stage60DuplicateGroupOperatorActionAuditC
       current_path = if path == "", do: key_string, else: "#{path}.#{key_string}"
 
       cond do
-        allowed_key?(key_string) -> find_prohibited_field(value, current_path)
+        allowed_key?(key_string) -> nil
         prohibited_key?(key_string) -> current_path
         true -> find_prohibited_field(value, current_path)
       end
@@ -360,7 +360,16 @@ defmodule DisclosureAutomation.Runtime.Stage60DuplicateGroupOperatorActionAuditC
       "actor_id_hash",
       "request_id_hash",
       "idempotency_key_hash",
-      "operator_reason_redacted"
+      "operator_reason_redacted",
+      "group_id",
+      "action_operation",
+      "required_permission",
+      "result_status",
+      "redaction_status",
+      "pre_review_state",
+      "post_review_state",
+      "failure_code",
+      "created_at"
     ]
   end
 
@@ -384,7 +393,9 @@ defmodule DisclosureAutomation.Runtime.Stage60DuplicateGroupOperatorActionAuditC
   defp sensitive_header_prefix(:cookie), do: "Coo" <> "kie" <> ":"
   defp sensitive_header_prefix(:subscription_key), do: "Subscription" <> "-" <> "Key" <> ":"
 
-  defp get_value(map, key, default \\ nil) when is_map(map) do
+  defp get_value(map, key, default \\ nil)
+
+  defp get_value(map, key, default) when is_map(map) do
     case Enum.find(map, fn {candidate, _value} -> to_string(candidate) == key end) do
       {_candidate, value} -> value
       nil -> default
