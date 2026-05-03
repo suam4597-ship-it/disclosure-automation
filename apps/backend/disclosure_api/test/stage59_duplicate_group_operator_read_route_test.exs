@@ -5,12 +5,38 @@ defmodule DisclosureAutomation.Stage59DuplicateGroupOperatorReadRouteTest do
 
   alias DisclosureAutomation.Repo
   alias DisclosureAutomation.Runtime.Stage59DuplicateGroupInternalMaterializer
+  alias DisclosureAutomation.Runtime.Stage61DuplicateGroupActionStateWriter
   alias DisclosureAutomation.Schema.SourceDuplicateGroup
+  alias DisclosureAutomation.Schema.SourceDuplicateGroupActionEvent
   alias DisclosureAutomation.Schema.SourceDuplicateGroupMember
+  alias DisclosureAutomation.Schema.SourceDuplicateGroupReviewState
 
   @official_event_id "jp.tdnet.4527.20260430.material_information_update.material_information_update.140120260430515474"
   @overlay_id "news_overlay:jp.tdnet.4527.20260430.material_information_update.material_information_update.140120260430515474:ba9e08fb9a92ac57"
   @group_id "duplicate_group:jp.tdnet.4527.20260430.material_information_update"
+
+  @valid_action_attrs %{
+    "group_id" => @group_id,
+    "action_operation" => "confirm_duplicate_group",
+    "actor_permissions" => ["duplicate_group:confirm"],
+    "actor_id_hash" => "sha256:operator-001",
+    "request_id_hash" => "sha256:request-001",
+    "idempotency_key_hash" => "sha256:idempotency-001",
+    "operator_reason_redacted" => "REDACTED_OPERATOR_CONFIRMED_DUPLICATE_GROUP",
+    "redaction_status" => "passed"
+  }
+
+  @valid_actor_context %{
+    "authenticated" => true,
+    "roles" => ["operator"],
+    "permissions" => ["duplicate_group:confirm"],
+    "actor_id_hash" => "sha256:operator-001",
+    "result_status" => "completed",
+    "redaction_status" => "passed",
+    "pre_review_state" => "unknown",
+    "post_review_state" => "confirmed_by_operator",
+    "created_at" => "2026-05-03T07:30:00Z"
+  }
 
   test "GET /api/admin/duplicate-groups returns bounded operator-only duplicate groups", %{conn: conn} do
     materialize_fixture_group!()
@@ -59,6 +85,8 @@ defmodule DisclosureAutomation.Stage59DuplicateGroupOperatorReadRouteTest do
     assert item["has_official_tdnet_event"] == true
     assert item["has_provider_overlay"] == true
     assert item["redaction_status"] == "passed"
+    assert item["review_state_summary"] == empty_review_state_summary_json()
+    refute Map.has_key?(item, "action_event_summary")
     assert length(item["members"]) == 2
     refute Map.has_key?(item, "canonical_feed_item_payload")
     refute Map.has_key?(item, "raw_provider_response_body")
@@ -82,6 +110,8 @@ defmodule DisclosureAutomation.Stage59DuplicateGroupOperatorReadRouteTest do
     item = response["item"]
     assert item["group_id"] == @group_id
     assert item["member_count"] == 2
+    assert item["review_state_summary"] == empty_review_state_summary_json()
+    assert item["action_event_summary"] == []
 
     assert [official_member, overlay_member] = item["members"]
     assert official_member["member_id"] == "member:official:jp_tdnet"
@@ -107,6 +137,57 @@ defmodule DisclosureAutomation.Stage59DuplicateGroupOperatorReadRouteTest do
     assert overlay_member["redaction_status"] == "passed"
     refute Map.has_key?(overlay_member, "external_id")
     refute Map.has_key?(overlay_member, "full_article_text")
+  end
+
+  test "admin read routes expose bounded review state and action event response metadata", %{conn: conn} do
+    materialize_fixture_group!()
+    record_confirm_action!()
+
+    list_response =
+      conn
+      |> get("/api/admin/duplicate-groups?limit=10")
+      |> json_response(200)
+
+    assert [list_item] = list_response["items"]
+    assert list_item["review_state_summary"]["review_state"] == "confirmed_by_operator"
+    assert list_item["review_state_summary"]["last_action_operation"] == "confirm_duplicate_group"
+    assert list_item["review_state_summary"]["last_action_request_id_hash"] == "sha256:request-001"
+    assert list_item["review_state_summary"]["last_action_idempotency_key_hash"] == "sha256:idempotency-001"
+    assert list_item["review_state_summary"]["reviewed_by_actor_id_hash"] == "sha256:operator-001"
+    assert list_item["review_state_summary"]["review_reason_redacted"] == "REDACTED_OPERATOR_CONFIRMED_DUPLICATE_GROUP"
+    assert list_item["review_state_summary"]["redaction_status"] == "passed"
+    assert is_binary(list_item["review_state_summary"]["reviewed_at"])
+    refute Map.has_key?(list_item, "action_event_summary")
+
+    show_response =
+      conn
+      |> recycle()
+      |> get("/api/admin/duplicate-groups/#{@group_id}")
+      |> json_response(200)
+
+    item = show_response["item"]
+    assert item["review_state_summary"] == list_item["review_state_summary"]
+
+    assert [event] = item["action_event_summary"]
+    assert event["action_operation"] == "confirm_duplicate_group"
+    assert event["required_permission"] == "duplicate_group:confirm"
+    assert event["actor_id_hash"] == "sha256:operator-001"
+    assert event["request_id_hash"] == "sha256:request-001"
+    assert event["idempotency_key_hash"] == "sha256:idempotency-001"
+    assert event["result_status"] == "completed"
+    assert event["pre_review_state"] == "unknown"
+    assert event["post_review_state"] == "confirmed_by_operator"
+    assert event["failure_code"] == nil
+    assert event["redaction_status"] == "passed"
+    assert is_binary(event["inserted_at"])
+
+    refute Map.has_key?(event, "operator_reason_redacted")
+    refute Map.has_key?(event, "raw_actor_id")
+    refute Map.has_key?(event, "raw_request_id")
+    refute Map.has_key?(event, "raw_idempotency_key")
+    refute Map.has_key?(event, "canonical_payload")
+    refute Map.has_key?(item, "canonical_feed_item_payload")
+    refute Map.has_key?(item, "raw_provider_response_body")
   end
 
   test "GET /api/admin/duplicate-groups supports bounded filters", %{conn: conn} do
@@ -157,6 +238,8 @@ defmodule DisclosureAutomation.Stage59DuplicateGroupOperatorReadRouteTest do
   test "read routes do not create rows or trigger materialization", %{conn: conn} do
     assert group_count(@group_id) == 0
     assert member_count(@group_id) == 0
+    assert action_event_count(@group_id) == 0
+    assert review_state_count(@group_id) == 0
 
     page =
       conn
@@ -168,10 +251,17 @@ defmodule DisclosureAutomation.Stage59DuplicateGroupOperatorReadRouteTest do
 
     assert group_count(@group_id) == 0
     assert member_count(@group_id) == 0
+    assert action_event_count(@group_id) == 0
+    assert review_state_count(@group_id) == 0
   end
 
   defp materialize_fixture_group! do
     assert {:ok, _result} = Stage59DuplicateGroupInternalMaterializer.materialize_group(valid_group_attrs())
+  end
+
+  defp record_confirm_action! do
+    assert {:ok, result} = Stage61DuplicateGroupActionStateWriter.record_action(@valid_action_attrs, @valid_actor_context)
+    assert result.action_event_inserted == true
   end
 
   defp valid_group_attrs do
@@ -206,6 +296,19 @@ defmodule DisclosureAutomation.Stage59DuplicateGroupOperatorReadRouteTest do
     }
   end
 
+  defp empty_review_state_summary_json do
+    %{
+      "review_state" => nil,
+      "last_action_operation" => nil,
+      "last_action_request_id_hash" => nil,
+      "last_action_idempotency_key_hash" => nil,
+      "reviewed_by_actor_id_hash" => nil,
+      "reviewed_at" => nil,
+      "review_reason_redacted" => nil,
+      "redaction_status" => nil
+    }
+  end
+
   defp group_count(group_id) do
     SourceDuplicateGroup
     |> where([group], group.group_id == ^group_id)
@@ -215,6 +318,18 @@ defmodule DisclosureAutomation.Stage59DuplicateGroupOperatorReadRouteTest do
   defp member_count(group_id) do
     SourceDuplicateGroupMember
     |> where([member], member.group_id == ^group_id)
+    |> Repo.aggregate(:count)
+  end
+
+  defp action_event_count(group_id) do
+    SourceDuplicateGroupActionEvent
+    |> where([event], event.group_id == ^group_id)
+    |> Repo.aggregate(:count)
+  end
+
+  defp review_state_count(group_id) do
+    SourceDuplicateGroupReviewState
+    |> where([state], state.group_id == ^group_id)
     |> Repo.aggregate(:count)
   end
 end
