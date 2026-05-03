@@ -258,7 +258,7 @@ defmodule DisclosureAutomation.Runtime.Stage60DuplicateGroupOperatorActionContra
       current_path = if path == "", do: key_string, else: "#{path}.#{key_string}"
 
       cond do
-        allowed_key?(key_string) -> find_prohibited_field(value, current_path)
+        allowed_key?(key_string) -> nil
         prohibited_key?(key_string) -> current_path
         true -> find_prohibited_field(value, current_path)
       end
@@ -282,7 +282,10 @@ defmodule DisclosureAutomation.Runtime.Stage60DuplicateGroupOperatorActionContra
       "actor_id_hash",
       "request_id_hash",
       "idempotency_key_hash",
-      "operator_reason_redacted"
+      "operator_reason_redacted",
+      "group_id",
+      "action_operation",
+      "redaction_status"
     ]
   end
 
@@ -305,15 +308,27 @@ defmodule DisclosureAutomation.Runtime.Stage60DuplicateGroupOperatorActionContra
   defp sensitive_header_prefix(:cookie), do: "Coo" <> "kie" <> ":"
   defp sensitive_header_prefix(:subscription_key), do: "Subscription" <> "-" <> "Key" <> ":"
 
-  defp get_value(map, key, default \\ nil) when is_map(map) do
+  defp get_value(map, key, default \\ nil)
+
+  defp get_value(map, key, default) when is_map(map) do
     cond do
       Map.has_key?(map, key) -> Map.get(map, key)
-      Map.has_key?(map, String.to_atom(key)) -> Map.get(map, String.to_atom(key))
+      atom_key = known_atom_key(key) -> Map.get(map, atom_key, default)
       true -> default
     end
   end
 
   defp get_value(_value, _key, default), do: default
+
+  defp known_atom_key("group_id"), do: :group_id
+  defp known_atom_key("action_operation"), do: :action_operation
+  defp known_atom_key("actor_permissions"), do: :actor_permissions
+  defp known_atom_key("actor_id_hash"), do: :actor_id_hash
+  defp known_atom_key("request_id_hash"), do: :request_id_hash
+  defp known_atom_key("idempotency_key_hash"), do: :idempotency_key_hash
+  defp known_atom_key("operator_reason_redacted"), do: :operator_reason_redacted
+  defp known_atom_key("redaction_status"), do: :redaction_status
+  defp known_atom_key(_key), do: nil
 
   defp normalize_token(value) do
     value
