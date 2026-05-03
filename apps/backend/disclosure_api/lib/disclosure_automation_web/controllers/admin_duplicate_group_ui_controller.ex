@@ -61,7 +61,10 @@ defmodule DisclosureAutomationWeb.AdminDuplicateGroupUiController do
             <button type=\"submit\">Apply filters</button>
           </form>
 
-          <p id=\"duplicate-group-list-status\" data-list-status=\"ready\">Ready to load duplicate groups.</p>
+          <p id=\"duplicate-group-list-status\" data-list-status=\"ready\" data-state=\"ready\" aria-live=\"polite\">Ready to load duplicate groups.</p>
+          <p id=\"duplicate-group-list-loading-state\" data-state=\"loading\" hidden>Loading duplicate groups.</p>
+          <p id=\"duplicate-group-list-empty-state\" data-state=\"empty\" hidden>No duplicate groups found.</p>
+          <p id=\"duplicate-group-list-error-state\" data-state=\"error\" data-error-category=\"unable_to_load_duplicate_groups\" hidden>Unable to load duplicate groups.</p>
 
           <table id=\"duplicate-group-list-table\">
             <thead>
@@ -86,12 +89,28 @@ defmodule DisclosureAutomationWeb.AdminDuplicateGroupUiController do
             var form = document.getElementById('duplicate-group-list-filters');
             var rows = document.getElementById('duplicate-group-list-rows');
             var status = document.getElementById('duplicate-group-list-status');
+            var loadingState = document.getElementById('duplicate-group-list-loading-state');
+            var emptyState = document.getElementById('duplicate-group-list-empty-state');
+            var errorState = document.getElementById('duplicate-group-list-error-state');
             var listRoute = document.body.getAttribute('data-list-api-route');
             var detailTemplate = document.body.getAttribute('data-detail-route-template');
 
             function text(value) {
               if (value === null || value === undefined || value === '') { return ''; }
               return String(value);
+            }
+
+            function setHidden(element, hidden) {
+              if (element) { element.hidden = hidden; }
+            }
+
+            function setListState(state, message) {
+              status.setAttribute('data-list-status', state);
+              status.setAttribute('data-state', state);
+              status.textContent = message;
+              setHidden(loadingState, state !== 'loading');
+              setHidden(emptyState, state !== 'empty');
+              setHidden(errorState, state !== 'error');
             }
 
             function reviewState(item, key) {
@@ -111,7 +130,7 @@ defmodule DisclosureAutomationWeb.AdminDuplicateGroupUiController do
                 emptyCell.textContent = 'No duplicate groups found.';
                 emptyRow.appendChild(emptyCell);
                 rows.appendChild(emptyRow);
-                return;
+                return false;
               }
 
               items.forEach(function (item) {
@@ -142,6 +161,8 @@ defmodule DisclosureAutomationWeb.AdminDuplicateGroupUiController do
 
                 rows.appendChild(tr);
               });
+
+              return true;
             }
 
             function buildUrl() {
@@ -154,16 +175,23 @@ defmodule DisclosureAutomationWeb.AdminDuplicateGroupUiController do
             }
 
             function loadList() {
-              status.textContent = 'Loading duplicate groups.';
+              setListState('loading', 'Loading duplicate groups.');
               return fetch(buildUrl(), { headers: { 'accept': 'application/json' } })
-                .then(function (response) { return response.json(); })
+                .then(function (response) {
+                  if (!response.ok) { throw new Error('unable_to_load_duplicate_groups'); }
+                  return response.json();
+                })
                 .then(function (page) {
-                  renderItems(page.items || []);
-                  status.textContent = 'Loaded ' + text(page.item_count || 0) + ' duplicate groups.';
+                  var hasRows = renderItems(page.items || []);
+                  if (hasRows) {
+                    setListState('loaded', 'Loaded ' + text(page.item_count || 0) + ' duplicate groups.');
+                  } else {
+                    setListState('empty', 'No duplicate groups found.');
+                  }
                 })
                 .catch(function () {
                   rows.textContent = '';
-                  status.textContent = 'Unable to load duplicate groups.';
+                  setListState('error', 'Unable to load duplicate groups.');
                 });
             }
 
@@ -220,7 +248,9 @@ defmodule DisclosureAutomationWeb.AdminDuplicateGroupUiController do
             </dl>
           </section>
 
-          <p id=\"duplicate-group-detail-status\" data-detail-status=\"ready\">Ready to load duplicate group detail.</p>
+          <p id=\"duplicate-group-detail-status\" data-detail-status=\"ready\" data-state=\"ready\" aria-live=\"polite\">Ready to load duplicate group detail.</p>
+          <p id=\"duplicate-group-detail-loading-state\" data-state=\"loading\" hidden>Loading duplicate group detail.</p>
+          <p id=\"duplicate-group-detail-error-state\" data-state=\"error\" data-error-category=\"unable_to_load_duplicate_group_detail\" hidden>Unable to load duplicate group detail.</p>
 
           <section id=\"duplicate-group-summary\">
             <h2>Group</h2>
@@ -238,6 +268,7 @@ defmodule DisclosureAutomationWeb.AdminDuplicateGroupUiController do
 
           <section id=\"duplicate-group-review-state\">
             <h2>Review State</h2>
+            <p id=\"duplicate-group-review-state-empty\" data-state=\"empty\" hidden>No review state recorded yet.</p>
             <dl>
               <dt>review_state_summary.review_state</dt><dd data-review-state-field=\"review_state\"></dd>
               <dt>review_state_summary.last_action_operation</dt><dd data-review-state-field=\"last_action_operation\"></dd>
@@ -249,6 +280,7 @@ defmodule DisclosureAutomationWeb.AdminDuplicateGroupUiController do
 
           <section id=\"duplicate-group-members\">
             <h2>Members</h2>
+            <p id=\"duplicate-group-members-empty\" data-state=\"empty\" hidden>No members found.</p>
             <table>
               <thead>
                 <tr>
@@ -272,6 +304,7 @@ defmodule DisclosureAutomationWeb.AdminDuplicateGroupUiController do
 
           <section id=\"duplicate-group-action-event-summary\" data-summary-limit=\"latest-five-from-show-response\">
             <h2>Latest Actions</h2>
+            <p id=\"duplicate-group-action-event-empty\" data-state=\"empty\" hidden>No latest actions found.</p>
             <table>
               <thead>
                 <tr>
@@ -311,24 +344,56 @@ defmodule DisclosureAutomationWeb.AdminDuplicateGroupUiController do
               <button type=\"button\" data-action-control=\"mark-review\" data-action-route=\"#{mark_review_api_route}\" data-post-review-state=\"needs_review\">Mark needs review</button>
               <button type=\"button\" data-action-control=\"clear-review-state\" data-action-route=\"#{clear_review_state_api_route}\" data-post-review-state=\"cleared\">Clear review state</button>
             </form>
-            <p id=\"duplicate-group-action-status\" data-action-status=\"ready\">Ready for an operator action.</p>
+            <p id=\"duplicate-group-action-status\" data-action-status=\"ready\" data-state=\"ready\" aria-live=\"polite\">Ready for an operator action.</p>
+            <p id=\"duplicate-group-action-loading-state\" data-state=\"loading\" hidden>Submitting action.</p>
+            <p id=\"duplicate-group-action-error-state\" data-state=\"error\" data-error-category=\"unable_to_submit_action\" hidden>Unable to submit action.</p>
+            <p id=\"duplicate-group-action-success-state\" data-state=\"success\" hidden>Action submitted and detail refreshed.</p>
             <pre id=\"duplicate-group-action-result\" data-action-result=\"bounded\"></pre>
           </section>
         </main>
         <script>
           (function () {
             var status = document.getElementById('duplicate-group-detail-status');
+            var detailLoadingState = document.getElementById('duplicate-group-detail-loading-state');
+            var detailErrorState = document.getElementById('duplicate-group-detail-error-state');
+            var reviewEmptyState = document.getElementById('duplicate-group-review-state-empty');
+            var membersEmptyState = document.getElementById('duplicate-group-members-empty');
+            var actionEventEmptyState = document.getElementById('duplicate-group-action-event-empty');
             var detailRoute = document.body.getAttribute('data-detail-api-route');
             var memberRows = document.getElementById('duplicate-group-member-rows');
             var actionRows = document.getElementById('duplicate-group-action-event-rows');
             var actionForm = document.getElementById('duplicate-group-action-form');
             var actionStatus = document.getElementById('duplicate-group-action-status');
+            var actionLoadingState = document.getElementById('duplicate-group-action-loading-state');
+            var actionErrorState = document.getElementById('duplicate-group-action-error-state');
+            var actionSuccessState = document.getElementById('duplicate-group-action-success-state');
             var actionResult = document.getElementById('duplicate-group-action-result');
 
             function text(value) {
               if (value === null || value === undefined || value === '') { return ''; }
               if (Array.isArray(value)) { return value.join(', '); }
               return String(value);
+            }
+
+            function setHidden(element, hidden) {
+              if (element) { element.hidden = hidden; }
+            }
+
+            function setDetailState(state, message) {
+              status.setAttribute('data-detail-status', state);
+              status.setAttribute('data-state', state);
+              status.textContent = message;
+              setHidden(detailLoadingState, state !== 'loading');
+              setHidden(detailErrorState, state !== 'error');
+            }
+
+            function setActionState(state, message) {
+              actionStatus.setAttribute('data-action-status', state);
+              actionStatus.setAttribute('data-state', state);
+              actionStatus.textContent = message;
+              setHidden(actionLoadingState, state !== 'loading');
+              setHidden(actionErrorState, state !== 'error');
+              setHidden(actionSuccessState, state !== 'success');
             }
 
             function setField(selector, key, value) {
@@ -352,6 +417,7 @@ defmodule DisclosureAutomationWeb.AdminDuplicateGroupUiController do
             function renderMembers(members) {
               memberRows.textContent = '';
               if (!members || members.length === 0) {
+                setHidden(membersEmptyState, false);
                 var emptyRow = document.createElement('tr');
                 var emptyCell = document.createElement('td');
                 emptyCell.colSpan = 10;
@@ -361,6 +427,7 @@ defmodule DisclosureAutomationWeb.AdminDuplicateGroupUiController do
                 return;
               }
 
+              setHidden(membersEmptyState, true);
               members.forEach(function (member) {
                 var row = document.createElement('tr');
                 appendCells(row, [
@@ -382,6 +449,7 @@ defmodule DisclosureAutomationWeb.AdminDuplicateGroupUiController do
             function renderActions(events) {
               actionRows.textContent = '';
               if (!events || events.length === 0) {
+                setHidden(actionEventEmptyState, false);
                 var emptyRow = document.createElement('tr');
                 var emptyCell = document.createElement('td');
                 emptyCell.colSpan = 11;
@@ -391,6 +459,7 @@ defmodule DisclosureAutomationWeb.AdminDuplicateGroupUiController do
                 return;
               }
 
+              setHidden(actionEventEmptyState, true);
               events.forEach(function (event) {
                 var row = document.createElement('tr');
                 appendCells(row, [
@@ -421,11 +490,13 @@ defmodule DisclosureAutomationWeb.AdminDuplicateGroupUiController do
               setField('[data-detail-field]', 'has_provider_overlay', item.has_provider_overlay);
               setField('[data-detail-field]', 'redaction_status', item.redaction_status);
 
+              var summary = item.review_state_summary || {};
               ['review_state', 'last_action_operation', 'reviewed_at', 'reviewed_by_actor_id_hash', 'redaction_status'].forEach(function (key) {
-                setReviewState(item.review_state_summary || {}, key);
+                setReviewState(summary, key);
               });
+              setHidden(reviewEmptyState, Boolean(summary.review_state));
 
-              var currentState = (item.review_state_summary || {}).review_state || 'unknown';
+              var currentState = summary.review_state || 'unknown';
               var preReviewState = actionForm.querySelector('[name=\"pre_review_state\"]');
               if (preReviewState) { preReviewState.value = currentState; }
 
@@ -434,15 +505,18 @@ defmodule DisclosureAutomationWeb.AdminDuplicateGroupUiController do
             }
 
             function loadDetail() {
-              status.textContent = 'Loading duplicate group detail.';
+              setDetailState('loading', 'Loading duplicate group detail.');
               return fetch(detailRoute, { headers: { 'accept': 'application/json' } })
-                .then(function (response) { return response.json(); })
+                .then(function (response) {
+                  if (!response.ok) { throw new Error('unable_to_load_duplicate_group_detail'); }
+                  return response.json();
+                })
                 .then(function (page) {
                   renderDetail(page);
-                  status.textContent = 'Loaded duplicate group detail.';
+                  setDetailState('loaded', 'Loaded duplicate group detail.');
                 })
                 .catch(function () {
-                  status.textContent = 'Unable to load duplicate group detail.';
+                  setDetailState('error', 'Unable to load duplicate group detail.');
                 });
             }
 
@@ -477,6 +551,22 @@ defmodule DisclosureAutomationWeb.AdminDuplicateGroupUiController do
               };
             }
 
+            function boundedActionResult(result) {
+              return {
+                action_operation: result.action_operation,
+                required_permission: result.required_permission,
+                actor_id_hash: result.actor_id_hash,
+                request_id_hash: result.request_id_hash,
+                idempotency_key_hash: result.idempotency_key_hash,
+                result_status: result.result_status,
+                redaction_status: result.redaction_status,
+                pre_review_state: result.pre_review_state,
+                post_review_state: result.post_review_state,
+                review_state: result.review_state,
+                action_event_inserted: result.action_event_inserted
+              };
+            }
+
             function setPending(pending) {
               Array.prototype.forEach.call(actionForm.querySelectorAll('button[data-action-route]'), function (button) {
                 button.disabled = pending;
@@ -485,23 +575,26 @@ defmodule DisclosureAutomationWeb.AdminDuplicateGroupUiController do
 
             function submitAction(button) {
               setPending(true);
-              actionStatus.textContent = 'Submitting action.';
+              setActionState('loading', 'Submitting action.');
               return fetch(button.getAttribute('data-action-route'), {
                 method: 'POST',
                 headers: { 'accept': 'application/json', 'content-type': 'application/json' },
                 body: JSON.stringify(actionPayload(button))
               })
-                .then(function (response) { return response.json(); })
+                .then(function (response) {
+                  if (!response.ok) { throw new Error('unable_to_submit_action'); }
+                  return response.json();
+                })
                 .then(function (result) {
-                  actionResult.textContent = JSON.stringify(result, null, 2);
-                  actionStatus.textContent = 'Action submitted. Refreshing detail.';
+                  actionResult.textContent = JSON.stringify(boundedActionResult(result), null, 2);
+                  setActionState('refreshing', 'Action submitted. Refreshing detail.');
                   return loadDetail();
                 })
                 .then(function () {
-                  actionStatus.textContent = 'Action submitted and detail refreshed.';
+                  setActionState('success', 'Action submitted and detail refreshed.');
                 })
                 .catch(function () {
-                  actionStatus.textContent = 'Unable to submit action.';
+                  setActionState('error', 'Unable to submit action.');
                 })
                 .finally(function () {
                   setPending(false);
