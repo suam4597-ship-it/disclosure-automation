@@ -7,6 +7,10 @@ defmodule DisclosureAutomationWeb.AdminDuplicateGroupUiController do
 
   @list_api_route "/api/admin/duplicate-groups"
   @detail_api_route_template "/api/admin/duplicate-groups/:group_id"
+  @confirm_api_route_template "/api/admin/duplicate-groups/:group_id/confirm"
+  @reject_api_route_template "/api/admin/duplicate-groups/:group_id/reject"
+  @mark_review_api_route_template "/api/admin/duplicate-groups/:group_id/mark-review"
+  @clear_review_state_api_route_template "/api/admin/duplicate-groups/:group_id/clear-review-state"
 
   def index(conn, _params), do: send_html(conn, list_screen_html())
   def show(conn, %{"group_id" => group_id}), do: send_html(conn, detail_screen_html(group_id))
@@ -36,7 +40,7 @@ defmodule DisclosureAutomationWeb.AdminDuplicateGroupUiController do
             <ul>
               <li>List data is loaded only from the locked internal JSON API.</li>
               <li>The list screen does not fetch or render action event history.</li>
-              <li>Action controls remain deferred to a later Stage 6.6 PR.</li>
+              <li>Action controls are available only on the detail screen.</li>
             </ul>
           </section>
 
@@ -177,6 +181,10 @@ defmodule DisclosureAutomationWeb.AdminDuplicateGroupUiController do
   defp detail_screen_html(group_id) do
     group_id_attribute = group_id_attribute(group_id)
     detail_api_route = detail_route_for(group_id)
+    confirm_api_route = action_route_for(@confirm_api_route_template, group_id)
+    reject_api_route = action_route_for(@reject_api_route_template, group_id)
+    mark_review_api_route = action_route_for(@mark_review_api_route_template, group_id)
+    clear_review_state_api_route = action_route_for(@clear_review_state_api_route_template, group_id)
 
     """
     <!doctype html>
@@ -197,7 +205,7 @@ defmodule DisclosureAutomationWeb.AdminDuplicateGroupUiController do
             <ul>
               <li>Detail data is loaded only from the locked internal JSON API.</li>
               <li>Action event summary rendering is bounded to the locked show response.</li>
-              <li>Action controls and POST submissions remain deferred to a later Stage 6.6 PR.</li>
+              <li>Action buttons map to locked action routes and do not submit override fields.</li>
             </ul>
           </section>
 
@@ -205,6 +213,10 @@ defmodule DisclosureAutomationWeb.AdminDuplicateGroupUiController do
             <h2>Locked API Routes</h2>
             <dl>
               <dt>Detail</dt><dd data-api-route=\"detail\">#{detail_api_route}</dd>
+              <dt>Confirm</dt><dd data-api-route=\"confirm\">#{confirm_api_route}</dd>
+              <dt>Reject</dt><dd data-api-route=\"reject\">#{reject_api_route}</dd>
+              <dt>Mark needs review</dt><dd data-api-route=\"mark-review\">#{mark_review_api_route}</dd>
+              <dt>Clear review state</dt><dd data-api-route=\"clear-review-state\">#{clear_review_state_api_route}</dd>
             </dl>
           </section>
 
@@ -282,9 +294,25 @@ defmodule DisclosureAutomationWeb.AdminDuplicateGroupUiController do
             </table>
           </section>
 
-          <section id=\"duplicate-group-action-controls-placeholder\" data-action-controls=\"deferred\">
+          <section id=\"duplicate-group-action-controls\" data-action-controls=\"enabled\" data-operation-override=\"forbidden\">
             <h2>Action Controls</h2>
-            <p>Action controls are deferred to a later Stage 6.6 PR.</p>
+            <p>Buttons choose the locked action route. The request body does not include any route operation override.</p>
+            <form id=\"duplicate-group-action-form\" data-request-allowlist=\"bounded-redacted-action-request\">
+              <label>actor_id_hash <input name=\"actor_id_hash\" value=\"sha256:operator-001\" autocomplete=\"off\"></label>
+              <label>actor_permissions <input name=\"actor_permissions\" value=\"duplicate_group:confirm,duplicate_group:reject,duplicate_group:mark_review,duplicate_group:clear_review_state\" autocomplete=\"off\"></label>
+              <label>roles <input name=\"roles\" value=\"operator\" autocomplete=\"off\"></label>
+              <label>request_id_hash <input name=\"request_id_hash\" placeholder=\"sha256:request-hash\" autocomplete=\"off\"></label>
+              <label>idempotency_key_hash <input name=\"idempotency_key_hash\" placeholder=\"sha256:idempotency-hash\" autocomplete=\"off\"></label>
+              <label>operator_reason_redacted <input name=\"operator_reason_redacted\" value=\"REDACTED_OPERATOR_REASON\" autocomplete=\"off\"></label>
+              <label>redaction_status <input name=\"redaction_status\" value=\"passed\" autocomplete=\"off\"></label>
+              <label>pre_review_state <input name=\"pre_review_state\" value=\"unknown\" autocomplete=\"off\"></label>
+              <button type=\"button\" data-action-control=\"confirm\" data-action-route=\"#{confirm_api_route}\" data-post-review-state=\"confirmed_by_operator\">Confirm duplicate group</button>
+              <button type=\"button\" data-action-control=\"reject\" data-action-route=\"#{reject_api_route}\" data-post-review-state=\"rejected_by_operator\">Reject duplicate group</button>
+              <button type=\"button\" data-action-control=\"mark-review\" data-action-route=\"#{mark_review_api_route}\" data-post-review-state=\"needs_review\">Mark needs review</button>
+              <button type=\"button\" data-action-control=\"clear-review-state\" data-action-route=\"#{clear_review_state_api_route}\" data-post-review-state=\"cleared\">Clear review state</button>
+            </form>
+            <p id=\"duplicate-group-action-status\" data-action-status=\"ready\">Ready for an operator action.</p>
+            <pre id=\"duplicate-group-action-result\" data-action-result=\"bounded\"></pre>
           </section>
         </main>
         <script>
@@ -293,6 +321,9 @@ defmodule DisclosureAutomationWeb.AdminDuplicateGroupUiController do
             var detailRoute = document.body.getAttribute('data-detail-api-route');
             var memberRows = document.getElementById('duplicate-group-member-rows');
             var actionRows = document.getElementById('duplicate-group-action-event-rows');
+            var actionForm = document.getElementById('duplicate-group-action-form');
+            var actionStatus = document.getElementById('duplicate-group-action-status');
+            var actionResult = document.getElementById('duplicate-group-action-result');
 
             function text(value) {
               if (value === null || value === undefined || value === '') { return ''; }
@@ -394,6 +425,10 @@ defmodule DisclosureAutomationWeb.AdminDuplicateGroupUiController do
                 setReviewState(item.review_state_summary || {}, key);
               });
 
+              var currentState = (item.review_state_summary || {}).review_state || 'unknown';
+              var preReviewState = actionForm.querySelector('[name=\"pre_review_state\"]');
+              if (preReviewState) { preReviewState.value = currentState; }
+
               renderMembers(item.members || []);
               renderActions(item.action_event_summary || []);
             }
@@ -411,6 +446,72 @@ defmodule DisclosureAutomationWeb.AdminDuplicateGroupUiController do
                 });
             }
 
+            function listValue(name) {
+              var input = actionForm.querySelector('[name=\"' + name + '\"]');
+              if (!input || !input.value) { return []; }
+              return input.value.split(',').map(function (value) { return value.trim(); }).filter(Boolean);
+            }
+
+            function stringValue(name, fallback) {
+              var input = actionForm.querySelector('[name=\"' + name + '\"]');
+              if (!input || !input.value) { return fallback; }
+              return input.value;
+            }
+
+            function generatedHash(prefix) {
+              return 'sha256:' + prefix + '-' + String(Date.now());
+            }
+
+            function actionPayload(button) {
+              return {
+                actor_id_hash: stringValue('actor_id_hash', 'sha256:operator-001'),
+                actor_permissions: listValue('actor_permissions'),
+                roles: listValue('roles'),
+                request_id_hash: stringValue('request_id_hash', generatedHash('request')),
+                idempotency_key_hash: stringValue('idempotency_key_hash', generatedHash('idempotency')),
+                operator_reason_redacted: stringValue('operator_reason_redacted', 'REDACTED_OPERATOR_REASON'),
+                result_status: 'completed',
+                redaction_status: stringValue('redaction_status', 'passed'),
+                pre_review_state: stringValue('pre_review_state', 'unknown'),
+                post_review_state: button.getAttribute('data-post-review-state')
+              };
+            }
+
+            function setPending(pending) {
+              Array.prototype.forEach.call(actionForm.querySelectorAll('button[data-action-route]'), function (button) {
+                button.disabled = pending;
+              });
+            }
+
+            function submitAction(button) {
+              setPending(true);
+              actionStatus.textContent = 'Submitting action.';
+              return fetch(button.getAttribute('data-action-route'), {
+                method: 'POST',
+                headers: { 'accept': 'application/json', 'content-type': 'application/json' },
+                body: JSON.stringify(actionPayload(button))
+              })
+                .then(function (response) { return response.json(); })
+                .then(function (result) {
+                  actionResult.textContent = JSON.stringify(result, null, 2);
+                  actionStatus.textContent = 'Action submitted. Refreshing detail.';
+                  return loadDetail();
+                })
+                .then(function () {
+                  actionStatus.textContent = 'Action submitted and detail refreshed.';
+                })
+                .catch(function () {
+                  actionStatus.textContent = 'Unable to submit action.';
+                })
+                .finally(function () {
+                  setPending(false);
+                });
+            }
+
+            Array.prototype.forEach.call(actionForm.querySelectorAll('button[data-action-route]'), function (button) {
+              button.addEventListener('click', function () { submitAction(button); });
+            });
+
             loadDetail();
           }());
         </script>
@@ -424,6 +525,9 @@ defmodule DisclosureAutomationWeb.AdminDuplicateGroupUiController do
 
   defp detail_route_for(nil), do: @detail_api_route_template
   defp detail_route_for(group_id), do: replace_group_id(@detail_api_route_template, group_id)
+
+  defp action_route_for(template, nil), do: template
+  defp action_route_for(template, group_id), do: replace_group_id(template, group_id)
 
   defp replace_group_id(template, group_id) do
     String.replace(template, ":group_id", URI.encode_www_form(to_string(group_id)))
