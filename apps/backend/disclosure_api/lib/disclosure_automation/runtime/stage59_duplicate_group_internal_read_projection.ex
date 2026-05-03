@@ -5,10 +5,13 @@ defmodule DisclosureAutomation.Runtime.Stage59DuplicateGroupInternalReadProjecti
 
   alias DisclosureAutomation.Repo
   alias DisclosureAutomation.Schema.SourceDuplicateGroup
+  alias DisclosureAutomation.Schema.SourceDuplicateGroupActionEvent
   alias DisclosureAutomation.Schema.SourceDuplicateGroupMember
+  alias DisclosureAutomation.Schema.SourceDuplicateGroupReviewState
 
   @allowed_filters ~w(confidence source_key member_kind redaction_status limit)
   @max_limit 100
+  @action_event_summary_limit 5
 
   def allowed_filters, do: @allowed_filters
 
@@ -70,7 +73,7 @@ defmodule DisclosureAutomation.Runtime.Stage59DuplicateGroupInternalReadProjecti
     with :ok <- read_only_opts(opts),
          {:ok, group_id} <- bounded_group_id(group_id),
          {:ok, group} <- fetch_group(group_id),
-         {:ok, projected} <- project_group(group, opts) do
+         {:ok, projected} <- project_group(group, Keyword.put_new(opts, :include_action_event_summary, true)) do
       {:ok,
        defaults()
        |> Map.merge(%{
@@ -190,23 +193,33 @@ defmodule DisclosureAutomation.Runtime.Stage59DuplicateGroupInternalReadProjecti
     |> then(&{:ok, &1})
   end
 
-  defp project_group(group, _opts) do
+  defp project_group(group, opts) do
     members = members_for(group.group_id)
 
-    {:ok,
-     %{
-       group_id: group.group_id,
-       confidence: group.confidence,
-       source_keys: items(group.source_keys),
-       match_reasons: items(group.match_reasons),
-       member_count: group.member_count,
-       has_official_tdnet_event: group.has_official_tdnet_event,
-       has_provider_overlay: group.has_provider_overlay,
-       redaction_status: group.redaction_status,
-       inserted_at: group.inserted_at,
-       updated_at: group.updated_at,
-       members: Enum.map(members, &project_member/1)
-     }}
+    projected = %{
+      group_id: group.group_id,
+      confidence: group.confidence,
+      source_keys: items(group.source_keys),
+      match_reasons: items(group.match_reasons),
+      member_count: group.member_count,
+      has_official_tdnet_event: group.has_official_tdnet_event,
+      has_provider_overlay: group.has_provider_overlay,
+      redaction_status: group.redaction_status,
+      review_state_summary: review_state_summary_for(group.group_id),
+      inserted_at: group.inserted_at,
+      updated_at: group.updated_at,
+      members: Enum.map(members, &project_member/1)
+    }
+
+    {:ok, maybe_put_action_event_summary(projected, group.group_id, opts)}
+  end
+
+  defp maybe_put_action_event_summary(projected, group_id, opts) do
+    if Keyword.get(opts, :include_action_event_summary, false) do
+      Map.put(projected, :action_event_summary, action_event_summary_for(group_id))
+    else
+      projected
+    end
   end
 
   defp project_member(member) do
@@ -223,6 +236,64 @@ defmodule DisclosureAutomation.Runtime.Stage59DuplicateGroupInternalReadProjecti
       redaction_status: member.redaction_status,
       inserted_at: member.inserted_at,
       updated_at: member.updated_at
+    }
+  end
+
+  defp review_state_summary_for(group_id) do
+    SourceDuplicateGroupReviewState
+    |> where([state], state.group_id == ^group_id)
+    |> Repo.one()
+    |> project_review_state_summary()
+  end
+
+  defp project_review_state_summary(nil) do
+    %{
+      review_state: nil,
+      last_action_operation: nil,
+      last_action_request_id_hash: nil,
+      last_action_idempotency_key_hash: nil,
+      reviewed_by_actor_id_hash: nil,
+      reviewed_at: nil,
+      review_reason_redacted: nil,
+      redaction_status: nil
+    }
+  end
+
+  defp project_review_state_summary(review_state) do
+    %{
+      review_state: review_state.review_state,
+      last_action_operation: review_state.last_action_operation,
+      last_action_request_id_hash: review_state.last_action_request_id_hash,
+      last_action_idempotency_key_hash: review_state.last_action_idempotency_key_hash,
+      reviewed_by_actor_id_hash: review_state.reviewed_by_actor_id_hash,
+      reviewed_at: review_state.reviewed_at,
+      review_reason_redacted: review_state.review_reason_redacted,
+      redaction_status: review_state.redaction_status
+    }
+  end
+
+  defp action_event_summary_for(group_id) do
+    SourceDuplicateGroupActionEvent
+    |> where([event], event.group_id == ^group_id)
+    |> order_by([event], desc: event.inserted_at, desc: event.id)
+    |> limit(^@action_event_summary_limit)
+    |> Repo.all()
+    |> Enum.map(&project_action_event_summary/1)
+  end
+
+  defp project_action_event_summary(event) do
+    %{
+      action_operation: event.action_operation,
+      required_permission: event.required_permission,
+      actor_id_hash: event.actor_id_hash,
+      request_id_hash: event.request_id_hash,
+      idempotency_key_hash: event.idempotency_key_hash,
+      result_status: event.result_status,
+      pre_review_state: event.pre_review_state,
+      post_review_state: event.post_review_state,
+      failure_code: event.failure_code,
+      redaction_status: event.redaction_status,
+      inserted_at: event.inserted_at
     }
   end
 

@@ -6,12 +6,38 @@ defmodule DisclosureAutomation.Stage59DuplicateGroupInternalReadProjectionTest d
   alias DisclosureAutomation.Repo
   alias DisclosureAutomation.Runtime.Stage59DuplicateGroupInternalMaterializer
   alias DisclosureAutomation.Runtime.Stage59DuplicateGroupInternalReadProjection
+  alias DisclosureAutomation.Runtime.Stage61DuplicateGroupActionStateWriter
   alias DisclosureAutomation.Schema.SourceDuplicateGroup
+  alias DisclosureAutomation.Schema.SourceDuplicateGroupActionEvent
   alias DisclosureAutomation.Schema.SourceDuplicateGroupMember
+  alias DisclosureAutomation.Schema.SourceDuplicateGroupReviewState
 
   @official_event_id "jp.tdnet.4527.20260430.material_information_update.material_information_update.140120260430515474"
   @overlay_id "news_overlay:jp.tdnet.4527.20260430.material_information_update.material_information_update.140120260430515474:ba9e08fb9a92ac57"
   @group_id "duplicate_group:jp.tdnet.4527.20260430.material_information_update"
+
+  @valid_action_attrs %{
+    "group_id" => @group_id,
+    "action_operation" => "confirm_duplicate_group",
+    "actor_permissions" => ["duplicate_group:confirm"],
+    "actor_id_hash" => "sha256:operator-001",
+    "request_id_hash" => "sha256:request-001",
+    "idempotency_key_hash" => "sha256:idempotency-001",
+    "operator_reason_redacted" => "REDACTED_OPERATOR_CONFIRMED_DUPLICATE_GROUP",
+    "redaction_status" => "passed"
+  }
+
+  @valid_actor_context %{
+    "authenticated" => true,
+    "roles" => ["operator"],
+    "permissions" => ["duplicate_group:confirm"],
+    "actor_id_hash" => "sha256:operator-001",
+    "result_status" => "completed",
+    "redaction_status" => "passed",
+    "pre_review_state" => "unknown",
+    "post_review_state" => "confirmed_by_operator",
+    "created_at" => "2026-05-03T07:30:00Z"
+  }
 
   test "lists bounded operator-only duplicate group projections from persisted rows" do
     materialize_fixture_group!()
@@ -57,6 +83,8 @@ defmodule DisclosureAutomation.Stage59DuplicateGroupInternalReadProjectionTest d
     assert item.has_official_tdnet_event == true
     assert item.has_provider_overlay == true
     assert item.redaction_status == "passed"
+    assert item.review_state_summary == empty_review_state_summary()
+    refute Map.has_key?(item, :action_event_summary)
     assert length(item.members) == 2
 
     assert Enum.all?(item.members, &Map.has_key?(&1, :member_id))
@@ -77,6 +105,8 @@ defmodule DisclosureAutomation.Stage59DuplicateGroupInternalReadProjectionTest d
     item = show.item
     assert item.group_id == @group_id
     assert item.member_count == 2
+    assert item.review_state_summary == empty_review_state_summary()
+    assert item.action_event_summary == []
 
     assert [official_member, overlay_member] = item.members
     assert official_member.member_id == "member:official:jp_tdnet"
@@ -100,6 +130,47 @@ defmodule DisclosureAutomation.Stage59DuplicateGroupInternalReadProjectionTest d
     assert overlay_member.confidence == "candidate"
     assert overlay_member.match_reasons == ["same_official_event_id", "same_provider_citation_target"]
     assert overlay_member.redaction_status == "passed"
+  end
+
+  test "projects bounded review state and action event summaries from Stage 6.1 storage" do
+    materialize_fixture_group!()
+    record_confirm_action!()
+
+    assert {:ok, page} = Stage59DuplicateGroupInternalReadProjection.list(%{"limit" => "10"})
+    assert [listed_item] = page.items
+
+    assert listed_item.review_state_summary.review_state == "confirmed_by_operator"
+    assert listed_item.review_state_summary.last_action_operation == "confirm_duplicate_group"
+    assert listed_item.review_state_summary.last_action_request_id_hash == "sha256:request-001"
+    assert listed_item.review_state_summary.last_action_idempotency_key_hash == "sha256:idempotency-001"
+    assert listed_item.review_state_summary.reviewed_by_actor_id_hash == "sha256:operator-001"
+    assert listed_item.review_state_summary.review_reason_redacted == "REDACTED_OPERATOR_CONFIRMED_DUPLICATE_GROUP"
+    assert listed_item.review_state_summary.redaction_status == "passed"
+    assert %DateTime{} = listed_item.review_state_summary.reviewed_at
+    refute Map.has_key?(listed_item, :action_event_summary)
+
+    assert {:ok, show} = Stage59DuplicateGroupInternalReadProjection.get(@group_id)
+    item = show.item
+
+    assert item.review_state_summary == listed_item.review_state_summary
+    assert [event] = item.action_event_summary
+    assert event.action_operation == "confirm_duplicate_group"
+    assert event.required_permission == "duplicate_group:confirm"
+    assert event.actor_id_hash == "sha256:operator-001"
+    assert event.request_id_hash == "sha256:request-001"
+    assert event.idempotency_key_hash == "sha256:idempotency-001"
+    assert event.result_status == "completed"
+    assert event.pre_review_state == "unknown"
+    assert event.post_review_state == "confirmed_by_operator"
+    assert event.failure_code == nil
+    assert event.redaction_status == "passed"
+    assert %DateTime{} = event.inserted_at
+
+    refute Map.has_key?(event, :operator_reason_redacted)
+    refute Map.has_key?(event, :raw_actor_id)
+    refute Map.has_key?(event, :raw_request_id)
+    refute Map.has_key?(event, :raw_idempotency_key)
+    refute Map.has_key?(event, :canonical_payload)
   end
 
   test "supports bounded allowlisted list filters" do
@@ -175,6 +246,8 @@ defmodule DisclosureAutomation.Stage59DuplicateGroupInternalReadProjectionTest d
   test "read projection does not write rows or trigger materialization" do
     assert group_count(@group_id) == 0
     assert member_count(@group_id) == 0
+    assert action_event_count(@group_id) == 0
+    assert review_state_count(@group_id) == 0
 
     assert {:ok, page} = Stage59DuplicateGroupInternalReadProjection.list(%{})
     assert page.items == []
@@ -183,10 +256,17 @@ defmodule DisclosureAutomation.Stage59DuplicateGroupInternalReadProjectionTest d
     assert Stage59DuplicateGroupInternalReadProjection.get(@group_id) == {:error, :duplicate_group_not_found}
     assert group_count(@group_id) == 0
     assert member_count(@group_id) == 0
+    assert action_event_count(@group_id) == 0
+    assert review_state_count(@group_id) == 0
   end
 
   defp materialize_fixture_group! do
     assert {:ok, _result} = Stage59DuplicateGroupInternalMaterializer.materialize_group(valid_group_attrs())
+  end
+
+  defp record_confirm_action! do
+    assert {:ok, result} = Stage61DuplicateGroupActionStateWriter.record_action(@valid_action_attrs, @valid_actor_context)
+    assert result.action_event_inserted == true
   end
 
   defp valid_group_attrs do
@@ -221,6 +301,19 @@ defmodule DisclosureAutomation.Stage59DuplicateGroupInternalReadProjectionTest d
     }
   end
 
+  defp empty_review_state_summary do
+    %{
+      review_state: nil,
+      last_action_operation: nil,
+      last_action_request_id_hash: nil,
+      last_action_idempotency_key_hash: nil,
+      reviewed_by_actor_id_hash: nil,
+      reviewed_at: nil,
+      review_reason_redacted: nil,
+      redaction_status: nil
+    }
+  end
+
   defp group_count(group_id) do
     SourceDuplicateGroup
     |> where([group], group.group_id == ^group_id)
@@ -230,6 +323,18 @@ defmodule DisclosureAutomation.Stage59DuplicateGroupInternalReadProjectionTest d
   defp member_count(group_id) do
     SourceDuplicateGroupMember
     |> where([member], member.group_id == ^group_id)
+    |> Repo.aggregate(:count)
+  end
+
+  defp action_event_count(group_id) do
+    SourceDuplicateGroupActionEvent
+    |> where([event], event.group_id == ^group_id)
+    |> Repo.aggregate(:count)
+  end
+
+  defp review_state_count(group_id) do
+    SourceDuplicateGroupReviewState
+    |> where([state], state.group_id == ^group_id)
     |> Repo.aggregate(:count)
   end
 end
