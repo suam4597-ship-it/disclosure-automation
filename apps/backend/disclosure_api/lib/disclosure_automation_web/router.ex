@@ -24,6 +24,10 @@ defmodule DisclosureAutomationWeb.Router do
 
     get "/admin/duplicate-groups", AdminDuplicateGroupController, :index
     get "/admin/duplicate-groups/:group_id", AdminDuplicateGroupController, :show
+    post "/admin/duplicate-groups/:group_id/confirm", AdminDuplicateGroupController, :confirm
+    post "/admin/duplicate-groups/:group_id/reject", AdminDuplicateGroupController, :reject
+    post "/admin/duplicate-groups/:group_id/mark-review", AdminDuplicateGroupController, :mark_review
+    post "/admin/duplicate-groups/:group_id/clear-review-state", AdminDuplicateGroupController, :clear_review_state
 
     post "/admin/sources/:source_key/poll", AdminSourcePollController, :create
   end
