@@ -236,9 +236,11 @@ defmodule DisclosureAutomationWeb.AdminDuplicateGroupController do
   end
 
   defp value_param(params, key, default) do
+    action_params = Map.get(params, "action", %{})
+
     cond do
       Map.has_key?(params, key) -> Map.get(params, key)
-      Map.has_key?(params, "action") and is_map(params["action"]) and Map.has_key?(params["action"], key) -> Map.get(params["action"], key)
+      is_map(action_params) and Map.has_key?(action_params, key) -> Map.get(action_params, key)
       true -> default
     end
   end
@@ -259,7 +261,9 @@ defmodule DisclosureAutomationWeb.AdminDuplicateGroupController do
   defp error_status(:operator_or_admin_role_required), do: :forbidden
   defp error_status(:actor_hash_mismatch), do: :forbidden
   defp error_status({:missing_action_permission, _permission}), do: :forbidden
+  defp error_status({:required_permission_missing, _permission}), do: :forbidden
   defp error_status({:read_only_permission_cannot_authorize_action, _permission}), do: :forbidden
+  defp error_status({:read_only_permission_cannot_execute_action, _permission}), do: :forbidden
   defp error_status(_reason), do: :bad_request
 
   defp error_reason(reason) when is_atom(reason), do: Atom.to_string(reason)
