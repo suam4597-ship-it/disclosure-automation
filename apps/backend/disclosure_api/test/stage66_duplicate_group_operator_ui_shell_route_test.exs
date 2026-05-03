@@ -37,7 +37,7 @@ defmodule DisclosureAutomation.Stage66DuplicateGroupOperatorUiShellRouteTest do
     refute body =~ "stack trace"
   end
 
-  test "GET /admin/duplicate-groups/:group_id returns permission-aware action button states", %{conn: conn} do
+  test "GET /admin/duplicate-groups/:group_id returns permission-aware action button states and preserves action flow", %{conn: conn} do
     assert group_count(@group_id) == 0
     assert member_count(@group_id) == 0
     assert action_event_count(@group_id) == 0
@@ -61,7 +61,7 @@ defmodule DisclosureAutomation.Stage66DuplicateGroupOperatorUiShellRouteTest do
     assert body =~ "actionPermissionList = ['duplicate_group:confirm', 'duplicate_group:reject', 'duplicate_group:mark_review', 'duplicate_group:clear_review_state']"
     assert body =~ "function hasPermission(permission)"
     assert body =~ "function hasAnyActionPermission()"
-    assert body =~ "function updatePermissionButtonStates()"
+    assert body =~ "function setPermissionState()"
     assert body =~ "data-required-permission=\"duplicate_group:confirm\""
     assert body =~ "data-required-permission=\"duplicate_group:reject\""
     assert body =~ "data-required-permission=\"duplicate_group:mark_review\""
@@ -69,8 +69,8 @@ defmodule DisclosureAutomation.Stage66DuplicateGroupOperatorUiShellRouteTest do
     assert body =~ "data-disabled-reason"
     assert body =~ "action_permission_missing"
     assert body =~ "button.disabled = actionPending || !allowed"
-    assert body =~ "permissionsInput.addEventListener('input', updatePermissionButtonStates)"
-    assert body =~ "updatePermissionButtonStates();"
+    assert body =~ "permissionsInput.addEventListener('input', setPermissionState)"
+    assert body =~ "setPermissionState();"
 
     assert body =~ "id=\"duplicate-group-action-confirmation-modal\""
     assert body =~ "data-confirmation-state=\"closed\""
@@ -86,6 +86,19 @@ defmodule DisclosureAutomation.Stage66DuplicateGroupOperatorUiShellRouteTest do
     assert body =~ "/api/admin/duplicate-groups/duplicate_group%3Ajp.tdnet.4527.20260430.material_information_update/reject"
     assert body =~ "/api/admin/duplicate-groups/duplicate_group%3Ajp.tdnet.4527.20260430.material_information_update/mark-review"
     assert body =~ "/api/admin/duplicate-groups/duplicate_group%3Ajp.tdnet.4527.20260430.material_information_update/clear-review-state"
+
+    assert body =~ "function loadDetail()"
+    assert body =~ "fetch(detailRoute, { headers: { 'accept': 'application/json' } })"
+    assert body =~ "function openConfirmation(button)"
+    assert body =~ "pendingActionButton = button"
+    assert body =~ "confirmationModal.setAttribute('data-confirmation-state', 'open')"
+    assert body =~ "function submitAction(button)"
+    assert body =~ "fetch(button.getAttribute('data-action-route'), { method: 'POST'"
+    assert body =~ "body: JSON.stringify(actionPayload(button))"
+    assert body =~ "return loadDetail();"
+    assert body =~ "boundedActionResult(result)"
+    assert body =~ "confirmationSubmit.addEventListener('click'"
+    assert body =~ "confirmationCancel.addEventListener('click'"
 
     refute body =~ "name=\"action_operation\""
     refute body =~ "action_operation: stringValue"
