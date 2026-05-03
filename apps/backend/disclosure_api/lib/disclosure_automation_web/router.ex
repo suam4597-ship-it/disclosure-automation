@@ -5,6 +5,17 @@ defmodule DisclosureAutomationWeb.Router do
     plug :accepts, ["json"]
   end
 
+  pipeline :browser do
+    plug :accepts, ["html"]
+  end
+
+  scope "/admin", DisclosureAutomationWeb do
+    pipe_through :browser
+
+    get "/duplicate-groups", AdminDuplicateGroupUiController, :index
+    get "/duplicate-groups/:group_id", AdminDuplicateGroupUiController, :show
+  end
+
   scope "/api", DisclosureAutomationWeb do
     pipe_through :api
 
