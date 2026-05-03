@@ -22,6 +22,9 @@ defmodule DisclosureAutomationWeb.Router do
     get "/admin/source-health/:source_key", AdminSourceHealthController, :show
     post "/admin/source-health/:source_key/recheck", AdminSourceHealthController, :recheck
 
+    get "/admin/duplicate-groups", AdminDuplicateGroupController, :index
+    get "/admin/duplicate-groups/:group_id", AdminDuplicateGroupController, :show
+
     post "/admin/sources/:source_key/poll", AdminSourcePollController, :create
   end
 end
