@@ -198,13 +198,15 @@ defmodule DisclosureAutomation.Schema.SourceDuplicateGroupActionEvent do
 
   defp find_prohibited_field(value, path \\ "")
 
+  defp find_prohibited_field(%_{} = _struct, _path), do: nil
+
   defp find_prohibited_field(%{} = map, path) do
     Enum.find_value(map, fn {key, value} ->
       key_string = to_string(key)
       current_path = if path == "", do: key_string, else: "#{path}.#{key_string}"
 
       cond do
-        allowed_key?(key_string) -> find_prohibited_field(value, current_path)
+        allowed_key?(key_string) -> nil
         prohibited_key?(key_string) -> current_path
         true -> find_prohibited_field(value, current_path)
       end
