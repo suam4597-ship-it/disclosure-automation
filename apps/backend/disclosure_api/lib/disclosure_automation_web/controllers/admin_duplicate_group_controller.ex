@@ -196,9 +196,61 @@ defmodule DisclosureAutomationWeb.AdminDuplicateGroupController do
       has_official_tdnet_event: group.has_official_tdnet_event,
       has_provider_overlay: group.has_provider_overlay,
       redaction_status: group.redaction_status,
+      review_state_summary: review_state_summary_json(Map.get(group, :review_state_summary)),
       inserted_at: encode_datetime(group.inserted_at),
       updated_at: encode_datetime(group.updated_at),
       members: Enum.map(group.members, &member_json/1)
+    }
+    |> maybe_put_action_event_summary(group)
+  end
+
+  defp maybe_put_action_event_summary(json, group) do
+    if Map.has_key?(group, :action_event_summary) do
+      Map.put(json, :action_event_summary, Enum.map(group.action_event_summary, &action_event_summary_json/1))
+    else
+      json
+    end
+  end
+
+  defp review_state_summary_json(nil) do
+    %{
+      review_state: nil,
+      last_action_operation: nil,
+      last_action_request_id_hash: nil,
+      last_action_idempotency_key_hash: nil,
+      reviewed_by_actor_id_hash: nil,
+      reviewed_at: nil,
+      review_reason_redacted: nil,
+      redaction_status: nil
+    }
+  end
+
+  defp review_state_summary_json(summary) do
+    %{
+      review_state: Map.get(summary, :review_state),
+      last_action_operation: Map.get(summary, :last_action_operation),
+      last_action_request_id_hash: Map.get(summary, :last_action_request_id_hash),
+      last_action_idempotency_key_hash: Map.get(summary, :last_action_idempotency_key_hash),
+      reviewed_by_actor_id_hash: Map.get(summary, :reviewed_by_actor_id_hash),
+      reviewed_at: encode_datetime(Map.get(summary, :reviewed_at)),
+      review_reason_redacted: Map.get(summary, :review_reason_redacted),
+      redaction_status: Map.get(summary, :redaction_status)
+    }
+  end
+
+  defp action_event_summary_json(event) do
+    %{
+      action_operation: event.action_operation,
+      required_permission: event.required_permission,
+      actor_id_hash: event.actor_id_hash,
+      request_id_hash: event.request_id_hash,
+      idempotency_key_hash: event.idempotency_key_hash,
+      result_status: event.result_status,
+      pre_review_state: event.pre_review_state,
+      post_review_state: event.post_review_state,
+      failure_code: event.failure_code,
+      redaction_status: event.redaction_status,
+      inserted_at: encode_datetime(event.inserted_at)
     }
   end
 
