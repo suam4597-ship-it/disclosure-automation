@@ -43,13 +43,12 @@ defmodule DisclosureAutomation.Stage66DuplicateGroupOperatorUiShellRouteTest do
     refute body =~ "/api/admin/duplicate-groups/:group_id/reject"
     refute body =~ "/api/admin/duplicate-groups/:group_id/mark-review"
     refute body =~ "/api/admin/duplicate-groups/:group_id/clear-review-state"
-    refute body =~ "action_operation"
     refute body =~ "provider_payload"
     refute body =~ "canonical_payload"
     refute body =~ "full_article_text"
   end
 
-  test "GET /admin/duplicate-groups/:group_id returns a detail shell without reading or writing duplicate group state", %{conn: conn} do
+  test "GET /admin/duplicate-groups/:group_id returns a detail screen without reading or writing duplicate group state", %{conn: conn} do
     assert group_count(@group_id) == 0
     assert member_count(@group_id) == 0
     assert action_event_count(@group_id) == 0
@@ -59,13 +58,45 @@ defmodule DisclosureAutomation.Stage66DuplicateGroupOperatorUiShellRouteTest do
     body = html_response(conn, 200)
 
     assert body =~ "Duplicate Group Detail"
-    assert body =~ "data-shell-status=\"stage66-detail-deferred\""
+    assert body =~ "id=\"duplicate-group-operator-detail-screen\""
     assert body =~ "data-group-id=\"#{@group_id}\""
-    assert body =~ "/api/admin/duplicate-groups/duplicate_group%3Ajp.tdnet.4527.20260430.material_information_update"
-    assert body =~ "/api/admin/duplicate-groups/duplicate_group%3Ajp.tdnet.4527.20260430.material_information_update/confirm"
-    assert body =~ "/api/admin/duplicate-groups/duplicate_group%3Ajp.tdnet.4527.20260430.material_information_update/reject"
-    assert body =~ "/api/admin/duplicate-groups/duplicate_group%3Ajp.tdnet.4527.20260430.material_information_update/mark-review"
-    assert body =~ "/api/admin/duplicate-groups/duplicate_group%3Ajp.tdnet.4527.20260430.material_information_update/clear-review-state"
+    assert body =~ "data-detail-api-route=\"/api/admin/duplicate-groups/duplicate_group%3Ajp.tdnet.4527.20260430.material_information_update\""
+    assert body =~ "Detail data is loaded only from the locked internal JSON API."
+    assert body =~ "id=\"duplicate-group-summary\""
+    assert body =~ "id=\"duplicate-group-review-state\""
+    assert body =~ "id=\"duplicate-group-members\""
+    assert body =~ "id=\"duplicate-group-action-event-summary\""
+    assert body =~ "data-summary-limit=\"latest-five-from-show-response\""
+    assert body =~ "data-summary-source=\"show-response-only\""
+    assert body =~ "id=\"duplicate-group-action-controls-placeholder\""
+    assert body =~ "data-action-controls=\"deferred\""
+    assert body =~ "fetch(detailRoute, { headers: { 'accept': 'application/json' } })"
+    assert body =~ "item.action_event_summary || []"
+    assert body =~ "review_state_summary.review_state"
+    assert body =~ "review_state_summary.last_action_operation"
+    assert body =~ "review_state_summary.reviewed_at"
+    assert body =~ "review_state_summary.reviewed_by_actor_id_hash"
+    assert body =~ "member_id"
+    assert body =~ "member_kind"
+    assert body =~ "external_id_hash"
+    assert body =~ "action_operation"
+    assert body =~ "required_permission"
+    assert body =~ "actor_id_hash"
+    assert body =~ "request_id_hash"
+    assert body =~ "idempotency_key_hash"
+    assert body =~ "result_status"
+    assert body =~ "pre_review_state"
+    assert body =~ "post_review_state"
+    assert body =~ "failure_code"
+    assert body =~ "inserted_at"
+    refute body =~ "/confirm"
+    refute body =~ "/reject"
+    refute body =~ "/mark-review"
+    refute body =~ "/clear-review-state"
+    refute body =~ "operator_reason_redacted"
+    refute body =~ "provider_payload"
+    refute body =~ "canonical_payload"
+    refute body =~ "full_article_text"
 
     assert group_count(@group_id) == 0
     assert member_count(@group_id) == 0
