@@ -13,7 +13,7 @@ defmodule DisclosureAutomationWeb.Router do
     pipe_through :browser
 
     get "/duplicate-groups", AdminDuplicateGroupUiController, :index
-    get "/duplicate-groups/:group_id", AdminDuplicateGroupUiController, :show
+    get "/duplicate-groups/:group_id", AdminDuplicateGroupPermissionUiController, :show
   end
 
   scope "/api", DisclosureAutomationWeb do
