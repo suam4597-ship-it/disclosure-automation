@@ -66,24 +66,21 @@ defmodule DisclosureAutomation.Runtime.Stage61DuplicateGroupActionStateWriter do
   end
 
   defp insert_or_get_action_event(audit_event) do
-    attrs = action_event_attrs(audit_event)
+    case existing_action_event(audit_event) do
+      nil ->
+        attrs = action_event_attrs(audit_event)
 
-    changeset =
-      %SourceDuplicateGroupActionEvent{}
-      |> SourceDuplicateGroupActionEvent.changeset(attrs)
+        changeset =
+          %SourceDuplicateGroupActionEvent{}
+          |> SourceDuplicateGroupActionEvent.changeset(attrs)
 
-    case Repo.insert(changeset, on_conflict: :nothing, conflict_target: [:group_id, :action_operation, :actor_id_hash, :idempotency_key_hash], returning: true) do
-      {:ok, %SourceDuplicateGroupActionEvent{id: nil}} ->
-        case existing_action_event(audit_event) do
-          nil -> {:error, :stage61_action_event_idempotency_conflict_not_found}
-          event -> {:ok, event, false}
+        case Repo.insert(changeset) do
+          {:ok, event} -> {:ok, event, true}
+          {:error, reason} -> {:error, reason}
         end
 
-      {:ok, event} ->
-        {:ok, event, true}
-
-      {:error, reason} ->
-        {:error, reason}
+      event ->
+        {:ok, event, false}
     end
   end
 
