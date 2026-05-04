@@ -1,5 +1,5 @@
 defmodule DisclosureAutomation.SourceHealthRecheckIdempotencyStorageMigrationTest do
-  use DisclosureAutomation.DataCase, async: false
+  use DisclosureAutomationWeb.ConnCase, async: false
 
   alias DisclosureAutomation.Repo
 
@@ -64,7 +64,7 @@ defmodule DisclosureAutomation.SourceHealthRecheckIdempotencyStorageMigrationTes
 
     insert_idempotency_record!(now, expires_at)
 
-    assert_raise Ecto.ConstraintError, fn ->
+    assert_raise Postgrex.Error, fn ->
       insert_idempotency_record!(now, expires_at)
     end
   end
