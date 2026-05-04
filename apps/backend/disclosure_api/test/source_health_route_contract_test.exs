@@ -9,6 +9,10 @@ defmodule DisclosureAutomation.SourceHealthRouteContractTest do
     {:post, "/api/admin/source-health/:source_key/recheck", DisclosureAutomationWeb.AdminSourceHealthController, :recheck},
     {:post, "/api/admin/sources/:source_key/poll", DisclosureAutomationWeb.AdminSourcePollController, :create}
   ]
+  @locked_source_health_ui_routes [
+    "/admin/source-health",
+    "/admin/source-health/:source_key"
+  ]
 
   test "router exposes the locked internal source health route surface" do
     routes = Phoenix.Router.routes(Router)
@@ -35,10 +39,16 @@ defmodule DisclosureAutomation.SourceHealthRouteContractTest do
     assert "/api/admin/source-health/:source_key" in source_health_paths
     assert "/api/admin/source-health/:source_key/recheck" in source_health_paths
     assert "/api/admin/sources/:source_key/poll" in source_health_paths
+    assert "/admin/source-health" in source_health_paths
+    assert "/admin/source-health/:source_key" in source_health_paths
 
     refute Enum.any?(source_health_paths, fn path -> String.starts_with?(path, "/public") end)
     refute Enum.any?(source_health_paths, fn path -> String.starts_with?(path, "/api/public") end)
-    refute Enum.any?(source_health_paths, fn path -> String.starts_with?(path, "/admin") end)
+
+    admin_ui_source_health_paths =
+      Enum.filter(source_health_paths, fn path -> String.starts_with?(path, "/admin") end)
+
+    assert Enum.sort(admin_ui_source_health_paths) == Enum.sort(@locked_source_health_ui_routes)
   end
 
   test "route contract preserves route-derived operation names" do
