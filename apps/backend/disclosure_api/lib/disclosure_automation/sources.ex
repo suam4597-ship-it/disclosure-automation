@@ -10,6 +10,9 @@ defmodule DisclosureAutomation.Sources do
   alias DisclosureAutomation.Schema.SourceRegistry
   alias DisclosureAutomation.Workers.RecomputeSourceHealthWorker
 
+  @idempotency_table "source_health_recheck_idempotency_keys"
+  @idempotency_window_seconds 15 * 60
+
   def upsert_source(attrs) when is_map(attrs) do
     attrs = normalize_source_attrs(attrs)
     source_key = attrs[:source_key]
@@ -102,15 +105,22 @@ defmodule DisclosureAutomation.Sources do
     end
   end
 
-  def enqueue_source_health_recheck(source_key) when is_binary(source_key) do
+  def enqueue_source_health_recheck(source_key, attrs \\ %{})
+      when is_binary(source_key) and is_map(attrs) do
     case Repo.get_by(SourceRegistry, source_key: source_key) do
       nil ->
         {:error, :not_found}
 
       _source ->
-        Jobs.enqueue(RecomputeSourceHealthWorker, %{"source_key" => source_key},
-          queue: :health_checks
-        )
+        attrs = stringify_keys(attrs)
+
+        case Map.get(attrs, "idempotency_key_hash") do
+          value when is_binary(value) and value != "" ->
+            enqueue_source_health_recheck_with_idempotency(source_key, attrs, value)
+
+          _missing ->
+            enqueue_source_health_recheck_without_idempotency(source_key)
+        end
     end
   end
 
@@ -150,6 +160,113 @@ defmodule DisclosureAutomation.Sources do
     })
     |> Repo.update()
   end
+
+  defp enqueue_source_health_recheck_without_idempotency(source_key) do
+    with {:ok, job} <- enqueue_health_check_job(source_key) do
+      {:ok, decorate_recheck_job(job, source_key, "untracked")}
+    end
+  end
+
+  defp enqueue_source_health_recheck_with_idempotency(source_key, attrs, idempotency_key_hash) do
+    now = DateTime.utc_now() |> DateTime.truncate(:microsecond)
+
+    case active_idempotency_record(source_key, idempotency_key_hash, now) do
+      nil ->
+        accept_new_idempotent_recheck(source_key, attrs, idempotency_key_hash, now)
+
+      _record ->
+        {:ok, reused_recheck_response(source_key)}
+    end
+  end
+
+  defp accept_new_idempotent_recheck(source_key, attrs, idempotency_key_hash, now) do
+    with {:ok, job} <- enqueue_health_check_job(source_key) do
+      job = decorate_recheck_job(job, source_key, "accepted")
+      upsert_idempotency_record(source_key, attrs, idempotency_key_hash, now)
+      {:ok, job}
+    end
+  end
+
+  defp enqueue_health_check_job(source_key) do
+    Jobs.enqueue(RecomputeSourceHealthWorker, %{"source_key" => source_key}, queue: :health_checks)
+  end
+
+  defp active_idempotency_record(source_key, idempotency_key_hash, now) do
+    @idempotency_table
+    |> where([record], field(record, :source_key) == ^source_key)
+    |> where([record], field(record, :idempotency_key_hash) == ^idempotency_key_hash)
+    |> where([record], field(record, :expires_at) > ^now)
+    |> select([record], %{
+      source_key: field(record, :source_key),
+      idempotency_key_hash: field(record, :idempotency_key_hash),
+      status: field(record, :status)
+    })
+    |> Repo.one()
+  end
+
+  defp upsert_idempotency_record(source_key, attrs, idempotency_key_hash, now) do
+    expires_at = DateTime.add(now, @idempotency_window_seconds, :second)
+
+    Repo.insert_all(
+      @idempotency_table,
+      [
+        %{
+          id: Ecto.UUID.generate() |> Ecto.UUID.dump!(),
+          source_key: source_key,
+          idempotency_key_hash: idempotency_key_hash,
+          request_id_hash: bounded_hash(attrs["request_id_hash"]),
+          actor_id_hash: bounded_hash(attrs["actor_id_hash"]),
+          status: "accepted",
+          job_reference: %{"queue" => "health_checks", "source_key" => source_key},
+          expires_at: expires_at,
+          last_seen_at: now,
+          metadata: %{},
+          inserted_at: now,
+          updated_at: now
+        }
+      ],
+      on_conflict:
+        {:replace,
+         [
+           :request_id_hash,
+           :actor_id_hash,
+           :status,
+           :job_reference,
+           :expires_at,
+           :last_seen_at,
+           :metadata,
+           :updated_at
+         ]},
+      conflict_target: [:source_key, :idempotency_key_hash]
+    )
+  end
+
+  defp decorate_recheck_job(job, source_key, idempotency_status) when is_map(job) do
+    job
+    |> Map.put_new("source_key", source_key)
+    |> Map.put_new("queue", "health_checks")
+    |> Map.put("idempotency_status", idempotency_status)
+  end
+
+  defp decorate_recheck_job(job, source_key, idempotency_status) do
+    %{
+      "job" => job,
+      "source_key" => source_key,
+      "queue" => "health_checks",
+      "idempotency_status" => idempotency_status
+    }
+  end
+
+  defp reused_recheck_response(source_key) do
+    %{
+      "source_key" => source_key,
+      "queue" => "health_checks",
+      "idempotency_status" => "reused"
+    }
+  end
+
+  defp bounded_hash(value) when is_binary(value), do: value
+  defp bounded_hash(_value), do: nil
 
   defp recompute_status(%SourceRegistry{active: false}), do: "paused"
   defp recompute_status(_source), do: "healthy"

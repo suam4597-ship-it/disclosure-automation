@@ -298,8 +298,8 @@ defmodule DisclosureAutomationWeb.AdminSourceHealthController do
     end
   end
 
-  def recheck(conn, %{"source_key" => source_key}) do
-    case Sources.enqueue_source_health_recheck(source_key) do
+  def recheck(conn, %{"source_key" => source_key} = params) do
+    case Sources.enqueue_source_health_recheck(source_key, params) do
       {:ok, job} ->
         conn
         |> put_status(:accepted)
