@@ -11,6 +11,7 @@ defmodule DisclosureAutomation.Sources do
   alias DisclosureAutomation.Workers.RecomputeSourceHealthWorker
 
   @idempotency_table "source_health_recheck_idempotency_keys"
+  @audit_table "source_health_recheck_audit_events"
   @idempotency_window_seconds 15 * 60
 
   def upsert_source(attrs) when is_map(attrs) do
@@ -105,6 +106,42 @@ defmodule DisclosureAutomation.Sources do
     end
   end
 
+  def record_source_health_recheck_audit(source_key, attrs, result_status, idempotency_status)
+      when is_binary(source_key) and is_map(attrs) and is_binary(result_status) and
+             is_binary(idempotency_status) do
+    attrs = stringify_keys(attrs)
+    now = DateTime.utc_now() |> DateTime.truncate(:microsecond)
+
+    try do
+      Repo.insert_all(@audit_table, [
+        %{
+          id: Ecto.UUID.generate() |> Ecto.UUID.dump!(),
+          source_key: source_key,
+          route_operation: "source_health:recheck",
+          result_status: result_status,
+          idempotency_status: idempotency_status,
+          actor_id_hash: bounded_hash(attrs["actor_id_hash"]),
+          request_id_hash: bounded_hash(attrs["request_id_hash"]),
+          idempotency_key_hash: bounded_hash(attrs["idempotency_key_hash"]),
+          idempotency_key_id: nil,
+          reason_redacted: bounded_hash(attrs["reason_redacted"]),
+          redaction_status: bounded_hash(attrs["redaction_status"]),
+          occurred_at: now,
+          metadata: %{},
+          inserted_at: now,
+          updated_at: now
+        }
+      ])
+
+      :ok
+    rescue
+      _error -> :ok
+    end
+  end
+
+  def record_source_health_recheck_audit(_source_key, _attrs, _result_status, _idempotency_status),
+    do: :ok
+
   def enqueue_source_health_recheck(source_key, attrs \\ %{})
       when is_binary(source_key) and is_map(attrs) do
     case Repo.get_by(SourceRegistry, source_key: source_key) do
@@ -119,7 +156,7 @@ defmodule DisclosureAutomation.Sources do
             enqueue_source_health_recheck_with_idempotency(source_key, attrs, value)
 
           _missing ->
-            enqueue_source_health_recheck_without_idempotency(source_key)
+            enqueue_source_health_recheck_without_idempotency(source_key, attrs)
         end
     end
   end
@@ -161,8 +198,9 @@ defmodule DisclosureAutomation.Sources do
     |> Repo.update()
   end
 
-  defp enqueue_source_health_recheck_without_idempotency(source_key) do
+  defp enqueue_source_health_recheck_without_idempotency(source_key, attrs) do
     with {:ok, job} <- enqueue_health_check_job(source_key) do
+      record_source_health_recheck_audit(source_key, attrs, "untracked", "untracked")
       {:ok, decorate_recheck_job(job, source_key, "untracked")}
     end
   end
@@ -175,6 +213,7 @@ defmodule DisclosureAutomation.Sources do
         accept_new_idempotent_recheck(source_key, attrs, idempotency_key_hash, now)
 
       _record ->
+        record_source_health_recheck_audit(source_key, attrs, "reused", "reused")
         {:ok, reused_recheck_response(source_key)}
     end
   end
@@ -183,6 +222,7 @@ defmodule DisclosureAutomation.Sources do
     with {:ok, job} <- enqueue_health_check_job(source_key) do
       job = decorate_recheck_job(job, source_key, "accepted")
       upsert_idempotency_record(source_key, attrs, idempotency_key_hash, now)
+      record_source_health_recheck_audit(source_key, attrs, "accepted", "accepted")
       {:ok, job}
     end
   end

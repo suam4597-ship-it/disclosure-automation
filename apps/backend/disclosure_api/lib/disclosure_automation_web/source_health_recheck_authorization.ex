@@ -17,6 +17,8 @@ defmodule DisclosureAutomationWeb.SourceHealthRecheckAuthorization do
         authorize_recheck(conn)
 
       {:error, :not_found} ->
+        Sources.record_source_health_recheck_audit(source_key, conn.params, "not_found", "none")
+
         conn
         |> put_status(:not_found)
         |> json(SourceHealthJSON.error(%{code: "not_found", message: "source not found"}))
@@ -25,6 +27,19 @@ defmodule DisclosureAutomationWeb.SourceHealthRecheckAuthorization do
   end
 
   def call(conn, _opts), do: authorize_recheck(conn)
+
+  defp authorize_recheck(%Plug.Conn{params: %{"source_key" => source_key}} = conn) do
+    if recheck_allowed?(conn.params) do
+      conn
+    else
+      Sources.record_source_health_recheck_audit(source_key, conn.params, "forbidden", "none")
+
+      conn
+      |> put_status(:forbidden)
+      |> json(SourceHealthJSON.error(%{code: "forbidden", message: "source health recheck not allowed"}))
+      |> halt()
+    end
+  end
 
   defp authorize_recheck(conn) do
     if recheck_allowed?(conn.params) do
