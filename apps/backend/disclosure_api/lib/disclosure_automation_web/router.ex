@@ -18,6 +18,8 @@ defmodule DisclosureAutomationWeb.Router do
 
     get "/duplicate-groups", AdminDuplicateGroupUiController, :index
     get "/duplicate-groups/:group_id", AdminDuplicateGroupPermissionUiController, :show
+    get "/source-health", AdminSourceHealthUiController, :index
+    get "/source-health/:source_key", AdminSourceHealthUiController, :show
   end
 
   scope "/api", DisclosureAutomationWeb do
