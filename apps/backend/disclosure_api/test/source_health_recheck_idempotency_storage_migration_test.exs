@@ -72,7 +72,7 @@ defmodule DisclosureAutomation.SourceHealthRecheckIdempotencyStorageMigrationTes
   defp insert_idempotency_record!(now, expires_at) do
     Repo.insert_all(@table, [
       %{
-        id: Ecto.UUID.generate(),
+        id: Ecto.UUID.generate() |> Ecto.UUID.dump!(),
         source_key: "source_health_recheck_idem_storage_fixture",
         idempotency_key_hash: "sha256:idempotency-storage-001",
         request_id_hash: "sha256:request-storage-001",
