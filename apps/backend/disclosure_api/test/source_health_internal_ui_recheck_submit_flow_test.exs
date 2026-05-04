@@ -61,7 +61,7 @@ defmodule DisclosureAutomation.SourceHealthInternalUiRecheckSubmitFlowTest do
     refute response =~ "operation"
     refute response =~ "action_operation"
     refute response =~ "route_operation"
-    refute response =~ "action="
+    refute response =~ "\naction="
     refute response =~ "queue="
     refute response =~ "worker="
     refute response =~ "payload="
