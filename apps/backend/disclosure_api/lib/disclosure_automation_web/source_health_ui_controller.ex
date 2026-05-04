@@ -81,9 +81,10 @@ defmodule DisclosureAutomationWeb.AdminSourceHealthUiController do
       if "source_health:recheck" in permissions do
         [
           "recheck_action=enabled",
+          "recheck_method=POST",
           "recheck_target=/api/admin/source-health/#{safe_text(source_key)}/recheck",
           "idempotency=required"
-        ]
+        ] ++ recheck_submit_contract()
       else
         [
           "recheck_action=disabled",
@@ -93,6 +94,18 @@ defmodule DisclosureAutomationWeb.AdminSourceHealthUiController do
     else
       ["recheck_action=not_rendered"]
     end
+  end
+
+  defp recheck_submit_contract do
+    [
+      "recheck_context=bounded",
+      "recheck_context_fields=actor_id_hash,actor_permissions,request_id_hash,idempotency_key_hash,reason_redacted,redaction_status,created_at",
+      "recheck_result_accepted_message=Recheck request accepted.",
+      "recheck_result_reused_message=A similar recent recheck request was reused.",
+      "recheck_result_untracked_message=Recheck request accepted without tracking.",
+      "recheck_result_forbidden_message=You do not have permission to recheck this source.",
+      "recheck_result_not_found_message=Source not found."
+    ]
   end
 
   defp legacy_unwired_action_state(params) do
