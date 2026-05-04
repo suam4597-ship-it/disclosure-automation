@@ -14,7 +14,18 @@ defmodule DisclosureAutomationWeb.AdminSourceHealthUiController do
   end
 
   def show(conn, %{"source_key" => source_key}) do
-    text(conn, "Source health: #{source_key}")
+    case Sources.get_source_health(source_key) do
+      {:ok, %{data: source, cursors: cursors}} ->
+        conn
+        |> put_resp_content_type("text/plain")
+        |> text(render_show(source, cursors))
+
+      {:error, :not_found} ->
+        conn
+        |> put_status(:not_found)
+        |> put_resp_content_type("text/plain")
+        |> text("Source health detail\nstate=not_found\nsource_key=#{safe_text(source_key)}\nback=/admin/source-health")
+    end
   end
 
   defp render_index(page) do
@@ -30,6 +41,27 @@ defmodule DisclosureAutomationWeb.AdminSourceHealthUiController do
        "poll_action=not_rendered",
        "audit_ui=not_rendered"
      ] ++ rows)
+    |> Enum.join("\n")
+  end
+
+  defp render_show(source, cursors) do
+    [
+      "Source health detail",
+      "state=found",
+      "source_key=#{safe_text(source.source_key)}",
+      "display_name=#{safe_text(source.display_name)}",
+      "source_type=#{safe_text(source.source_type)}",
+      "region_code=#{safe_text(source.region_code)}",
+      "health_status=#{safe_text(source.health_status)}",
+      "last_success_at=#{safe_datetime(source.last_success_at)}",
+      "last_failure_at=#{safe_datetime(source.last_failure_at)}",
+      "active=#{source.active}",
+      "cursor_count=#{length(cursors || [])}",
+      "recheck_action=not_rendered",
+      "poll_action=not_rendered",
+      "audit_ui=not_rendered",
+      "back=/admin/source-health"
+    ]
     |> Enum.join("\n")
   end
 
