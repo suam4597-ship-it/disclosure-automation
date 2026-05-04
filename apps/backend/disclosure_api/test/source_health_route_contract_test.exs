@@ -4,10 +4,10 @@ defmodule DisclosureAutomation.SourceHealthRouteContractTest do
   alias DisclosureAutomationWeb.Router
 
   @locked_source_health_routes [
-    {"GET", "/api/admin/source-health", DisclosureAutomationWeb.AdminSourceHealthController, :index},
-    {"GET", "/api/admin/source-health/:source_key", DisclosureAutomationWeb.AdminSourceHealthController, :show},
-    {"POST", "/api/admin/source-health/:source_key/recheck", DisclosureAutomationWeb.AdminSourceHealthController, :recheck},
-    {"POST", "/api/admin/sources/:source_key/poll", DisclosureAutomationWeb.AdminSourcePollController, :create}
+    {:get, "/api/admin/source-health", DisclosureAutomationWeb.AdminSourceHealthController, :index},
+    {:get, "/api/admin/source-health/:source_key", DisclosureAutomationWeb.AdminSourceHealthController, :show},
+    {:post, "/api/admin/source-health/:source_key/recheck", DisclosureAutomationWeb.AdminSourceHealthController, :recheck},
+    {:post, "/api/admin/sources/:source_key/poll", DisclosureAutomationWeb.AdminSourcePollController, :create}
   ]
 
   test "router exposes the locked internal source health route surface" do
@@ -19,7 +19,7 @@ defmodule DisclosureAutomation.SourceHealthRouteContractTest do
                  route.path == path and
                  route.plug == plug and
                  route.plug_opts == plug_opts
-             end), "expected #{verb} #{path} to route to #{inspect(plug)}.#{plug_opts}"
+             end), "expected #{inspect(verb)} #{path} to route to #{inspect(plug)}.#{plug_opts}"
     end
   end
 
