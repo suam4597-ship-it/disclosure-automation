@@ -11,7 +11,7 @@ defmodule DisclosureAutomation.SourceHealthRecheckAuthorizationTest do
       Sources.upsert_source(%{
         "source_key" => @source_key,
         "display_name" => "Source Health Recheck Auth Fixture",
-        "source_type" => "test_fixture",
+        "source_type" => "api",
         "adapter_key" => "test_adapter",
         "region_code" => "US",
         "discovery_mode" => "fixture",
