@@ -2,7 +2,7 @@ defmodule DisclosureAutomationWeb.SourceHealthRecheckAuthorization do
   @moduledoc false
 
   import Plug.Conn
-  import Phoenix.Controller, only: [json: 2]
+  import Phoenix.Controller, only: [json: 2, put_status: 2]
 
   alias DisclosureAutomation.Sources
   alias DisclosureAutomationWeb.SourceHealthJSON
