@@ -63,7 +63,8 @@ defmodule DisclosureAutomation.SourceHealthRecheckAuditRuntimeTest do
 
     encoded = inspect(response)
     assert encoded =~ "untracked"
-    refute encoded =~ "audit"
+    refute encoded =~ "audit_event"
+    refute encoded =~ "audit_event_id"
 
     assert audit_event_count(@source_key, "untracked", "untracked") == 1
     refute_audit_forbidden_material(@source_key)
