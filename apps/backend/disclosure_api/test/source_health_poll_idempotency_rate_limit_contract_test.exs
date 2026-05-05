@@ -53,6 +53,8 @@ defmodule DisclosureAutomation.SourceHealthPollIdempotencyRateLimitContractTest 
     "updated_at"
   ]
 
+  @audit_route_operation "source_health:poll"
+
   @audit_result_statuses [
     "accepted",
     "reused",
@@ -181,6 +183,8 @@ defmodule DisclosureAutomation.SourceHealthPollIdempotencyRateLimitContractTest 
   end
 
   test "poll audit result statuses stay bounded and use source_health poll route operation" do
+    assert @audit_route_operation == "source_health:poll"
+
     assert @audit_result_statuses == [
              "accepted",
              "reused",
@@ -192,7 +196,8 @@ defmodule DisclosureAutomation.SourceHealthPollIdempotencyRateLimitContractTest 
              "failed"
            ]
 
-    assert "source_health:poll" == "source_health:poll"
+    refute_forbidden_fragments(@audit_route_operation)
+    refute_out_of_scope_fragments(@audit_route_operation)
 
     for status <- @audit_result_statuses do
       refute_forbidden_fragments(status)
@@ -208,7 +213,8 @@ defmodule DisclosureAutomation.SourceHealthPollIdempotencyRateLimitContractTest 
         @response_categories ++
         @storage_columns ++
         @audit_result_statuses ++
-        @bounded_request_context
+        @bounded_request_context ++
+        [@audit_route_operation]
 
     for value <- contract_values do
       refute_out_of_scope_fragments(value)
