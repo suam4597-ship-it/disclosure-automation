@@ -340,6 +340,9 @@ defmodule DisclosureAutomationWeb.AdminSourcePollController do
       {:error, :missing_idempotency_key} ->
         render_error(conn, :conflict, "missing_idempotency_key", "poll idempotency key required")
 
+      {:error, {:rate_limited, rate_limit_status}} ->
+        render_rate_limited(conn, rate_limit_status)
+
       {:error, :not_found} ->
         render_error(conn, :not_found, "not_found", "source not found")
     end
@@ -372,6 +375,18 @@ defmodule DisclosureAutomationWeb.AdminSourcePollController do
 
   defp parse_bool(value) when value in [true, "true", "1", 1], do: true
   defp parse_bool(_value), do: false
+
+  defp render_rate_limited(conn, rate_limit_status) do
+    conn
+    |> put_status(:too_many_requests)
+    |> json(%{
+      "error" => %{
+        "code" => "rate_limited",
+        "message" => "source poll rate limited",
+        "rate_limit_status" => rate_limit_status
+      }
+    })
+  end
 
   defp render_error(conn, status, code, message) do
     conn
