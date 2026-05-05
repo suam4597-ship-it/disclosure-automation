@@ -4,6 +4,7 @@ defmodule DisclosureAutomationWeb.SourceHealthPollAuthorization do
   import Plug.Conn
   import Phoenix.Controller, only: [json: 2]
 
+  alias DisclosureAutomation.SourceHealthPollRuntime
   alias DisclosureAutomation.Sources
   alias DisclosureAutomationWeb.SourceHealthJSON
 
@@ -17,6 +18,8 @@ defmodule DisclosureAutomationWeb.SourceHealthPollAuthorization do
         authorize_poll(conn)
 
       {:error, :not_found} ->
+        SourceHealthPollRuntime.record_poll_audit(source_key, conn.params, "not_found", "none", "none")
+
         conn
         |> put_status(:not_found)
         |> json(SourceHealthJSON.error(%{code: "not_found", message: "source not found"}))
@@ -25,6 +28,19 @@ defmodule DisclosureAutomationWeb.SourceHealthPollAuthorization do
   end
 
   def call(conn, _opts), do: authorize_poll(conn)
+
+  defp authorize_poll(%Plug.Conn{params: %{"source_key" => source_key}} = conn) do
+    if poll_allowed?(conn.params) do
+      conn
+    else
+      SourceHealthPollRuntime.record_poll_audit(source_key, conn.params, "forbidden", "none", "none")
+
+      conn
+      |> put_status(:forbidden)
+      |> json(SourceHealthJSON.error(%{code: "forbidden", message: "source poll not allowed"}))
+      |> halt()
+    end
+  end
 
   defp authorize_poll(conn) do
     if poll_allowed?(conn.params) do
