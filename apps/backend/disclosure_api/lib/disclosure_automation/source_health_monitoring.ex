@@ -92,12 +92,23 @@ defmodule DisclosureAutomation.SourceHealthMonitoring do
     "source_key"
   ]
 
+  @snapshot_sections [
+    "overview",
+    "freshness",
+    "recheck_operations",
+    "idempotency",
+    "audit_outcomes",
+    "operator_smoke",
+    "ui_regression"
+  ]
+
   def metric_names, do: @metric_names
   def metric_labels, do: @metric_labels
   def result_statuses, do: @result_statuses
   def idempotency_statuses, do: @idempotency_statuses
   def freshness_buckets, do: @freshness_buckets
   def structured_log_keys, do: @structured_log_keys
+  def snapshot_sections, do: @snapshot_sections
 
   def contract do
     %{
@@ -107,6 +118,23 @@ defmodule DisclosureAutomation.SourceHealthMonitoring do
       idempotency_statuses: idempotency_statuses(),
       freshness_buckets: freshness_buckets(),
       structured_log_keys: structured_log_keys()
+    }
+  end
+
+  def snapshot_contract do
+    %{
+      sections: snapshot_sections(),
+      metrics: metric_names(),
+      labels: metric_labels(),
+      result_statuses: result_statuses(),
+      idempotency_statuses: idempotency_statuses(),
+      freshness_buckets: freshness_buckets(),
+      structured_log_keys: structured_log_keys(),
+      runtime_emission: false,
+      dashboards: false,
+      alerts: false,
+      log_sinks: false,
+      poll_route: "out_of_scope"
     }
   end
 end
