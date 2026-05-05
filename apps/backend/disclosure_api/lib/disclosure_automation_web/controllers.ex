@@ -324,9 +324,28 @@ defmodule DisclosureAutomationWeb.AdminSourcePollController do
   use DisclosureAutomationWeb, :controller
 
   alias DisclosureAutomation.Ingestion
+  alias DisclosureAutomation.SourceHealthPollRuntime
   alias DisclosureAutomationWeb.SourceHealthJSON
 
   def create(conn, %{"source_key" => source_key} = params) do
+    case SourceHealthPollRuntime.prepare_poll(source_key, params) do
+      {:ok, %{"poll_status" => "accepted"}} ->
+        execute_poll(conn, source_key, params)
+
+      {:ok, result} ->
+        conn
+        |> put_status(:accepted)
+        |> json(SourceHealthJSON.poll_result(%{result: result}))
+
+      {:error, :missing_idempotency_key} ->
+        render_error(conn, :conflict, "missing_idempotency_key", "poll idempotency key required")
+
+      {:error, :not_found} ->
+        render_error(conn, :not_found, "not_found", "source not found")
+    end
+  end
+
+  defp execute_poll(conn, source_key, params) do
     edition = Map.get(params, "edition", "breaking")
     use_live_fetch = parse_bool(Map.get(params, "use_live_fetch", "true"))
     # inline_feed is smoke/admin/debug only; operational default is async feed rebuild
