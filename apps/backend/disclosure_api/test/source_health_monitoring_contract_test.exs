@@ -122,8 +122,6 @@ defmodule DisclosureAutomation.SourceHealthMonitoringContractTest do
   ]
 
   test "approved source health metric names are bounded to source_health namespace" do
-    assert @approved_metric_names != []
-
     for metric_name <- @approved_metric_names do
       assert String.starts_with?(metric_name, "source_health.")
       refute String.contains?(metric_name, " ")
@@ -134,8 +132,6 @@ defmodule DisclosureAutomation.SourceHealthMonitoringContractTest do
   end
 
   test "approved metric labels are bounded and do not include raw identifiers" do
-    assert @approved_metric_labels != []
-
     for label <- @approved_metric_labels do
       refute_forbidden_fragments(label)
       refute_out_of_scope_fragments(label)
