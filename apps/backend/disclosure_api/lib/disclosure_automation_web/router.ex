@@ -9,6 +9,10 @@ defmodule DisclosureAutomationWeb.Router do
     plug DisclosureAutomationWeb.SourceHealthRecheckAuthorization
   end
 
+  pipeline :source_health_poll_authorization do
+    plug DisclosureAutomationWeb.SourceHealthPollAuthorization
+  end
+
   pipeline :browser do
     plug :accepts, ["html"]
   end
@@ -44,13 +48,17 @@ defmodule DisclosureAutomationWeb.Router do
     post "/admin/duplicate-groups/:group_id/reject", AdminDuplicateGroupController, :reject
     post "/admin/duplicate-groups/:group_id/mark-review", AdminDuplicateGroupController, :mark_review
     post "/admin/duplicate-groups/:group_id/clear-review-state", AdminDuplicateGroupController, :clear_review_state
-
-    post "/admin/sources/:source_key/poll", AdminSourcePollController, :create
   end
 
   scope "/api/admin/source-health", DisclosureAutomationWeb do
     pipe_through [:api, :source_health_recheck_authorization]
 
     post "/:source_key/recheck", AdminSourceHealthController, :recheck
+  end
+
+  scope "/api/admin/sources", DisclosureAutomationWeb do
+    pipe_through [:api, :source_health_poll_authorization]
+
+    post "/:source_key/poll", AdminSourcePollController, :create
   end
 end
