@@ -204,7 +204,7 @@ defmodule DisclosureAutomation.SourceHealthPollAuditRuntimeContractTest do
 
   test "poll audit route operation and statuses cannot be request-body overrides" do
     for field <- @forbidden_override_fields do
-      assert is_binary(field)
+      refute field in server_accepted_override_fields()
     end
 
     refute "route_operation" in server_accepted_override_fields()
