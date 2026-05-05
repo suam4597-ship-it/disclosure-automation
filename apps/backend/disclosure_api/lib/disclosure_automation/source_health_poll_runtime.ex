@@ -8,6 +8,7 @@ defmodule DisclosureAutomation.SourceHealthPollRuntime do
 
   @poll_idempotency_table "source_health_poll_idempotency_keys"
   @poll_rate_limit_table "source_health_poll_rate_limits"
+  @poll_audit_table "source_health_poll_audit_events"
   @poll_idempotency_window_seconds 15 * 60
   @poll_rate_limit_window_seconds 60
 
@@ -20,6 +21,7 @@ defmodule DisclosureAutomation.SourceHealthPollRuntime do
   def prepare_poll(source_key, attrs \\ %{}) when is_binary(source_key) and is_map(attrs) do
     case Repo.get_by(SourceRegistry, source_key: source_key) do
       nil ->
+        record_poll_audit(source_key, attrs, "not_found", "none", "none")
         {:error, :not_found}
 
       _source ->
@@ -30,10 +32,49 @@ defmodule DisclosureAutomation.SourceHealthPollRuntime do
             prepare_poll_with_idempotency(source_key, attrs, value)
 
           _missing ->
+            record_poll_audit(source_key, attrs, "missing_key_denied", "missing_key_denied", "none")
             {:error, :missing_idempotency_key}
         end
     end
   end
+
+  def record_poll_audit(source_key, attrs, result_status, idempotency_status, rate_limit_status)
+      when is_binary(source_key) and is_map(attrs) and is_binary(result_status) and
+             is_binary(idempotency_status) and is_binary(rate_limit_status) do
+    attrs = stringify_keys(attrs)
+    now = DateTime.utc_now() |> DateTime.truncate(:microsecond)
+
+    try do
+      Repo.insert_all(@poll_audit_table, [
+        %{
+          id: Ecto.UUID.generate() |> Ecto.UUID.dump!(),
+          source_key: source_key,
+          route_operation: "source_health:poll",
+          result_status: result_status,
+          idempotency_status: idempotency_status,
+          rate_limit_status: rate_limit_status,
+          actor_id_hash: bounded_hash(attrs["actor_id_hash"]),
+          request_id_hash: bounded_hash(attrs["request_id_hash"]),
+          idempotency_key_hash: bounded_hash(attrs["idempotency_key_hash"]),
+          idempotency_key_id: nil,
+          rate_limit_key_id: nil,
+          reason_redacted: bounded_hash(attrs["reason_redacted"]),
+          redaction_status: bounded_hash(attrs["redaction_status"]),
+          occurred_at: now,
+          metadata: %{},
+          inserted_at: now,
+          updated_at: now
+        }
+      ])
+
+      :ok
+    rescue
+      _error -> :ok
+    end
+  end
+
+  def record_poll_audit(_source_key, _attrs, _result_status, _idempotency_status, _rate_limit_status),
+    do: :ok
 
   defp prepare_poll_with_idempotency(source_key, attrs, idempotency_key_hash) do
     now = DateTime.utc_now() |> DateTime.truncate(:microsecond)
@@ -42,10 +83,13 @@ defmodule DisclosureAutomation.SourceHealthPollRuntime do
       nil ->
         case check_and_record_rate_limits(source_key, attrs, now) do
           :ok -> accept_new_poll(source_key, attrs, idempotency_key_hash, now)
-          {:error, status} -> {:error, {:rate_limited, status}}
+          {:error, status} ->
+            record_poll_audit(source_key, attrs, "rate_limited", "none", status)
+            {:error, {:rate_limited, status}}
         end
 
       _record ->
+        record_poll_audit(source_key, attrs, "reused", "reused", "allowed")
         {:ok, reused_poll_response(source_key)}
     end
   end
@@ -160,6 +204,7 @@ defmodule DisclosureAutomation.SourceHealthPollRuntime do
       conflict_target: [:source_key, :idempotency_key_hash]
     )
 
+    record_poll_audit(source_key, attrs, "accepted", "accepted", "allowed")
     {:ok, accepted_poll_response(source_key)}
   end
 
