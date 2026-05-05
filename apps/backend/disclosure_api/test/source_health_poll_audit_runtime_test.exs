@@ -199,25 +199,35 @@ defmodule DisclosureAutomation.SourceHealthPollAuditRuntimeTest do
 
   defp prefill_rate_limit!(scope, scope_key, request_count) do
     now = DateTime.utc_now() |> DateTime.truncate(:second)
-    window_expires_at = DateTime.add(now, 60, :second)
 
-    Repo.insert_all(@rate_limit_table, [
-      %{
-        id: Ecto.UUID.generate() |> Ecto.UUID.dump!(),
-        scope: scope,
-        scope_key: scope_key,
-        source_key: @source_key,
-        actor_id_hash: "sha256:operator-poll-audit-runtime-001",
-        status: "allowed",
-        request_count: request_count,
-        limit_count: request_count,
-        window_start_at: now,
-        window_expires_at: window_expires_at,
-        metadata: %{},
-        inserted_at: now,
-        updated_at: now
-      }
-    ])
+    # Keep the setup stable if the request crosses a second boundary between
+    # prefill and the controller's rate-limit window calculation.
+    audit_windows = [
+      DateTime.add(now, -1, :second),
+      now,
+      DateTime.add(now, 1, :second)
+    ]
+
+    rows =
+      Enum.map(audit_windows, fn window_start_at ->
+        %{
+          id: Ecto.UUID.generate() |> Ecto.UUID.dump!(),
+          scope: scope,
+          scope_key: scope_key,
+          source_key: @source_key,
+          actor_id_hash: "sha256:operator-poll-audit-runtime-001",
+          status: "allowed",
+          request_count: request_count,
+          limit_count: request_count,
+          window_start_at: window_start_at,
+          window_expires_at: DateTime.add(window_start_at, 60, :second),
+          metadata: %{},
+          inserted_at: now,
+          updated_at: now
+        }
+      end)
+
+    Repo.insert_all(@rate_limit_table, rows)
   end
 
   defp latest_audit_event(source_key) do
