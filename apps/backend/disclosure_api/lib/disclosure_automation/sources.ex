@@ -74,8 +74,13 @@ defmodule DisclosureAutomation.Sources do
 
   def enqueue_source_health_recheck(source_key) when is_binary(source_key) do
     case Repo.get_by(SourceRegistry, source_key: source_key) do
-      nil -> {:error, :not_found}
-      _source -> Jobs.enqueue(RecomputeSourceHealthWorker, %{"source_key" => source_key}, queue: :health_checks)
+      nil ->
+        {:error, :not_found}
+
+      _source ->
+        Jobs.enqueue(RecomputeSourceHealthWorker, %{"source_key" => source_key},
+          queue: :health_checks
+        )
     end
   end
 
@@ -179,7 +184,9 @@ defmodule DisclosureAutomation.Sources do
   end
 
   defp parse_positive_int(nil, default), do: default
-  defp parse_positive_int(value, default) when is_integer(value), do: if(value > 0, do: value, else: default)
+
+  defp parse_positive_int(value, default) when is_integer(value),
+    do: if(value > 0, do: value, else: default)
 
   defp parse_positive_int(value, default) when is_binary(value) do
     case Integer.parse(value) do
