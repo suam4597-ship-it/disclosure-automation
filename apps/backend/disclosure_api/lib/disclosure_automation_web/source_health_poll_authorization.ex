@@ -55,27 +55,10 @@ defmodule DisclosureAutomationWeb.SourceHealthPollAuthorization do
   end
 
   defp poll_allowed?(conn) do
-    if SourceHealthAuthContext.source_health_auth_context_available?(conn) do
-      conn
-      |> SourceHealthAuthContext.fetch_source_health_auth_context()
-      |> SourceHealthAuthContext.has_permission?(@poll_permission)
-    else
-      poll_allowed_from_params?(conn.params)
-    end
+    conn
+    |> SourceHealthAuthContext.permissions_for_authorization(conn.params)
+    |> Enum.member?(@poll_permission)
   end
 
-  defp poll_allowed_from_params?(%{"actor_permissions" => permissions}) when is_list(permissions),
-    do: @poll_permission in permissions
-
-  defp poll_allowed_from_params?(_params), do: false
-
-  defp auth_params(conn) do
-    if SourceHealthAuthContext.source_health_auth_context_available?(conn) do
-      conn
-      |> SourceHealthAuthContext.fetch_source_health_auth_context()
-      |> SourceHealthAuthContext.to_param_map()
-    else
-      conn.params
-    end
-  end
+  defp auth_params(conn), do: SourceHealthAuthContext.auth_param_map_for_request(conn)
 end
