@@ -20,4 +20,6 @@ config :disclosure_automation, Oban,
   queues: false,
   peer: false
 
+config :disclosure_automation, :source_health_permission_param_fallback, :test_only
+
 config :logger, level: :warning
