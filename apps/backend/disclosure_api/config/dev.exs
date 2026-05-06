@@ -14,7 +14,8 @@ config :disclosure_automation, DisclosureAutomationWeb.Endpoint,
   check_origin: false,
   code_reloader: true,
   debug_errors: true,
-  secret_key_base: "phase1-local-dev"
+  secret_key_base: "phase1-local-dev",
+  server: true
 
 config :logger, :console, format: "[$level] $message\n"
 
