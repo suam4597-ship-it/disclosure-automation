@@ -2,6 +2,7 @@ defmodule DisclosureAutomation.SourceHealthInternalUiRecheckActionTest do
   use DisclosureAutomationWeb.ConnCase, async: false
 
   alias DisclosureAutomation.Sources
+  alias DisclosureAutomationWeb.SourceHealthAuthContext
 
   @source_key "source_health_ui_recheck_action_fixture"
   @missing_source_key "source_health_ui_recheck_action_missing"
@@ -32,10 +33,11 @@ defmodule DisclosureAutomation.SourceHealthInternalUiRecheckActionTest do
     :ok
   end
 
-  test "read-only user sees disabled recheck action", %{conn: conn} do
+  test "read-only auth context sees disabled recheck action", %{conn: conn} do
     response =
       conn
-      |> get("/admin/source-health/#{@source_key}?actor_permissions=source_health:read")
+      |> SourceHealthAuthContext.put_test_source_health_permissions(["source_health:read"])
+      |> get("/admin/source-health/#{@source_key}")
       |> response(200)
 
     assert response =~ "Source health detail"
@@ -52,10 +54,11 @@ defmodule DisclosureAutomation.SourceHealthInternalUiRecheckActionTest do
     refute_forbidden_material(response)
   end
 
-  test "recheck user sees enabled bounded action", %{conn: conn} do
+  test "recheck auth context sees enabled bounded action", %{conn: conn} do
     response =
       conn
-      |> get("/admin/source-health/#{@source_key}?actor_permissions=source_health:recheck")
+      |> SourceHealthAuthContext.put_test_source_health_permissions(["source_health:recheck"])
+      |> get("/admin/source-health/#{@source_key}")
       |> response(200)
 
     assert response =~ "Source health detail"
@@ -79,10 +82,29 @@ defmodule DisclosureAutomation.SourceHealthInternalUiRecheckActionTest do
     refute_forbidden_material(response)
   end
 
+  test "query actor_permissions cannot escalate explicit read-only auth context", %{conn: conn} do
+    response =
+      conn
+      |> SourceHealthAuthContext.put_test_source_health_permissions(["source_health:read"])
+      |> get("/admin/source-health/#{@source_key}?actor_permissions=source_health:recheck")
+      |> response(200)
+
+    assert response =~ "Source health detail"
+    assert response =~ "state=found"
+    assert response =~ "source_key=#{@source_key}"
+    assert response =~ "recheck_action=disabled"
+    assert response =~ "recheck_reason=read_only"
+
+    refute response =~ "recheck_action=enabled"
+    refute response =~ "recheck_target=/api/admin/source-health/#{@source_key}/recheck"
+    refute_forbidden_material(response)
+  end
+
   test "unknown source has no enabled recheck action", %{conn: conn} do
     response =
       conn
-      |> get("/admin/source-health/#{@missing_source_key}?actor_permissions=source_health:recheck")
+      |> SourceHealthAuthContext.put_test_source_health_permissions(["source_health:recheck"])
+      |> get("/admin/source-health/#{@missing_source_key}")
       |> response(404)
 
     assert response =~ "Source health detail"
@@ -99,7 +121,8 @@ defmodule DisclosureAutomation.SourceHealthInternalUiRecheckActionTest do
   test "recheck action state does not expose forbidden material", %{conn: conn} do
     response =
       conn
-      |> get("/admin/source-health/#{@source_key}?actor_permissions=source_health:recheck")
+      |> SourceHealthAuthContext.put_test_source_health_permissions(["source_health:recheck"])
+      |> get("/admin/source-health/#{@source_key}")
       |> response(200)
 
     refute_forbidden_material(response)
