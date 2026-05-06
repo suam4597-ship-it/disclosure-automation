@@ -36,7 +36,10 @@ defmodule DisclosureAutomation.SourceHealthInternalUiRecheckSubmitFlowTest do
   test "enabled detail state advertises only the bounded backend recheck submit contract", %{conn: conn} do
     response =
       conn
-      |> SourceHealthAuthContext.put_test_source_health_permissions(["source_health:recheck"])
+      |> SourceHealthAuthContext.put_test_source_health_permissions([
+        "source_health:read",
+        "source_health:recheck"
+      ])
       |> get("/admin/source-health/#{@source_key}")
       |> response(200)
 
