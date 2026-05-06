@@ -18,10 +18,70 @@ defmodule DisclosureAutomationWeb.SourceHealthAuthContext do
     :source_health_test_role_names
   ]
 
+  @permission_param_fallback_config_key :source_health_permission_param_fallback
+  @allowed_fallback_modes [:disabled, :test_only, :legacy_compat]
+
   def allowed_permissions, do: @allowed_permissions
 
   def source_health_auth_context_available?(conn) do
     Enum.any?(@test_private_keys, &Map.has_key?(conn.private, &1))
+  end
+
+  def request_param_fallback_mode do
+    mode = Application.get_env(:disclosure_automation, @permission_param_fallback_config_key, :disabled)
+
+    if mode in @allowed_fallback_modes do
+      mode
+    else
+      :disabled
+    end
+  end
+
+  def request_param_fallback_enabled? do
+    request_param_fallback_mode() in [:test_only, :legacy_compat]
+  end
+
+  def permission_state_requested?(conn, params) do
+    source_health_auth_context_available?(conn) ||
+      (request_param_fallback_enabled?() && Map.has_key?(params, "actor_permissions"))
+  end
+
+  def permissions_for_authorization(conn, params) do
+    if source_health_auth_context_available?(conn) do
+      conn
+      |> fetch_source_health_auth_context()
+      |> Map.get(:actor_permissions, [])
+    else
+      legacy_request_param_permissions(params)
+    end
+  end
+
+  def legacy_request_param_permissions(params) do
+    if request_param_fallback_enabled?() do
+      params
+      |> request_param_actor_permissions()
+      |> Enum.filter(&(&1 in @allowed_permissions))
+    else
+      []
+    end
+  end
+
+  def auth_param_map_for_request(conn) do
+    cond do
+      source_health_auth_context_available?(conn) ->
+        conn
+        |> fetch_source_health_auth_context()
+        |> to_param_map()
+
+      request_param_fallback_enabled?() ->
+        conn.params
+
+      true ->
+        %{
+          "actor_permissions" => [],
+          "redaction_status" => "missing_source_health_auth_context"
+        }
+    end
   end
 
   def fetch_source_health_auth_context(conn) do
@@ -80,6 +140,14 @@ defmodule DisclosureAutomationWeb.SourceHealthAuthContext do
       "redaction_status" => context.redaction_status,
       "created_at" => context.created_at
     }
+  end
+
+  defp request_param_actor_permissions(params) do
+    case Map.get(params, "actor_permissions") do
+      permissions when is_list(permissions) -> permissions
+      permission when is_binary(permission) -> [permission]
+      _ -> []
+    end
   end
 
   defp assigned_test_permissions(conn) do
