@@ -5,6 +5,10 @@ defmodule DisclosureAutomationWeb.Router do
     plug :accepts, ["json"]
   end
 
+  pipeline :source_health_production_auth_context do
+    plug DisclosureAutomationWeb.SourceHealthProductionAuthContext
+  end
+
   pipeline :source_health_recheck_authorization do
     plug DisclosureAutomationWeb.SourceHealthRecheckAuthorization
   end
@@ -18,7 +22,7 @@ defmodule DisclosureAutomationWeb.Router do
   end
 
   scope "/admin", DisclosureAutomationWeb do
-    pipe_through :browser
+    pipe_through [:browser, :source_health_production_auth_context]
 
     get "/duplicate-groups", AdminDuplicateGroupUiController, :index
     get "/duplicate-groups/:group_id", AdminDuplicateGroupPermissionUiController, :show
@@ -51,13 +55,13 @@ defmodule DisclosureAutomationWeb.Router do
   end
 
   scope "/api/admin/source-health", DisclosureAutomationWeb do
-    pipe_through [:api, :source_health_recheck_authorization]
+    pipe_through [:api, :source_health_production_auth_context, :source_health_recheck_authorization]
 
     post "/:source_key/recheck", AdminSourceHealthController, :recheck
   end
 
   scope "/api/admin/sources", DisclosureAutomationWeb do
-    pipe_through [:api, :source_health_poll_authorization]
+    pipe_through [:api, :source_health_production_auth_context, :source_health_poll_authorization]
 
     post "/:source_key/poll", AdminSourcePollController, :create
   end
