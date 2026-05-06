@@ -57,7 +57,10 @@ defmodule DisclosureAutomation.SourceHealthInternalUiRecheckActionTest do
   test "recheck auth context sees enabled bounded action", %{conn: conn} do
     response =
       conn
-      |> SourceHealthAuthContext.put_test_source_health_permissions(["source_health:recheck"])
+      |> SourceHealthAuthContext.put_test_source_health_permissions([
+        "source_health:read",
+        "source_health:recheck"
+      ])
       |> get("/admin/source-health/#{@source_key}")
       |> response(200)
 
@@ -103,7 +106,10 @@ defmodule DisclosureAutomation.SourceHealthInternalUiRecheckActionTest do
   test "unknown source has no enabled recheck action", %{conn: conn} do
     response =
       conn
-      |> SourceHealthAuthContext.put_test_source_health_permissions(["source_health:recheck"])
+      |> SourceHealthAuthContext.put_test_source_health_permissions([
+        "source_health:read",
+        "source_health:recheck"
+      ])
       |> get("/admin/source-health/#{@missing_source_key}")
       |> response(404)
 
@@ -121,7 +127,10 @@ defmodule DisclosureAutomation.SourceHealthInternalUiRecheckActionTest do
   test "recheck action state does not expose forbidden material", %{conn: conn} do
     response =
       conn
-      |> SourceHealthAuthContext.put_test_source_health_permissions(["source_health:recheck"])
+      |> SourceHealthAuthContext.put_test_source_health_permissions([
+        "source_health:read",
+        "source_health:recheck"
+      ])
       |> get("/admin/source-health/#{@source_key}")
       |> response(200)
 
