@@ -25,7 +25,10 @@ defmodule DisclosureAutomation.Repo.Migrations.CreateDomainEventTables do
 
     create table(:domain_event_dispatches, primary_key: false) do
       add :id, :uuid, primary_key: true, default: fragment("gen_random_uuid()")
-      add :domain_event_id, references(:domain_events, type: :uuid, on_delete: :delete_all), null: false
+
+      add :domain_event_id, references(:domain_events, type: :uuid, on_delete: :delete_all),
+        null: false
+
       add :consumer_key, :string, null: false
       add :status, :string, default: "pending", null: false
       add :attempts, :integer, default: 0, null: false
