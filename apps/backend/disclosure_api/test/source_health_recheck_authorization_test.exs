@@ -2,6 +2,7 @@ defmodule DisclosureAutomation.SourceHealthRecheckAuthorizationTest do
   use DisclosureAutomationWeb.ConnCase, async: false
 
   alias DisclosureAutomation.Sources
+  alias DisclosureAutomationWeb.SourceHealthAuthContext
 
   @source_key "source_health_recheck_auth_fixture"
   @missing_source_key "source_health_recheck_auth_missing_source"
@@ -35,7 +36,8 @@ defmodule DisclosureAutomation.SourceHealthRecheckAuthorizationTest do
   test "read-only actor cannot trigger recheck for an existing source", %{conn: conn} do
     response =
       conn
-      |> post("/api/admin/source-health/#{@source_key}/recheck", read_only_actor_payload())
+      |> put_read_only_auth_context()
+      |> post("/api/admin/source-health/#{@source_key}/recheck", bounded_actor_payload())
       |> json_response(403)
 
     assert response == %{
@@ -52,6 +54,7 @@ defmodule DisclosureAutomation.SourceHealthRecheckAuthorizationTest do
   test "request body operation override cannot bypass read-only recheck denial", %{conn: conn} do
     response =
       conn
+      |> put_read_only_auth_context()
       |> post("/api/admin/source-health/#{@source_key}/recheck", read_only_override_payload())
       |> json_response(403)
 
@@ -65,7 +68,8 @@ defmodule DisclosureAutomation.SourceHealthRecheckAuthorizationTest do
   test "unknown source still returns bounded 404 before authorization denial", %{conn: conn} do
     response =
       conn
-      |> post("/api/admin/source-health/#{@missing_source_key}/recheck", read_only_actor_payload())
+      |> put_read_only_auth_context()
+      |> post("/api/admin/source-health/#{@missing_source_key}/recheck", bounded_actor_payload())
       |> json_response(404)
 
     assert response == %{
@@ -79,9 +83,19 @@ defmodule DisclosureAutomation.SourceHealthRecheckAuthorizationTest do
     refute_private_material(response)
   end
 
+  defp put_read_only_auth_context(conn) do
+    conn
+    |> SourceHealthAuthContext.put_test_source_health_permissions("source_health:read")
+    |> SourceHealthAuthContext.put_test_source_health_actor("sha256:operator-001")
+    |> SourceHealthAuthContext.put_test_source_health_request("sha256:request-001")
+    |> SourceHealthAuthContext.put_test_source_health_session("sha256:session-001")
+    |> SourceHealthAuthContext.put_test_source_health_roles(["source_health_viewer"])
+  end
+
   defp read_only_override_payload do
-    read_only_actor_payload()
+    bounded_actor_payload()
     |> Map.merge(%{
+      "actor_permissions" => ["source_health:recheck"],
       "operation" => "poll",
       "action_operation" => "materialize",
       "route_operation" => "canonicalize",
@@ -91,12 +105,8 @@ defmodule DisclosureAutomation.SourceHealthRecheckAuthorizationTest do
     })
   end
 
-  defp read_only_actor_payload do
+  defp bounded_actor_payload do
     %{
-      "actor_id_hash" => "sha256:operator-001",
-      "actor_permissions" => ["source_health:read"],
-      "roles" => ["operator"],
-      "request_id_hash" => "sha256:request-001",
       "idempotency_key_hash" => "sha256:idempotency-001",
       "reason_redacted" => "REDACTED_SOURCE_HEALTH_REASON",
       "redaction_status" => "passed",
