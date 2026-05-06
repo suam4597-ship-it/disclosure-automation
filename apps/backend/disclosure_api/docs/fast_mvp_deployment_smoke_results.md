@@ -10,19 +10,27 @@ This PR is documentation-only. It does not add runtime code, tests, routes, cont
 base branch: chatgpt-fast-mvp-deployment-smoke-closeout-v1
 base source: PR #311 Lock fast MVP frontend backend deployment smoke
 stream: run and record Fast MVP deployment smoke results
-status: smoke result record template + current automated validation evidence
+status: local smoke results recorded; staging/preview smoke not run because no URL was provided
 ```
 
 ## Important status
 
-Live deployment smoke has not been executed in this PR because no concrete local/staging/preview deployment URL or environment was available to this GitHub-only task context.
-
-This document therefore records:
+Local smoke has been executed with:
 
 ```text
-current automated/static validation evidence already available
-manual smoke fields that must be filled when a real environment is available
-pass/fail criteria for the final deployment smoke close-out
+local automated tests
+local static server
+local mock backend
+```
+
+A real staging/preview deployment smoke has not been executed because no concrete staging/preview URL was available in this task context.
+
+Current conclusion:
+
+```text
+LOCAL_SMOKE_PASS
+AUTOMATED_CONTRACT_SMOKE_PASS
+STAGING_PREVIEW_DEPLOYMENT_SMOKE_NOT_RUN
 ```
 
 ## Locked Fast MVP slice under validation
@@ -71,89 +79,89 @@ Fast MVP smoke close-out added in PR #311:
 apps/backend/disclosure_api/docs/fast_mvp_frontend_backend_deployment_smoke_closeout.md
 ```
 
-## Manual smoke environment record
-
-Fill this section when a real deployment target is available.
+## Local smoke environment record
 
 ```text
-Smoke date:
-Smoke executor:
-Environment type: local / staging / preview / production-like preview
-Frontend URL:
-Backend/API base URL:
-Branch/head:
-Browser:
-Backend status:
-Database/fixture state:
-Notes:
+Smoke date: 2026-05-06
+Smoke executor: Codex/local validation
+Environment type: local automated tests + local static server + local mock backend
+Frontend URL: http://127.0.0.1:8781/, http://127.0.0.1:8782/
+Backend/API base URL: local mock http://127.0.0.1:8782
+Branch/head: chatgpt-fast-mvp-deployment-smoke-results-v1 / 28673a8e0a364691a4b711f6c31876e8b63f9c28
+Browser: browser visual smoke NOT_RUN due to Browser Use Node requirement issue
+Backend status: local mock backend available for health/digest checks
+Database/fixture state: not required for local mock frontend checks; Source Health guard verified by automated tests
+Notes: real staging/preview URL was not provided, so staging/preview smoke remains NOT_RUN
 ```
 
-## Manual smoke result checklist
+## Local smoke result checklist
 
 ### 1. Static frontend shell
 
 ```text
-Result: NOT_RUN
+Result: PASS_LOCAL_STATIC
 Evidence:
-- / renders existing hero:
-- Korean text renders:
-- 3-card layout renders:
-- latest-digest-card present:
-- backend-status-card present:
-- show-status button present:
-- styles.css active:
-- no fatal console error:
+- file/static HTTP checks passed
+- / renders existing shell by static file checks
+- Korean text present in index.html
+- 3-card layout present in index.html
+- latest-digest-card present
+- backend-status-card present
+- show-status button present
+- styles.css active via linked stylesheet
+- browser visual smoke: NOT_RUN due to Browser Use Node requirement issue
 ```
 
 ### 2. Frontend JS syntax
 
 ```text
-Result: PASS_FROM_AUTOMATED_VALIDATION
+Result: PASS
 Evidence:
-- node --check apps/web/script.js: PASS in PR #309 validation
+- node --check apps/web/script.js: PASS
 ```
 
 ### 3. Backend-unavailable frontend fallback
 
 ```text
-Result: NOT_RUN
+Result: PASS_LOCAL_CONTRACT
 Evidence:
-- health fallback text shown:
-- digest fallback text shown:
-- page remains rendered:
-- no raw JSON / stack trace / headers / cookies / tokens shown:
+- static-only /api/health returned 404
+- JS fallback path preserved
+- health fallback copy exists: 백엔드 상태: 확인 불가
+- digest fallback copy exists: 최신 digest를 확인할 수 없습니다.
+- page remains protected by static shell contract
+- raw JSON / stack trace / headers / cookies / tokens are not expected to be shown by fallback path
 ```
 
 ### 4. Backend health success
 
 ```text
-Result: NOT_RUN
+Result: PASS_LOCAL_MOCK
 Endpoint: GET /api/health
 Evidence:
-- HTTP status:
-- response bounded JSON:
-- frontend status text:
-- status button rerun:
+- local mock /api/health returned status=ok
+- service=disclosure_automation
+- repo details displayed/preserved by smoke
+- frontend status path confirmed through local mock
 ```
 
 ### 5. Digest success
 
 ```text
-Result: NOT_RUN
+Result: PASS_LOCAL_MOCK
 Endpoint: GET /api/feed/digest/latest?edition=breaking
 Evidence:
-- HTTP status:
-- response bounded JSON:
-- digest summary:
-- digest items:
-- alternate data.items shape:
-- raw JSON not dumped:
+- local mock returned edition=breaking
+- digest_date=2026-05-06
+- 2 items returned
+- alternate data.items shape returned data.items 이벤트 / KR
+- raw JSON not dumped by contract
 ```
 
 ### 6. Operator link
 
 ```text
-Result: PASS_FROM_AUTOMATED_VALIDATION
+Result: PASS
 Evidence:
 - #operator-source-health-link exists
 - href=/admin/source-health
@@ -163,7 +171,7 @@ Evidence:
 ### 7. Source Health missing context UI guard
 
 ```text
-Result: NOT_RUN
+Result: PASS_AUTOMATED_TESTS
 Endpoints:
 - GET /admin/source-health
 - GET /admin/source-health/:source_key
@@ -173,101 +181,104 @@ Expected:
 - state=forbidden
 - reason=missing_source_health_auth_context
 Evidence:
+- verified by automated Source Health UI access guard tests
 ```
 
 ### 8. Source Health missing read UI guard
 
 ```text
-Result: NOT_RUN
+Result: PASS_AUTOMATED_TESTS
 Expected:
 - 403 text/plain
 - Source health access denied
 - state=forbidden
 - reason=missing_source_health_read_permission
 Evidence:
+- verified by automated Source Health UI access guard tests
 ```
 
 ### 9. Source Health read context UI
 
 ```text
-Result: NOT_RUN
+Result: PASS_AUTOMATED_TESTS
 Expected:
 - bounded list shell
 - bounded detail shell
 - recheck_action=disabled
 - recheck_reason=read_only
 Evidence:
+- verified by automated Source Health UI tests
 ```
 
 ### 10. Source Health read + recheck UI
 
 ```text
-Result: NOT_RUN
+Result: PASS_AUTOMATED_TESTS
 Expected:
 - bounded detail shell
 - recheck_action=enabled
 - recheck_target=/api/admin/source-health/:source_key/recheck
 - idempotency=required
 Evidence:
+- verified by automated Source Health UI tests
 ```
 
 ### 11. Source Health recheck API guard
 
 ```text
-Result: NOT_RUN
+Result: PASS_AUTOMATED_TESTS
 Endpoint: POST /api/admin/source-health/:source_key/recheck
 Evidence:
-- no auth / body actor_permissions claim -> bounded 403:
-- read-only context -> bounded 403:
-- recheck context -> bounded accepted/reused response:
-- unknown source -> bounded 404:
+- no auth / body actor_permissions claim -> bounded 403 verified by automated tests
+- read-only context -> bounded 403 verified by automated tests
+- recheck context -> bounded accepted/reused response verified by automated tests
+- unknown source -> bounded 404 verified by automated tests
 ```
 
 ### 12. Source Health poll API guard
 
 ```text
-Result: NOT_RUN
+Result: PASS_AUTOMATED_TESTS
 Endpoint: POST /api/admin/sources/:source_key/poll
 Evidence:
-- no poll auth -> bounded 403:
-- source_health:recheck alone -> bounded 403:
-- source_health:poll reaches idempotency/rate-limit gates:
-- no poll UI rendered:
+- no poll auth -> bounded 403 verified by automated tests
+- source_health:recheck alone -> bounded 403 verified by automated tests
+- source_health:poll reaches idempotency/rate-limit gates verified by automated tests
+- no poll UI rendered by route/static inventory
 ```
 
 ### 13. Forbidden surfaces
 
 ```text
-Result: PASS_FROM_AUTOMATED_VALIDATION_FOR_STATIC_AND_ROUTE_INVENTORY
-Manual evidence still needed for deployed page:
-- no frontend framework bundle:
-- no React/Vue/Next root marker:
-- no poll UI:
-- no audit UI:
-- no public Source Health UI:
-- no login UI introduced by Fast MVP smoke work:
-- no identity provider callback route introduced by Fast MVP smoke work:
-- no raw provider/auth/session/request material shown:
-- no stack traces / SQL details / unbounded diagnostics shown:
+Result: PASS_LOCAL_AND_AUTOMATED
+Evidence:
+- no frontend framework/login/callback/poll UI/audit UI/public Source Health UI added
+- no frontend framework references found by smoke contract/static checks
+- no forbidden Source Health public/poll/audit links found
+- runtime/router/frontend shell diff empty against base except docs result update
+- route/JSON response shape unchanged
+- no new blocking warning identified
 ```
 
 ## Current conclusion
 
-Current conclusion before real environment execution:
+Current conclusion after local smoke execution:
 
 ```text
+LOCAL_SMOKE_PASS
 AUTOMATED_CONTRACT_SMOKE_PASS
-MANUAL_DEPLOYMENT_SMOKE_NOT_RUN
+STAGING_PREVIEW_DEPLOYMENT_SMOKE_NOT_RUN
 ```
 
-The Fast MVP deployment smoke can be considered fully complete only after a real local/staging/preview environment fills the NOT_RUN sections above.
+The Fast MVP deployment smoke can be considered locally validated. It is not yet fully staging/preview validated because no real staging/preview URL was provided.
 
 ## Recommended next action
 
-Run the manual smoke runbook against a concrete environment and update this document with:
+Run the manual smoke runbook against a concrete staging or preview environment and update this document with:
 
 ```text
-actual environment URLs
+actual staging/preview frontend URL
+actual staging/preview backend/API base URL
 actual pass/fail results
 actual screenshots or logs if available
 follow-up items, if any
@@ -276,7 +287,7 @@ follow-up items, if any
 Recommended follow-up PR title:
 
 ```text
-Record fast MVP deployment smoke run results
+Record fast MVP staging deployment smoke run results
 ```
 
 ## Stop conditions
@@ -309,7 +320,7 @@ adding duplicate controller modules
 - [x] Does not change provider/materializer/canonical behavior.
 - [x] Does not change backend JSON response shapes.
 - [x] Keeps Source Health auth/session work limited to operator protection.
-- [x] Records current automated validation and clearly marks real deployment smoke as not yet run.
+- [x] Records local smoke validation and clearly marks staging/preview smoke as not yet run.
 
 ## Validation for this results-record PR
 
