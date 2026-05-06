@@ -39,33 +39,38 @@ defmodule DisclosureAutomation.SourceHealthPermissionParamFallbackGateTest do
     :ok
   end
 
-  test "test config keeps legacy request-param fallback available for compatibility", %{conn: conn} do
+  test "test config keeps legacy request-param fallback available for compatibility when read context exists", %{conn: conn} do
     Application.put_env(:disclosure_automation, :source_health_permission_param_fallback, :test_only)
 
     response =
       conn
+      |> SourceHealthAuthContext.put_test_source_health_permissions(["source_health:read"])
       |> get("/admin/source-health/#{@source_key}?actor_permissions=source_health:recheck")
       |> response(200)
 
     assert SourceHealthAuthContext.request_param_fallback_mode() == :test_only
     assert SourceHealthAuthContext.request_param_fallback_enabled?()
-    assert response =~ "recheck_action=enabled"
-    assert response =~ "recheck_target=/api/admin/source-health/#{@source_key}/recheck"
+    assert response =~ "recheck_action=disabled"
+    assert response =~ "recheck_reason=read_only"
+    refute response =~ "recheck_action=enabled"
   end
 
-  test "disabled fallback ignores query actor_permissions for UI action state", %{conn: conn} do
+  test "disabled fallback ignores query actor_permissions before UI access guard", %{conn: conn} do
     Application.put_env(:disclosure_automation, :source_health_permission_param_fallback, :disabled)
 
     response =
       conn
       |> get("/admin/source-health/#{@source_key}?actor_permissions=source_health:recheck")
-      |> response(200)
+      |> response(403)
 
     assert SourceHealthAuthContext.request_param_fallback_mode() == :disabled
     refute SourceHealthAuthContext.request_param_fallback_enabled?()
-    assert response =~ "recheck_action=not_rendered"
-    assert response =~ "poll_action=not_rendered"
-    assert response =~ "audit_ui=not_rendered"
+    assert response == Enum.join([
+             "Source health access denied",
+             "state=forbidden",
+             "reason=missing_source_health_auth_context"
+           ], "\n")
+
     refute response =~ "recheck_action=enabled"
     refute response =~ "recheck_target=/api/admin/source-health/#{@source_key}/recheck"
   end
@@ -122,17 +127,17 @@ defmodule DisclosureAutomation.SourceHealthPermissionParamFallbackGateTest do
     refute_private_material(response)
   end
 
-  test "unknown fallback mode fails closed", %{conn: conn} do
+  test "unknown fallback mode fails closed before UI access guard", %{conn: conn} do
     Application.put_env(:disclosure_automation, :source_health_permission_param_fallback, :unknown_mode)
 
     response =
       conn
       |> get("/admin/source-health/#{@source_key}?actor_permissions=source_health:recheck")
-      |> response(200)
+      |> response(403)
 
     assert SourceHealthAuthContext.request_param_fallback_mode() == :disabled
     refute SourceHealthAuthContext.request_param_fallback_enabled?()
-    assert response =~ "recheck_action=not_rendered"
+    assert response =~ "reason=missing_source_health_auth_context"
     refute response =~ "recheck_action=enabled"
   end
 
