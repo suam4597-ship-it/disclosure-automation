@@ -2,6 +2,7 @@ defmodule DisclosureAutomation.SourceHealthInternalUiListShellTest do
   use DisclosureAutomationWeb.ConnCase, async: false
 
   alias DisclosureAutomation.Sources
+  alias DisclosureAutomationWeb.SourceHealthAuthContext
 
   @source_key "source_health_ui_list_shell_fixture"
 
@@ -34,6 +35,7 @@ defmodule DisclosureAutomation.SourceHealthInternalUiListShellTest do
   test "GET /admin/source-health renders bounded source health list shell", %{conn: conn} do
     response =
       conn
+      |> read_only_source_health_context()
       |> get("/admin/source-health")
       |> response(200)
 
@@ -50,6 +52,7 @@ defmodule DisclosureAutomation.SourceHealthInternalUiListShellTest do
   test "GET /admin/source-health list shell does not render action controls", %{conn: conn} do
     response =
       conn
+      |> read_only_source_health_context()
       |> get("/admin/source-health")
       |> response(200)
 
@@ -66,10 +69,15 @@ defmodule DisclosureAutomation.SourceHealthInternalUiListShellTest do
   test "GET /admin/source-health list shell does not expose forbidden material", %{conn: conn} do
     response =
       conn
+      |> read_only_source_health_context()
       |> get("/admin/source-health")
       |> response(200)
 
     refute_forbidden_material(response)
+  end
+
+  defp read_only_source_health_context(conn) do
+    SourceHealthAuthContext.put_test_source_health_permissions(conn, ["source_health:read"])
   end
 
   defp refute_forbidden_material(response) do
