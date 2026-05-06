@@ -201,7 +201,7 @@ defmodule DisclosureAutomation.SourceHealthRealUpstreamAuthProviderIntegrationCo
   test "query body header cookie and token fields are not source health provider authority" do
     for field <- @forbidden_source_health_authority_fields do
       refute field in Enum.map(@provider_output_assigns, &Atom.to_string/1)
-      refute_forbidden_fragments(field)
+      refute_downstream_controls(field)
     end
   end
 
