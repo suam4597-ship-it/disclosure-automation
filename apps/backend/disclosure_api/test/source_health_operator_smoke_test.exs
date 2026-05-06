@@ -36,6 +36,7 @@ defmodule DisclosureAutomation.SourceHealthOperatorSmokeTest do
   test "operator can triage source health from the bounded list shell", %{conn: conn} do
     response =
       conn
+      |> SourceHealthAuthContext.put_test_source_health_permissions(["source_health:read"])
       |> get("/admin/source-health")
       |> response(200)
 
@@ -60,7 +61,7 @@ defmodule DisclosureAutomation.SourceHealthOperatorSmokeTest do
   test "operator with recheck auth context sees bounded detail recheck contract", %{conn: conn} do
     response =
       conn
-      |> SourceHealthAuthContext.put_test_source_health_permissions(["source_health:recheck"])
+      |> SourceHealthAuthContext.put_test_source_health_permissions(["source_health:read", "source_health:recheck"])
       |> get("/admin/source-health/#{@source_key}")
       |> response(200)
 
@@ -151,7 +152,7 @@ defmodule DisclosureAutomation.SourceHealthOperatorSmokeTest do
   test "unknown source detail and backend recheck attempt stay bounded", %{conn: conn} do
     detail_response =
       conn
-      |> SourceHealthAuthContext.put_test_source_health_permissions(["source_health:recheck"])
+      |> SourceHealthAuthContext.put_test_source_health_permissions(["source_health:read", "source_health:recheck"])
       |> get("/admin/source-health/#{@missing_source_key}")
       |> response(404)
 
