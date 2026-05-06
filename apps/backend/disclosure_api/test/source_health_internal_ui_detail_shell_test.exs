@@ -2,6 +2,7 @@ defmodule DisclosureAutomation.SourceHealthInternalUiDetailShellTest do
   use DisclosureAutomationWeb.ConnCase, async: false
 
   alias DisclosureAutomation.Sources
+  alias DisclosureAutomationWeb.SourceHealthAuthContext
 
   @source_key "source_health_ui_detail_shell_fixture"
   @missing_source_key "source_health_ui_detail_shell_missing"
@@ -35,6 +36,7 @@ defmodule DisclosureAutomation.SourceHealthInternalUiDetailShellTest do
   test "GET /admin/source-health/:source_key renders bounded detail shell", %{conn: conn} do
     response =
       conn
+      |> read_only_source_health_context()
       |> get("/admin/source-health/#{@source_key}")
       |> response(200)
 
@@ -53,6 +55,7 @@ defmodule DisclosureAutomation.SourceHealthInternalUiDetailShellTest do
   test "GET /admin/source-health/:source_key renders bounded not found state", %{conn: conn} do
     response =
       conn
+      |> read_only_source_health_context()
       |> get("/admin/source-health/#{@missing_source_key}")
       |> response(404)
 
@@ -66,13 +69,14 @@ defmodule DisclosureAutomation.SourceHealthInternalUiDetailShellTest do
   test "GET /admin/source-health/:source_key detail shell does not render action controls", %{conn: conn} do
     response =
       conn
+      |> read_only_source_health_context()
       |> get("/admin/source-health/#{@source_key}")
       |> response(200)
 
-    assert response =~ "recheck_action=not_rendered"
-    assert response =~ "poll_action=not_rendered"
-    assert response =~ "audit_ui=not_rendered"
+    assert response =~ "recheck_action=disabled"
+    assert response =~ "recheck_reason=read_only"
 
+    refute response =~ "recheck_action=enabled"
     refute response =~ "button"
     refute response =~ "POST /api/admin/source-health"
     refute response =~ "POST /api/admin/sources"
@@ -82,10 +86,15 @@ defmodule DisclosureAutomation.SourceHealthInternalUiDetailShellTest do
   test "GET /admin/source-health/:source_key detail shell does not expose forbidden material", %{conn: conn} do
     response =
       conn
+      |> read_only_source_health_context()
       |> get("/admin/source-health/#{@source_key}")
       |> response(200)
 
     refute_forbidden_material(response)
+  end
+
+  defp read_only_source_health_context(conn) do
+    SourceHealthAuthContext.put_test_source_health_permissions(conn, ["source_health:read"])
   end
 
   defp refute_forbidden_material(response) do
