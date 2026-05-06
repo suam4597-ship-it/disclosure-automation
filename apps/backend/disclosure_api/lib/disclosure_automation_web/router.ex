@@ -17,6 +17,10 @@ defmodule DisclosureAutomationWeb.Router do
     plug DisclosureAutomationWeb.SourceHealthProductionAuthContext
   end
 
+  pipeline :source_health_internal_ui_access_guard do
+    plug DisclosureAutomationWeb.SourceHealthInternalUiAccessGuard
+  end
+
   pipeline :source_health_recheck_authorization do
     plug DisclosureAutomationWeb.SourceHealthRecheckAuthorization
   end
@@ -41,7 +45,8 @@ defmodule DisclosureAutomationWeb.Router do
       :browser,
       :source_health_upstream_auth_provider_adapter,
       :source_health_upstream_auth_handoff,
-      :source_health_production_auth_context
+      :source_health_production_auth_context,
+      :source_health_internal_ui_access_guard
     ]
 
     get "/source-health", AdminSourceHealthUiController, :index
