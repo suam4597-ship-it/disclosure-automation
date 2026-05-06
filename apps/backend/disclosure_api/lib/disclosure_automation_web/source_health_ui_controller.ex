@@ -76,8 +76,8 @@ defmodule DisclosureAutomationWeb.AdminSourceHealthUiController do
   end
 
   defp recheck_action_state(source_key, conn, params) do
-    if permission_state_requested?(conn, params) do
-      permissions = actor_permissions(conn, params)
+    if SourceHealthAuthContext.permission_state_requested?(conn, params) do
+      permissions = SourceHealthAuthContext.permissions_for_authorization(conn, params)
 
       if "source_health:recheck" in permissions do
         [
@@ -110,36 +110,13 @@ defmodule DisclosureAutomationWeb.AdminSourceHealthUiController do
   end
 
   defp legacy_unwired_action_state(conn, params) do
-    if permission_state_requested?(conn, params) do
+    if SourceHealthAuthContext.permission_state_requested?(conn, params) do
       []
     else
       [
         "poll_action=not_rendered",
         "audit_ui=not_rendered"
       ]
-    end
-  end
-
-  defp permission_state_requested?(conn, params) do
-    SourceHealthAuthContext.source_health_auth_context_available?(conn) ||
-      Map.has_key?(params, "actor_permissions")
-  end
-
-  defp actor_permissions(conn, params) do
-    if SourceHealthAuthContext.source_health_auth_context_available?(conn) do
-      conn
-      |> SourceHealthAuthContext.fetch_source_health_auth_context()
-      |> Map.get(:actor_permissions, [])
-    else
-      request_param_actor_permissions(params)
-    end
-  end
-
-  defp request_param_actor_permissions(params) do
-    case Map.get(params, "actor_permissions") do
-      permissions when is_list(permissions) -> permissions
-      permission when is_binary(permission) -> [permission]
-      _ -> []
     end
   end
 
