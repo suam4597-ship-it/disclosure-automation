@@ -5,6 +5,7 @@ defmodule DisclosureAutomationWeb.SourceHealthRecheckAuthorization do
   import Phoenix.Controller, only: [json: 2]
 
   alias DisclosureAutomation.Sources
+  alias DisclosureAutomationWeb.SourceHealthAuthContext
   alias DisclosureAutomationWeb.SourceHealthJSON
 
   @recheck_permission "source_health:recheck"
@@ -17,7 +18,7 @@ defmodule DisclosureAutomationWeb.SourceHealthRecheckAuthorization do
         authorize_recheck(conn)
 
       {:error, :not_found} ->
-        Sources.record_source_health_recheck_audit(source_key, conn.params, "not_found", "none")
+        Sources.record_source_health_recheck_audit(source_key, auth_params(conn), "not_found", "none")
 
         conn
         |> put_status(:not_found)
@@ -29,10 +30,10 @@ defmodule DisclosureAutomationWeb.SourceHealthRecheckAuthorization do
   def call(conn, _opts), do: authorize_recheck(conn)
 
   defp authorize_recheck(%Plug.Conn{params: %{"source_key" => source_key}} = conn) do
-    if recheck_allowed?(conn.params) do
+    if recheck_allowed?(conn) do
       conn
     else
-      Sources.record_source_health_recheck_audit(source_key, conn.params, "forbidden", "none")
+      Sources.record_source_health_recheck_audit(source_key, auth_params(conn), "forbidden", "none")
 
       conn
       |> put_status(:forbidden)
@@ -42,7 +43,7 @@ defmodule DisclosureAutomationWeb.SourceHealthRecheckAuthorization do
   end
 
   defp authorize_recheck(conn) do
-    if recheck_allowed?(conn.params) do
+    if recheck_allowed?(conn) do
       conn
     else
       conn
@@ -52,8 +53,28 @@ defmodule DisclosureAutomationWeb.SourceHealthRecheckAuthorization do
     end
   end
 
-  defp recheck_allowed?(%{"actor_permissions" => permissions}) when is_list(permissions),
+  defp recheck_allowed?(conn) do
+    if SourceHealthAuthContext.source_health_auth_context_available?(conn) do
+      conn
+      |> SourceHealthAuthContext.fetch_source_health_auth_context()
+      |> SourceHealthAuthContext.has_permission?(@recheck_permission)
+    else
+      recheck_allowed_from_params?(conn.params)
+    end
+  end
+
+  defp recheck_allowed_from_params?(%{"actor_permissions" => permissions}) when is_list(permissions),
     do: @recheck_permission in permissions
 
-  defp recheck_allowed?(_params), do: false
+  defp recheck_allowed_from_params?(_params), do: false
+
+  defp auth_params(conn) do
+    if SourceHealthAuthContext.source_health_auth_context_available?(conn) do
+      conn
+      |> SourceHealthAuthContext.fetch_source_health_auth_context()
+      |> SourceHealthAuthContext.to_param_map()
+    else
+      conn.params
+    end
+  end
 end
