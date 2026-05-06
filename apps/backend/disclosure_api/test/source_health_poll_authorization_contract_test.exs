@@ -2,6 +2,7 @@ defmodule DisclosureAutomation.SourceHealthPollAuthorizationContractTest do
   use DisclosureAutomationWeb.ConnCase, async: false
 
   alias DisclosureAutomation.Sources
+  alias DisclosureAutomationWeb.SourceHealthAuthContext
 
   @source_key "source_health_poll_authorization_fixture"
   @missing_source_key "source_health_poll_authorization_missing"
@@ -35,7 +36,8 @@ defmodule DisclosureAutomation.SourceHealthPollAuthorizationContractTest do
   test "read-only actor cannot poll an existing source", %{conn: conn} do
     response =
       conn
-      |> post("/api/admin/sources/#{@source_key}/poll", read_only_payload())
+      |> put_auth_context(["source_health:read"])
+      |> post("/api/admin/sources/#{@source_key}/poll", bounded_operator_payload())
       |> json_response(403)
 
     assert_forbidden_poll_response(response)
@@ -46,7 +48,8 @@ defmodule DisclosureAutomation.SourceHealthPollAuthorizationContractTest do
   test "recheck-only actor cannot poll an existing source", %{conn: conn} do
     response =
       conn
-      |> post("/api/admin/sources/#{@source_key}/poll", recheck_only_payload())
+      |> put_auth_context(["source_health:recheck"])
+      |> post("/api/admin/sources/#{@source_key}/poll", bounded_operator_payload())
       |> json_response(403)
 
     assert_forbidden_poll_response(response)
@@ -57,7 +60,8 @@ defmodule DisclosureAutomation.SourceHealthPollAuthorizationContractTest do
   test "missing actor permission cannot poll an existing source", %{conn: conn} do
     response =
       conn
-      |> post("/api/admin/sources/#{@source_key}/poll", missing_permission_payload())
+      |> put_auth_context([])
+      |> post("/api/admin/sources/#{@source_key}/poll", bounded_operator_payload())
       |> json_response(403)
 
     assert_forbidden_poll_response(response)
@@ -68,6 +72,7 @@ defmodule DisclosureAutomation.SourceHealthPollAuthorizationContractTest do
   test "request body override cannot bypass poll authorization", %{conn: conn} do
     response =
       conn
+      |> put_auth_context(["source_health:read"])
       |> post("/api/admin/sources/#{@source_key}/poll", unsafe_override_payload())
       |> json_response(403)
 
@@ -77,10 +82,11 @@ defmodule DisclosureAutomation.SourceHealthPollAuthorizationContractTest do
     refute_poll_runtime_material(response)
   end
 
-  test "unknown source remains bounded not found", %{conn: conn} do
+  test "unknown source still returns bounded not found", %{conn: conn} do
     response =
       conn
-      |> post("/api/admin/sources/#{@missing_source_key}/poll", poll_actor_payload())
+      |> put_auth_context(["source_health:poll"])
+      |> post("/api/admin/sources/#{@missing_source_key}/poll", bounded_operator_payload())
       |> json_response(404)
 
     assert response == %{
@@ -97,6 +103,7 @@ defmodule DisclosureAutomation.SourceHealthPollAuthorizationContractTest do
   test "forbidden poll response does not expose raw private canonical material", %{conn: conn} do
     response =
       conn
+      |> put_auth_context(["source_health:read"])
       |> post("/api/admin/sources/#{@source_key}/poll", unsafe_override_payload())
       |> json_response(403)
 
@@ -113,25 +120,19 @@ defmodule DisclosureAutomation.SourceHealthPollAuthorizationContractTest do
            }
   end
 
-  defp read_only_payload do
-    bounded_operator_payload(["source_health:read"])
-  end
-
-  defp recheck_only_payload do
-    bounded_operator_payload(["source_health:recheck"])
-  end
-
-  defp poll_actor_payload do
-    bounded_operator_payload(["source_health:poll"])
-  end
-
-  defp missing_permission_payload do
-    bounded_operator_payload([])
+  defp put_auth_context(conn, permissions) do
+    conn
+    |> SourceHealthAuthContext.put_test_source_health_permissions(permissions)
+    |> SourceHealthAuthContext.put_test_source_health_actor("sha256:operator-poll-auth-001")
+    |> SourceHealthAuthContext.put_test_source_health_request("sha256:request-poll-auth-001")
+    |> SourceHealthAuthContext.put_test_source_health_session("sha256:session-poll-auth-001")
+    |> SourceHealthAuthContext.put_test_source_health_roles(["source_health_operator"])
   end
 
   defp unsafe_override_payload do
-    read_only_payload()
+    bounded_operator_payload()
     |> Map.merge(%{
+      "actor_permissions" => ["source_health:poll"],
       "operation" => "poll",
       "action_operation" => "provider_fetch",
       "route_operation" => "canonicalize",
@@ -147,11 +148,8 @@ defmodule DisclosureAutomation.SourceHealthPollAuthorizationContractTest do
     })
   end
 
-  defp bounded_operator_payload(actor_permissions) do
+  defp bounded_operator_payload do
     %{
-      "actor_id_hash" => "sha256:operator-poll-auth-001",
-      "actor_permissions" => actor_permissions,
-      "request_id_hash" => "sha256:request-poll-auth-001",
       "idempotency_key_hash" => "sha256:idempotency-poll-auth-001",
       "reason_redacted" => "REDACTED_SOURCE_HEALTH_POLL_REASON",
       "redaction_status" => "passed",
