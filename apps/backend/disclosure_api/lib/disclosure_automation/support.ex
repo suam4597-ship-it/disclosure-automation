@@ -105,7 +105,7 @@ end
 defmodule DisclosureAutomation.Http do
   @moduledoc false
 
-  @default_headers [{'user-agent', 'disclosure-automation-phase1'}]
+  @default_headers [{~c"user-agent", ~c"disclosure-automation-phase1"}]
 
   def fetch(url, opts \\ []) when is_binary(url) do
     timeout = Keyword.get(opts, :timeout, 8_000)
