@@ -5,6 +5,10 @@ defmodule DisclosureAutomationWeb.Router do
     plug :accepts, ["json"]
   end
 
+  pipeline :source_health_upstream_auth_handoff do
+    plug DisclosureAutomationWeb.SourceHealthUpstreamAuthHandoff
+  end
+
   pipeline :source_health_production_auth_context do
     plug DisclosureAutomationWeb.SourceHealthProductionAuthContext
   end
@@ -29,7 +33,7 @@ defmodule DisclosureAutomationWeb.Router do
   end
 
   scope "/admin", DisclosureAutomationWeb do
-    pipe_through [:browser, :source_health_production_auth_context]
+    pipe_through [:browser, :source_health_upstream_auth_handoff, :source_health_production_auth_context]
 
     get "/source-health", AdminSourceHealthUiController, :index
     get "/source-health/:source_key", AdminSourceHealthUiController, :show
@@ -57,20 +61,30 @@ defmodule DisclosureAutomationWeb.Router do
   end
 
   scope "/api/admin/source-health", DisclosureAutomationWeb do
-    pipe_through [:api, :source_health_production_auth_context]
+    pipe_through [:api, :source_health_upstream_auth_handoff, :source_health_production_auth_context]
 
     get "/", AdminSourceHealthController, :index
     get "/:source_key", AdminSourceHealthController, :show
   end
 
   scope "/api/admin/source-health", DisclosureAutomationWeb do
-    pipe_through [:api, :source_health_production_auth_context, :source_health_recheck_authorization]
+    pipe_through [
+      :api,
+      :source_health_upstream_auth_handoff,
+      :source_health_production_auth_context,
+      :source_health_recheck_authorization
+    ]
 
     post "/:source_key/recheck", AdminSourceHealthController, :recheck
   end
 
   scope "/api/admin/sources", DisclosureAutomationWeb do
-    pipe_through [:api, :source_health_production_auth_context, :source_health_poll_authorization]
+    pipe_through [
+      :api,
+      :source_health_upstream_auth_handoff,
+      :source_health_production_auth_context,
+      :source_health_poll_authorization
+    ]
 
     post "/:source_key/poll", AdminSourcePollController, :create
   end
