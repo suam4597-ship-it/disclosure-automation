@@ -17,6 +17,17 @@ status: automated validation + local staging-like smoke evidence recorded
 
 External staging/preview deployment smoke has not been executed in this PR because no concrete deployed URL was available.
 
+Deployment availability classification:
+
+```text
+deployment availability: LOCAL_PREVIEW_ONLY
+reason:
+- apps/web is static-deployable and has apps/web/vercel.json, but no Vercel project metadata, token, or environment was available locally.
+- GitHub Pages deployment workflow exists, but it targets the github-pages environment from main/phase0-foundation and is not a PR-specific staging/preview URL generator.
+- Triggering the GitHub Pages workflow from this verification would mutate an external deployment surface rather than create an isolated preview, so it was not run.
+- Phoenix backend can run locally and in CI smoke, but no external staging backend service config or required deployment credentials were available.
+```
+
 Local staging-like smoke was executed with:
 
 ```text
@@ -280,6 +291,7 @@ Current conclusion after local staging-like smoke and before external staging/pr
 
 ```text
 LOCAL_SMOKE_PASS
+LOCAL_STAGING_LIKE_SMOKE_PASS
 AUTOMATED_CONTRACT_SMOKE_PASS
 STAGING_PREVIEW_DEPLOYMENT_SMOKE_NOT_RUN
 BROWSER_VISUAL_SMOKE_NOT_RUN_NODE_REPL_VERSION
