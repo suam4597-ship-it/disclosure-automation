@@ -2,6 +2,7 @@ defmodule DisclosureAutomation.SourceHealthInternalUiRecheckSubmitFlowTest do
   use DisclosureAutomationWeb.ConnCase, async: false
 
   alias DisclosureAutomation.Sources
+  alias DisclosureAutomationWeb.SourceHealthAuthContext
 
   @source_key "source_health_ui_recheck_submit_fixture"
   @missing_source_key "source_health_ui_recheck_submit_missing"
@@ -35,7 +36,8 @@ defmodule DisclosureAutomation.SourceHealthInternalUiRecheckSubmitFlowTest do
   test "enabled detail state advertises only the bounded backend recheck submit contract", %{conn: conn} do
     response =
       conn
-      |> get("/admin/source-health/#{@source_key}?actor_permissions=source_health:recheck")
+      |> SourceHealthAuthContext.put_test_source_health_permissions(["source_health:recheck"])
+      |> get("/admin/source-health/#{@source_key}")
       |> response(200)
 
     assert response =~ "recheck_action=enabled"
@@ -77,6 +79,7 @@ defmodule DisclosureAutomation.SourceHealthInternalUiRecheckSubmitFlowTest do
   test "bounded UI payload can submit to the locked backend recheck route", %{conn: conn} do
     response =
       conn
+      |> SourceHealthAuthContext.put_test_source_health_permissions(["source_health:recheck"])
       |> post("/api/admin/source-health/#{@source_key}/recheck", bounded_recheck_payload())
       |> json_response(202)
 
@@ -87,10 +90,11 @@ defmodule DisclosureAutomation.SourceHealthInternalUiRecheckSubmitFlowTest do
     refute_private_material(response)
   end
 
-  test "bounded UI payload receives bounded forbidden result for read-only actors", %{conn: conn} do
+  test "request body actor_permissions cannot bypass explicit read-only auth context", %{conn: conn} do
     response =
       conn
-      |> post("/api/admin/source-health/#{@source_key}/recheck", read_only_payload())
+      |> SourceHealthAuthContext.put_test_source_health_permissions(["source_health:read"])
+      |> post("/api/admin/source-health/#{@source_key}/recheck", body_escalation_payload())
       |> json_response(403)
 
     assert response == %{
@@ -107,6 +111,7 @@ defmodule DisclosureAutomation.SourceHealthInternalUiRecheckSubmitFlowTest do
   test "bounded UI payload receives bounded not-found result for unknown sources", %{conn: conn} do
     response =
       conn
+      |> SourceHealthAuthContext.put_test_source_health_permissions(["source_health:recheck"])
       |> post("/api/admin/source-health/#{@missing_source_key}/recheck", bounded_recheck_payload())
       |> json_response(404)
 
@@ -133,10 +138,10 @@ defmodule DisclosureAutomation.SourceHealthInternalUiRecheckSubmitFlowTest do
     }
   end
 
-  defp read_only_payload do
+  defp body_escalation_payload do
     bounded_recheck_payload()
-    |> Map.put("actor_permissions", ["source_health:read"])
-    |> Map.put("idempotency_key_hash", "sha256:idempotency-ui-submit-read-only-001")
+    |> Map.put("actor_permissions", ["source_health:recheck"])
+    |> Map.put("idempotency_key_hash", "sha256:idempotency-ui-submit-body-escalation-001")
   end
 
   defp refute_accepted_job_response(response) do
