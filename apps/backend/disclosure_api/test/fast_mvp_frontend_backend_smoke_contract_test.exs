@@ -3,7 +3,7 @@ defmodule DisclosureAutomation.FastMvpFrontendBackendSmokeContractTest do
 
   alias DisclosureAutomationWeb.Router
 
-  @web_root Path.expand("../../web", __DIR__)
+  @web_root Path.expand("../../../web", __DIR__)
   @index_html Path.join(@web_root, "index.html")
   @styles_css Path.join(@web_root, "styles.css")
   @script_js Path.join(@web_root, "script.js")
