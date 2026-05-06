@@ -2,7 +2,9 @@ defmodule DisclosureAutomation.Canonicalizer do
   @moduledoc false
 
   def canonicalize_document(document, source, attrs \\ %{}) do
-    published_at = document[:published_at] || Map.get(document, "published_at") || DateTime.utc_now()
+    published_at =
+      document[:published_at] || Map.get(document, "published_at") || DateTime.utc_now()
+
     digest_date = Map.get(attrs, :digest_date, DateTime.to_date(published_at))
     edition = Map.get(attrs, :edition, "breaking")
     story_seed = document[:external_id] || document[:url] || document[:title] || "story"
@@ -69,7 +71,8 @@ defmodule DisclosureAutomation.Parser do
 
   alias DisclosureAutomation.ParserCapabilities
 
-  def parse(parser_key, raw_payload, opts \\ []) when is_binary(parser_key) and is_binary(raw_payload) do
+  def parse(parser_key, raw_payload, opts \\ [])
+      when is_binary(parser_key) and is_binary(raw_payload) do
     case ParserCapabilities.get(parser_key, opts) do
       {:ok, _capability} -> parse_by_key(parser_key, raw_payload)
       :error -> {:error, {:unknown_parser_key, parser_key}}
@@ -199,7 +202,8 @@ defmodule DisclosureAutomation.Ingestion do
 
     with {:ok, %SourceRegistry{} = source} <- Sources.get_source_by_key(source_key),
          {:ok, payload} <- load_payload(source, use_live_fetch: use_live_fetch),
-         {:ok, records} <- Parser.parse(source.parser_key, payload.raw_payload, cache: parser_cache()) do
+         {:ok, records} <-
+           Parser.parse(source.parser_key, payload.raw_payload, cache: parser_cache()) do
       result =
         Repo.transaction(fn ->
           {:ok, run} =
@@ -222,7 +226,17 @@ defmodule DisclosureAutomation.Ingestion do
             |> Enum.with_index(1)
             |> Enum.map(fn {record, rank} ->
               {:ok, raw_document} = upsert_raw_document(run, source, record)
-              {:ok, canonical_item} = upsert_canonical_item(raw_document, source, record, edition, rank, payload.fetch_info)
+
+              {:ok, canonical_item} =
+                upsert_canonical_item(
+                  raw_document,
+                  source,
+                  record,
+                  edition,
+                  rank,
+                  payload.fetch_info
+                )
+
               %{raw_document: raw_document, canonical_item: canonical_item}
             end)
 
@@ -396,7 +410,10 @@ defmodule DisclosureAutomation.Ingestion do
   defp upsert_canonical_item(raw_document, source, record, edition, priority_rank, fetch_info) do
     canonical_attrs =
       record
-      |> Canonicalizer.canonicalize_document(source, edition: edition, fetch_mode: fetch_info["mode"])
+      |> Canonicalizer.canonicalize_document(source,
+        edition: edition,
+        fetch_mode: fetch_info["mode"]
+      )
       |> Map.merge(%{
         raw_document_id: raw_document.id,
         source_registry_id: source.id,
@@ -473,7 +490,9 @@ defmodule DisclosureAutomation.Digest do
       items =
         from(item in CanonicalFeedItem,
           join: source in assoc(item, :source),
-          where: item.digest_date == ^digest_date and item.edition == ^edition and item.status in ["ready", "published"],
+          where:
+            item.digest_date == ^digest_date and item.edition == ^edition and
+              item.status in ["ready", "published"],
           order_by: [asc: item.priority_rank, desc: item.published_at],
           limit: ^limit,
           select: {item, source}
@@ -488,7 +507,8 @@ defmodule DisclosureAutomation.Digest do
            "digest_date" => Date.to_iso8601(digest_date),
            "edition" => edition,
            "timezone" => timezone,
-           "generated_at" => DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.to_iso8601(),
+           "generated_at" =>
+             DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.to_iso8601(),
            "generated_by" => "repo",
            "item_count" => length(items),
            "items" => Enum.map(items, &present_item/1),
