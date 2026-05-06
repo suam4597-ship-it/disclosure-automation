@@ -4,6 +4,7 @@ defmodule DisclosureAutomationWeb.AdminSourceHealthUiController do
   use DisclosureAutomationWeb, :controller
 
   alias DisclosureAutomation.Sources
+  alias DisclosureAutomationWeb.SourceHealthAuthContext
 
   def index(conn, params) do
     {:ok, page} = Sources.list_source_health(params)
@@ -18,7 +19,7 @@ defmodule DisclosureAutomationWeb.AdminSourceHealthUiController do
       {:ok, %{data: source, cursors: cursors}} ->
         conn
         |> put_resp_content_type("text/plain")
-        |> text(render_show(source, cursors, params))
+        |> text(render_show(source, cursors, conn, params))
 
       {:error, :not_found} ->
         conn
@@ -44,7 +45,7 @@ defmodule DisclosureAutomationWeb.AdminSourceHealthUiController do
     |> Enum.join("\n")
   end
 
-  defp render_show(source, cursors, params) do
+  defp render_show(source, cursors, conn, params) do
     ([
        "Source health detail",
        "state=found",
@@ -57,7 +58,7 @@ defmodule DisclosureAutomationWeb.AdminSourceHealthUiController do
        "last_failure_at=#{safe_datetime(source.last_failure_at)}",
        "active=#{source.active}",
        "cursor_count=#{length(cursors || [])}"
-     ] ++ recheck_action_state(source.source_key, params) ++ legacy_unwired_action_state(params) ++ [
+     ] ++ recheck_action_state(source.source_key, conn, params) ++ legacy_unwired_action_state(conn, params) ++ [
        "back=/admin/source-health"
      ])
     |> Enum.join("\n")
@@ -74,9 +75,9 @@ defmodule DisclosureAutomationWeb.AdminSourceHealthUiController do
     |> Enum.join("\n")
   end
 
-  defp recheck_action_state(source_key, params) do
-    if permission_state_requested?(params) do
-      permissions = actor_permissions(params)
+  defp recheck_action_state(source_key, conn, params) do
+    if permission_state_requested?(conn, params) do
+      permissions = actor_permissions(conn, params)
 
       if "source_health:recheck" in permissions do
         [
@@ -108,8 +109,8 @@ defmodule DisclosureAutomationWeb.AdminSourceHealthUiController do
     ]
   end
 
-  defp legacy_unwired_action_state(params) do
-    if permission_state_requested?(params) do
+  defp legacy_unwired_action_state(conn, params) do
+    if permission_state_requested?(conn, params) do
       []
     else
       [
@@ -119,9 +120,22 @@ defmodule DisclosureAutomationWeb.AdminSourceHealthUiController do
     end
   end
 
-  defp permission_state_requested?(params), do: Map.has_key?(params, "actor_permissions")
+  defp permission_state_requested?(conn, params) do
+    SourceHealthAuthContext.source_health_auth_context_available?(conn) ||
+      Map.has_key?(params, "actor_permissions")
+  end
 
-  defp actor_permissions(params) do
+  defp actor_permissions(conn, params) do
+    if SourceHealthAuthContext.source_health_auth_context_available?(conn) do
+      conn
+      |> SourceHealthAuthContext.fetch_source_health_auth_context()
+      |> Map.get(:actor_permissions, [])
+    else
+      request_param_actor_permissions(params)
+    end
+  end
+
+  defp request_param_actor_permissions(params) do
     case Map.get(params, "actor_permissions") do
       permissions when is_list(permissions) -> permissions
       permission when is_binary(permission) -> [permission]
