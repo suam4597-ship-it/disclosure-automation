@@ -2,6 +2,7 @@ defmodule DisclosureAutomation.SourceHealthOperatorSmokeTest do
   use DisclosureAutomationWeb.ConnCase, async: false
 
   alias DisclosureAutomation.Sources
+  alias DisclosureAutomationWeb.SourceHealthAuthContext
 
   @source_key "source_health_operator_smoke_fixture"
   @missing_source_key "source_health_operator_smoke_missing"
@@ -56,10 +57,11 @@ defmodule DisclosureAutomation.SourceHealthOperatorSmokeTest do
     refute_forbidden_material(response)
   end
 
-  test "operator with recheck permission sees bounded detail recheck contract", %{conn: conn} do
+  test "operator with recheck auth context sees bounded detail recheck contract", %{conn: conn} do
     response =
       conn
-      |> get("/admin/source-health/#{@source_key}?actor_permissions=source_health:recheck")
+      |> SourceHealthAuthContext.put_test_source_health_permissions(["source_health:recheck"])
+      |> get("/admin/source-health/#{@source_key}")
       |> response(200)
 
     assert response =~ "Source health detail"
@@ -92,9 +94,10 @@ defmodule DisclosureAutomation.SourceHealthOperatorSmokeTest do
     refute_forbidden_material(response)
   end
 
-  test "operator with recheck permission can submit bounded backend recheck", %{conn: conn} do
+  test "operator with recheck auth context can submit bounded backend recheck", %{conn: conn} do
     response =
       conn
+      |> SourceHealthAuthContext.put_test_source_health_permissions(["source_health:recheck"])
       |> post("/api/admin/source-health/#{@source_key}/recheck", recheck_payload())
       |> json_response(202)
 
@@ -105,10 +108,11 @@ defmodule DisclosureAutomation.SourceHealthOperatorSmokeTest do
     refute_private_material(response)
   end
 
-  test "read-only operator sees disabled detail recheck action", %{conn: conn} do
+  test "read-only operator auth context sees disabled detail recheck action", %{conn: conn} do
     response =
       conn
-      |> get("/admin/source-health/#{@source_key}?actor_permissions=source_health:read")
+      |> SourceHealthAuthContext.put_test_source_health_permissions(["source_health:read"])
+      |> get("/admin/source-health/#{@source_key}")
       |> response(200)
 
     assert response =~ "Source health detail"
@@ -126,10 +130,11 @@ defmodule DisclosureAutomation.SourceHealthOperatorSmokeTest do
     refute_forbidden_material(response)
   end
 
-  test "read-only backend recheck attempt returns bounded forbidden response", %{conn: conn} do
+  test "read-only auth context blocks backend body escalation", %{conn: conn} do
     response =
       conn
-      |> post("/api/admin/source-health/#{@source_key}/recheck", read_only_payload())
+      |> SourceHealthAuthContext.put_test_source_health_permissions(["source_health:read"])
+      |> post("/api/admin/source-health/#{@source_key}/recheck", recheck_payload())
       |> json_response(403)
 
     assert response == %{
@@ -146,7 +151,8 @@ defmodule DisclosureAutomation.SourceHealthOperatorSmokeTest do
   test "unknown source detail and backend recheck attempt stay bounded", %{conn: conn} do
     detail_response =
       conn
-      |> get("/admin/source-health/#{@missing_source_key}?actor_permissions=source_health:recheck")
+      |> SourceHealthAuthContext.put_test_source_health_permissions(["source_health:recheck"])
+      |> get("/admin/source-health/#{@missing_source_key}")
       |> response(404)
 
     assert detail_response =~ "Source health detail"
@@ -161,6 +167,7 @@ defmodule DisclosureAutomation.SourceHealthOperatorSmokeTest do
 
     backend_response =
       build_conn()
+      |> SourceHealthAuthContext.put_test_source_health_permissions(["source_health:recheck"])
       |> post("/api/admin/source-health/#{@missing_source_key}/recheck", recheck_payload())
       |> json_response(404)
 
@@ -185,14 +192,6 @@ defmodule DisclosureAutomation.SourceHealthOperatorSmokeTest do
       "redaction_status" => "passed",
       "created_at" => "2026-05-04T00:00:00Z"
     }
-  end
-
-  defp read_only_payload do
-    recheck_payload()
-    |> Map.put("actor_id_hash", "sha256:operator-smoke-read-only-001")
-    |> Map.put("actor_permissions", ["source_health:read"])
-    |> Map.put("request_id_hash", "sha256:request-smoke-read-only-001")
-    |> Map.put("idempotency_key_hash", "sha256:idempotency-smoke-read-only-001")
   end
 
   defp refute_accepted_job_response(response) do
