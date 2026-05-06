@@ -5,6 +5,10 @@ defmodule DisclosureAutomationWeb.Router do
     plug :accepts, ["json"]
   end
 
+  pipeline :source_health_upstream_auth_provider_adapter do
+    plug DisclosureAutomationWeb.SourceHealthUpstreamAuthProviderAdapter
+  end
+
   pipeline :source_health_upstream_auth_handoff do
     plug DisclosureAutomationWeb.SourceHealthUpstreamAuthHandoff
   end
@@ -33,7 +37,12 @@ defmodule DisclosureAutomationWeb.Router do
   end
 
   scope "/admin", DisclosureAutomationWeb do
-    pipe_through [:browser, :source_health_upstream_auth_handoff, :source_health_production_auth_context]
+    pipe_through [
+      :browser,
+      :source_health_upstream_auth_provider_adapter,
+      :source_health_upstream_auth_handoff,
+      :source_health_production_auth_context
+    ]
 
     get "/source-health", AdminSourceHealthUiController, :index
     get "/source-health/:source_key", AdminSourceHealthUiController, :show
@@ -61,7 +70,12 @@ defmodule DisclosureAutomationWeb.Router do
   end
 
   scope "/api/admin/source-health", DisclosureAutomationWeb do
-    pipe_through [:api, :source_health_upstream_auth_handoff, :source_health_production_auth_context]
+    pipe_through [
+      :api,
+      :source_health_upstream_auth_provider_adapter,
+      :source_health_upstream_auth_handoff,
+      :source_health_production_auth_context
+    ]
 
     get "/", AdminSourceHealthController, :index
     get "/:source_key", AdminSourceHealthController, :show
@@ -70,6 +84,7 @@ defmodule DisclosureAutomationWeb.Router do
   scope "/api/admin/source-health", DisclosureAutomationWeb do
     pipe_through [
       :api,
+      :source_health_upstream_auth_provider_adapter,
       :source_health_upstream_auth_handoff,
       :source_health_production_auth_context,
       :source_health_recheck_authorization
@@ -81,6 +96,7 @@ defmodule DisclosureAutomationWeb.Router do
   scope "/api/admin/sources", DisclosureAutomationWeb do
     pipe_through [
       :api,
+      :source_health_upstream_auth_provider_adapter,
       :source_health_upstream_auth_handoff,
       :source_health_production_auth_context,
       :source_health_poll_authorization
