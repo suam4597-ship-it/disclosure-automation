@@ -10,8 +10,19 @@ defmodule DisclosureAutomationWeb.SourceHealthAuthContext do
   ]
 
   @test_permissions_assign :source_health_test_permissions
+  @test_private_keys [
+    @test_permissions_assign,
+    :source_health_test_actor_id_hash,
+    :source_health_test_request_id_hash,
+    :source_health_test_session_id_hash,
+    :source_health_test_role_names
+  ]
 
   def allowed_permissions, do: @allowed_permissions
+
+  def source_health_auth_context_available?(conn) do
+    Enum.any?(@test_private_keys, &Map.has_key?(conn.private, &1))
+  end
 
   def fetch_source_health_auth_context(conn) do
     permissions =
