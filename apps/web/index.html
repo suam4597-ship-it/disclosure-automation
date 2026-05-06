@@ -18,20 +18,18 @@
       <div class="actions">
         <a class="button primary" href="../../docs/blueprint/investment_news_blueprint_v2.md">설계서 보기</a>
         <button class="button secondary" id="show-status">현재 상태 확인</button>
+        <a class="button secondary" href="/admin/source-health" id="operator-source-health-link">운영자 상태 페이지</a>
       </div>
     </div>
   </header>
 
   <main class="container grid">
-    <section class="card">
-      <h2>현재 진행 단계</h2>
-      <ol>
-        <li>Codespaces / Vercel / runbook 기반 정리</li>
-        <li>Phase 0 SQL 및 Ecto migration 자산 추가</li>
-        <li>digest / source health OpenAPI 계약 추가</li>
-        <li>fixture 기반 reference runtime 경계 정리</li>
-        <li>Phoenix API-only 통합 준비</li>
-      </ol>
+    <section class="card" id="latest-digest-card">
+      <h2>최근 피드 요약</h2>
+      <p id="digest-summary">최신 digest를 불러오는 중입니다.</p>
+      <ul id="digest-items">
+        <li>API 응답을 기다리고 있습니다.</li>
+      </ul>
     </section>
 
     <section class="card">
@@ -45,13 +43,15 @@
       </ul>
     </section>
 
-    <section class="card">
-      <h2>권장 다음 작업</h2>
+    <section class="card" id="backend-status-card">
+      <h2>백엔드 연결 상태</h2>
       <p>
-        이제는 생성할 Phoenix API-only 앱에 Phase 0 자산을 주입하고,
-        fixture fallback에서 실제 canonical feed read path로 점진적으로 전환하면 됩니다.
+        기존 HTML 디자인을 유지하면서 Phoenix API 상태를 확인합니다.
       </p>
-      <p id="status-text">현재는 Phase 0 foundation 계약 자산과 경량 runtime/helper 경계가 반영된 상태입니다.</p>
+      <p id="status-text" data-loading-text="백엔드 상태를 확인하는 중입니다.">
+        백엔드 상태를 확인하는 중입니다.
+      </p>
+      <p id="status-details">API 응답을 기다리고 있습니다.</p>
     </section>
   </main>
 
