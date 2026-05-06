@@ -4,7 +4,10 @@ defmodule DisclosureAutomation.EnvInterpolation do
   @pattern ~r/\$\{(?<name>[A-Z0-9_]+)(:-(?<default>[^}]*))?\}/
 
   def resolve(value, env \\ System.get_env())
-  def resolve(%{} = map, env), do: map |> Enum.map(fn {k, v} -> {k, resolve(v, env)} end) |> Enum.into(%{})
+
+  def resolve(%{} = map, env),
+    do: map |> Enum.map(fn {k, v} -> {k, resolve(v, env)} end) |> Enum.into(%{})
+
   def resolve(list, env) when is_list(list), do: Enum.map(list, &resolve(&1, env))
 
   def resolve(value, env) when is_binary(value) do
@@ -67,7 +70,11 @@ defmodule DisclosureAutomation.ParserCapabilities do
 
   def load(opts \\ []) do
     path =
-      Keyword.get(opts, :path, Application.fetch_env!(:disclosure_automation, :parser_capabilities_path))
+      Keyword.get(
+        opts,
+        :path,
+        Application.fetch_env!(:disclosure_automation, :parser_capabilities_path)
+      )
 
     with {:ok, %{"parsers" => parsers} = payload} <- YamlLoader.load_parser_capabilities(path) do
       normalized =
@@ -112,7 +119,8 @@ defmodule DisclosureAutomation.Http do
         {:ok,
          %{
            status_code: status_code,
-           headers: Enum.map(response_headers, fn {key, value} -> {to_string(key), to_string(value)} end),
+           headers:
+             Enum.map(response_headers, fn {key, value} -> {to_string(key), to_string(value)} end),
            body: body,
            bytes: byte_size(body)
          }}

@@ -4,7 +4,10 @@ defmodule DisclosureAutomation.Repo.Migrations.CreateIngestionPipelineTables do
   def up do
     create table(:ingestion_runs, primary_key: false) do
       add :id, :uuid, primary_key: true, default: fragment("gen_random_uuid()")
-      add :source_registry_id, references(:source_registry, type: :uuid, on_delete: :restrict), null: false
+
+      add :source_registry_id, references(:source_registry, type: :uuid, on_delete: :restrict),
+        null: false
+
       add :run_key, :string, null: false
       add :trigger_kind, :string, null: false
       add :status, :string, null: false
@@ -35,13 +38,19 @@ defmodule DisclosureAutomation.Repo.Migrations.CreateIngestionPipelineTables do
            )
 
     create constraint(:ingestion_runs, :ingestion_runs_status_check,
-             check: "status in ('queued', 'running', 'succeeded', 'failed', 'partial', 'cancelled')"
+             check:
+               "status in ('queued', 'running', 'succeeded', 'failed', 'partial', 'cancelled')"
            )
 
     create table(:raw_documents, primary_key: false) do
       add :id, :uuid, primary_key: true, default: fragment("gen_random_uuid()")
-      add :ingestion_run_id, references(:ingestion_runs, type: :uuid, on_delete: :delete_all), null: false
-      add :source_registry_id, references(:source_registry, type: :uuid, on_delete: :restrict), null: false
+
+      add :ingestion_run_id, references(:ingestion_runs, type: :uuid, on_delete: :delete_all),
+        null: false
+
+      add :source_registry_id, references(:source_registry, type: :uuid, on_delete: :restrict),
+        null: false
+
       add :external_id, :string, null: false
       add :content_hash, :string, null: false
       add :fetched_at, :utc_datetime_usec, null: false, default: fragment("now()")
@@ -75,7 +84,10 @@ defmodule DisclosureAutomation.Repo.Migrations.CreateIngestionPipelineTables do
     create table(:canonical_feed_items, primary_key: false) do
       add :id, :uuid, primary_key: true, default: fragment("gen_random_uuid()")
       add :raw_document_id, references(:raw_documents, type: :uuid, on_delete: :nilify_all)
-      add :source_registry_id, references(:source_registry, type: :uuid, on_delete: :restrict), null: false
+
+      add :source_registry_id, references(:source_registry, type: :uuid, on_delete: :restrict),
+        null: false
+
       add :digest_date, :date, null: false
       add :edition, :string, null: false
       add :story_key, :string, null: false
