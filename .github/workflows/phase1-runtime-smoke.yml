@@ -82,11 +82,23 @@ jobs:
 
       - name: Poll source
         run: |
-          curl -sf -X POST http://127.0.0.1:4000/api/admin/sources/sec_press_releases/poll > poll.json
+          status=$(curl -sS -o poll.json -w "%{http_code}" -X POST "http://127.0.0.1:4000/api/admin/sources/sec_press_releases/poll?use_live_fetch=false")
+          echo "poll status=${status}"
+          cat poll.json
+          if [ "${status}" -lt 200 ] || [ "${status}" -ge 300 ]; then
+            tail -n 80 server.log
+            exit 1
+          fi
 
       - name: Fetch digest
         run: |
-          curl -sf "http://127.0.0.1:4000/api/feed/digest/latest?edition=breaking" > digest.json
+          status=$(curl -sS -o digest.json -w "%{http_code}" "http://127.0.0.1:4000/api/feed/digest/latest?edition=breaking")
+          echo "digest status=${status}"
+          cat digest.json
+          if [ "${status}" -lt 200 ] || [ "${status}" -ge 300 ]; then
+            tail -n 80 server.log
+            exit 1
+          fi
 
       - name: Comment smoke result on PR
         if: always() && github.event_name == 'pull_request'
