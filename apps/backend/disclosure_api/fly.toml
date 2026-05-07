@@ -1,0 +1,27 @@
+app = "globalpulse-backend-staging"
+primary_region = "nrt"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[deploy]
+  release_command = "/app/bin/disclosure_automation eval 'DisclosureAutomation.Release.migrate()'"
+
+[env]
+  PHX_HOST = "globalpulse-backend-staging.fly.dev"
+  PORT = "4000"
+  CORS_ALLOWED_ORIGINS = "https://suam4597-ship-it.github.io"
+  ELIXIR_ERL_OPTIONS = "+fnu"
+
+[http_service]
+  internal_port = 4000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ["app"]
+
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1
