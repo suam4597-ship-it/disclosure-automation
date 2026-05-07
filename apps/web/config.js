@@ -1,7 +1,11 @@
-// Optional runtime configuration for GitHub Pages or another static host.
-// Leave empty for static demo mode. Set this value to an external Phoenix
-// staging URL when backend hosting is available, for example:
+// Runtime configuration for the GlobalPulse GitHub Pages frontend.
 //
-// window.DISCLOSURE_API_BASE_URL = "https://disclosure-api-staging.example.com";
+// This default points the public Pages UI at the stable Fly.io staging backend.
+// It is intended for browser smoke and staging validation, not production.
+//
+// Override options:
+// - set window.DISCLOSURE_API_BASE_URL before this file is loaded, or
+// - use ?apiBase=<backend-url> in the page URL for one-off smoke tests.
 
-window.DISCLOSURE_API_BASE_URL = window.DISCLOSURE_API_BASE_URL || "";
+window.DISCLOSURE_API_BASE_URL =
+  window.DISCLOSURE_API_BASE_URL || "https://globalpulse-backend-staging.fly.dev";
