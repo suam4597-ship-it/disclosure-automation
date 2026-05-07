@@ -120,6 +120,7 @@ defmodule DisclosureAutomation.Parser do
   defp xpath_string(node, query) do
     query
     |> :xmerl_xpath.string(node)
+    |> xpath_value()
     |> to_string()
     |> String.trim()
     |> case do
@@ -127,6 +128,9 @@ defmodule DisclosureAutomation.Parser do
       value -> value
     end
   end
+
+  defp xpath_value({:xmlObj, :string, value}), do: value
+  defp xpath_value(value), do: value
 
   defp xpath_pub_date(node, query) do
     case xpath_string(node, query) do
