@@ -26,3 +26,87 @@ sources:
       summary_mode: first_paragraph
       category_bias: high_signal
       fixture_path: source_payloads/sec_press_releases.xml
+
+  - source_key: kr_dart_disclosures
+    display_name: Korea DART Disclosures
+    source_type: rss
+    base_url: https://dart.fss.or.kr/
+    healthcheck_url: https://dart.fss.or.kr/
+    parser_key: rss_v1
+    poll_cron: "*/15 * * * *"
+    ranking_weight: 1.35
+    coverage_tags:
+      - kr
+      - regulatory
+      - disclosure
+      - markets
+    active: true
+    config:
+      fixture_path: source_payloads/kr_dart_disclosures.xml
+
+  - source_key: jp_tdnet_disclosures
+    display_name: Japan TDnet Disclosures
+    source_type: rss
+    base_url: https://www.release.tdnet.info/
+    healthcheck_url: https://www.release.tdnet.info/
+    parser_key: rss_v1
+    poll_cron: "*/15 * * * *"
+    ranking_weight: 1.3
+    coverage_tags:
+      - jp
+      - regulatory
+      - disclosure
+      - markets
+    active: true
+    config:
+      fixture_path: source_payloads/jp_tdnet_disclosures.xml
+
+  - source_key: eu_market_news
+    display_name: Europe Market News
+    source_type: rss
+    base_url: https://example.com/globalpulse/eu-market-news
+    healthcheck_url: https://example.com/
+    parser_key: rss_v1
+    poll_cron: "*/20 * * * *"
+    ranking_weight: 1.15
+    coverage_tags:
+      - eu
+      - news
+      - markets
+    active: true
+    config:
+      fixture_path: source_payloads/eu_market_news.xml
+
+  - source_key: greater_china_market_news
+    display_name: Greater China Market News
+    source_type: rss
+    base_url: https://example.com/globalpulse/greater-china-market-news
+    healthcheck_url: https://example.com/
+    parser_key: rss_v1
+    poll_cron: "*/20 * * * *"
+    ranking_weight: 1.2
+    coverage_tags:
+      - cn
+      - tw
+      - news
+      - markets
+    active: true
+    config:
+      fixture_path: source_payloads/greater_china_market_news.xml
+
+  - source_key: apac_policy_news
+    display_name: APAC Policy News
+    source_type: rss
+    base_url: https://example.com/globalpulse/apac-policy-news
+    healthcheck_url: https://example.com/
+    parser_key: rss_v1
+    poll_cron: "*/25 * * * *"
+    ranking_weight: 1.1
+    coverage_tags:
+      - apac
+      - news
+      - policy
+      - markets
+    active: true
+    config:
+      fixture_path: source_payloads/apac_policy_news.xml
