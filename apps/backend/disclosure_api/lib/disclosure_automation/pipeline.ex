@@ -118,8 +118,8 @@ defmodule DisclosureAutomation.Parser do
   end
 
   defp xpath_string(node, query) do
-    node
-    |> :xmerl_xpath.string(query)
+    query
+    |> :xmerl_xpath.string(node)
     |> to_string()
     |> String.trim()
     |> case do
