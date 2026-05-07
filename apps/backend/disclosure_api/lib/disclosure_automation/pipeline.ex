@@ -2,6 +2,8 @@ defmodule DisclosureAutomation.Canonicalizer do
   @moduledoc false
 
   def canonicalize_document(document, source, attrs \\ %{}) do
+    attrs = Map.new(attrs)
+
     published_at =
       document[:published_at] || Map.get(document, "published_at") || DateTime.utc_now()
 
