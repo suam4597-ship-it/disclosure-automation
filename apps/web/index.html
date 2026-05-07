@@ -484,8 +484,11 @@ function itemKind(item) {
   const url = String(item.canonical_url || item.url || "").toLowerCase();
   const sourceType = String(item.metadata?.source_type || item.source_type || "").toLowerCase();
   const explicit = String(item.kind || item.type || "").toLowerCase();
+  const tags = (item.metadata?.coverage_tags || item.coverage_tags || [])
+    .map(tag => String(tag).toLowerCase());
 
   if (explicit.includes("disclosure") || explicit.includes("filing") || explicit.includes("공시")) return "disclosure";
+  if (tags.includes("disclosure") || tags.includes("filing")) return "disclosure";
   if (src.includes("sec") || url.includes("sec.gov") || sourceType.includes("filing")) return "disclosure";
   return "news";
 }

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>APAC Policy News</title>
+    <item>
+      <title>APAC regulators coordinate guidance on market resilience planning</title>
+      <link>https://example.com/globalpulse/apac/market-resilience-guidance</link>
+      <guid>apac-news-20260508-market-resilience-guidance</guid>
+      <description>Regional policy bodies emphasize continuity planning, cyber resilience, and cross-border market infrastructure coordination.</description>
+      <pubDate>Fri, 08 May 2026 04:30:00 GMT</pubDate>
+      <category>regulatory</category>
+    </item>
+  </channel>
+</rss>

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Europe Market News</title>
+    <item>
+      <title>ASML backlog points to sustained EUV demand across Europe</title>
+      <link>https://example.com/globalpulse/eu/asml-euv-demand</link>
+      <guid>eu-news-20260508-asml-euv-demand</guid>
+      <description>European semiconductor suppliers cite resilient equipment demand as export-control and capacity planning remain in focus.</description>
+      <pubDate>Fri, 08 May 2026 03:15:00 GMT</pubDate>
+      <category>markets</category>
+    </item>
+    <item>
+      <title>European banks prepare disclosure updates for rate sensitivity</title>
+      <link>https://example.com/globalpulse/eu/bank-rate-sensitivity</link>
+      <guid>eu-news-20260508-bank-rate-sensitivity</guid>
+      <description>Market desks expect updated risk disclosures as euro-zone rate expectations shift after the latest inflation print.</description>
+      <pubDate>Fri, 08 May 2026 02:50:00 GMT</pubDate>
+      <category>markets</category>
+    </item>
+  </channel>
+</rss>

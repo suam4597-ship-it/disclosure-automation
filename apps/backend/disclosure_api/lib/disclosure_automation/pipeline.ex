@@ -36,17 +36,24 @@ defmodule DisclosureAutomation.Canonicalizer do
   end
 
   defp infer_regions(source) do
-    tags = source.coverage_tags || []
+    tags = Enum.map(source.coverage_tags || [], &String.downcase/1)
 
     cond do
-      Enum.any?(tags, &(&1 in ["apac", "japan"])) -> ["apac"]
+      "global" in tags -> ["global"]
+      "kr" in tags or "korea" in tags -> ["kr"]
+      "jp" in tags or "japan" in tags -> ["jp"]
+      "cn" in tags or "china" in tags -> ["cn"]
+      "tw" in tags or "taiwan" in tags -> ["tw"]
+      "eu" in tags or "europe" in tags -> ["eu"]
+      "apac" in tags -> ["apac"]
+      "us" in tags or "usa" in tags or "americas" in tags -> ["us"]
       Enum.any?(tags, &(&1 in ["macro", "rates", "regulatory", "markets"])) -> ["us"]
       true -> ["global"]
     end
   end
 
   defp infer_sectors(source) do
-    tags = source.coverage_tags || []
+    tags = Enum.map(source.coverage_tags || [], &String.downcase/1)
 
     cond do
       Enum.any?(tags, &(&1 in ["regulatory", "enforcement"])) -> ["regulation"]

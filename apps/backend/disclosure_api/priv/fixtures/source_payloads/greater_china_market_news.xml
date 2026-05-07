@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Greater China Market News</title>
+    <item>
+      <title>TSMC supplier update lifts Greater China AI infrastructure names</title>
+      <link>https://example.com/globalpulse/greater-china/tsmc-ai-infrastructure</link>
+      <guid>cn-tw-news-20260508-tsmc-ai-infrastructure</guid>
+      <description>AI infrastructure supply-chain commentary supports chip packaging, server assembly, and advanced substrate names.</description>
+      <pubDate>Fri, 08 May 2026 04:05:00 GMT</pubDate>
+      <category>markets</category>
+    </item>
+    <item>
+      <title>Hong Kong listings pipeline improves after technology filings</title>
+      <link>https://example.com/globalpulse/greater-china/hk-listings-pipeline</link>
+      <guid>cn-tw-news-20260508-hk-listings-pipeline</guid>
+      <description>New technology-sector filings improve regional listing sentiment while investors watch liquidity and lock-up schedules.</description>
+      <pubDate>Fri, 08 May 2026 03:35:00 GMT</pubDate>
+      <category>markets</category>
+    </item>
+  </channel>
+</rss>
