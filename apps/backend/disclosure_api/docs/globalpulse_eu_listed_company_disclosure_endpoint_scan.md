@@ -10,7 +10,7 @@ This is documentation-only. It does not add runtime code, routes, controllers, m
 primary target: listed-company disclosures and issuer announcements
 preferred authority: official exchange, OAM, regulated-information repository, or issuer-announcement authority
 not first target: ECB, central-bank feeds, macro-statistics feeds, parliament feeds, or broad policy news
-current result: France OAM manual source + parser + staging live smoke complete; Spain CNMV manual RSS sources + parser compatibility fix + staging live smoke + public UI smoke complete; Netherlands AFM CSV manual source + parser + staging live smoke complete; Italy eMarket Storage bounded HTML manual source + parser + staging live smoke + public UI smoke complete; Luxembourg LuxSE OAM GraphQL manual source + parser + staging live smoke + public UI smoke complete; Euronext company press release RSS manual source + bounded parser + staging live smoke + public UI smoke complete; Belgium FSMA STORI API manual source + bounded parser + staging live smoke + public UI smoke complete; UK FCA NSM API manual source + bounded parser + staging live smoke + public UI smoke complete; Switzerland SIX SER official notices RSS manual source registered; remaining Europe candidates need endpoint/parser confirmation
+current result: France OAM manual source + parser + staging live smoke complete; Spain CNMV manual RSS sources + parser compatibility fix + staging live smoke + public UI smoke complete; Netherlands AFM CSV manual source + parser + staging live smoke complete; Italy eMarket Storage bounded HTML manual source + parser + staging live smoke + public UI smoke complete; Luxembourg LuxSE OAM GraphQL manual source + parser + staging live smoke + public UI smoke complete; Euronext company press release RSS manual source + bounded parser + staging live smoke + public UI smoke complete; Belgium FSMA STORI API manual source + bounded parser + staging live smoke + public UI smoke complete; UK FCA NSM API manual source + bounded parser + staging live smoke + public UI smoke complete; Switzerland SIX SER official notices RSS manual source + staging live smoke + public UI smoke complete; remaining Europe candidates need endpoint/parser confirmation
 ```
 
 ## Candidate A: France Info-Financiere OAM API
@@ -177,7 +177,7 @@ machine-readable URL: https://www.ser-ag.com/itf-data/official-notices/rss-en.xm
 observed HTTP: supporting page 200; RSS 200
 observed content-type: RSS XML
 observed shape: RSS 2.0 channel with title, link, description, guid, and pubDate fields; items point back to the SER official-notices page with notificationId anchors
-status: MANUAL_SOURCE_REGISTERED_STAGING_LIVE_SMOKE_PENDING_SCHEDULED_POLLING_DISABLED
+status: MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS_PUBLIC_UI_PASS_SCHEDULED_POLLING_DISABLED
 ```
 
 Why this fits the product:
@@ -194,7 +194,8 @@ Current implementation status:
 Manual source ch_six_ser_official_notices exists with active=false and candidate_status=manual_staging_only.
 The source uses existing rss_v1 parser compatibility; no new parser or backend response-shape change is required.
 Fixture source_payloads/ch_six_ser_official_notices.xml captures the bounded RSS shape.
-Fly staging live poll and public UI smoke are pending.
+Fly staging live poll returned fetch.mode=live, HTTP 200, fetch.bytes=65762, records_seen=25, records_inserted=25, and metadata.fallback_to_fixture=false in the latest digest.
+Public GlobalPulse Pages UI rendered Switzerland SIX SER Official Notices under Switzerland with Backend ok and no API/CORS/rendering blocker in the local headless browser smoke.
 Scheduled polling remains disabled until the broader Europe source batch is intentionally promoted.
 ```
 
