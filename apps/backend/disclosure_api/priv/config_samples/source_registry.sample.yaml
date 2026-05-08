@@ -225,6 +225,30 @@ sources:
       live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
       max_items_per_poll: 25
 
+  - source_key: eu_italy_emarket_storage_regulated_communications
+    display_name: Italy eMarket Storage Regulated Communications
+    source_type: html
+    base_url: https://www.emarketstorage.it/it/comunicati-finanziari
+    healthcheck_url: https://www.emarketstorage.it/it/comunicati-finanziari
+    parser_key: emarket_storage_html_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.19
+    coverage_tags:
+      - eu
+      - eu_south
+      - italy
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+    active: false
+    config:
+      fixture_path: source_payloads/eu_italy_emarket_storage_regulated_communications.html
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      max_items_per_poll: 25
+
   - source_key: greater_china_market_news
     display_name: Greater China Market News
     source_type: rss

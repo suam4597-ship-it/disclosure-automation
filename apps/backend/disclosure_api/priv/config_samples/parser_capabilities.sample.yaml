@@ -74,6 +74,44 @@ parsers:
       reject_html_payload: true
       reject_future_timestamps: true
 
+  - parser_key: emarket_storage_html_v1
+    display_name: Italy eMarket Storage Regulated Communication HTML Parser
+    enabled: true
+    input_types: [html]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: false
+    supports_detail_fetch: false
+    extraction:
+      id_fields:
+        - data_protocollo
+        - pdf_href
+      title_fields:
+        - news_azienda
+        - news_title
+      summary_fields:
+        - category
+        - news_azienda
+      url_fields:
+        - pdf_href
+      published_at_fields:
+        - time_text
+      category_fields:
+        - Comunicati Regolamentati
+    normalization:
+      source_shape: emarket_storage_views_row_html
+      trim_html: true
+      decode_entities: true
+      collapse_whitespace: true
+      timezone_strategy: source_naive_utc_ddmmyyyy
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_non_emarket_storage_payload: true
+      reject_future_timestamps: true
+
   - parser_key: afm_financial_reporting_csv_v1
     display_name: Netherlands AFM Financial Reporting CSV Parser
     enabled: true
