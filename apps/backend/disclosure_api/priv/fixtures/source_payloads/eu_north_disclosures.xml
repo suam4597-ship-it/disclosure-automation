@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Northern Europe Disclosures</title>
+    <item>
+      <title>Nordic semiconductor supplier files capacity expansion disclosure</title>
+      <link>https://example.com/globalpulse/eu-north/nordic-semiconductor-capacity</link>
+      <guid>eu-north-disclosure-20260508-nordic-semiconductor-capacity</guid>
+      <description>A Northern Europe listed supplier disclosed incremental advanced packaging capacity commitments tied to AI infrastructure demand.</description>
+      <pubDate>Fri, 08 May 2026 04:10:00 GMT</pubDate>
+      <category>disclosure</category>
+    </item>
+    <item>
+      <title>Scandinavian grid operator updates capex guidance for interconnector projects</title>
+      <link>https://example.com/globalpulse/eu-north/grid-interconnector-capex</link>
+      <guid>eu-north-disclosure-20260508-grid-interconnector-capex</guid>
+      <description>The company filed revised investment guidance for cross-border power infrastructure and related supply-chain commitments.</description>
+      <pubDate>Fri, 08 May 2026 03:55:00 GMT</pubDate>
+      <category>filing</category>
+    </item>
+  </channel>
+</rss>
