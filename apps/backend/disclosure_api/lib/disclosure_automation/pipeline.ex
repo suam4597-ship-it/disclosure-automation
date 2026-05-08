@@ -89,6 +89,8 @@ defmodule DisclosureAutomation.Parser do
   alias DisclosureAutomation.ParserCapabilities
 
   @afm_reporting_csv_limit 25
+  @emarket_storage_html_limit 25
+  @emarket_storage_base_url "https://www.emarketstorage.it"
 
   def parse(parser_key, raw_payload, opts \\ [])
       when is_binary(parser_key) and is_binary(raw_payload) do
@@ -109,6 +111,9 @@ defmodule DisclosureAutomation.Parser do
 
   defp parse_by_key("afm_financial_reporting_csv_v1", raw_payload),
     do: parse_afm_reporting(raw_payload)
+
+  defp parse_by_key("emarket_storage_html_v1", raw_payload),
+    do: parse_emarket_storage(raw_payload)
 
   defp parse_by_key(parser_key, _raw_payload), do: {:error, {:unsupported_parser_key, parser_key}}
 
@@ -302,6 +307,42 @@ defmodule DisclosureAutomation.Parser do
     "https://www.afm.nl/en/sector/registers/meldingenregisters/financiele-verslaggeving"
   end
 
+  defp parse_emarket_storage(raw_payload) do
+    items =
+      raw_payload
+      |> String.split(~r/<div class="views-row">/)
+      |> Enum.drop(1)
+      |> Enum.take(@emarket_storage_html_limit)
+      |> Enum.map(&parse_emarket_storage_row/1)
+      |> Enum.filter(&(&1.url && &1.title))
+
+    {:ok, items}
+  end
+
+  defp parse_emarket_storage_row(row) do
+    pdf_path =
+      regex_capture(row, ~r/href="(\/sites\/default\/files\/comunicati\/[^"]+\.pdf)"/)
+
+    company = regex_capture(row, ~r/<div class="news-azienda">.*?<a[^>]*>(.*?)<\/a>/s)
+    title = regex_capture(row, ~r/<div class="news-title">.*?<a[^>]*>(.*?)<\/a>/s)
+    published_at_text = regex_capture(row, ~r/<time[^>]*>(.*?)<\/time>/s)
+    protocol = regex_capture(row, ~r/data-protocollo="([^"]+)"/)
+
+    %{
+      external_id: protocol || pdf_path,
+      title: join_non_empty([company, title], " - "),
+      url: emarket_storage_url(pdf_path),
+      summary: join_non_empty(["Comunicati Regolamentati", prefixed("Issuer", company)], " | "),
+      published_at: parse_emarket_storage_datetime(published_at_text),
+      category: "Comunicati Regolamentati"
+    }
+  end
+
+  defp emarket_storage_url(nil), do: nil
+  defp emarket_storage_url("http" <> _rest = url), do: url
+  defp emarket_storage_url("/" <> _rest = path), do: @emarket_storage_base_url <> path
+  defp emarket_storage_url(path), do: @emarket_storage_base_url <> "/" <> path
+
   defp parse_afm_csv_row(row) do
     row
     |> String.trim()
@@ -324,6 +365,68 @@ defmodule DisclosureAutomation.Parser do
       value -> value
     end
   end
+
+  defp regex_capture(raw, regex) do
+    case Regex.run(regex, raw, capture: :all_but_first) do
+      [value | _rest] -> clean_html(value)
+      _ -> nil
+    end
+  end
+
+  defp clean_html(value) do
+    value
+    |> String.replace(~r/<[^>]+>/, " ")
+    |> decode_html_entities()
+    |> String.replace(~r/\s+/u, " ")
+    |> String.trim()
+    |> case do
+      "" -> nil
+      cleaned -> cleaned
+    end
+  end
+
+  defp decode_html_entities(value) do
+    decoded =
+      value
+      |> String.replace("&quot;", "\"")
+      |> String.replace("&#039;", "'")
+      |> String.replace("&apos;", "'")
+      |> String.replace("&amp;", "&")
+      |> String.replace("&nbsp;", " ")
+      |> String.replace("&lt;", "<")
+      |> String.replace("&gt;", ">")
+
+    decoded
+    |> then(&Regex.replace(~r/&#(\d+);/, &1, fn _match, code -> decode_decimal_entity(code) end))
+    |> then(
+      &Regex.replace(~r/&#x([0-9a-fA-F]+);/, &1, fn _match, code -> decode_hex_entity(code) end)
+    )
+  end
+
+  defp decode_decimal_entity(code_text) do
+    code_text
+    |> Integer.parse()
+    |> case do
+      {code, ""} -> unicode_codepoint(code)
+      _ -> ""
+    end
+  rescue
+    _ -> ""
+  end
+
+  defp decode_hex_entity(code_text) do
+    code_text
+    |> Integer.parse(16)
+    |> case do
+      {code, ""} -> unicode_codepoint(code)
+      _ -> ""
+    end
+  rescue
+    _ -> ""
+  end
+
+  defp unicode_codepoint(code) when code in 0..0x10FFFF, do: <<code::utf8>>
+  defp unicode_codepoint(_code), do: ""
 
   defp datetime_field(record, keys) do
     keys
@@ -365,6 +468,23 @@ defmodule DisclosureAutomation.Parser do
          {minute, ""} <- Integer.parse(minute_text),
          {second, ""} <- Integer.parse(second_text),
          {:ok, datetime} <- build_utc_datetime(year, month, day, hour, minute, second) do
+      datetime
+    else
+      _ -> DateTime.utc_now()
+    end
+  end
+
+  defp parse_emarket_storage_datetime(nil), do: DateTime.utc_now()
+
+  defp parse_emarket_storage_datetime(value) do
+    with [_, day_text, month_text, year_text, hour_text, minute_text] <-
+           Regex.run(~r/^(\d{2})\/(\d{2})\/(\d{4}) - (\d{2}):(\d{2})$/, value),
+         {year, ""} <- Integer.parse(year_text),
+         {month, ""} <- Integer.parse(month_text),
+         {day, ""} <- Integer.parse(day_text),
+         {hour, ""} <- Integer.parse(hour_text),
+         {minute, ""} <- Integer.parse(minute_text),
+         {:ok, datetime} <- build_utc_datetime(year, month, day, hour, minute, 0) do
       datetime
     else
       _ -> DateTime.utc_now()
@@ -779,6 +899,21 @@ defmodule DisclosureAutomation.Ingestion do
     end
   end
 
+  defp validate_live_payload(%SourceRegistry{parser_key: "emarket_storage_html_v1"}, response) do
+    cond do
+      not html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "emarket_storage_html_v1",
+          content_type(response.headers)}}
+
+      not emarket_storage_html_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "emarket_storage_html_v1", :unexpected_html}}
+
+      true ->
+        :ok
+    end
+  end
+
   defp validate_live_payload(_source, _response), do: :ok
 
   defp html_content_type?(headers) do
@@ -819,6 +954,14 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp afm_reporting_csv_payload?(_body), do: false
+
+  defp emarket_storage_html_payload?(body) when is_binary(body) do
+    body =~ "Comunicati Regolamentati" and
+      body =~ "azienda-wrapper" and
+      body =~ "/sites/default/files/comunicati/"
+  end
+
+  defp emarket_storage_html_payload?(_body), do: false
 
   defp load_fixture_payload(source) do
     fixture_path =
