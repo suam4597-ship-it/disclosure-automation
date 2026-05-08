@@ -20,7 +20,7 @@ Current APAC live-source status:
 India NSE official RSS: staging-live verified, bounded, duplicate-handling hardened, conservative staging schedule configured
 India NSE first automated scheduled run: pending first matching GitHub Actions cron slot
 ASEAN official endpoint: scan started, exact machine-readable endpoint not accepted yet
-ANZ official endpoint: pending exact endpoint verification
+ANZ official endpoint: scan started, exact machine-readable endpoint not accepted yet
 JP live source: blocked by issue #339 source-authority decision
 ```
 
@@ -179,7 +179,7 @@ source authority: official exchange, regulator, or central bank required
 candidate category: Australia/NZ announcements, market news, or policy news
 candidate owners to verify: ASX, NZX, ASIC, RBA, or another official owner
 machine-readable shape: pending exact endpoint verification
-status: ANZ_LIVE_SOURCE_PENDING_EXACT_ENDPOINT
+status: ANZ_LIVE_ENDPOINT_SCAN_STARTED
 ```
 
 Observed quick smoke on 2026-05-08:
@@ -196,6 +196,16 @@ Acceptance caveat:
 If the goal is listed-company disclosure coverage, prefer ASX/NZX announcement endpoints.
 If the goal is market-moving policy coverage, keep RBA/ASIC feeds labeled separately from company disclosures.
 Do not claim ANZ live success from an HTML announcement page.
+```
+
+Observed ANZ exact-endpoint scan:
+
+```text
+scan record: globalpulse_anz_live_endpoint_verification_scan.md
+ASX recent/historical/today's announcements: official HTML surfaces found; no accepted RSS/Atom/JSON endpoint verified
+NZX public announcements: official HTML surfaces found; guessed public API resource returned 403
+NZX data products: official access-policy surface found; not accepted as unauthenticated live source
+decision: no ANZ source registration yet
 ```
 
 ## APAC v1 Recommendation
@@ -247,8 +257,9 @@ REJECT: enabling JP live polling before issue #339 source-authority decision is 
 1. Record first automated India NSE scheduled staging poll after the GitHub Actions cron fires.
 2. Continue focused SGX access-path review for ASEAN.
 3. Add a bounded SGX adapter only if official access terms and response shape are accepted.
-4. Start ANZ exact endpoint verification separately.
-5. Keep JP blocked until issue #339 source authority is resolved.
+4. Continue ASX/NZX access-path review for ANZ.
+5. Add a bounded ASX/NZX adapter only if official access terms and response shape are accepted.
+6. Keep JP blocked until issue #339 source authority is resolved.
 ```
 
 ## Current Conclusion
@@ -261,7 +272,8 @@ INDIA_NSE_CONSERVATIVE_STAGING_SCHEDULE_CONFIGURED
 INDIA_NSE_FIRST_AUTOMATED_SCHEDULED_RUN_PENDING
 ASEAN_LIVE_ENDPOINT_SCAN_STARTED
 ASEAN_MACHINE_READABLE_ENDPOINT_NOT_ACCEPTED_YET
-ANZ_LIVE_SOURCE_PENDING_EXACT_ENDPOINT
+ANZ_LIVE_ENDPOINT_SCAN_STARTED
+ANZ_MACHINE_READABLE_ENDPOINT_NOT_ACCEPTED_YET
 PRODUCTION_APAC_SCHEDULED_LIVE_POLLING_NOT_ENABLED
 JP_REMAINING_AUTHORITY_DECISION_TRACKED_IN_ISSUE_339
 ```
