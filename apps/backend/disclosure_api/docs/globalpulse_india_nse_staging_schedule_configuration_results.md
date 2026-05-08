@@ -8,6 +8,7 @@ This is documentation-only. It does not add runtime code, routes, controllers, t
 
 ```text
 INDIA_NSE_CONSERVATIVE_STAGING_SCHEDULE_CONFIGURED
+INDIA_NSE_DEFAULT_BRANCH_SCHEDULE_ACTIVATED
 INDIA_NSE_FIRST_AUTOMATED_SCHEDULED_RUN_PENDING
 INDIA_NSE_PRODUCTION_SCHEDULED_POLLING_NOT_ENABLED
 SEC_LIVE_STAGING_SCHEDULE_PRESERVED
@@ -18,12 +19,31 @@ SEC_LIVE_STAGING_SCHEDULE_PRESERVED
 ```text
 cadence policy PR: #363 Add India NSE scheduled polling cadence policy
 workflow PR: #364 Add India NSE staging poll schedule
+default branch activation PR: #366 Activate India NSE staging schedule on main
 branch: phase0-foundation
 merge commit: 5146f3175212bc7cdef140be8f37d8dd2cb51caa
+main activation commit: 386562000fc0bc3bebeb3d8bd116c51343d71fbf
 workflow: GlobalPulse live staging poll
 workflow path: .github/workflows/globalpulse-live-staging-poll.yml
 workflow state: active
 backend URL: https://globalpulse-backend-staging.fly.dev
+```
+
+## Default Branch Activation
+
+GitHub `schedule` events execute workflow definitions from the repository default branch. The same workflow change was first merged to `phase0-foundation`, but existing scheduled runs still used `main`.
+
+PR #366 applied the workflow-only schedule change to `main` so the NSE cron can be used by GitHub Actions scheduling.
+
+Verified default-branch workflow state:
+
+```text
+workflow: GlobalPulse live staging poll
+path: .github/workflows/globalpulse-live-staging-poll.yml
+state: active
+default branch: main
+SEC cron present: 7 * * * *
+India NSE cron present: 37 */2 * * 1-5
 ```
 
 ## CI Evidence
@@ -117,5 +137,6 @@ source and region distribution after scheduled run
 
 ```text
 INDIA_NSE_STAGING_SCHEDULE_CONFIGURATION_READY
+INDIA_NSE_DEFAULT_BRANCH_SCHEDULE_READY
 NEXT_STEP_RECORD_FIRST_AUTOMATED_NSE_SCHEDULE_RUN
 ```
