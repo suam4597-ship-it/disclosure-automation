@@ -10,7 +10,7 @@ This is documentation-only. It does not add runtime code, routes, controllers, m
 primary target: listed-company disclosures and issuer announcements
 preferred authority: official exchange, OAM, regulated-information repository, or issuer-announcement authority
 not first target: ECB, central-bank feeds, macro-statistics feeds, parliament feeds, or broad policy news
-current result: France OAM manual source + parser + staging live smoke complete; Spain CNMV manual RSS sources + parser compatibility fix + staging live smoke + public UI smoke complete; Netherlands AFM CSV manual source + parser + staging live smoke complete; Italy eMarket Storage bounded HTML manual source + parser + staging live smoke + public UI smoke complete; Luxembourg LuxSE OAM GraphQL manual source + parser + staging live smoke + public UI smoke complete; Euronext company press release RSS manual source + bounded parser candidate added; remaining EU candidates need endpoint/parser confirmation
+current result: France OAM manual source + parser + staging live smoke complete; Spain CNMV manual RSS sources + parser compatibility fix + staging live smoke + public UI smoke complete; Netherlands AFM CSV manual source + parser + staging live smoke complete; Italy eMarket Storage bounded HTML manual source + parser + staging live smoke + public UI smoke complete; Luxembourg LuxSE OAM GraphQL manual source + parser + staging live smoke + public UI smoke complete; Euronext company press release RSS manual source + bounded parser + staging live smoke + public UI smoke complete; remaining EU candidates need endpoint/parser confirmation
 ```
 
 ## Candidate A: France Info-Financiere OAM API
@@ -78,7 +78,7 @@ machine-readable URL: https://live.euronext.com/rss/company-pr-release
 observed HTTP: 200
 observed content-type: page text/html; charset=UTF-8; RSS application/rss+xml; charset=utf-8
 observed shape: official RSS 2.0 channel with title, link, description, pubDate, dc:creator, and guid fields; descriptions include nested HTML from the company-news surface
-status: MANUAL_SOURCE_REGISTERED_PENDING_STAGING_LIVE_SMOKE
+status: MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS_PUBLIC_UI_PASS_SCHEDULED_POLLING_DISABLED
 ```
 
 Why this fits the product:
@@ -96,7 +96,8 @@ Parser euronext_company_pr_rss_v1 exists.
 Manual source eu_euronext_company_press_releases exists with active=false and candidate_status=manual_staging_only.
 The parser reuses the official RSS item contract, prefers English release links when duplicated translations are present, and bounds nested HTML descriptions before canonicalization.
 Fixture source_payloads/eu_euronext_company_press_releases.xml captures the official RSS shape without carrying raw page material.
-Fly staging live poll and public Pages UI smoke are still pending for this candidate.
+Fly staging live poll returned fetch.mode=live, HTTP 200, fetch.bytes=119260, records_seen=6, records_inserted=6, and metadata.fallback_to_fixture=false in the latest digest.
+Public GlobalPulse Pages UI rendered Euronext Company Press Releases under the generic Europe section with Backend ok and no fatal browser console errors in the local headless browser smoke.
 Scheduled polling remains disabled until the broader EU source batch is intentionally promoted.
 ```
 
