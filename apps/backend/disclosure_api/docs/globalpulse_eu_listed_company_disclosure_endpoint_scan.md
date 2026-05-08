@@ -10,7 +10,7 @@ This is documentation-only. It does not add runtime code, routes, controllers, m
 primary target: listed-company disclosures and issuer announcements
 preferred authority: official exchange, OAM, regulated-information repository, or issuer-announcement authority
 not first target: ECB, central-bank feeds, macro-statistics feeds, parliament feeds, or broad policy news
-current result: France OAM manual source + parser + staging live smoke complete; Spain CNMV manual RSS sources + parser compatibility fix + staging live smoke + public UI smoke complete; Netherlands AFM CSV manual source + parser + staging live smoke complete; Italy eMarket Storage bounded HTML manual source + parser + staging live smoke + public UI smoke complete; Luxembourg LuxSE OAM GraphQL manual source + parser + staging live smoke + public UI smoke complete; Euronext company press release RSS manual source + bounded parser + staging live smoke + public UI smoke complete; Belgium FSMA STORI API manual source + bounded parser + staging live smoke + public UI smoke complete; UK FCA NSM API manual source + bounded parser + staging live smoke complete; Switzerland SIX SER official notices RSS manual source + staging live smoke + public UI smoke complete; Nasdaq Nordic Company News JSONP manual source + staging live smoke + public UI smoke complete; Austria Wiener Boerse announcements bounded HTML manual source registered for staging smoke; remaining Europe candidates need endpoint/parser confirmation
+current result: France OAM manual source + parser + staging live smoke complete; Spain CNMV manual RSS sources + parser compatibility fix + staging live smoke + public UI smoke complete; Netherlands AFM CSV manual source + parser + staging live smoke complete; Italy eMarket Storage bounded HTML manual source + parser + staging live smoke + public UI smoke complete; Luxembourg LuxSE OAM GraphQL manual source + parser + staging live smoke + public UI smoke complete; Euronext company press release RSS manual source + bounded parser + staging live smoke + public UI smoke complete; Belgium FSMA STORI API manual source + bounded parser + staging live smoke + public UI smoke complete; UK FCA NSM API manual source + bounded parser + staging live smoke complete; Switzerland SIX SER official notices RSS manual source + staging live smoke + public UI smoke complete; Nasdaq Nordic Company News JSONP manual source + staging live smoke + public UI smoke complete; Austria Wiener Boerse announcements bounded HTML manual source + staging live poll complete with public latest UI visibility pending; remaining Europe candidates need endpoint/parser confirmation
 ```
 
 ## Candidate A: France Info-Financiere OAM API
@@ -241,7 +241,7 @@ candidate URL: https://www.wienerborse.at/en/legal/announcements/
 observed HTTP: page 200
 observed content-type: text/html; charset=utf-8
 observed shape: server-rendered HTML table with announcement date, kind, company, type of security, category, market, and announcement file link
-status: MANUAL_SOURCE_REGISTERED_STAGING_SMOKE_PENDING_SCHEDULED_POLLING_DISABLED
+status: MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS_PUBLIC_LATEST_UI_VISIBILITY_PENDING_SCHEDULED_POLLING_DISABLED
 ```
 
 Why this fits the product:
@@ -260,7 +260,9 @@ Manual source eu_austria_wiener_borse_announcements exists with active=false and
 Fixture source_payloads/eu_austria_wiener_borse_announcements.html captures a bounded two-row table shape.
 Live-payload validation requires the official announcements table markers and rejects non-matching HTML.
 OeKB issuerinfo remains an official Austria surface direction, but the current public shell returned SPA/F5 HTML for asset and endpoint probes in the executor, so no OeKB source is registered yet.
-Fly staging live poll and public UI smoke are still required before any promotion decision.
+Fly staging live poll returned fetch.mode=live, HTTP 200, fetch.bytes=313897, records_seen=22, records_inserted=22, and metadata.fallback_to_fixture=false.
+Source health returned healthy with last_seen_published_at=2026-05-08T00:00:00Z.
+Public latest UI visibility remains pending because the source inserted date-specific 2026-05-08 items while the public shell currently renders latest digest date 2026-05-09.
 Scheduled polling remains disabled until the broader Europe source batch is intentionally promoted.
 ```
 
@@ -545,7 +547,7 @@ Do not use third-party register APIs as official GlobalPulse disclosure sources 
 4. Do not batch-promote scheduled EU polling yet; France + Spain + Netherlands prove the path but do not define the full EU rollout by themselves.
 5. Keep Italy eMarket Storage regulated communications as a proven manual_staging_only live candidate.
 6. Keep Luxembourg LuxSE OAM as a proven manual_staging_only GraphQL live candidate.
-7. Keep Austria Wiener Boerse announcements as a manual_staging_only exchange-announcement candidate until Fly staging live smoke and public UI smoke pass.
+7. Keep Austria Wiener Boerse announcements as a proven manual_staging_only exchange-announcement candidate with public latest UI visibility pending.
 8. Continue endpoint/parser discovery for Germany official register surfaces, OeKB issuerinfo, and other official issuer-announcement surfaces.
 9. Only batch-promote scheduled EU polling after the target list, rollback path, source-specific parser risk, and staging live smoke evidence are documented together.
 ```
@@ -578,7 +580,8 @@ ITALY_EMARKET_STORAGE_MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS
 ITALY_EMARKET_STORAGE_PUBLIC_UI_PASS
 LUXEMBOURG_LUXSE_OAM_GRAPHQL_MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS
 LUXEMBOURG_LUXSE_OAM_PUBLIC_UI_PASS
-AUSTRIA_WIENER_BORSE_ANNOUNCEMENTS_MANUAL_SOURCE_REGISTERED_STAGING_SMOKE_PENDING
+AUSTRIA_WIENER_BORSE_ANNOUNCEMENTS_MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS
+AUSTRIA_WIENER_BORSE_PUBLIC_LATEST_UI_VISIBILITY_PENDING
 AUSTRIA_OEKB_ISSUERINFO_OFFICIAL_SURFACE_FOUND_MACHINE_ENDPOINT_PENDING
 GERMANY_OFFICIAL_REGISTER_SURFACE_DIRECTION_FOUND_MACHINE_ENDPOINT_PENDING
 EURONEXT_COMPANY_PRESS_RELEASES_PUBLIC_HTML_SURFACE_FOUND
