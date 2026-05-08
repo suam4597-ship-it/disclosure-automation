@@ -10,7 +10,7 @@ This is documentation-only. It does not add runtime code, routes, controllers, m
 primary target: listed-company disclosures and issuer announcements
 preferred authority: official exchange, OAM, regulated-information repository, or issuer-announcement authority
 not first target: ECB, central-bank feeds, macro-statistics feeds, parliament feeds, or broad policy news
-current result: France OAM manual source + parser + staging live smoke complete; Spain CNMV manual RSS sources + parser compatibility fix + staging live smoke + public UI smoke complete; Netherlands AFM CSV manual source + parser + staging live smoke complete; Italy eMarket Storage bounded HTML parser candidate registered for staging verification; remaining EU candidates need endpoint/parser confirmation
+current result: France OAM manual source + parser + staging live smoke complete; Spain CNMV manual RSS sources + parser compatibility fix + staging live smoke + public UI smoke complete; Netherlands AFM CSV manual source + parser + staging live smoke complete; Italy eMarket Storage bounded HTML manual source + parser + staging live smoke + public UI smoke complete; remaining EU candidates need endpoint/parser confirmation
 ```
 
 ## Candidate A: France Info-Financiere OAM API
@@ -281,7 +281,7 @@ candidate authority URL: https://www.consob.it/web/area-pubblica/meccanismi-di-s
 candidate systems: 1Info, eMarket Storage
 observed HTTP: 1Info shell 200 HTML; eMarket Storage shell 200 HTML; Consob authority page 200 HTML
 observed shape: public authority list plus storage-system surfaces; eMarket Storage public HTML includes current issuer disclosure cards, issuer names, timestamps, titles, and PDF links
-status: EMARKET_STORAGE_MANUAL_SOURCE_CANDIDATE_REGISTERED_BOUNDED_HTML_PARSER_ADDED_STAGING_LIVE_SMOKE_PENDING
+status: EMARKET_STORAGE_MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS_PUBLIC_UI_PASS_SCHEDULED_POLLING_DISABLED
 ```
 
 Why this fits the product:
@@ -298,7 +298,10 @@ Parser emarket_storage_html_v1 exists.
 Manual source eu_italy_emarket_storage_regulated_communications exists with active=false and candidate_status=manual_staging_only.
 The parser is bounded to the first 25 eMarket Storage views-row cards and extracts only data_protocollo, PDF URL, timestamp, issuer name, and title.
 The parser rejects non-eMarket HTML payloads through source-specific live-payload validation.
-Staging live poll is still pending and must verify fetch.mode=live plus metadata.fallback_to_fixture=false before any scheduled polling decision.
+Fly staging live poll returned fetch.mode=live, HTTP 200, fetch.bytes=81163, records_seen=24, records_inserted=24, canonical_items=24, and no fixture fallback.
+Latest digest GET /api/feed/digest/latest?edition=breaking returned Italy eMarket Storage Regulated Communications under Southern Europe.
+Public GitHub Pages headless Chrome DOM smoke rendered Backend ok, Southern Europe, Italy eMarket Storage Regulated Communications, and MONDO TV FRANCE.
+Scheduled polling remains disabled until the broader EU source batch is intentionally promoted.
 Continue scanning 1Info for a cleaner API/RSS/XML/JSON endpoint, but do not block the eMarket Storage manual candidate on 1Info.
 Do not register the Consob list, Borsa guidance page, or arbitrary PDF search results as a source.
 ```
@@ -359,7 +362,7 @@ Do not use third-party register APIs as official GlobalPulse disclosure sources 
 2. Keep Spain CNMV inside-information and other-relevant-information RSS as proven manual_staging_only live candidates.
 3. Keep Netherlands AFM financial reporting CSV as a proven manual_staging_only live candidate.
 4. Do not batch-promote scheduled EU polling yet; France + Spain + Netherlands prove the path but do not define the full EU rollout by themselves.
-5. Run Italy eMarket Storage staging live smoke next because the bounded HTML parser/source candidate is now registered as active=false/manual_staging_only.
+5. Keep Italy eMarket Storage regulated communications as a proven manual_staging_only live candidate.
 6. Continue endpoint/parser discovery for Luxembourg LuxSE OAM, Germany official register surfaces, and Euronext issuer press-release surfaces.
 7. Only batch-promote scheduled EU polling after the target list, rollback path, source-specific parser risk, and staging live smoke evidence are documented together.
 ```
@@ -388,13 +391,13 @@ SPAIN_CNMV_INSIDE_INFORMATION_MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS
 SPAIN_CNMV_OTHER_RELEVANT_INFORMATION_MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS
 SPAIN_CNMV_PUBLIC_UI_PASS
 NETHERLANDS_AFM_CSV_EXPORT_MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS
-ITALY_EMARKET_STORAGE_MANUAL_SOURCE_CANDIDATE_REGISTERED_BOUNDED_HTML_PARSER_ADDED
-ITALY_EMARKET_STORAGE_STAGING_LIVE_SMOKE_PENDING
+ITALY_EMARKET_STORAGE_MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS
+ITALY_EMARKET_STORAGE_PUBLIC_UI_PASS
 LUXEMBOURG_LUXSE_OAM_SEARCH_SURFACE_FOUND_API_ENDPOINT_PENDING
 GERMANY_OFFICIAL_REGISTER_SURFACE_DIRECTION_FOUND_MACHINE_ENDPOINT_PENDING
 EURONEXT_COMPANY_PRESS_RELEASES_PUBLIC_HTML_SURFACE_FOUND
 BORSA_ITALIANA_POINTS_TO_CONSOB_AUTHORIZED_STORAGE_SYSTEMS
 ESMA_OAM_DIRECTORY_ACCEPTED_AS_AUTHORITY_MAP_NOT_POLL_SOURCE
-EU_NEXT_IMPLEMENTATION_STEP_ITALY_EMARKET_STORAGE_STAGING_LIVE_SMOKE
+EU_NEXT_IMPLEMENTATION_STEP_LUXEMBOURG_OR_GERMANY_ENDPOINT_DISCOVERY
 EU_SCHEDULED_LIVE_POLLING_BLOCKED
 ```
