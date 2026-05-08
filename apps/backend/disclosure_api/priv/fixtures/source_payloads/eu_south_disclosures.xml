@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Southern Europe Disclosures</title>
+    <item>
+      <title>Italian energy infrastructure company files LNG terminal utilization update</title>
+      <link>https://example.com/globalpulse/eu-south/lng-terminal-utilization</link>
+      <guid>eu-south-disclosure-20260508-lng-terminal-utilization</guid>
+      <description>A Southern Europe infrastructure issuer disclosed higher LNG terminal utilization and revised maintenance timing.</description>
+      <pubDate>Fri, 08 May 2026 03:35:00 GMT</pubDate>
+      <category>disclosure</category>
+    </item>
+    <item>
+      <title>Iberian renewable developer updates project financing disclosure</title>
+      <link>https://example.com/globalpulse/eu-south/renewable-project-financing</link>
+      <guid>eu-south-disclosure-20260508-renewable-project-financing</guid>
+      <description>The company filed a financing update for wind and solar assets with revised commissioning windows.</description>
+      <pubDate>Fri, 08 May 2026 03:20:00 GMT</pubDate>
+      <category>filing</category>
+    </item>
+  </channel>
+</rss>
