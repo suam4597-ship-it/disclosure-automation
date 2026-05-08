@@ -256,6 +256,7 @@ Why this fits the product:
 The AFM register covers financial reports filed by listed companies with the Netherlands as home member state and securities admitted to a regulated market.
 The public page and export links point toward machine-readable financial-reporting disclosures for listed-company reporting.
 The CSV export is the safer first staging integration target because it is materially smaller than the XML export on the current Fly machine class while preserving the bounded fields needed for GlobalPulse.
+The live CSV payload may contain Latin-1 encoded issuer/document text, so the parser normalizes invalid UTF-8 payloads from Latin-1 to UTF-8 before JSON/DB insertion.
 ```
 
 Current implementation status:
@@ -265,6 +266,7 @@ Parser afm_financial_reporting_csv_v1 exists.
 Manual source eu_netherlands_afm_financial_reporting exists with active=false and candidate_status=manual_staging_only.
 Local DNS remains inconclusive, but Fly staging network raw payload probe returned HTTP 200 and official CSV/XML export bytes.
 The XML export was rejected as the initial staging path after manual live poll OOM-killed the small Fly machine; the source now points to the lighter official CSV export.
+The CSV parser includes Latin-1 fallback decoding after staging live smoke found invalid byte 0xEB in document type text.
 Staging live poll is still pending and must verify fetch.mode=live plus metadata.fallback_to_fixture=false before any scheduled polling decision.
 ```
 
