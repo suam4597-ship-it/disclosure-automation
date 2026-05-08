@@ -215,3 +215,53 @@ sources:
     active: true
     config:
       fixture_path: source_payloads/apac_policy_news.xml
+
+  - source_key: asean_market_news
+    display_name: ASEAN Market News
+    source_type: rss
+    base_url: https://example.com/globalpulse/asean-market-news
+    healthcheck_url: https://example.com/
+    parser_key: rss_v1
+    poll_cron: "*/25 * * * *"
+    ranking_weight: 1.12
+    coverage_tags:
+      - asean
+      - news
+      - markets
+    active: true
+    config:
+      fixture_path: source_payloads/asean_market_news.xml
+
+  - source_key: india_market_disclosures
+    display_name: India Market Disclosures
+    source_type: rss
+    base_url: https://example.com/globalpulse/india-market-disclosures
+    healthcheck_url: https://example.com/
+    parser_key: rss_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.16
+    coverage_tags:
+      - india
+      - regulatory
+      - disclosure
+      - filing
+      - markets
+    active: true
+    config:
+      fixture_path: source_payloads/india_market_disclosures.xml
+
+  - source_key: anz_market_news
+    display_name: Australia/NZ Market News
+    source_type: rss
+    base_url: https://example.com/globalpulse/anz-market-news
+    healthcheck_url: https://example.com/
+    parser_key: rss_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.08
+    coverage_tags:
+      - anz
+      - news
+      - markets
+    active: true
+    config:
+      fixture_path: source_payloads/anz_market_news.xml

@@ -19,6 +19,9 @@ window.addEventListener("load", () => {
     cn: "Mainland China",
     tw: "Taiwan",
     hk: "Hong Kong",
+    asean: "ASEAN",
+    india: "India",
+    anz: "Australia/NZ",
     eu_north: "Northern Europe",
     eu_central: "Central Europe",
     eu_south: "Southern Europe"
@@ -39,6 +42,9 @@ window.addEventListener("load", () => {
     if (raw === "taiwan") return "tw";
     if (raw === "hong_kong" || raw === "hongkong") return "hk";
     if (raw === "cn_tw" || raw === "greaterchina") return "greater_china";
+    if (raw === "southeast_asia" || raw === "south_east_asia") return "asean";
+    if (raw === "in") return "india";
+    if (raw === "australia_nz" || raw === "australia" || raw === "new_zealand") return "anz";
     return typeof window.REGION_LABELS !== "undefined" && window.REGION_LABELS?.[raw] ? raw : raw;
   };
 
