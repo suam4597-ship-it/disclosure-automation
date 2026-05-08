@@ -301,6 +301,40 @@ sources:
       live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
       max_items_per_poll: 25
 
+  - source_key: eu_belgium_fsma_stori
+    display_name: Belgium FSMA STORI Regulated Information
+    source_type: api
+    base_url: https://webapi.fsma.be/api/v1/en/stori/result
+    healthcheck_url: https://www.fsma.be/en/stori
+    parser_key: fsma_stori_api_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.17
+    coverage_tags:
+      - eu
+      - eu_central
+      - belgium
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+    active: false
+    config:
+      fixture_path: source_payloads/eu_belgium_fsma_stori.json
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      max_items_per_poll: 25
+      live_method: post
+      live_content_type: application/json
+      live_timeout_ms: 30000
+      live_headers:
+        accept: application/json
+      live_body:
+        startRowIndex: 0
+        pageSize: 25
+        sortDirection: Descending
+        sortColumn: DatePublication
+
   - source_key: greater_china_market_news
     display_name: Greater China Market News
     source_type: rss

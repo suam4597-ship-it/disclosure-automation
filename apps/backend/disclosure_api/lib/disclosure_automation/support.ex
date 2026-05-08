@@ -110,11 +110,12 @@ defmodule DisclosureAutomation.Http do
   def fetch(url, opts \\ []) when is_binary(url) do
     timeout = Keyword.get(opts, :timeout, 8_000)
     headers = Keyword.get(opts, :headers, @default_headers)
-    request = {String.to_charlist(url), headers}
+    method = opts |> Keyword.get(:method, :get) |> normalize_method()
+    request = request(method, url, headers, opts)
     http_opts = [timeout: timeout, connect_timeout: timeout, ssl: [verify: :verify_none]]
     request_opts = [body_format: :binary]
 
-    case :httpc.request(:get, request, http_opts, request_opts) do
+    case :httpc.request(method, request, http_opts, request_opts) do
       {:ok, {{_http_version, status_code, _reason_phrase}, response_headers, body}} ->
         {:ok,
          %{
@@ -129,6 +130,25 @@ defmodule DisclosureAutomation.Http do
         {:error, reason}
     end
   end
+
+  defp normalize_method(method) when method in [:get, :post], do: method
+
+  defp normalize_method(method) when is_binary(method) do
+    case String.downcase(method) do
+      "post" -> :post
+      _method -> :get
+    end
+  end
+
+  defp normalize_method(_method), do: :get
+
+  defp request(:post, url, headers, opts) do
+    body = opts |> Keyword.get(:body, "") |> to_string()
+    content_type = opts |> Keyword.get(:content_type, "application/json") |> to_string()
+    {String.to_charlist(url), headers, String.to_charlist(content_type), body}
+  end
+
+  defp request(_method, url, headers, _opts), do: {String.to_charlist(url), headers}
 end
 
 defmodule DisclosureAutomation.Fixtures do
