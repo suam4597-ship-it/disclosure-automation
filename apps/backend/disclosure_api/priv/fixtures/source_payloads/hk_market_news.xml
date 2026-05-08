@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Hong Kong Market News</title>
+    <item>
+      <title>Hong Kong technology listings pipeline improves after new filings</title>
+      <link>https://example.com/globalpulse/hk/technology-listings-pipeline</link>
+      <guid>hk-news-20260508-technology-listings-pipeline</guid>
+      <description>Market participants cite renewed listing momentum as technology issuers update prospectus materials and liquidity assumptions.</description>
+      <pubDate>Fri, 08 May 2026 04:12:00 GMT</pubDate>
+      <category>markets</category>
+    </item>
+    <item>
+      <title>HKEX consultation keeps market structure reform in focus</title>
+      <link>https://example.com/globalpulse/hk/hkex-market-structure-consultation</link>
+      <guid>hk-news-20260508-hkex-market-structure</guid>
+      <description>Exchange consultation themes keep trading liquidity, issuer disclosure cadence, and settlement resilience in focus.</description>
+      <pubDate>Fri, 08 May 2026 03:42:00 GMT</pubDate>
+      <category>markets</category>
+    </item>
+  </channel>
+</rss>

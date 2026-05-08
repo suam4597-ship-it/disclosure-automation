@@ -140,13 +140,64 @@ sources:
     poll_cron: "*/20 * * * *"
     ranking_weight: 1.2
     coverage_tags:
-      - cn
-      - tw
+      - greater_china
       - news
       - markets
     active: true
     config:
       fixture_path: source_payloads/greater_china_market_news.xml
+
+  - source_key: cn_mainland_disclosures
+    display_name: Mainland China Disclosures
+    source_type: rss
+    base_url: https://example.com/globalpulse/cn-mainland-disclosures
+    healthcheck_url: https://example.com/
+    parser_key: rss_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.18
+    coverage_tags:
+      - cn
+      - regulatory
+      - disclosure
+      - filing
+      - markets
+    active: true
+    config:
+      fixture_path: source_payloads/cn_mainland_disclosures.xml
+
+  - source_key: tw_market_disclosures
+    display_name: Taiwan Market Disclosures
+    source_type: rss
+    base_url: https://example.com/globalpulse/tw-market-disclosures
+    healthcheck_url: https://example.com/
+    parser_key: rss_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.18
+    coverage_tags:
+      - tw
+      - regulatory
+      - disclosure
+      - filing
+      - markets
+    active: true
+    config:
+      fixture_path: source_payloads/tw_market_disclosures.xml
+
+  - source_key: hk_market_news
+    display_name: Hong Kong Market News
+    source_type: rss
+    base_url: https://example.com/globalpulse/hk-market-news
+    healthcheck_url: https://example.com/
+    parser_key: rss_v1
+    poll_cron: "*/25 * * * *"
+    ranking_weight: 1.12
+    coverage_tags:
+      - hk
+      - news
+      - markets
+    active: true
+    config:
+      fixture_path: source_payloads/hk_market_news.xml
 
   - source_key: apac_policy_news
     display_name: APAC Policy News

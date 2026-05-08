@@ -42,6 +42,8 @@ defmodule DisclosureAutomation.Canonicalizer do
       "global" in tags -> ["global"]
       "kr" in tags or "korea" in tags -> ["kr"]
       "jp" in tags or "japan" in tags -> ["jp"]
+      "greater_china" in tags or "cn_tw" in tags -> ["greater_china"]
+      "hk" in tags or "hong_kong" in tags or "hongkong" in tags -> ["hk"]
       "cn" in tags or "china" in tags -> ["cn"]
       "tw" in tags or "taiwan" in tags -> ["tw"]
       "eu_north" in tags or "europe_north" in tags -> ["eu_north"]

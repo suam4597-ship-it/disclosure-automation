@@ -12,9 +12,13 @@ window.DISCLOSURE_API_BASE_URL =
 
 // UI adapter for backend region codes that were added after the original
 // single-file GlobalPulse shell. This keeps the large index.html stable while
-// allowing backend canonical regions to render as distinct Europe buckets.
+// allowing backend canonical regions to render as distinct regional buckets.
 window.addEventListener("load", () => {
   const labels = {
+    greater_china: "CN/TW Greater China",
+    cn: "Mainland China",
+    tw: "Taiwan",
+    hk: "Hong Kong",
     eu_north: "Northern Europe",
     eu_central: "Central Europe",
     eu_south: "Southern Europe"
@@ -31,6 +35,10 @@ window.addEventListener("load", () => {
     if (raw === "korea") return "kr";
     if (raw === "japan") return "jp";
     if (raw === "china") return "cn";
+    if (raw === "mainland_china") return "cn";
+    if (raw === "taiwan") return "tw";
+    if (raw === "hong_kong" || raw === "hongkong") return "hk";
+    if (raw === "cn_tw" || raw === "greaterchina") return "greater_china";
     return typeof window.REGION_LABELS !== "undefined" && window.REGION_LABELS?.[raw] ? raw : raw;
   };
 
