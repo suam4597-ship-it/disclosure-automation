@@ -10,7 +10,7 @@ This is documentation-only. It does not add runtime code, routes, controllers, m
 primary target: listed-company disclosures and issuer announcements
 preferred authority: official exchange, OAM, regulated-information repository, or issuer-announcement authority
 not first target: ECB, central-bank feeds, macro-statistics feeds, parliament feeds, or broad policy news
-current result: France OAM manual source + parser + staging live smoke complete; Spain CNMV manual RSS sources + parser compatibility fix + staging live smoke + public UI smoke complete; Netherlands AFM CSV manual source + parser + staging live smoke complete; Italy eMarket Storage bounded HTML manual source + parser + staging live smoke + public UI smoke complete; Luxembourg LuxSE OAM GraphQL manual source + parser + staging live smoke + public UI smoke complete; Euronext company press release RSS manual source + bounded parser + staging live smoke + public UI smoke complete; Belgium FSMA STORI API manual source + bounded parser candidate added; remaining EU candidates need endpoint/parser confirmation
+current result: France OAM manual source + parser + staging live smoke complete; Spain CNMV manual RSS sources + parser compatibility fix + staging live smoke + public UI smoke complete; Netherlands AFM CSV manual source + parser + staging live smoke complete; Italy eMarket Storage bounded HTML manual source + parser + staging live smoke + public UI smoke complete; Luxembourg LuxSE OAM GraphQL manual source + parser + staging live smoke + public UI smoke complete; Euronext company press release RSS manual source + bounded parser + staging live smoke + public UI smoke complete; Belgium FSMA STORI API manual source + bounded parser + staging live smoke + public UI smoke complete; remaining EU candidates need endpoint/parser confirmation
 ```
 
 ## Candidate A: France Info-Financiere OAM API
@@ -111,7 +111,7 @@ machine-readable URL: https://webapi.fsma.be/api/v1/en/stori/result
 observed HTTP: page 200; API POST 200
 observed content-type: API application/json
 observed shape: JSON result with resultCount and storiResultItems containing companyName, reportingTopicName, datePublication, dateReceived, mainDocuments, attachments, isinCodes, and document metadata
-status: MANUAL_SOURCE_REGISTERED_PENDING_STAGING_LIVE_SMOKE
+status: MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS_PUBLIC_UI_PASS_SCHEDULED_POLLING_DISABLED
 ```
 
 Why this fits the product:
@@ -129,7 +129,8 @@ Parser fsma_stori_api_v1 exists.
 Manual source eu_belgium_fsma_stori exists with active=false and candidate_status=manual_staging_only.
 The source uses a bounded POST body with sortColumn=DatePublication and pageSize=25.
 Fixture source_payloads/eu_belgium_fsma_stori.json captures the bounded public JSON shape.
-Fly staging live poll and public Pages UI smoke are still pending for this candidate.
+Fly staging live poll passed with fetch.mode=live, records_seen=25, records_inserted=25, and latest digest fallback_to_fixture=false.
+Public GlobalPulse Pages UI rendered Belgium FSMA STORI Regulated Information under Central Europe.
 Scheduled polling remains disabled until the broader EU source batch is intentionally promoted.
 ```
 
