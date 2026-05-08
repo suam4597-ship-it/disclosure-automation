@@ -104,13 +104,31 @@ defmodule DisclosureAutomation.Parser do
 
   defp parse_xml(raw_payload) do
     try do
-      {document, _rest} = :xmerl_scan.string(String.to_charlist(raw_payload), quiet: true)
+      {document, _rest} =
+        raw_payload
+        |> normalize_xml_payload()
+        |> :xmerl_scan.string(quiet: true)
+
       {:ok, document}
     rescue
       error -> {:error, {:invalid_xml, error}}
     catch
       kind, reason -> {:error, {:invalid_xml, {kind, reason}}}
     end
+  end
+
+  defp normalize_xml_payload(raw_payload) do
+    raw_payload
+    |> String.replace(<<0xEF, 0xBB, 0xBF>>, "")
+    |> String.replace("…", "...")
+    |> String.replace("‘", "'")
+    |> String.replace("’", "'")
+    |> String.replace("“", "\"")
+    |> String.replace("”", "\"")
+    |> String.replace("–", "-")
+    |> String.replace("—", "-")
+    |> String.replace(<<0xC2, 0xA0>>, " ")
+    |> String.to_charlist()
   end
 
   defp parse_item(item) do
