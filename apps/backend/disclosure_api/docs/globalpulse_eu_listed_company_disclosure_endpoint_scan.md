@@ -247,7 +247,7 @@ observed search/browser result: official register page and CSV export surface wi
 local executor direct export probe: DNS resolution failed for www.afm.nl in local shell
 Fly staging network export probe: HTTP 200 for CSV and XML export URLs
 observed CSV shape: semicolon-delimited quoted fields: Datum deponering, Uitgevende instelling, Boekjaar, Soort
-status: MANUAL_SOURCE_CANDIDATE_REGISTERED_PARSER_ADDED_STAGING_LIVE_SMOKE_PENDING
+status: MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS_SCHEDULED_POLLING_DISABLED
 ```
 
 Why this fits the product:
@@ -267,7 +267,9 @@ Manual source eu_netherlands_afm_financial_reporting exists with active=false an
 Local DNS remains inconclusive, but Fly staging network raw payload probe returned HTTP 200 and official CSV/XML export bytes.
 The XML export was rejected as the initial staging path after manual live poll OOM-killed the small Fly machine; the source now points to the lighter official CSV export.
 The CSV parser includes Latin-1 fallback decoding after staging live smoke found invalid byte 0xEB in document type text.
-Staging live poll is still pending and must verify fetch.mode=live plus metadata.fallback_to_fixture=false before any scheduled polling decision.
+Fly staging live poll returned fetch.mode=live, HTTP 200, fetch.bytes=870901, records_seen=25, records_inserted=25, canonical_items=25, and no fixture fallback.
+Date-specific digest GET /api/feed/digest/2026-05-02/breaking returned metadata.fallback_to_fixture=false and a Netherlands AFM Financial Reporting item with valid UTF-8 text.
+Scheduled polling remains disabled until the broader EU source batch is intentionally promoted.
 ```
 
 ## Candidate J: Italy Consob-Authorized Storage Systems
