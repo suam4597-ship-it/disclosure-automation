@@ -10,7 +10,7 @@ This is documentation-only. It does not add runtime code, routes, controllers, m
 primary target: listed-company disclosures and issuer announcements
 preferred authority: official exchange, OAM, regulated-information repository, or issuer-announcement authority
 not first target: ECB, central-bank feeds, macro-statistics feeds, parliament feeds, or broad policy news
-current result: France OAM manual source + parser + staging live smoke complete; Spain CNMV manual RSS sources + parser compatibility fix + staging live smoke + public UI smoke complete; Netherlands AFM CSV manual source + parser + staging live smoke complete; Italy eMarket Storage bounded HTML manual source + parser + staging live smoke + public UI smoke complete; Luxembourg LuxSE OAM GraphQL manual source + parser + staging live smoke + public UI smoke complete; remaining EU candidates need endpoint/parser confirmation
+current result: France OAM manual source + parser + staging live smoke complete; Spain CNMV manual RSS sources + parser compatibility fix + staging live smoke + public UI smoke complete; Netherlands AFM CSV manual source + parser + staging live smoke complete; Italy eMarket Storage bounded HTML manual source + parser + staging live smoke + public UI smoke complete; Luxembourg LuxSE OAM GraphQL manual source + parser + staging live smoke + public UI smoke complete; Euronext company press release RSS manual source + bounded parser candidate added; remaining EU candidates need endpoint/parser confirmation
 ```
 
 ## Candidate A: France Info-Financiere OAM API
@@ -74,10 +74,11 @@ Each national OAM endpoint still needs separate machine-readable endpoint verifi
 owner: Euronext
 authority class: official exchange / issuer-announcement surface
 candidate URL: https://live.euronext.com/en/products/equities/company-news
+machine-readable URL: https://live.euronext.com/rss/company-pr-release
 observed HTTP: 200
-observed content-type: text/html; charset=UTF-8
-observed shape: HTML listing with issuer, release title, timestamp, market, industry, and topic fields
-status: RELEVANT_PUBLIC_SURFACE_PENDING_MACHINE_ENDPOINT_OR_BOUNDED_HTML_PARSER
+observed content-type: page text/html; charset=UTF-8; RSS application/rss+xml; charset=utf-8
+observed shape: official RSS 2.0 channel with title, link, description, pubDate, dc:creator, and guid fields; descriptions include nested HTML from the company-news surface
+status: MANUAL_SOURCE_REGISTERED_PENDING_STAGING_LIVE_SMOKE
 ```
 
 Why this fits the product:
@@ -85,14 +86,18 @@ Why this fits the product:
 ```text
 The page lists company press releases and includes company regulated news navigation across Euronext markets such as Amsterdam, Brussels, Lisbon, and Paris.
 The topic taxonomy includes inside information, annual financial reports, half-yearly reports, major shareholding notifications, voting rights/capital, dividends, and other issuer-announcement categories.
+The official RSS endpoint exposes the same issuer-announcement surface in a machine-readable form.
 ```
 
-Blocking item:
+Current implementation status:
 
 ```text
-The observed surface is HTML.
-Do not poll it with rss_v1.
-Either find an accepted RSS/Atom/JSON/API endpoint or add a bounded parser contract before source registration.
+Parser euronext_company_pr_rss_v1 exists.
+Manual source eu_euronext_company_press_releases exists with active=false and candidate_status=manual_staging_only.
+The parser reuses the official RSS item contract, prefers English release links when duplicated translations are present, and bounds nested HTML descriptions before canonicalization.
+Fixture source_payloads/eu_euronext_company_press_releases.xml captures the official RSS shape without carrying raw page material.
+Fly staging live poll and public Pages UI smoke are still pending for this candidate.
+Scheduled polling remains disabled until the broader EU source batch is intentionally promoted.
 ```
 
 ## Candidate D: Borsa Italiana / Italian SDIR and Storage Systems

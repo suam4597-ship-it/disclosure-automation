@@ -36,6 +36,36 @@ parsers:
       reject_empty_url: true
       reject_future_timestamps: true
 
+  - parser_key: euronext_company_pr_rss_v1
+    display_name: Euronext Company Press Release RSS Parser
+    enabled: true
+    input_types: [rss]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: false
+    supports_detail_fetch: true
+    extraction:
+      id_fields: [guid, link]
+      title_fields: [title]
+      summary_fields: [description]
+      body_fields: [description]
+      published_at_fields: [pubDate]
+      author_fields: [dc_creator]
+      category_fields: [category]
+    normalization:
+      trim_html: true
+      decode_entities: true
+      collapse_whitespace: true
+      prefer_english_release_links: true
+      timezone_strategy: source_default
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_html_payload: true
+      reject_future_timestamps: true
+
   - parser_key: info_financiere_oam_v1
     display_name: France Info-Financiere OAM JSON Parser
     enabled: true

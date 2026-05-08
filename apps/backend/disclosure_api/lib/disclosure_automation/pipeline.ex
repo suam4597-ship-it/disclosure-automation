@@ -108,6 +108,10 @@ defmodule DisclosureAutomation.Parser do
   end
 
   defp parse_by_key("rss_v1", raw_payload), do: parse_rss(raw_payload)
+
+  defp parse_by_key("euronext_company_pr_rss_v1", raw_payload),
+    do: parse_euronext_company_pr_rss(raw_payload)
+
   defp parse_by_key("info_financiere_oam_v1", raw_payload), do: parse_info_financiere(raw_payload)
 
   defp parse_by_key("afm_financial_reporting_csv_v1", raw_payload),
@@ -161,6 +165,93 @@ defmodule DisclosureAutomation.Parser do
       {:ok, items}
     end
   end
+
+  defp parse_euronext_company_pr_rss(raw_payload) do
+    with {:ok, records} <- parse_rss(raw_payload) do
+      records =
+        records
+        |> euronext_prefer_english_records()
+        |> Enum.map(&clean_euronext_company_pr_record/1)
+
+      {:ok, records}
+    end
+  end
+
+  defp euronext_prefer_english_records(records) do
+    english_records =
+      Enum.filter(records, fn record ->
+        record
+        |> Map.get(:url)
+        |> case do
+          url when is_binary(url) -> String.contains?(url, "/en/")
+          _ -> false
+        end
+      end)
+
+    case english_records do
+      [] -> records
+      _records -> english_records
+    end
+  end
+
+  defp clean_euronext_company_pr_record(record) do
+    Map.update(record, :summary, nil, fn summary ->
+      summary
+      |> euronext_company_pr_summary(record[:title])
+      |> case do
+        nil -> "Euronext company press release."
+        cleaned -> cleaned
+      end
+    end)
+  end
+
+  defp euronext_company_pr_summary(summary, title) when is_binary(summary) do
+    summary
+    |> decode_html_entities()
+    |> String.replace(~r/<[^>]+>/, " ")
+    |> decode_html_entities()
+    |> String.replace(~r/<[^>]+>/, " ")
+    |> String.replace(~r/https?:\/\/\S+/u, " ")
+    |> String.replace(~r/[\w.-]+">\s*/u, " ")
+    |> String.replace(~r/\bmaster_of_puppets\b/u, " ")
+    |> String.replace(~r/\s+/u, " ")
+    |> String.trim()
+    |> euronext_after_language_marker()
+    |> trim_euronext_summary_prefix(title)
+    |> String.slice(0, 360)
+    |> String.trim()
+    |> case do
+      "" -> nil
+      cleaned -> cleaned
+    end
+  end
+
+  defp euronext_company_pr_summary(_summary, _title), do: nil
+
+  defp euronext_after_language_marker(summary) do
+    case Regex.split(
+           ~r/\bLanguage\s+(?:English|French|Dutch|Portuguese|Italian|Norwegian)\s+/u,
+           summary,
+           parts: 2
+         ) do
+      [_before, after_marker] -> after_marker
+      _parts -> summary
+    end
+  end
+
+  defp trim_euronext_summary_prefix(summary, title) when is_binary(title) do
+    summary
+    |> String.replace_prefix(title, "")
+    |> String.trim()
+    |> String.replace(~r/^html\s+xmlns=.*?\bbody\s*;?\s*/iu, "")
+    |> String.replace(~r/^Stocks\s+/u, "")
+    |> String.replace(~r/^Bonds\s+Stocks\s+/u, "")
+    |> String.replace(~r/^Fri\s+\d{2}\/\d{2}\/\d{4}\s+-\s+\d{2}:\d{2}\s+/u, "")
+    |> String.replace(~r/^ven\s+\d{2}\/\d{2}\/\d{4}\s+-\s+\d{2}:\d{2}\s+/u, "")
+    |> String.replace(~r/^[\s;:,-]+/u, "")
+  end
+
+  defp trim_euronext_summary_prefix(summary, _title), do: summary
 
   defp rss_item_nodes(document) do
     [
@@ -926,13 +1017,14 @@ defmodule DisclosureAutomation.Ingestion do
 
   defp maybe_load_live_payload(_source, false), do: :skip
 
-  defp validate_live_payload(%SourceRegistry{parser_key: "rss_v1"}, response) do
+  defp validate_live_payload(%SourceRegistry{parser_key: parser_key}, response)
+       when parser_key in ["rss_v1", "euronext_company_pr_rss_v1"] do
     cond do
       html_content_type?(response.headers) ->
-        {:error, {:unsupported_live_content_type, "rss_v1", content_type(response.headers)}}
+        {:error, {:unsupported_live_content_type, parser_key, content_type(response.headers)}}
 
       html_payload?(response.body) ->
-        {:error, {:unsupported_live_payload, "rss_v1", :html}}
+        {:error, {:unsupported_live_payload, parser_key, :html}}
 
       true ->
         :ok
