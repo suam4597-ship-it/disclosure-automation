@@ -14,6 +14,16 @@ staging backend URL: https://globalpulse-backend-staging.fly.dev
 current live status: NOT_READY_FOR_SCHEDULED_LIVE_POLLING
 ```
 
+Current APAC live-source status:
+
+```text
+India NSE official RSS: staging-live verified, bounded, duplicate-handling hardened, conservative staging schedule configured
+India NSE first automated scheduled run: pending first matching GitHub Actions cron slot
+ASEAN official endpoint: scan started, exact machine-readable endpoint not accepted yet
+ANZ official endpoint: pending exact endpoint verification
+JP live source: blocked by issue #339 source-authority decision
+```
+
 Current APAC fixture-backed source buckets:
 
 ```text
@@ -57,7 +67,7 @@ owner: National Stock Exchange of India
 candidate category: India listed-company announcements
 machine-readable shape: RSS 2.0 XML
 candidate feed: https://nsearchives.nseindia.com/content/RSS/Online_announcements.xml
-status: PREFERRED_FIRST_APAC_CANDIDATE_PENDING_STAGING_VERIFICATION
+status: STAGING_LIVE_VERIFIED_CONSERVATIVE_STAGING_SCHEDULE_CONFIGURED
 ```
 
 Observed quick smoke on 2026-05-08:
@@ -88,9 +98,24 @@ Acceptance caveat:
 
 ```text
 Do not replace india_market_disclosures with the NSE feed yet.
-Do not schedule the NSE candidate yet.
-Add it only as a disabled/manual or staging-only candidate after a focused parser smoke confirms current rss_v1 compatibility.
-Record live success only after Fly staging proves fetch.mode=live and metadata.fallback_to_fixture=false.
+Do not promote NSE to production scheduled polling yet.
+The source is available only as a disabled/manual staging candidate in the registry.
+The conservative staging workflow schedule is configured on both phase0-foundation and main.
+Record first scheduled-run success only after a GitHub Actions cron run proves source=india_nse_announcements, fetch.mode=live, metadata.fallback_to_fixture=false, and the digest remains diverse.
+```
+
+Safety hardening completed after initial candidate selection:
+
+```text
+parser output bound: completed
+source-level max_items_per_poll=25: completed
+Fly staging live poll smoke: completed
+digest diversity guard: completed
+duplicate reference bounding: completed
+staging cadence policy: completed
+phase0 workflow schedule configuration: completed
+default-branch schedule activation: completed
+first automated scheduled run: pending
 ```
 
 ### Candidate B: India SEBI/BSE/NSE secondary feeds
@@ -126,6 +151,17 @@ candidate category: ASEAN market news and listed-company announcements
 candidate owners to verify: SGX, Bursa Malaysia, SET, IDX, or another official exchange/regulator
 machine-readable shape: pending exact endpoint verification
 status: ASEAN_LIVE_SOURCE_PENDING_EXACT_ENDPOINT
+```
+
+Observed ASEAN exact-endpoint scan:
+
+```text
+scan record: globalpulse_asean_live_endpoint_verification_scan.md
+SGX company announcements: official HTML surface found; token-protected JSON path observed but not accepted yet
+Bursa Malaysia company announcements: official surface found; executor direct probes returned 403
+SET Thailand company news: official HTML surface found; guessed JSON endpoint returned 403
+IDX announcements: official surface to verify; executor direct probes returned 403
+decision: no ASEAN source registration yet
 ```
 
 Acceptance caveat:
@@ -208,12 +244,11 @@ REJECT: enabling JP live polling before issue #339 source-authority decision is 
 ## Next Allowed PRs
 
 ```text
-1. Add focused NSE RSS parser characterization against a captured bounded sample.
-2. Add a disabled/manual India NSE candidate source after rss_v1 compatibility is confirmed.
-3. Run Fly staging live poll smoke for the NSE candidate with use_live_fetch=true.
-4. Record India NSE live polling smoke if fetch.mode=live and metadata.fallback_to_fixture=false.
-5. Start ASEAN exact endpoint verification separately.
-6. Start ANZ exact endpoint verification separately.
+1. Record first automated India NSE scheduled staging poll after the GitHub Actions cron fires.
+2. Continue focused SGX access-path review for ASEAN.
+3. Add a bounded SGX adapter only if official access terms and response shape are accepted.
+4. Start ANZ exact endpoint verification separately.
+5. Keep JP blocked until issue #339 source authority is resolved.
 ```
 
 ## Current Conclusion
@@ -221,10 +256,13 @@ REJECT: enabling JP live polling before issue #339 source-authority decision is 
 ```text
 APAC_FIXTURE_UI_TRACK_CLOSED
 APAC_LIVE_SOURCE_TRACK_STARTED
-INDIA_NSE_RSS_SELECTED_AS_FIRST_APAC_CANDIDATE_PENDING_STAGING_VERIFICATION
-ASEAN_LIVE_SOURCE_PENDING_EXACT_ENDPOINT
+INDIA_NSE_STAGING_LIVE_CANDIDATE_VERIFIED
+INDIA_NSE_CONSERVATIVE_STAGING_SCHEDULE_CONFIGURED
+INDIA_NSE_FIRST_AUTOMATED_SCHEDULED_RUN_PENDING
+ASEAN_LIVE_ENDPOINT_SCAN_STARTED
+ASEAN_MACHINE_READABLE_ENDPOINT_NOT_ACCEPTED_YET
 ANZ_LIVE_SOURCE_PENDING_EXACT_ENDPOINT
-APAC_SCHEDULED_LIVE_POLLING_BLOCKED_UNTIL_STAGING_SMOKE_PASS
+PRODUCTION_APAC_SCHEDULED_LIVE_POLLING_NOT_ENABLED
 JP_REMAINING_AUTHORITY_DECISION_TRACKED_IN_ISSUE_339
 ```
 
