@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Central Europe Disclosures</title>
+    <item>
+      <title>German industrial automation group discloses order backlog expansion</title>
+      <link>https://example.com/globalpulse/eu-central/industrial-automation-backlog</link>
+      <guid>eu-central-disclosure-20260508-industrial-automation-backlog</guid>
+      <description>A Central Europe issuer reported stronger robotics and factory automation demand with updated backlog visibility.</description>
+      <pubDate>Fri, 08 May 2026 04:05:00 GMT</pubDate>
+      <category>disclosure</category>
+    </item>
+    <item>
+      <title>Swiss healthcare supplier files margin sensitivity update after currency move</title>
+      <link>https://example.com/globalpulse/eu-central/healthcare-margin-sensitivity</link>
+      <guid>eu-central-disclosure-20260508-healthcare-margin-sensitivity</guid>
+      <description>The filing highlights foreign-exchange sensitivity and expected mitigation from procurement hedges.</description>
+      <pubDate>Fri, 08 May 2026 03:40:00 GMT</pubDate>
+      <category>filing</category>
+    </item>
+  </channel>
+</rss>
