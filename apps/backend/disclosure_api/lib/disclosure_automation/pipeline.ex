@@ -88,7 +88,7 @@ defmodule DisclosureAutomation.Parser do
 
   alias DisclosureAutomation.ParserCapabilities
 
-  @afm_reporting_parse_limit 25
+  @afm_reporting_csv_limit 25
 
   def parse(parser_key, raw_payload, opts \\ [])
       when is_binary(parser_key) and is_binary(raw_payload) do
@@ -107,7 +107,7 @@ defmodule DisclosureAutomation.Parser do
   defp parse_by_key("rss_v1", raw_payload), do: parse_rss(raw_payload)
   defp parse_by_key("info_financiere_oam_v1", raw_payload), do: parse_info_financiere(raw_payload)
 
-  defp parse_by_key("afm_financial_reporting_xml_v1", raw_payload),
+  defp parse_by_key("afm_financial_reporting_csv_v1", raw_payload),
     do: parse_afm_reporting(raw_payload)
 
   defp parse_by_key(parser_key, _raw_payload), do: {:error, {:unsupported_parser_key, parser_key}}
@@ -243,112 +243,63 @@ defmodule DisclosureAutomation.Parser do
   end
 
   defp parse_afm_reporting(raw_payload) do
-    with {:ok, document} <- parse_xml(afm_reporting_bounded_xml(raw_payload)) do
-      items =
-        :xmerl_xpath.string(~c"/register/vermelding[id]", document)
-        |> Enum.map(&parse_afm_reporting_record/1)
-        |> Enum.filter(&(&1.url && &1.title))
+    items =
+      raw_payload
+      |> String.split(~r/\r?\n/, trim: true)
+      |> Enum.drop(1)
+      |> Enum.take(@afm_reporting_csv_limit)
+      |> Enum.map(&parse_afm_reporting_record/1)
+      |> Enum.filter(&(&1.url && &1.title))
 
-      {:ok, items}
+    {:ok, items}
+  end
+
+  defp parse_afm_reporting_record(row) do
+    case parse_afm_csv_row(row) do
+      [published_at_text, issuer, year, category | _rest] ->
+        %{
+          external_id: join_non_empty([published_at_text, issuer, year, category], "|"),
+          title: join_non_empty([issuer, category], " - "),
+          url: afm_reporting_register_url(),
+          summary:
+            join_non_empty(
+              [
+                prefixed("Reporting year", year),
+                prefixed("Document type", category)
+              ],
+              " | "
+            ),
+          published_at: parse_afm_datetime(published_at_text),
+          category: category
+        }
+
+      _ ->
+        empty_afm_reporting_record()
     end
   end
 
-  defp afm_reporting_bounded_xml(raw_payload) do
-    root_open =
-      case Regex.run(~r/<register[^>]*>/, raw_payload) do
-        [tag] -> tag
-        _ -> "<register>"
-      end
-
-    root_open <>
-      Enum.join(afm_reporting_blocks(raw_payload, @afm_reporting_parse_limit)) <> "</register>"
-  end
-
-  defp afm_reporting_blocks(raw_payload, limit) do
-    collect_afm_reporting_blocks(raw_payload, 0, limit, [])
-  end
-
-  defp collect_afm_reporting_blocks(_raw_payload, _offset, 0, acc), do: Enum.reverse(acc)
-
-  defp collect_afm_reporting_blocks(raw_payload, offset, remaining, acc) do
-    case binary_match_from(raw_payload, "<vermelding>", offset) do
-      :nomatch ->
-        Enum.reverse(acc)
-
-      {start, open_len} ->
-        case afm_reporting_block_end(raw_payload, start + open_len, 1) do
-          nil ->
-            Enum.reverse(acc)
-
-          block_end ->
-            block = binary_part(raw_payload, start, block_end - start)
-            collect_afm_reporting_blocks(raw_payload, block_end, remaining - 1, [block | acc])
-        end
-    end
-  end
-
-  defp afm_reporting_block_end(raw_payload, offset, depth) do
-    next_open = binary_match_from(raw_payload, "<vermelding>", offset)
-    next_close = binary_match_from(raw_payload, "</vermelding>", offset)
-
-    cond do
-      next_close == :nomatch ->
-        nil
-
-      next_open != :nomatch and elem(next_open, 0) < elem(next_close, 0) ->
-        afm_reporting_block_end(raw_payload, elem(next_open, 0) + elem(next_open, 1), depth + 1)
-
-      depth == 1 ->
-        elem(next_close, 0) + elem(next_close, 1)
-
-      true ->
-        afm_reporting_block_end(raw_payload, elem(next_close, 0) + elem(next_close, 1), depth - 1)
-    end
-  end
-
-  defp binary_match_from(raw_payload, needle, offset) when offset < byte_size(raw_payload) do
-    remainder = binary_part(raw_payload, offset, byte_size(raw_payload) - offset)
-
-    case :binary.match(remainder, needle) do
-      {position, length} -> {offset + position, length}
-      :nomatch -> :nomatch
-    end
-  end
-
-  defp binary_match_from(_raw_payload, _needle, _offset), do: :nomatch
-
-  defp parse_afm_reporting_record(record) do
-    id = xpath_string(record, ~c"string(id)")
-    issuer = xpath_string(record, ~c"string(uitgevende-instelling)")
-    year = xpath_string(record, ~c"string(boekjaar)")
-    filename = xpath_string(record, ~c"string(filename)")
-    object_type = xpath_string(record, ~c"string(objecttype)")
-    object_type_en = xpath_string(record, ~c"string(objecttype_eng)")
-    filing_text = xpath_string(record, ~c"string(vermelding)")
-    category = object_type_en || object_type
-
+  defp empty_afm_reporting_record do
     %{
-      external_id: id || filename,
-      title: join_non_empty([issuer, category], " - "),
-      url: afm_reporting_detail_url(id),
-      summary:
-        join_non_empty(
-          [
-            prefixed("Reporting year", year),
-            prefixed("Document", filename),
-            filing_text
-          ],
-          " | "
-        ),
-      published_at: parse_afm_datetime(xpath_string(record, ~c"string(datum)")),
-      category: category
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: DateTime.utc_now(),
+      category: nil
     }
   end
 
-  defp afm_reporting_detail_url(nil), do: nil
+  defp afm_reporting_register_url do
+    "https://www.afm.nl/en/sector/registers/meldingenregisters/financiele-verslaggeving"
+  end
 
-  defp afm_reporting_detail_url(id) do
-    "https://www.afm.nl/en/sector/registers/meldingenregisters/financiele-verslaggeving/details?id=#{id}"
+  defp parse_afm_csv_row(row) do
+    row
+    |> String.trim()
+    |> String.trim_leading("\"")
+    |> String.trim_trailing("\"")
+    |> String.split("\";\"")
+    |> Enum.map(&String.replace(&1, "\"\"", "\""))
   end
 
   defp string_field(record, key) do
@@ -393,36 +344,21 @@ defmodule DisclosureAutomation.Parser do
   defp parse_afm_datetime(nil), do: DateTime.utc_now()
 
   defp parse_afm_datetime(value) do
-    with [_, month_text, day_text, year_text, hour_text, minute_text, second_text, meridiem] <-
+    with [_, year_text, month_text, day_text, hour_text, minute_text, second_text] <-
            Regex.run(
-             ~r/^(\d{1,2})\/(\d{1,2})\/(\d{4}) (\d{1,2}):(\d{2}):(\d{2}) ([AP]M)$/i,
+             ~r/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/,
              value
            ),
+         {year, ""} <- Integer.parse(year_text),
          {month, ""} <- Integer.parse(month_text),
          {day, ""} <- Integer.parse(day_text),
-         {year, ""} <- Integer.parse(year_text),
          {hour, ""} <- Integer.parse(hour_text),
          {minute, ""} <- Integer.parse(minute_text),
          {second, ""} <- Integer.parse(second_text),
-         {:ok, datetime} <-
-           build_utc_datetime(year, month, day, afm_24_hour(hour, meridiem), minute, second) do
+         {:ok, datetime} <- build_utc_datetime(year, month, day, hour, minute, second) do
       datetime
     else
       _ -> DateTime.utc_now()
-    end
-  end
-
-  defp afm_24_hour(12, meridiem) do
-    case String.upcase(meridiem) do
-      "AM" -> 0
-      "PM" -> 12
-    end
-  end
-
-  defp afm_24_hour(hour, meridiem) do
-    case String.upcase(meridiem) do
-      "PM" -> hour + 12
-      _ -> hour
     end
   end
 
@@ -814,20 +750,20 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp validate_live_payload(
-         %SourceRegistry{parser_key: "afm_financial_reporting_xml_v1"},
+         %SourceRegistry{parser_key: "afm_financial_reporting_csv_v1"},
          response
        ) do
     cond do
       html_content_type?(response.headers) ->
         {:error,
-         {:unsupported_live_content_type, "afm_financial_reporting_xml_v1",
+         {:unsupported_live_content_type, "afm_financial_reporting_csv_v1",
           content_type(response.headers)}}
 
       html_payload?(response.body) ->
-        {:error, {:unsupported_live_payload, "afm_financial_reporting_xml_v1", :html}}
+        {:error, {:unsupported_live_payload, "afm_financial_reporting_csv_v1", :html}}
 
-      not afm_reporting_xml_payload?(response.body) ->
-        {:error, {:unsupported_live_payload, "afm_financial_reporting_xml_v1", :unexpected_xml}}
+      not afm_reporting_csv_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "afm_financial_reporting_csv_v1", :unexpected_csv}}
 
       true ->
         :ok
@@ -867,13 +803,13 @@ defmodule DisclosureAutomation.Ingestion do
 
   defp html_payload?(_body), do: false
 
-  defp afm_reporting_xml_payload?(body) when is_binary(body) do
+  defp afm_reporting_csv_payload?(body) when is_binary(body) do
     body
     |> String.trim_leading()
-    |> String.starts_with?("<register")
+    |> String.starts_with?("\"Datum deponering\";\"Uitgevende instelling\"")
   end
 
-  defp afm_reporting_xml_payload?(_body), do: false
+  defp afm_reporting_csv_payload?(_body), do: false
 
   defp load_fixture_payload(source) do
     fixture_path =

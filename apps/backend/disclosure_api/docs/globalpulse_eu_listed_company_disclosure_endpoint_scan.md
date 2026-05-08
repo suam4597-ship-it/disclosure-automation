@@ -246,7 +246,7 @@ candidate XML export URL: https://www.afm.nl/export.aspx?format=xml&type=e8825b0
 observed search/browser result: official register page and CSV export surface with filing-date and issuing-institution fields
 local executor direct export probe: DNS resolution failed for www.afm.nl in local shell
 Fly staging network export probe: HTTP 200 for CSV and XML export URLs
-observed XML shape: <register><vermelding><id>...</id><datum>...</datum><uitgevende-instelling>...</uitgevende-instelling>...</vermelding></register>
+observed CSV shape: semicolon-delimited quoted fields: Datum deponering, Uitgevende instelling, Boekjaar, Soort
 status: MANUAL_SOURCE_CANDIDATE_REGISTERED_PARSER_ADDED_STAGING_LIVE_SMOKE_PENDING
 ```
 
@@ -255,16 +255,16 @@ Why this fits the product:
 ```text
 The AFM register covers financial reports filed by listed companies with the Netherlands as home member state and securities admitted to a regulated market.
 The public page and export links point toward machine-readable financial-reporting disclosures for listed-company reporting.
-The XML export is a better first integration target than CSV because it preserves named fields and avoids delimiter/encoding ambiguity.
+The CSV export is the safer first staging integration target because it is materially smaller than the XML export on the current Fly machine class while preserving the bounded fields needed for GlobalPulse.
 ```
 
 Current implementation status:
 
 ```text
-Parser afm_financial_reporting_xml_v1 exists.
-Parser bounds the AFM export to the first 25 top-level vermelding records before XML parsing to avoid loading the full multi-megabyte export into xmerl on small staging machines.
+Parser afm_financial_reporting_csv_v1 exists.
 Manual source eu_netherlands_afm_financial_reporting exists with active=false and candidate_status=manual_staging_only.
-Local DNS remains inconclusive, but Fly staging network raw payload probe returned HTTP 200 and official XML export bytes.
+Local DNS remains inconclusive, but Fly staging network raw payload probe returned HTTP 200 and official CSV/XML export bytes.
+The XML export was rejected as the initial staging path after manual live poll OOM-killed the small Fly machine; the source now points to the lighter official CSV export.
 Staging live poll is still pending and must verify fetch.mode=live plus metadata.fallback_to_fixture=false before any scheduled polling decision.
 ```
 
@@ -349,7 +349,7 @@ Do not use third-party register APIs as official GlobalPulse disclosure sources 
 1. Keep France Info-Financiere OAM as the first proven EU listed-company disclosure live candidate.
 2. Keep Spain CNMV inside-information and other-relevant-information RSS as proven manual_staging_only live candidates.
 3. Do not batch-promote scheduled EU polling yet; France + Spain prove the path but do not define the full EU rollout by themselves.
-4. Run Netherlands AFM staging live smoke next because the official XML export is now registered as active=false/manual_staging_only.
+4. Run Netherlands AFM staging live smoke next because the official CSV export is now registered as active=false/manual_staging_only.
 5. Choose Italy 1Info/eMarket after AFM if an API/RSS/XML/JSON endpoint is found, or if a bounded HTML parser contract is explicitly accepted.
 6. Continue endpoint/parser discovery for Luxembourg LuxSE OAM, Germany official register surfaces, and Euronext issuer press-release surfaces.
 7. Only batch-promote scheduled EU polling after the target list, rollback path, source-specific parser risk, and staging live smoke evidence are documented together.
@@ -378,7 +378,7 @@ FRANCE_INFO_FINANCIERE_OAM_STAGING_LIVE_POLL_PASS
 SPAIN_CNMV_INSIDE_INFORMATION_MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS
 SPAIN_CNMV_OTHER_RELEVANT_INFORMATION_MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS
 SPAIN_CNMV_PUBLIC_UI_PASS
-NETHERLANDS_AFM_XML_EXPORT_MANUAL_SOURCE_CANDIDATE_REGISTERED
+NETHERLANDS_AFM_CSV_EXPORT_MANUAL_SOURCE_CANDIDATE_REGISTERED
 NETHERLANDS_AFM_STAGING_LIVE_SMOKE_PENDING
 ITALY_CONSOB_AUTHORIZED_STORAGE_HTML_SURFACES_FOUND_PARSER_PENDING
 LUXEMBOURG_LUXSE_OAM_SEARCH_SURFACE_FOUND_API_ENDPOINT_PENDING
