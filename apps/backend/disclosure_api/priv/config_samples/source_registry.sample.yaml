@@ -269,6 +269,7 @@ sources:
       fixture_path: source_payloads/india_nse_announcements.xml
       candidate_status: manual_staging_only
       live_source_contract: globalpulse_apac_live_source_verification_contract.md
+      max_items_per_poll: 25
 
   - source_key: anz_market_news
     display_name: Australia/NZ Market News
