@@ -10,7 +10,7 @@ This is documentation-only. It does not add runtime code, routes, controllers, m
 primary target: listed-company disclosures and issuer announcements
 preferred authority: official exchange, OAM, regulated-information repository, or issuer-announcement authority
 not first target: ECB, central-bank feeds, macro-statistics feeds, parliament feeds, or broad policy news
-current result: France OAM manual source + parser + staging live smoke complete; Spain CNMV manual RSS sources + parser compatibility fix + staging live smoke + public UI smoke complete; Netherlands AFM CSV manual source + parser + staging live smoke complete; Italy eMarket Storage bounded HTML manual source + parser + staging live smoke + public UI smoke complete; remaining EU candidates need endpoint/parser confirmation
+current result: France OAM manual source + parser + staging live smoke complete; Spain CNMV manual RSS sources + parser compatibility fix + staging live smoke + public UI smoke complete; Netherlands AFM CSV manual source + parser + staging live smoke complete; Italy eMarket Storage bounded HTML manual source + parser + staging live smoke + public UI smoke complete; Luxembourg LuxSE OAM GraphQL manual source + parser + staging live smoke + public UI smoke complete; remaining EU candidates need endpoint/parser confirmation
 ```
 
 ## Candidate A: France Info-Financiere OAM API
@@ -317,7 +317,7 @@ observed HTTP: 200
 observed shape: HTML OAM/FIRST issuer-services surface and OAM search page backed by a public LuxSE GraphQL OAM submission search endpoint
 GraphQL endpoint: https://graphqlaz.luxse.com/v1/graphql
 GraphQL query: oamSubmissionsSearch(pageSize: 25, pageNumber: 1)
-status: OFFICIAL_OAM_GRAPHQL_CANDIDATE_REGISTERED_MANUAL_ONLY
+status: OFFICIAL_OAM_GRAPHQL_MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS
 ```
 
 Why this fits the product:
@@ -337,7 +337,10 @@ The source uses a GET-encoded GraphQL query with an Apollo preflight header beca
 The source sets a bounded live_timeout_ms of 30000 because the LuxSE GraphQL response can exceed the default 8000 ms fetch timeout.
 Parser output is bounded to submissionId, issuerName, submissionTypeLabel, actionsList, publicationDate, reference period, and the public OAM search URL.
 Fixture source_payloads/eu_luxembourg_luxse_oam.json captures the bounded public JSON shape.
-Next step: Fly staging deploy and manual live poll smoke.
+Fly staging live poll returned fetch.mode=live, HTTP 200, fetch.bytes=7099, records_seen=25, records_inserted=25, and no fixture fallback.
+Latest digest GET /api/feed/digest/latest?edition=breaking returned Luxembourg LuxSE OAM Regulated Information under Central Europe.
+Public GitHub Pages headless Chrome DOM smoke rendered Backend ok, Central Europe, Luxembourg LuxSE OAM Regulated Information, and APERAM.
+Scheduled polling remains disabled until the broader EU source batch is intentionally promoted.
 ```
 
 ## Candidate L: Germany Unternehmensregister / Official Register Surface
@@ -372,7 +375,7 @@ Do not use third-party register APIs as official GlobalPulse disclosure sources 
 3. Keep Netherlands AFM financial reporting CSV as a proven manual_staging_only live candidate.
 4. Do not batch-promote scheduled EU polling yet; France + Spain + Netherlands prove the path but do not define the full EU rollout by themselves.
 5. Keep Italy eMarket Storage regulated communications as a proven manual_staging_only live candidate.
-6. Keep Luxembourg LuxSE OAM as a registered manual_staging_only GraphQL candidate pending staging live smoke.
+6. Keep Luxembourg LuxSE OAM as a proven manual_staging_only GraphQL live candidate.
 7. Continue endpoint/parser discovery for Germany official register surfaces and Euronext issuer press-release surfaces.
 8. Only batch-promote scheduled EU polling after the target list, rollback path, source-specific parser risk, and staging live smoke evidence are documented together.
 ```
@@ -403,11 +406,12 @@ SPAIN_CNMV_PUBLIC_UI_PASS
 NETHERLANDS_AFM_CSV_EXPORT_MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS
 ITALY_EMARKET_STORAGE_MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS
 ITALY_EMARKET_STORAGE_PUBLIC_UI_PASS
-LUXEMBOURG_LUXSE_OAM_GRAPHQL_MANUAL_SOURCE_REGISTERED_STAGING_SMOKE_PENDING
+LUXEMBOURG_LUXSE_OAM_GRAPHQL_MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS
+LUXEMBOURG_LUXSE_OAM_PUBLIC_UI_PASS
 GERMANY_OFFICIAL_REGISTER_SURFACE_DIRECTION_FOUND_MACHINE_ENDPOINT_PENDING
 EURONEXT_COMPANY_PRESS_RELEASES_PUBLIC_HTML_SURFACE_FOUND
 BORSA_ITALIANA_POINTS_TO_CONSOB_AUTHORIZED_STORAGE_SYSTEMS
 ESMA_OAM_DIRECTORY_ACCEPTED_AS_AUTHORITY_MAP_NOT_POLL_SOURCE
-EU_NEXT_IMPLEMENTATION_STEP_LUXEMBOURG_STAGING_LIVE_SMOKE
+EU_NEXT_IMPLEMENTATION_STEP_GERMANY_OR_EURONEXT_ENDPOINT_DISCOVERY
 EU_SCHEDULED_LIVE_POLLING_BLOCKED
 ```
