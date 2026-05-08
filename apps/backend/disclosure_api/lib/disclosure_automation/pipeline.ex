@@ -91,13 +91,39 @@ defmodule DisclosureAutomation.Parser do
   def parse(parser_key, raw_payload, opts \\ [])
       when is_binary(parser_key) and is_binary(raw_payload) do
     case ParserCapabilities.get(parser_key, opts) do
-      {:ok, _capability} -> parse_by_key(parser_key, raw_payload)
-      :error -> {:error, {:unknown_parser_key, parser_key}}
+      {:ok, capability} ->
+        case parse_by_key(parser_key, raw_payload) do
+          {:ok, records} -> {:ok, limit_records(records, capability)}
+          {:error, _reason} = error -> error
+        end
+
+      :error ->
+        {:error, {:unknown_parser_key, parser_key}}
     end
   end
 
   defp parse_by_key("rss_v1", raw_payload), do: parse_rss(raw_payload)
   defp parse_by_key(parser_key, _raw_payload), do: {:error, {:unsupported_parser_key, parser_key}}
+
+  defp limit_records(records, capability) when is_list(records) and is_map(capability) do
+    case positive_int(
+           Map.get(capability, "max_items_per_poll") || Map.get(capability, :max_items_per_poll)
+         ) do
+      nil -> records
+      max_items -> Enum.take(records, max_items)
+    end
+  end
+
+  defp positive_int(value) when is_integer(value) and value > 0, do: value
+
+  defp positive_int(value) when is_binary(value) do
+    case Integer.parse(value) do
+      {parsed, ""} when parsed > 0 -> parsed
+      _ -> nil
+    end
+  end
+
+  defp positive_int(_value), do: nil
 
   defp parse_rss(raw_payload) do
     with {:ok, document} <- parse_xml(raw_payload) do
@@ -175,13 +201,57 @@ defmodule DisclosureAutomation.Parser do
       pub_date ->
         case :httpd_util.convert_request_date(String.to_charlist(pub_date)) do
           {{year, month, day}, {hour, minute, second}} ->
-            {:ok, naive} = NaiveDateTime.new(year, month, day, hour, minute, second, {0, 6})
-            {:ok, datetime} = DateTime.from_naive(naive, "Etc/UTC")
-            datetime
+            case build_utc_datetime(year, month, day, hour, minute, second) do
+              {:ok, datetime} -> datetime
+              :error -> DateTime.utc_now()
+            end
 
           _ ->
-            DateTime.utc_now()
+            parse_short_month_pub_date(pub_date)
         end
+    end
+  end
+
+  defp parse_short_month_pub_date(pub_date) do
+    with [_, day_text, month_text, year_text, hour_text, minute_text, second_text] <-
+           Regex.run(~r/^(\d{1,2})-([A-Za-z]{3})-(\d{4}) (\d{2}):(\d{2}):(\d{2})$/, pub_date),
+         {day, ""} <- Integer.parse(day_text),
+         {:ok, month} <- month_number(month_text),
+         {year, ""} <- Integer.parse(year_text),
+         {hour, ""} <- Integer.parse(hour_text),
+         {minute, ""} <- Integer.parse(minute_text),
+         {second, ""} <- Integer.parse(second_text),
+         {:ok, datetime} <- build_utc_datetime(year, month, day, hour, minute, second) do
+      datetime
+    else
+      _ -> DateTime.utc_now()
+    end
+  end
+
+  defp month_number(month) do
+    case String.downcase(month) do
+      "jan" -> {:ok, 1}
+      "feb" -> {:ok, 2}
+      "mar" -> {:ok, 3}
+      "apr" -> {:ok, 4}
+      "may" -> {:ok, 5}
+      "jun" -> {:ok, 6}
+      "jul" -> {:ok, 7}
+      "aug" -> {:ok, 8}
+      "sep" -> {:ok, 9}
+      "oct" -> {:ok, 10}
+      "nov" -> {:ok, 11}
+      "dec" -> {:ok, 12}
+      _ -> :error
+    end
+  end
+
+  defp build_utc_datetime(year, month, day, hour, minute, second) do
+    with {:ok, naive} <- NaiveDateTime.new(year, month, day, hour, minute, second, {0, 6}),
+         {:ok, datetime} <- DateTime.from_naive(naive, "Etc/UTC") do
+      {:ok, datetime}
+    else
+      _ -> :error
     end
   end
 end
