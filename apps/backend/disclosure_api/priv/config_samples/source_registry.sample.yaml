@@ -153,6 +153,54 @@ sources:
       live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
       max_items_per_poll: 25
 
+  - source_key: eu_spain_cnmv_inside_information
+    display_name: Spain CNMV Inside Information
+    source_type: rss
+    base_url: https://www.cnmv.es/portal/informacion-privilegiada/RSS.asmx/GetNoticiasCNMV
+    healthcheck_url: https://www.cnmv.es/
+    parser_key: rss_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.22
+    coverage_tags:
+      - eu
+      - eu_south
+      - spain
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - inside_information
+    active: false
+    config:
+      fixture_path: source_payloads/eu_spain_cnmv_inside_information.xml
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      max_items_per_poll: 25
+
+  - source_key: eu_spain_cnmv_other_relevant_information
+    display_name: Spain CNMV Other Relevant Information
+    source_type: rss
+    base_url: https://www.cnmv.es/portal/Otra-Informacion-Relevante/RSS.asmx/GetNoticiasCNMV
+    healthcheck_url: https://www.cnmv.es/
+    parser_key: rss_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.18
+    coverage_tags:
+      - eu
+      - eu_south
+      - spain
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - other_relevant_information
+    active: false
+    config:
+      fixture_path: source_payloads/eu_spain_cnmv_other_relevant_information.xml
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      max_items_per_poll: 25
+
   - source_key: greater_china_market_news
     display_name: Greater China Market News
     source_type: rss

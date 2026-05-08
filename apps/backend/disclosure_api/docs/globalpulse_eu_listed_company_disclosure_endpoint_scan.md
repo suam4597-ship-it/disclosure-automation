@@ -10,7 +10,7 @@ This is documentation-only. It does not add runtime code, routes, controllers, m
 primary target: listed-company disclosures and issuer announcements
 preferred authority: official exchange, OAM, regulated-information repository, or issuer-announcement authority
 not first target: ECB, central-bank feeds, macro-statistics feeds, parliament feeds, or broad policy news
-current result: official EU company-disclosure candidates found, but no source registration yet
+current result: France OAM manual source + parser + staging live smoke complete; Spain CNMV RSS endpoints ready for manual candidate registration; remaining EU candidates need endpoint/parser confirmation
 ```
 
 ## Candidate A: France Info-Financiere OAM API
@@ -23,7 +23,7 @@ observed HTTP: 200
 observed content-type: application/json; charset=utf-8
 observed shape: JSON records
 observed record count: 500k+ total_count in executor smoke
-status: STRONGEST_FIRST_EU_COMPANY_DISCLOSURE_CANDIDATE_PENDING_PARSER_CONTRACT
+status: MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS_SCHEDULED_POLLING_DISABLED
 ```
 
 Why this fits the product:
@@ -34,11 +34,13 @@ It is open access and documents an API call limit.
 It exposes archived documents and document metadata rather than central-bank or macro-policy news.
 ```
 
-Blocking item:
+Current implementation status:
 
 ```text
-Current ingestion parser support is rss_v1 only.
-This candidate should not be registered until a bounded JSON/Opendatasoft-style parser contract exists, or an adapter maps the API response into the existing canonical item shape.
+Parser info_financiere_oam_v1 exists.
+Manual source eu_france_info_financiere_oam exists with active=false and candidate_status=manual_staging_only.
+Fly staging live poll returned fetch.mode=live, HTTP 200, records_seen=25, records_inserted=25, and metadata.fallback_to_fixture=false.
+Scheduled polling remains disabled until the broader EU source batch is intentionally promoted.
 ```
 
 ## Candidate B: ESMA OAM Directory
@@ -155,15 +157,167 @@ Cash market notices are relevant to listings, suspensions, corporate actions, di
 Machine-readable access appears tied to a data product/SFTP workflow, so it should not be assumed usable for unauthenticated staging polling.
 ```
 
+## Candidate G: Spain CNMV Inside Information RSS
+
+```text
+owner: CNMV
+authority class: official national securities regulator / issuer inside-information feed
+candidate URL: https://www.cnmv.es/portal/informacion-privilegiada/RSS.asmx/GetNoticiasCNMV
+supporting CNMV RSS page: https://www.cnmv.es/portal/gpage?id=RSS&lang=en
+observed HTTP: 200
+observed content-type: text/xml; charset=utf-8
+observed shape: RSS 2.0 XML
+status: READY_FOR_MANUAL_SOURCE_CANDIDATE_RSS_V1
+```
+
+Why this fits the product:
+
+```text
+CNMV exposes an official RSS channel for insider information.
+The feed is machine-readable XML and aligns with listed-company inside-information disclosures rather than central-bank or broad macro news.
+The observed XML shape is compatible with the existing rss_v1 parser.
+```
+
+Guardrail:
+
+```text
+Register as active=false/manual_staging_only first.
+Run staging live smoke and verify fetch.mode=live plus metadata.fallback_to_fixture=false before any scheduled polling decision.
+```
+
+## Candidate H: Spain CNMV Other Relevant Information RSS
+
+```text
+owner: CNMV
+authority class: official national securities regulator / issuer other-relevant-information feed
+candidate URL: https://www.cnmv.es/portal/Otra-Informacion-Relevante/RSS.asmx/GetNoticiasCNMV
+supporting CNMV RSS page: https://www.cnmv.es/portal/gpage?id=RSS&lang=en
+observed HTTP: 200
+observed content-type: text/xml; charset=utf-8
+observed shape: RSS 2.0 XML
+status: READY_FOR_MANUAL_SOURCE_CANDIDATE_RSS_V1
+```
+
+Why this fits the product:
+
+```text
+CNMV exposes an official RSS channel for other relevant information.
+This complements the inside-information feed while staying within official issuer-disclosure material.
+The observed XML shape is compatible with the existing rss_v1 parser.
+```
+
+Guardrail:
+
+```text
+Register as active=false/manual_staging_only first.
+Do not merge this into scheduled polling until staging live smoke verifies bounded records and no fixture fallback.
+```
+
+## Candidate I: Netherlands AFM Financial Reporting Register
+
+```text
+owner: AFM
+authority class: official national regulator / financial-reporting register
+candidate URL: https://www.afm.nl/nl-nl/sector/registers/meldingenregisters/financiele-verslaggeving
+observed search result: official register page with CSV and XML export links
+executor direct export probe: DNS resolution failed for www.afm.nl
+status: OFFICIAL_EXPORT_SURFACE_FOUND_EXECUTOR_DNS_INCONCLUSIVE
+```
+
+Why this fits the product:
+
+```text
+The AFM register covers financial reports filed by listed companies with the Netherlands as home member state and securities admitted to a regulated market.
+The public page advertises CSV and XML export paths, which may become a strong machine-readable source after endpoint and parser verification.
+```
+
+Blocking item:
+
+```text
+Recheck from another network, capture the exact CSV/XML export URL, and add a bounded CSV/XML parser contract before source registration.
+```
+
+## Candidate J: Italy Consob-Authorized Storage Systems
+
+```text
+owner: Consob / authorized storage systems
+authority class: official national regulator authorization list
+candidate authority URL: https://www.consob.it/web/area-pubblica/meccanismi-di-stoccaggio-delle-informazioni-regolamentate
+candidate systems: 1Info, eMarket Storage
+observed shape: public authority list plus storage-system surfaces
+status: AUTHORIZED_STORAGE_SYSTEMS_FOUND_MACHINE_ENDPOINT_PENDING
+```
+
+Why this fits the product:
+
+```text
+Consob lists authorized centralized storage mechanisms for regulated information.
+Borsa Italiana also points issuer announcements and documents toward these authorized systems rather than treating the exchange guidance page as the disclosure source.
+```
+
+Blocking item:
+
+```text
+Find exact RSS, Atom, XML, JSON, API, or bounded-download endpoints for 1Info and eMarket Storage.
+Do not register the Consob list, Borsa guidance page, or arbitrary PDF search results as a source.
+```
+
+## Candidate K: Luxembourg LuxSE OAM / FIRST
+
+```text
+owner: Luxembourg Stock Exchange
+authority class: official OAM / issuer filing and dissemination surface
+candidate URL: https://www.luxse.com/issuer-services-overview/oam
+supporting URL: https://www.luxse.com/issuer-services-overview/first
+observed HTTP: 200
+observed shape: HTML OAM/FIRST issuer-services surface
+status: OFFICIAL_OAM_SURFACE_FOUND_MACHINE_ENDPOINT_PENDING
+```
+
+Why this fits the product:
+
+```text
+LuxSE describes OAM storage, regulated-information submission, and issuer communication under Transparency Directive obligations.
+This is relevant authority evidence, but the observed public surface is not yet a pollable machine-readable disclosure endpoint.
+```
+
+Blocking item:
+
+```text
+Find an accepted public API, RSS/Atom feed, XML export, JSON endpoint, or bounded-download endpoint before source registration.
+```
+
+## Candidate L: Germany Unternehmensregister / Official Register Surface
+
+```text
+owner: German official register ecosystem
+authority class: official register / disclosure surface candidate
+candidate direction: Unternehmensregister / official publication and filing surface
+observed shape: public web/register surface, not yet a stable unauthenticated feed
+status: OFFICIAL_SURFACE_DIRECTION_FOUND_MACHINE_ENDPOINT_PENDING
+```
+
+Why this may fit the product:
+
+```text
+Germany remains important for listed-company filings and announcements, but the next step must be exact endpoint verification rather than registering a human search surface.
+```
+
+Blocking item:
+
+```text
+Identify the exact official machine-readable endpoint or add a bounded parser only after confirming terms, rate limits, and response stability.
+Do not use third-party register APIs as official GlobalPulse disclosure sources without explicit acceptance.
+```
+
 ## Recommended EU v1 Path
 
 ```text
-1. Choose France Info-Financiere OAM API as the first EU listed-company disclosure live candidate.
-2. Add a parser/adapter contract for the JSON API shape before source registration.
-3. Keep source registration disabled/manual until parser contract, rate-limit handling, and bounded canonical mapping are accepted.
-4. Run staging live smoke with fetch.mode=live and metadata.fallback_to_fixture=false.
-5. Verify GlobalPulse public Pages renders at least one EU company-disclosure item.
-6. Only then consider scheduled polling.
+1. Keep France Info-Financiere OAM as the first proven EU listed-company disclosure live candidate.
+2. Register Spain CNMV inside-information and other-relevant-information RSS endpoints as active=false/manual_staging_only candidates.
+3. Run Spain staging live smoke with fetch.mode=live and metadata.fallback_to_fixture=false.
+4. Continue endpoint/parser discovery for Netherlands AFM, Italy 1Info/eMarket, Luxembourg LuxSE OAM, Germany official register surfaces, and Euronext issuer press-release surfaces.
+5. Only batch-promote scheduled EU polling after multiple official candidates have passed staging live smoke and rollback is clear.
 ```
 
 ## Explicit Non-Goals
@@ -177,18 +331,24 @@ DO_NOT: poll HTML pages with rss_v1
 DO_NOT: claim live success from fixture fallback
 DO_NOT: register a source before exact endpoint, terms/rate limits, parser compatibility, and rollback are verified
 DO_NOT: change public digest JSON response shape
+DO_NOT: batch-promote scheduled EU polling just because one country source passes live smoke
 ```
 
 ## Current Conclusion
 
 ```text
-EU_LISTED_COMPANY_DISCLOSURE_SCAN_STARTED
-FRANCE_INFO_FINANCIERE_OAM_API_FOUND
-FRANCE_INFO_FINANCIERE_OAM_API_HTTP_200_JSON
-FRANCE_INFO_FINANCIERE_RECOMMENDED_AS_FIRST_EU_COMPANY_DISCLOSURE_CANDIDATE
+EU_LISTED_COMPANY_DISCLOSURE_SCAN_UPDATED
+FRANCE_INFO_FINANCIERE_OAM_API_MANUAL_SOURCE_REGISTERED
+FRANCE_INFO_FINANCIERE_OAM_STAGING_LIVE_POLL_PASS
+SPAIN_CNMV_INSIDE_INFORMATION_RSS_READY_FOR_MANUAL_SOURCE_CANDIDATE
+SPAIN_CNMV_OTHER_RELEVANT_INFORMATION_RSS_READY_FOR_MANUAL_SOURCE_CANDIDATE
+NETHERLANDS_AFM_EXPORT_SURFACE_FOUND_EXECUTOR_DNS_INCONCLUSIVE
+ITALY_CONSOB_AUTHORIZED_STORAGE_SYSTEMS_FOUND_MACHINE_ENDPOINT_PENDING
+LUXEMBOURG_LUXSE_OAM_SURFACE_FOUND_MACHINE_ENDPOINT_PENDING
+GERMANY_OFFICIAL_REGISTER_SURFACE_DIRECTION_FOUND_MACHINE_ENDPOINT_PENDING
 EURONEXT_COMPANY_PRESS_RELEASES_PUBLIC_HTML_SURFACE_FOUND
 BORSA_ITALIANA_POINTS_TO_CONSOB_AUTHORIZED_STORAGE_SYSTEMS
 ESMA_OAM_DIRECTORY_ACCEPTED_AS_AUTHORITY_MAP_NOT_POLL_SOURCE
-EU_SOURCE_REGISTRATION_BLOCKED_PENDING_JSON_PARSER_OR_ADAPTER_CONTRACT
+EU_SOURCE_REGISTRATION_NEXT_STEP_SPAIN_CNMV_MANUAL_CANDIDATES
 EU_SCHEDULED_LIVE_POLLING_BLOCKED
 ```
