@@ -93,7 +93,7 @@ defmodule DisclosureAutomation.Parser do
     case ParserCapabilities.get(parser_key, opts) do
       {:ok, capability} ->
         case parse_by_key(parser_key, raw_payload) do
-          {:ok, records} -> {:ok, limit_records(records, capability)}
+          {:ok, records} -> {:ok, limit_records(records, capability, opts)}
           {:error, _reason} = error -> error
         end
 
@@ -105,14 +105,24 @@ defmodule DisclosureAutomation.Parser do
   defp parse_by_key("rss_v1", raw_payload), do: parse_rss(raw_payload)
   defp parse_by_key(parser_key, _raw_payload), do: {:error, {:unsupported_parser_key, parser_key}}
 
-  defp limit_records(records, capability) when is_list(records) and is_map(capability) do
-    case positive_int(
-           Map.get(capability, "max_items_per_poll") || Map.get(capability, :max_items_per_poll)
-         ) do
+  defp limit_records(records, capability, opts) when is_list(records) and is_map(capability) do
+    capability_limit =
+      positive_int(
+        Map.get(capability, "max_items_per_poll") || Map.get(capability, :max_items_per_poll)
+      )
+
+    source_limit = positive_int(Keyword.get(opts, :max_items_per_poll))
+
+    case effective_limit(capability_limit, source_limit) do
       nil -> records
       max_items -> Enum.take(records, max_items)
     end
   end
+
+  defp effective_limit(nil, nil), do: nil
+  defp effective_limit(nil, source_limit), do: source_limit
+  defp effective_limit(capability_limit, nil), do: capability_limit
+  defp effective_limit(capability_limit, source_limit), do: min(capability_limit, source_limit)
 
   defp positive_int(value) when is_integer(value) and value > 0, do: value
 
@@ -312,7 +322,10 @@ defmodule DisclosureAutomation.Ingestion do
     with {:ok, %SourceRegistry{} = source} <- Sources.get_source_by_key(source_key),
          {:ok, payload} <- load_payload(source, use_live_fetch: use_live_fetch),
          {:ok, records} <-
-           Parser.parse(source.parser_key, payload.raw_payload, cache: parser_cache()) do
+           Parser.parse(source.parser_key, payload.raw_payload,
+             cache: parser_cache(),
+             max_items_per_poll: source_max_items_per_poll(source)
+           ) do
       result =
         Repo.transaction(fn ->
           {:ok, run} =
@@ -609,6 +622,12 @@ defmodule DisclosureAutomation.Ingestion do
   defp parser_cache do
     Application.get_env(:disclosure_automation, :parser_capabilities_cache, %{})
   end
+
+  defp source_max_items_per_poll(%SourceRegistry{config: config}) when is_map(config) do
+    config["max_items_per_poll"] || config[:max_items_per_poll]
+  end
+
+  defp source_max_items_per_poll(_source), do: nil
 end
 
 defmodule DisclosureAutomation.Digest do
