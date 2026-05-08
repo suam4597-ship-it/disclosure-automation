@@ -1,0 +1,83 @@
+name: GlobalPulse regional fixture staging poll
+
+on:
+  workflow_dispatch:
+    inputs:
+      backend_url:
+        description: "Backend base URL"
+        required: false
+        default: "https://globalpulse-backend-staging.fly.dev"
+      source_keys:
+        description: "Comma-separated source keys to poll with fixture mode"
+        required: false
+        default: "eu_north_disclosures,eu_central_disclosures,eu_south_disclosures"
+      edition:
+        description: "Digest edition to verify after poll"
+        required: false
+        default: "breaking"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: globalpulse-regional-fixture-staging-poll
+  cancel-in-progress: false
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    env:
+      BACKEND_URL: ${{ github.event.inputs.backend_url || 'https://globalpulse-backend-staging.fly.dev' }}
+      SOURCE_KEYS: ${{ github.event.inputs.source_keys || 'eu_north_disclosures,eu_central_disclosures,eu_south_disclosures' }}
+      EDITION: ${{ github.event.inputs.edition || 'breaking' }}
+
+    steps:
+      - name: Show target
+        run: |
+          echo "backend=${BACKEND_URL}"
+          echo "sources=${SOURCE_KEYS}"
+          echo "edition=${EDITION}"
+
+      - name: Health check
+        run: |
+          status=$(curl -sS -o health.json -w "%{http_code}" "${BACKEND_URL}/api/health")
+          echo "health status=${status}"
+          cat health.json
+          if [ "${status}" -lt 200 ] || [ "${status}" -ge 300 ]; then
+            exit 1
+          fi
+
+      - name: Poll fixture sources
+        run: |
+          mkdir -p poll-results
+          IFS=',' read -ra SOURCES <<< "${SOURCE_KEYS}"
+          for source in "${SOURCES[@]}"; do
+            source=$(echo "${source}" | xargs)
+            echo "polling ${source}"
+            status=$(curl -sS -o "poll-results/${source}.json" -w "%{http_code}" -X POST "${BACKEND_URL}/api/admin/sources/${source}/poll?use_live_fetch=false&edition=${EDITION}")
+            echo "${source} status=${status}"
+            cat "poll-results/${source}.json"
+            if [ "${status}" -lt 200 ] || [ "${status}" -ge 300 ]; then
+              exit 1
+            fi
+          done
+
+      - name: Verify digest
+        run: |
+          status=$(curl -sS -o digest.json -w "%{http_code}" "${BACKEND_URL}/api/feed/digest/latest?edition=${EDITION}")
+          echo "digest status=${status}"
+          cat digest.json
+          if [ "${status}" -lt 200 ] || [ "${status}" -ge 300 ]; then
+            exit 1
+          fi
+
+      - name: Upload smoke outputs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: globalpulse-regional-fixture-staging-poll-${{ github.run_id }}
+          path: |
+            health.json
+            poll-results/*.json
+            digest.json
+          if-no-files-found: ignore
