@@ -139,12 +139,22 @@ defmodule DisclosureAutomation.Parser do
   defp parse_rss(raw_payload) do
     with {:ok, document} <- parse_xml(raw_payload) do
       items =
-        :xmerl_xpath.string(~c"/rss/channel/item", document)
+        rss_item_nodes(document)
         |> Enum.map(&parse_item/1)
         |> Enum.filter(&(&1.url && &1.title))
 
       {:ok, items}
     end
+  end
+
+  defp rss_item_nodes(document) do
+    [
+      ~c"/rss/channel/item",
+      ~c"/rss/Channel/item",
+      ~c"/rss/channel/Item",
+      ~c"/rss/Channel/Item"
+    ]
+    |> Enum.flat_map(&:xmerl_xpath.string(&1, document))
   end
 
   defp parse_info_financiere(raw_payload) do
@@ -306,20 +316,25 @@ defmodule DisclosureAutomation.Parser do
     |> String.replace("–", "-")
     |> String.replace("—", "-")
     |> String.replace(<<0xC2, 0xA0>>, " ")
-    |> String.to_charlist()
+    # xmerl expects encoded XML bytes so the XML declaration can drive UTF-8 decoding.
+    |> :binary.bin_to_list()
   end
 
   defp parse_item(item) do
-    link = xpath_string(item, ~c"string(link)")
+    link = xpath_string_any(item, [~c"string(link)", ~c"string(Link)"])
 
     %{
-      external_id: xpath_string(item, ~c"string(guid)") || link,
-      title: xpath_string(item, ~c"string(title)"),
+      external_id: xpath_string_any(item, [~c"string(guid)", ~c"string(Guid)"]) || link,
+      title: xpath_string_any(item, [~c"string(title)", ~c"string(Title)"]),
       url: link,
-      summary: xpath_string(item, ~c"string(description)"),
-      published_at: xpath_pub_date(item, ~c"string(pubDate)"),
-      category: xpath_string(item, ~c"string(category)")
+      summary: xpath_string_any(item, [~c"string(description)", ~c"string(Description)"]),
+      published_at: xpath_pub_date_any(item, [~c"string(pubDate)", ~c"string(PubDate)"]),
+      category: xpath_string_any(item, [~c"string(category)", ~c"string(Category)"])
     }
+  end
+
+  defp xpath_string_any(node, queries) do
+    Enum.find_value(queries, &xpath_string(node, &1))
   end
 
   defp xpath_string(node, query) do
@@ -337,22 +352,25 @@ defmodule DisclosureAutomation.Parser do
   defp xpath_value({:xmlObj, :string, value}), do: value
   defp xpath_value(value), do: value
 
-  defp xpath_pub_date(node, query) do
-    case xpath_string(node, query) do
-      nil ->
-        DateTime.utc_now()
+  defp xpath_pub_date_any(node, queries) do
+    Enum.find_value(queries, fn query ->
+      case xpath_string(node, query) do
+        nil -> nil
+        pub_date -> parse_pub_date(pub_date)
+      end
+    end) || DateTime.utc_now()
+  end
 
-      pub_date ->
-        case :httpd_util.convert_request_date(String.to_charlist(pub_date)) do
-          {{year, month, day}, {hour, minute, second}} ->
-            case build_utc_datetime(year, month, day, hour, minute, second) do
-              {:ok, datetime} -> datetime
-              :error -> DateTime.utc_now()
-            end
-
-          _ ->
-            parse_short_month_pub_date(pub_date)
+  defp parse_pub_date(pub_date) do
+    case :httpd_util.convert_request_date(String.to_charlist(pub_date)) do
+      {{year, month, day}, {hour, minute, second}} ->
+        case build_utc_datetime(year, month, day, hour, minute, second) do
+          {:ok, datetime} -> datetime
+          :error -> nil
         end
+
+      _ ->
+        parse_short_month_pub_date(pub_date)
     end
   end
 
