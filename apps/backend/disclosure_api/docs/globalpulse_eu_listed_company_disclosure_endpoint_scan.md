@@ -244,21 +244,27 @@ candidate URL: https://www.afm.nl/en/sector/registers/meldingenregisters/financi
 candidate CSV export URL: https://www.afm.nl/export.aspx?format=csv&type=e8825b05-4004-4301-b736-651e8c61053d
 candidate XML export URL: https://www.afm.nl/export.aspx?format=xml&type=e8825b05-4004-4301-b736-651e8c61053d
 observed search/browser result: official register page and CSV export surface with filing-date and issuing-institution fields
-executor direct export probe: DNS resolution failed for www.afm.nl in local shell
-status: OFFICIAL_EXPORT_ENDPOINT_FOUND_RAW_PAYLOAD_VALIDATION_PENDING
+local executor direct export probe: DNS resolution failed for www.afm.nl in local shell
+Fly staging network export probe: HTTP 200 for CSV and XML export URLs
+observed XML shape: <register><vermelding><id>...</id><datum>...</datum><uitgevende-instelling>...</uitgevende-instelling>...</vermelding></register>
+status: MANUAL_SOURCE_CANDIDATE_REGISTERED_PARSER_ADDED_STAGING_LIVE_SMOKE_PENDING
 ```
 
 Why this fits the product:
 
 ```text
 The AFM register covers financial reports filed by listed companies with the Netherlands as home member state and securities admitted to a regulated market.
-The public page and export links point toward machine-readable financial-reporting disclosures for listed-company reporting, which may become a strong source after raw payload validation and parser verification.
+The public page and export links point toward machine-readable financial-reporting disclosures for listed-company reporting.
+The XML export is a better first integration target than CSV because it preserves named fields and avoids delimiter/encoding ambiguity.
 ```
 
-Blocking item:
+Current implementation status:
 
 ```text
-Recheck the export URLs from Fly/GitHub Actions or another network, capture stable raw payload samples, confirm rate-limit/terms behavior, and add a bounded CSV/XML parser contract before source registration.
+Parser afm_financial_reporting_xml_v1 exists.
+Manual source eu_netherlands_afm_financial_reporting exists with active=false and candidate_status=manual_staging_only.
+Local DNS remains inconclusive, but Fly staging network raw payload probe returned HTTP 200 and official XML export bytes.
+Staging live poll is still pending and must verify fetch.mode=live plus metadata.fallback_to_fixture=false before any scheduled polling decision.
 ```
 
 ## Candidate J: Italy Consob-Authorized Storage Systems
@@ -342,11 +348,10 @@ Do not use third-party register APIs as official GlobalPulse disclosure sources 
 1. Keep France Info-Financiere OAM as the first proven EU listed-company disclosure live candidate.
 2. Keep Spain CNMV inside-information and other-relevant-information RSS as proven manual_staging_only live candidates.
 3. Do not batch-promote scheduled EU polling yet; France + Spain prove the path but do not define the full EU rollout by themselves.
-4. Next implementation candidates should be chosen deliberately:
-   - Netherlands AFM export path if raw CSV/XML validation succeeds and a bounded parser contract is added.
-   - Italy 1Info/eMarket if an API/RSS/XML/JSON endpoint is found, or if a bounded HTML parser contract is explicitly accepted.
-5. Continue endpoint/parser discovery for Luxembourg LuxSE OAM, Germany official register surfaces, and Euronext issuer press-release surfaces.
-6. Only batch-promote scheduled EU polling after the target list, rollback path, source-specific parser risk, and staging live smoke evidence are documented together.
+4. Run Netherlands AFM staging live smoke next because the official XML export is now registered as active=false/manual_staging_only.
+5. Choose Italy 1Info/eMarket after AFM if an API/RSS/XML/JSON endpoint is found, or if a bounded HTML parser contract is explicitly accepted.
+6. Continue endpoint/parser discovery for Luxembourg LuxSE OAM, Germany official register surfaces, and Euronext issuer press-release surfaces.
+7. Only batch-promote scheduled EU polling after the target list, rollback path, source-specific parser risk, and staging live smoke evidence are documented together.
 ```
 
 ## Explicit Non-Goals
@@ -372,13 +377,14 @@ FRANCE_INFO_FINANCIERE_OAM_STAGING_LIVE_POLL_PASS
 SPAIN_CNMV_INSIDE_INFORMATION_MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS
 SPAIN_CNMV_OTHER_RELEVANT_INFORMATION_MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS
 SPAIN_CNMV_PUBLIC_UI_PASS
-NETHERLANDS_AFM_EXPORT_ENDPOINT_FOUND_RAW_PAYLOAD_VALIDATION_PENDING
+NETHERLANDS_AFM_XML_EXPORT_MANUAL_SOURCE_CANDIDATE_REGISTERED
+NETHERLANDS_AFM_STAGING_LIVE_SMOKE_PENDING
 ITALY_CONSOB_AUTHORIZED_STORAGE_HTML_SURFACES_FOUND_PARSER_PENDING
 LUXEMBOURG_LUXSE_OAM_SEARCH_SURFACE_FOUND_API_ENDPOINT_PENDING
 GERMANY_OFFICIAL_REGISTER_SURFACE_DIRECTION_FOUND_MACHINE_ENDPOINT_PENDING
 EURONEXT_COMPANY_PRESS_RELEASES_PUBLIC_HTML_SURFACE_FOUND
 BORSA_ITALIANA_POINTS_TO_CONSOB_AUTHORIZED_STORAGE_SYSTEMS
 ESMA_OAM_DIRECTORY_ACCEPTED_AS_AUTHORITY_MAP_NOT_POLL_SOURCE
-EU_NEXT_IMPLEMENTATION_CHOICE_AFM_EXPORT_PARSER_OR_ITALY_STORAGE_PARSER
+EU_NEXT_IMPLEMENTATION_STEP_AFM_STAGING_LIVE_SMOKE
 EU_SCHEDULED_LIVE_POLLING_BLOCKED
 ```
