@@ -262,6 +262,7 @@ Current implementation status:
 
 ```text
 Parser afm_financial_reporting_xml_v1 exists.
+Parser bounds the AFM export to the first 25 top-level vermelding records before XML parsing to avoid loading the full multi-megabyte export into xmerl on small staging machines.
 Manual source eu_netherlands_afm_financial_reporting exists with active=false and candidate_status=manual_staging_only.
 Local DNS remains inconclusive, but Fly staging network raw payload probe returned HTTP 200 and official XML export bytes.
 Staging live poll is still pending and must verify fetch.mode=live plus metadata.fallback_to_fixture=false before any scheduled polling decision.

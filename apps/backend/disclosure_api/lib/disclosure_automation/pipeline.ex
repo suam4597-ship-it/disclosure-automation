@@ -88,6 +88,8 @@ defmodule DisclosureAutomation.Parser do
 
   alias DisclosureAutomation.ParserCapabilities
 
+  @afm_reporting_parse_limit 25
+
   def parse(parser_key, raw_payload, opts \\ [])
       when is_binary(parser_key) and is_binary(raw_payload) do
     case ParserCapabilities.get(parser_key, opts) do
@@ -241,7 +243,7 @@ defmodule DisclosureAutomation.Parser do
   end
 
   defp parse_afm_reporting(raw_payload) do
-    with {:ok, document} <- parse_xml(raw_payload) do
+    with {:ok, document} <- parse_xml(afm_reporting_bounded_xml(raw_payload)) do
       items =
         :xmerl_xpath.string(~c"/register/vermelding[id]", document)
         |> Enum.map(&parse_afm_reporting_record/1)
@@ -250,6 +252,70 @@ defmodule DisclosureAutomation.Parser do
       {:ok, items}
     end
   end
+
+  defp afm_reporting_bounded_xml(raw_payload) do
+    root_open =
+      case Regex.run(~r/<register[^>]*>/, raw_payload) do
+        [tag] -> tag
+        _ -> "<register>"
+      end
+
+    root_open <>
+      Enum.join(afm_reporting_blocks(raw_payload, @afm_reporting_parse_limit)) <> "</register>"
+  end
+
+  defp afm_reporting_blocks(raw_payload, limit) do
+    collect_afm_reporting_blocks(raw_payload, 0, limit, [])
+  end
+
+  defp collect_afm_reporting_blocks(_raw_payload, _offset, 0, acc), do: Enum.reverse(acc)
+
+  defp collect_afm_reporting_blocks(raw_payload, offset, remaining, acc) do
+    case binary_match_from(raw_payload, "<vermelding>", offset) do
+      :nomatch ->
+        Enum.reverse(acc)
+
+      {start, open_len} ->
+        case afm_reporting_block_end(raw_payload, start + open_len, 1) do
+          nil ->
+            Enum.reverse(acc)
+
+          block_end ->
+            block = binary_part(raw_payload, start, block_end - start)
+            collect_afm_reporting_blocks(raw_payload, block_end, remaining - 1, [block | acc])
+        end
+    end
+  end
+
+  defp afm_reporting_block_end(raw_payload, offset, depth) do
+    next_open = binary_match_from(raw_payload, "<vermelding>", offset)
+    next_close = binary_match_from(raw_payload, "</vermelding>", offset)
+
+    cond do
+      next_close == :nomatch ->
+        nil
+
+      next_open != :nomatch and elem(next_open, 0) < elem(next_close, 0) ->
+        afm_reporting_block_end(raw_payload, elem(next_open, 0) + elem(next_open, 1), depth + 1)
+
+      depth == 1 ->
+        elem(next_close, 0) + elem(next_close, 1)
+
+      true ->
+        afm_reporting_block_end(raw_payload, elem(next_close, 0) + elem(next_close, 1), depth - 1)
+    end
+  end
+
+  defp binary_match_from(raw_payload, needle, offset) when offset < byte_size(raw_payload) do
+    remainder = binary_part(raw_payload, offset, byte_size(raw_payload) - offset)
+
+    case :binary.match(remainder, needle) do
+      {position, length} -> {offset + position, length}
+      :nomatch -> :nomatch
+    end
+  end
+
+  defp binary_match_from(_raw_payload, _needle, _offset), do: :nomatch
 
   defp parse_afm_reporting_record(record) do
     id = xpath_string(record, ~c"string(id)")
