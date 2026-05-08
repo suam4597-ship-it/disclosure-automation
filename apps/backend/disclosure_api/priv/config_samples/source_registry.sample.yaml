@@ -249,6 +249,34 @@ sources:
       live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
       max_items_per_poll: 25
 
+  - source_key: eu_luxembourg_luxse_oam
+    display_name: Luxembourg LuxSE OAM Regulated Information
+    source_type: api
+    base_url: https://graphqlaz.luxse.com/v1/graphql?query=query%20GetOamSubmissionsSearch(%24pageSize%3A%20Int%2C%20%24pageNumber%3A%20Int)%20%7B%20oamSubmissionsSearch(pageSize%3A%20%24pageSize%2C%20pageNumber%3A%20%24pageNumber)%20%7B%20totalHits%20submissions%20%7B%20submissionId%20submissionTypeLabel%20actionsList%20publicationDate%20referenceYear%20referenceStartDate%20referenceEndDate%20issuerName%20%7D%20%7D%20%7D&variables=%7B%22pageSize%22%3A25%2C%22pageNumber%22%3A1%7D
+    healthcheck_url: https://www.luxse.com/issuer-services-overview/oam/oam-search
+    parser_key: luxse_oam_graphql_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.18
+    coverage_tags:
+      - eu
+      - eu_central
+      - luxembourg
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+    active: false
+    config:
+      fixture_path: source_payloads/eu_luxembourg_luxse_oam.json
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      max_items_per_poll: 25
+      live_timeout_ms: 30000
+      live_headers:
+        accept: application/json
+        apollo-require-preflight: "true"
+
   - source_key: greater_china_market_news
     display_name: Greater China Market News
     source_type: rss

@@ -91,6 +91,7 @@ defmodule DisclosureAutomation.Parser do
   @afm_reporting_csv_limit 25
   @emarket_storage_html_limit 25
   @emarket_storage_base_url "https://www.emarketstorage.it"
+  @luxse_oam_search_url "https://www.luxse.com/issuer-services-overview/oam/oam-search"
 
   def parse(parser_key, raw_payload, opts \\ [])
       when is_binary(parser_key) and is_binary(raw_payload) do
@@ -114,6 +115,9 @@ defmodule DisclosureAutomation.Parser do
 
   defp parse_by_key("emarket_storage_html_v1", raw_payload),
     do: parse_emarket_storage(raw_payload)
+
+  defp parse_by_key("luxse_oam_graphql_v1", raw_payload),
+    do: parse_luxse_oam(raw_payload)
 
   defp parse_by_key(parser_key, _raw_payload), do: {:error, {:unsupported_parser_key, parser_key}}
 
@@ -342,6 +346,77 @@ defmodule DisclosureAutomation.Parser do
   defp emarket_storage_url("http" <> _rest = url), do: url
   defp emarket_storage_url("/" <> _rest = path), do: @emarket_storage_base_url <> path
   defp emarket_storage_url(path), do: @emarket_storage_base_url <> "/" <> path
+
+  defp parse_luxse_oam(raw_payload) do
+    with {:ok, decoded} <- Jason.decode(raw_payload),
+         records when is_list(records) <- luxse_oam_records(decoded) do
+      items =
+        records
+        |> Enum.map(&parse_luxse_oam_record/1)
+        |> Enum.filter(&(&1.url && &1.title))
+
+      {:ok, items}
+    else
+      {:error, error} -> {:error, {:invalid_json, error}}
+      _ -> {:error, {:invalid_json_shape, "luxse_oam_graphql_v1"}}
+    end
+  end
+
+  defp luxse_oam_records(%{
+         "data" => %{"oamSubmissionsSearch" => %{"submissions" => records}}
+       })
+       when is_list(records),
+       do: records
+
+  defp luxse_oam_records(_decoded), do: nil
+
+  defp parse_luxse_oam_record(record) when is_map(record) do
+    issuer = string_field(record, "issuerName")
+    category = string_field(record, "submissionTypeLabel")
+
+    %{
+      external_id: string_field(record, "submissionId"),
+      title: join_non_empty([issuer, category], " - "),
+      url: @luxse_oam_search_url,
+      summary:
+        join_non_empty(
+          [
+            "LuxSE OAM",
+            prefixed("Action", string_field(record, "actionsList")),
+            prefixed("Reference year", string_field(record, "referenceYear")),
+            prefixed("Reference period", luxse_reference_period(record))
+          ],
+          " | "
+        ),
+      published_at:
+        parse_iso8601_datetime(string_field(record, "publicationDate")) || DateTime.utc_now(),
+      category: category
+    }
+  end
+
+  defp parse_luxse_oam_record(_record) do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: DateTime.utc_now(),
+      category: nil
+    }
+  end
+
+  defp luxse_reference_period(record) do
+    join_non_empty(
+      [
+        iso_date_part(string_field(record, "referenceStartDate")),
+        iso_date_part(string_field(record, "referenceEndDate"))
+      ],
+      " to "
+    )
+  end
+
+  defp iso_date_part(nil), do: nil
+  defp iso_date_part(value), do: String.slice(value, 0, 10)
 
   defp parse_afm_csv_row(row) do
     row
@@ -682,6 +757,8 @@ defmodule DisclosureAutomation.Ingestion do
   alias DisclosureAutomation.Schema.SourceRegistry
   alias DisclosureAutomation.Sources
 
+  @default_live_headers [{"user-agent", "disclosure-automation-phase1"}]
+
   def poll_source(source_key, opts \\ []) when is_binary(source_key) do
     trigger_kind = Keyword.get(opts, :trigger_kind, "manual")
     edition = Keyword.get(opts, :edition, "breaking")
@@ -822,7 +899,11 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp maybe_load_live_payload(source, true) do
-    with {:ok, response} <- Http.fetch(source.base_url, timeout: 8_000),
+    with {:ok, response} <-
+           Http.fetch(source.base_url,
+             timeout: source_live_timeout(source),
+             headers: source_live_headers(source)
+           ),
          true <- response.status_code in 200..299,
          :ok <- validate_live_payload(source, response) do
       {:ok,
@@ -914,7 +995,76 @@ defmodule DisclosureAutomation.Ingestion do
     end
   end
 
+  defp validate_live_payload(%SourceRegistry{parser_key: "luxse_oam_graphql_v1"}, response) do
+    cond do
+      html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "luxse_oam_graphql_v1", content_type(response.headers)}}
+
+      html_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "luxse_oam_graphql_v1", :html}}
+
+      not json_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "luxse_oam_graphql_v1", content_type(response.headers)}}
+
+      not luxse_oam_graphql_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "luxse_oam_graphql_v1", :unexpected_json}}
+
+      true ->
+        :ok
+    end
+  end
+
   defp validate_live_payload(_source, _response), do: :ok
+
+  defp source_live_headers(%SourceRegistry{config: config}) when is_map(config) do
+    config
+    |> source_config_headers()
+    |> Enum.reduce(@default_live_headers, fn {key, value}, headers ->
+      header_key = String.downcase(to_string(key))
+
+      existing =
+        Enum.reject(headers, fn {existing_key, _existing_value} ->
+          String.downcase(to_string(existing_key)) == header_key
+        end)
+
+      existing ++ [{to_string(key), to_string(value)}]
+    end)
+    |> Enum.map(fn {key, value} -> {String.to_charlist(key), String.to_charlist(value)} end)
+  end
+
+  defp source_live_headers(_source) do
+    Enum.map(@default_live_headers, fn {key, value} ->
+      {String.to_charlist(key), String.to_charlist(value)}
+    end)
+  end
+
+  defp source_config_headers(config) do
+    case Map.get(config, "live_headers") || Map.get(config, :live_headers) do
+      headers when is_map(headers) -> headers
+      _ -> %{}
+    end
+  end
+
+  defp source_live_timeout(%SourceRegistry{config: config}) when is_map(config) do
+    config
+    |> Map.get("live_timeout_ms", Map.get(config, :live_timeout_ms))
+    |> positive_live_timeout()
+  end
+
+  defp source_live_timeout(_source), do: 8_000
+
+  defp positive_live_timeout(value) when is_integer(value) and value > 0, do: value
+
+  defp positive_live_timeout(value) when is_binary(value) do
+    case Integer.parse(value) do
+      {parsed, ""} when parsed > 0 -> parsed
+      _ -> 8_000
+    end
+  end
+
+  defp positive_live_timeout(_value), do: 8_000
 
   defp html_content_type?(headers) do
     headers
@@ -962,6 +1112,12 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp emarket_storage_html_payload?(_body), do: false
+
+  defp luxse_oam_graphql_payload?(body) when is_binary(body) do
+    body =~ "\"oamSubmissionsSearch\"" and body =~ "\"submissions\""
+  end
+
+  defp luxse_oam_graphql_payload?(_body), do: false
 
   defp load_fixture_payload(source) do
     fixture_path =

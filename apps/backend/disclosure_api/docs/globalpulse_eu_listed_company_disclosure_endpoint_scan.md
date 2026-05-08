@@ -314,21 +314,30 @@ authority class: official OAM / issuer filing and dissemination surface
 candidate URL: https://www.luxse.com/issuer-services-overview/oam
 supporting URL: https://www.luxse.com/issuer-services-overview/first
 observed HTTP: 200
-observed shape: HTML OAM/FIRST issuer-services surface and OAM search page; no accepted public API/feed endpoint confirmed in the quick scan
-status: OFFICIAL_OAM_SEARCH_SURFACE_FOUND_API_ENDPOINT_PENDING
+observed shape: HTML OAM/FIRST issuer-services surface and OAM search page backed by a public LuxSE GraphQL OAM submission search endpoint
+GraphQL endpoint: https://graphqlaz.luxse.com/v1/graphql
+GraphQL query: oamSubmissionsSearch(pageSize: 25, pageNumber: 1)
+status: OFFICIAL_OAM_GRAPHQL_CANDIDATE_REGISTERED_MANUAL_ONLY
 ```
 
 Why this fits the product:
 
 ```text
 LuxSE describes OAM storage, regulated-information submission, and issuer communication under Transparency Directive obligations.
-This is relevant authority evidence, but the observed public surface is not yet a pollable machine-readable disclosure endpoint.
+The public OAM search surface is backed by a JSON GraphQL query that returns issuer regulated-information submissions.
+The candidate is therefore suitable for bounded manual staging smoke, not automatic scheduled polling yet.
 ```
 
-Blocking item:
+Implementation status:
 
 ```text
-Find an accepted public API, RSS/Atom feed, XML export, JSON endpoint, or bounded-download endpoint before source registration.
+Parser luxse_oam_graphql_v1 exists.
+Manual source eu_luxembourg_luxse_oam exists with active=false and candidate_status=manual_staging_only.
+The source uses a GET-encoded GraphQL query with an Apollo preflight header because the endpoint blocks bare GET queries as CSRF protection.
+The source sets a bounded live_timeout_ms of 30000 because the LuxSE GraphQL response can exceed the default 8000 ms fetch timeout.
+Parser output is bounded to submissionId, issuerName, submissionTypeLabel, actionsList, publicationDate, reference period, and the public OAM search URL.
+Fixture source_payloads/eu_luxembourg_luxse_oam.json captures the bounded public JSON shape.
+Next step: Fly staging deploy and manual live poll smoke.
 ```
 
 ## Candidate L: Germany Unternehmensregister / Official Register Surface
@@ -363,8 +372,9 @@ Do not use third-party register APIs as official GlobalPulse disclosure sources 
 3. Keep Netherlands AFM financial reporting CSV as a proven manual_staging_only live candidate.
 4. Do not batch-promote scheduled EU polling yet; France + Spain + Netherlands prove the path but do not define the full EU rollout by themselves.
 5. Keep Italy eMarket Storage regulated communications as a proven manual_staging_only live candidate.
-6. Continue endpoint/parser discovery for Luxembourg LuxSE OAM, Germany official register surfaces, and Euronext issuer press-release surfaces.
-7. Only batch-promote scheduled EU polling after the target list, rollback path, source-specific parser risk, and staging live smoke evidence are documented together.
+6. Keep Luxembourg LuxSE OAM as a registered manual_staging_only GraphQL candidate pending staging live smoke.
+7. Continue endpoint/parser discovery for Germany official register surfaces and Euronext issuer press-release surfaces.
+8. Only batch-promote scheduled EU polling after the target list, rollback path, source-specific parser risk, and staging live smoke evidence are documented together.
 ```
 
 ## Explicit Non-Goals
@@ -393,11 +403,11 @@ SPAIN_CNMV_PUBLIC_UI_PASS
 NETHERLANDS_AFM_CSV_EXPORT_MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS
 ITALY_EMARKET_STORAGE_MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS
 ITALY_EMARKET_STORAGE_PUBLIC_UI_PASS
-LUXEMBOURG_LUXSE_OAM_SEARCH_SURFACE_FOUND_API_ENDPOINT_PENDING
+LUXEMBOURG_LUXSE_OAM_GRAPHQL_MANUAL_SOURCE_REGISTERED_STAGING_SMOKE_PENDING
 GERMANY_OFFICIAL_REGISTER_SURFACE_DIRECTION_FOUND_MACHINE_ENDPOINT_PENDING
 EURONEXT_COMPANY_PRESS_RELEASES_PUBLIC_HTML_SURFACE_FOUND
 BORSA_ITALIANA_POINTS_TO_CONSOB_AUTHORIZED_STORAGE_SYSTEMS
 ESMA_OAM_DIRECTORY_ACCEPTED_AS_AUTHORITY_MAP_NOT_POLL_SOURCE
-EU_NEXT_IMPLEMENTATION_STEP_LUXEMBOURG_OR_GERMANY_ENDPOINT_DISCOVERY
+EU_NEXT_IMPLEMENTATION_STEP_LUXEMBOURG_STAGING_LIVE_SMOKE
 EU_SCHEDULED_LIVE_POLLING_BLOCKED
 ```
