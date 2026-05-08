@@ -10,7 +10,7 @@ This is documentation-only. It does not add runtime code, routes, controllers, m
 primary target: listed-company disclosures and issuer announcements
 preferred authority: official exchange, OAM, regulated-information repository, or issuer-announcement authority
 not first target: ECB, central-bank feeds, macro-statistics feeds, parliament feeds, or broad policy news
-current result: France OAM manual source + parser + staging live smoke complete; Spain CNMV manual RSS sources + parser compatibility fix + staging live smoke + public UI smoke complete; Netherlands AFM CSV manual source + parser + staging live smoke complete; Italy eMarket Storage bounded HTML manual source + parser + staging live smoke + public UI smoke complete; Luxembourg LuxSE OAM GraphQL manual source + parser + staging live smoke + public UI smoke complete; Euronext company press release RSS manual source + bounded parser + staging live smoke + public UI smoke complete; Belgium FSMA STORI API manual source + bounded parser + staging live smoke + public UI smoke complete; UK FCA NSM API manual source + bounded parser + staging live smoke + public UI smoke complete; Switzerland SIX SER official notices RSS manual source + staging live smoke + public UI smoke complete; Nasdaq Nordic Company News JSONP manual source registered; remaining Europe candidates need endpoint/parser confirmation
+current result: France OAM manual source + parser + staging live smoke complete; Spain CNMV manual RSS sources + parser compatibility fix + staging live smoke + public UI smoke complete; Netherlands AFM CSV manual source + parser + staging live smoke complete; Italy eMarket Storage bounded HTML manual source + parser + staging live smoke + public UI smoke complete; Luxembourg LuxSE OAM GraphQL manual source + parser + staging live smoke + public UI smoke complete; Euronext company press release RSS manual source + bounded parser + staging live smoke + public UI smoke complete; Belgium FSMA STORI API manual source + bounded parser + staging live smoke + public UI smoke complete; UK FCA NSM API manual source + bounded parser + staging live smoke + public UI smoke complete; Switzerland SIX SER official notices RSS manual source + staging live smoke + public UI smoke complete; Nasdaq Nordic Company News JSONP manual source + staging live smoke + public UI smoke complete; remaining Europe candidates need endpoint/parser confirmation
 ```
 
 ## Candidate A: France Info-Financiere OAM API
@@ -209,7 +209,7 @@ machine-readable URL: https://api.news.eu.nasdaq.com/news/query.action
 observed HTTP: supporting page 200; JSONP API 200
 observed content-type: API application/javascript;charset=UTF-8
 observed shape: JSONP handleResponse wrapper with results.item records containing disclosureId, company, headline, cnsCategory, market, published, releaseTime, messageUrl, language, and attachments
-status: MANUAL_SOURCE_REGISTERED_STAGING_LIVE_SMOKE_PENDING_SCHEDULED_POLLING_DISABLED
+status: MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS_PUBLIC_UI_PASS_SCHEDULED_POLLING_DISABLED
 ```
 
 Why this fits the product:
@@ -227,7 +227,8 @@ Parser nasdaq_nordic_cns_jsonp_v1 exists.
 Manual source eu_nasdaq_nordic_company_news exists with active=false and candidate_status=manual_staging_only.
 The source uses a bounded query with globalName=NordicAllMarkets, limit=25, dir=DESC, and callback=handleResponse.
 Fixture source_payloads/eu_nasdaq_nordic_company_news.jsonp captures the bounded public JSONP shape.
-Fly staging live poll and public UI smoke are pending.
+Fly staging live poll returned fetch.mode=live, HTTP 200, fetch.bytes=20382, records_seen=25, records_inserted=25, and metadata.fallback_to_fixture=false in the latest digest.
+Public GlobalPulse Pages UI rendered Nasdaq Nordic Company News under Northern Europe with Backend ok and no API/CORS/rendering blocker in the local headless browser smoke.
 Scheduled polling remains disabled until the broader Europe source batch is intentionally promoted.
 ```
 
