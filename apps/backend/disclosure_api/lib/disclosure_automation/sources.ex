@@ -156,7 +156,15 @@ defmodule DisclosureAutomation.Sources do
     }
   end
 
-  defp get_value(map, key), do: Map.get(map, key) || Map.get(map, String.to_atom(key))
+  defp get_value(map, key) do
+    atom_key = String.to_atom(key)
+
+    cond do
+      Map.has_key?(map, key) -> Map.get(map, key)
+      Map.has_key?(map, atom_key) -> Map.get(map, atom_key)
+      true -> nil
+    end
+  end
 
   defp maybe_filter_active(query, nil), do: query
 
