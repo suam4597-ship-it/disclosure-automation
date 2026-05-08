@@ -18,6 +18,8 @@ on:
   schedule:
     # Run at minute 7 every hour. Keep this conservative for public RSS sources.
     - cron: "7 * * * *"
+    # Run the verified India NSE candidate every 2 hours on weekdays in staging.
+    - cron: "37 */2 * * 1-5"
 
 permissions:
   contents: read
@@ -31,14 +33,28 @@ jobs:
     runs-on: ubuntu-latest
     env:
       BACKEND_URL: ${{ github.event.inputs.backend_url || 'https://globalpulse-backend-staging.fly.dev' }}
-      SOURCE_KEY: ${{ github.event.inputs.source_key || 'sec_press_releases' }}
+      REQUESTED_SOURCE_KEY: ${{ github.event.inputs.source_key }}
+      SCHEDULE_EXPR: ${{ github.event.schedule }}
       EDITION: ${{ github.event.inputs.edition || 'breaking' }}
 
     steps:
+      - name: Resolve source
+        run: |
+          if [ -n "${REQUESTED_SOURCE_KEY}" ]; then
+            resolved_source="${REQUESTED_SOURCE_KEY}"
+          elif [ "${SCHEDULE_EXPR}" = "37 */2 * * 1-5" ]; then
+            resolved_source="india_nse_announcements"
+          else
+            resolved_source="sec_press_releases"
+          fi
+
+          echo "SOURCE_KEY=${resolved_source}" >> "${GITHUB_ENV}"
+
       - name: Show target
         run: |
           echo "backend=${BACKEND_URL}"
           echo "source=${SOURCE_KEY}"
+          echo "schedule=${SCHEDULE_EXPR}"
           echo "edition=${EDITION}"
 
       - name: Health check
