@@ -351,7 +351,8 @@ defmodule DisclosureAutomation.Ingestion do
 
   defp maybe_load_live_payload(source, true) do
     with {:ok, response} <- Http.fetch(source.base_url, timeout: 8_000),
-         true <- response.status_code in 200..299 do
+         true <- response.status_code in 200..299,
+         :ok <- validate_live_payload(source, response) do
       {:ok,
        %{
          raw_payload: response.body,
@@ -371,6 +372,45 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp maybe_load_live_payload(_source, false), do: :skip
+
+  defp validate_live_payload(%SourceRegistry{parser_key: "rss_v1"}, response) do
+    cond do
+      html_content_type?(response.headers) ->
+        {:error, {:unsupported_live_content_type, "rss_v1", content_type(response.headers)}}
+
+      html_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "rss_v1", :html}}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_live_payload(_source, _response), do: :ok
+
+  defp html_content_type?(headers) do
+    headers
+    |> content_type()
+    |> String.downcase()
+    |> String.contains?("text/html")
+  end
+
+  defp content_type(headers) do
+    Enum.find_value(headers, "", fn {key, value} ->
+      if String.downcase(to_string(key)) == "content-type" do
+        to_string(value)
+      end
+    end)
+  end
+
+  defp html_payload?(body) when is_binary(body) do
+    body
+    |> String.trim_leading()
+    |> String.downcase()
+    |> then(&(String.starts_with?(&1, "<!doctype html") or String.starts_with?(&1, "<html")))
+  end
+
+  defp html_payload?(_body), do: false
 
   defp load_fixture_payload(source) do
     fixture_path =
