@@ -77,6 +77,60 @@ sources:
     config:
       fixture_path: source_payloads/eu_market_news.xml
 
+  - source_key: eu_north_disclosures
+    display_name: Northern Europe Disclosures
+    source_type: rss
+    base_url: https://example.com/globalpulse/eu-north-disclosures
+    healthcheck_url: https://example.com/
+    parser_key: rss_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.18
+    coverage_tags:
+      - eu
+      - eu_north
+      - disclosure
+      - filing
+      - markets
+    active: true
+    config:
+      fixture_path: source_payloads/eu_north_disclosures.xml
+
+  - source_key: eu_central_disclosures
+    display_name: Central Europe Disclosures
+    source_type: rss
+    base_url: https://example.com/globalpulse/eu-central-disclosures
+    healthcheck_url: https://example.com/
+    parser_key: rss_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.2
+    coverage_tags:
+      - eu
+      - eu_central
+      - disclosure
+      - filing
+      - markets
+    active: true
+    config:
+      fixture_path: source_payloads/eu_central_disclosures.xml
+
+  - source_key: eu_south_disclosures
+    display_name: Southern Europe Disclosures
+    source_type: rss
+    base_url: https://example.com/globalpulse/eu-south-disclosures
+    healthcheck_url: https://example.com/
+    parser_key: rss_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.12
+    coverage_tags:
+      - eu
+      - eu_south
+      - disclosure
+      - filing
+      - markets
+    active: true
+    config:
+      fixture_path: source_payloads/eu_south_disclosures.xml
+
   - source_key: greater_china_market_news
     display_name: Greater China Market News
     source_type: rss
