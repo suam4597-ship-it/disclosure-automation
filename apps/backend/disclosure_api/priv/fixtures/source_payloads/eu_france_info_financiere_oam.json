@@ -1,0 +1,31 @@
+{
+  "total_count": 2,
+  "results": [
+    {
+      "uin_idt_uin": "globalpulse_fr_sample_20260508_001",
+      "uin_dat_amf": "2026-05-08T07:30:00+00:00",
+      "informationdeposee_inf_dat_emt": "2026-05-08T07:30:00+00:00",
+      "identificationsociete_iso_nom_soc": "GLOBALPULSE FR SAMPLE SA",
+      "identificationsociete_iso_cd_isi": "FR0000000001",
+      "identificationsociete_iso_code_tkr_iso_cd_tkr": "GPSF",
+      "informationdeposee_inf_tit_inf": "Informations privilegiees / Acquisition announcement",
+      "informationdeposee_inf_lng_inf": "English",
+      "url_de_recuperation": "https://example.com/globalpulse/fixtures/eu-france-info-financiere-oam-001.pdf",
+      "type_of_information": "Ongoing regulated information",
+      "subtype_of_information": "Inside Information"
+    },
+    {
+      "uin_idt_uin": "globalpulse_fr_sample_20260508_002",
+      "uin_dat_amf": "2026-05-08T06:15:00+00:00",
+      "informationdeposee_inf_dat_emt": "2026-05-08T06:15:00+00:00",
+      "identificationsociete_iso_nom_soc": "GLOBALPULSE PARIS ISSUER SA",
+      "identificationsociete_iso_cd_isi": "FR0000000002",
+      "identificationsociete_iso_code_tkr_iso_cd_tkr": "GPPI",
+      "informationdeposee_inf_tit_inf": "Rapports financiers et d'audit annuels / Annual financial report",
+      "informationdeposee_inf_lng_inf": "English",
+      "url_de_recuperation": "https://example.com/globalpulse/fixtures/eu-france-info-financiere-oam-002.pdf",
+      "type_of_information": "Periodic regulated information",
+      "subtype_of_information": "Annual financial and audit reports"
+    }
+  ]
+}
