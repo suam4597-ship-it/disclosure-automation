@@ -104,6 +104,10 @@ defmodule DisclosureAutomation.Parser do
 
   defp parse_by_key("rss_v1", raw_payload), do: parse_rss(raw_payload)
   defp parse_by_key("info_financiere_oam_v1", raw_payload), do: parse_info_financiere(raw_payload)
+
+  defp parse_by_key("afm_financial_reporting_xml_v1", raw_payload),
+    do: parse_afm_reporting(raw_payload)
+
   defp parse_by_key(parser_key, _raw_payload), do: {:error, {:unsupported_parser_key, parser_key}}
 
   defp limit_records(records, capability, opts) when is_list(records) and is_map(capability) do
@@ -236,6 +240,51 @@ defmodule DisclosureAutomation.Parser do
     }
   end
 
+  defp parse_afm_reporting(raw_payload) do
+    with {:ok, document} <- parse_xml(raw_payload) do
+      items =
+        :xmerl_xpath.string(~c"/register/vermelding[id]", document)
+        |> Enum.map(&parse_afm_reporting_record/1)
+        |> Enum.filter(&(&1.url && &1.title))
+
+      {:ok, items}
+    end
+  end
+
+  defp parse_afm_reporting_record(record) do
+    id = xpath_string(record, ~c"string(id)")
+    issuer = xpath_string(record, ~c"string(uitgevende-instelling)")
+    year = xpath_string(record, ~c"string(boekjaar)")
+    filename = xpath_string(record, ~c"string(filename)")
+    object_type = xpath_string(record, ~c"string(objecttype)")
+    object_type_en = xpath_string(record, ~c"string(objecttype_eng)")
+    filing_text = xpath_string(record, ~c"string(vermelding)")
+    category = object_type_en || object_type
+
+    %{
+      external_id: id || filename,
+      title: join_non_empty([issuer, category], " - "),
+      url: afm_reporting_detail_url(id),
+      summary:
+        join_non_empty(
+          [
+            prefixed("Reporting year", year),
+            prefixed("Document", filename),
+            filing_text
+          ],
+          " | "
+        ),
+      published_at: parse_afm_datetime(xpath_string(record, ~c"string(datum)")),
+      category: category
+    }
+  end
+
+  defp afm_reporting_detail_url(nil), do: nil
+
+  defp afm_reporting_detail_url(id) do
+    "https://www.afm.nl/en/sector/registers/meldingenregisters/financiele-verslaggeving/details?id=#{id}"
+  end
+
   defp string_field(record, key) do
     record
     |> Map.get(key)
@@ -272,6 +321,42 @@ defmodule DisclosureAutomation.Parser do
 
       _ ->
         nil
+    end
+  end
+
+  defp parse_afm_datetime(nil), do: DateTime.utc_now()
+
+  defp parse_afm_datetime(value) do
+    with [_, month_text, day_text, year_text, hour_text, minute_text, second_text, meridiem] <-
+           Regex.run(
+             ~r/^(\d{1,2})\/(\d{1,2})\/(\d{4}) (\d{1,2}):(\d{2}):(\d{2}) ([AP]M)$/i,
+             value
+           ),
+         {month, ""} <- Integer.parse(month_text),
+         {day, ""} <- Integer.parse(day_text),
+         {year, ""} <- Integer.parse(year_text),
+         {hour, ""} <- Integer.parse(hour_text),
+         {minute, ""} <- Integer.parse(minute_text),
+         {second, ""} <- Integer.parse(second_text),
+         {:ok, datetime} <-
+           build_utc_datetime(year, month, day, afm_24_hour(hour, meridiem), minute, second) do
+      datetime
+    else
+      _ -> DateTime.utc_now()
+    end
+  end
+
+  defp afm_24_hour(12, meridiem) do
+    case String.upcase(meridiem) do
+      "AM" -> 0
+      "PM" -> 12
+    end
+  end
+
+  defp afm_24_hour(hour, meridiem) do
+    case String.upcase(meridiem) do
+      "PM" -> hour + 12
+      _ -> hour
     end
   end
 
@@ -662,6 +747,27 @@ defmodule DisclosureAutomation.Ingestion do
     end
   end
 
+  defp validate_live_payload(
+         %SourceRegistry{parser_key: "afm_financial_reporting_xml_v1"},
+         response
+       ) do
+    cond do
+      html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "afm_financial_reporting_xml_v1",
+          content_type(response.headers)}}
+
+      html_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "afm_financial_reporting_xml_v1", :html}}
+
+      not afm_reporting_xml_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "afm_financial_reporting_xml_v1", :unexpected_xml}}
+
+      true ->
+        :ok
+    end
+  end
+
   defp validate_live_payload(_source, _response), do: :ok
 
   defp html_content_type?(headers) do
@@ -694,6 +800,14 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp html_payload?(_body), do: false
+
+  defp afm_reporting_xml_payload?(body) when is_binary(body) do
+    body
+    |> String.trim_leading()
+    |> String.starts_with?("<register")
+  end
+
+  defp afm_reporting_xml_payload?(_body), do: false
 
   defp load_fixture_payload(source) do
     fixture_path =
