@@ -369,6 +369,31 @@ sources:
         sort: submitted_date
         sortorder: desc
 
+  - source_key: ch_six_ser_official_notices
+    display_name: Switzerland SIX SER Official Notices
+    source_type: rss
+    base_url: https://www.ser-ag.com/itf-data/official-notices/rss-en.xml
+    healthcheck_url: https://www.six-group.com/en/market-data/news-tools/official-notices.html
+    parser_key: rss_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.16
+    coverage_tags:
+      - ch
+      - europe
+      - switzerland
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - official_notices
+    active: false
+    config:
+      fixture_path: source_payloads/ch_six_ser_official_notices.xml
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      max_items_per_poll: 25
+
   - source_key: greater_china_market_news
     display_name: Greater China Market News
     source_type: rss
