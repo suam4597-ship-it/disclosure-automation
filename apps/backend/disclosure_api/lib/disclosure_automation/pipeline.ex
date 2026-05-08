@@ -634,19 +634,28 @@ defmodule DisclosureAutomation.Digest do
       when is_binary(digest_date) and is_binary(edition) do
     timezone = Keyword.get(opts, :timezone, "UTC")
     limit = Keyword.get(opts, :limit, 12)
+    candidate_limit = max(positive_int(Keyword.get(opts, :candidate_limit)) || limit * 8, limit)
+
+    max_per_source =
+      positive_int(Keyword.get(opts, :max_per_source)) || default_max_per_source(limit)
+
+    max_per_region =
+      positive_int(Keyword.get(opts, :max_per_region)) || default_max_per_region(limit)
 
     with {:ok, digest_date} <- Date.from_iso8601(digest_date) do
-      items =
+      candidates =
         from(item in CanonicalFeedItem,
           join: source in assoc(item, :source),
           where:
             item.digest_date == ^digest_date and item.edition == ^edition and
               item.status in ["ready", "published"],
           order_by: [asc: item.priority_rank, desc: item.published_at],
-          limit: ^limit,
+          limit: ^candidate_limit,
           select: {item, source}
         )
         |> Repo.all()
+
+      items = select_diverse_items(candidates, limit, max_per_source, max_per_region)
 
       if items == [] do
         fallback_to_fixture(edition, digest_date, opts)
@@ -671,6 +680,81 @@ defmodule DisclosureAutomation.Digest do
       {:error, _reason} -> {:error, :not_found}
     end
   end
+
+  defp select_diverse_items(candidates, limit, max_per_source, max_per_region) do
+    {selected_reversed, _source_counts, _region_counts} =
+      Enum.reduce(candidates, {[], %{}, %{}}, fn candidate,
+                                                 {selected, source_counts, region_counts} ->
+        if length(selected) >= limit or
+             over_diversity_cap?(
+               candidate,
+               source_counts,
+               region_counts,
+               max_per_source,
+               max_per_region
+             ) do
+          {selected, source_counts, region_counts}
+        else
+          {[candidate | selected], increment_source(candidate, source_counts),
+           increment_region(candidate, region_counts)}
+        end
+      end)
+
+    selected = Enum.reverse(selected_reversed)
+    selected_ids = MapSet.new(selected, fn {item, _source} -> item.id end)
+
+    backfill =
+      candidates
+      |> Enum.reject(fn {item, _source} -> MapSet.member?(selected_ids, item.id) end)
+      |> Enum.take(max(limit - length(selected), 0))
+
+    selected ++ backfill
+  end
+
+  defp over_diversity_cap?(
+         candidate,
+         source_counts,
+         region_counts,
+         max_per_source,
+         max_per_region
+       ) do
+    source_key = source_key(candidate)
+    region_key = primary_region(candidate)
+
+    Map.get(source_counts, source_key, 0) >= max_per_source or
+      Map.get(region_counts, region_key, 0) >= max_per_region
+  end
+
+  defp increment_source(candidate, source_counts) do
+    Map.update(source_counts, source_key(candidate), 1, &(&1 + 1))
+  end
+
+  defp increment_region(candidate, region_counts) do
+    Map.update(region_counts, primary_region(candidate), 1, &(&1 + 1))
+  end
+
+  defp source_key({_item, source}), do: source.source_key || "unknown"
+
+  defp primary_region({item, _source}) do
+    case item.regions || [] do
+      [region | _rest] -> region
+      _empty -> "global"
+    end
+  end
+
+  defp default_max_per_source(limit), do: max(2, ceil(limit / 3))
+  defp default_max_per_region(limit), do: max(3, ceil(limit / 2))
+
+  defp positive_int(value) when is_integer(value) and value > 0, do: value
+
+  defp positive_int(value) when is_binary(value) do
+    case Integer.parse(value) do
+      {parsed, ""} when parsed > 0 -> parsed
+      _ -> nil
+    end
+  end
+
+  defp positive_int(_value), do: nil
 
   defp latest_digest_date_for_edition(edition) do
     from(item in CanonicalFeedItem,
