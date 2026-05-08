@@ -245,6 +245,7 @@ defmodule DisclosureAutomation.Parser do
   defp parse_afm_reporting(raw_payload) do
     items =
       raw_payload
+      |> afm_csv_to_utf8()
       |> String.split(~r/\r?\n/, trim: true)
       |> Enum.drop(1)
       |> Enum.take(@afm_reporting_csv_limit)
@@ -252,6 +253,14 @@ defmodule DisclosureAutomation.Parser do
       |> Enum.filter(&(&1.url && &1.title))
 
     {:ok, items}
+  end
+
+  defp afm_csv_to_utf8(raw_payload) do
+    if String.valid?(raw_payload) do
+      raw_payload
+    else
+      :unicode.characters_to_binary(raw_payload, :latin1, :utf8)
+    end
   end
 
   defp parse_afm_reporting_record(row) do
