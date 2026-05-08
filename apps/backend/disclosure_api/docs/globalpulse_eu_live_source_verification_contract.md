@@ -18,110 +18,170 @@ current live status: NOT_READY_FOR_SCHEDULED_LIVE_POLLING
 
 The current `eu_market_news` placeholder URL must not be live-polled.
 
+## Source Selection Principle
+
+GlobalPulse's primary EU live-source goal is listed-company disclosure coverage:
+
+```text
+primary product target: listed company disclosures and issuer announcements
+preferred authority: official exchange, official regulated-information service, or official OAM-style disclosure repository
+preferred content: issuer announcements, regulated information, corporate disclosures, company notices
+not the first target: central bank, macro-statistics, parliament, or broad policy news feeds
+```
+
+Central-bank, macro, securities-regulator, and EU-institution feeds can remain useful later as separately labeled policy or markets context. They must not be treated as the first EU company-disclosure source.
+
 ## Candidate Sources
 
-### Candidate A: ECB RSS feeds
+### Candidate A: EU listed-company disclosure endpoints
+
+```text
+source authority: official exchange, official regulated-information service, or official OAM-style disclosure repository
+candidate category: listed company disclosures / issuer announcements / regulated information
+candidate owners to verify: Euronext, Deutsche Boerse, Borsa Italiana, Nasdaq Nordic, or national regulated-information repositories
+machine-readable shape: pending exact endpoint verification
+status: PREFERRED_FIRST_EU_CANDIDATE_CLASS_PENDING_ENDPOINT_SCAN
+```
+
+Rationale:
+
+```text
+The product needs public-company disclosure and announcement coverage first. EU v1 should therefore start from official issuer-announcement or regulated-information surfaces, not central-bank or macro-policy feeds.
+```
+
+Acceptance caveat:
+
+```text
+Do not add or schedule an EU source until one exact RSS, Atom, XML, JSON, or known API endpoint is verified with stable 2xx, parser compatibility, fetch.mode=live, and metadata.fallback_to_fixture=false.
+Do not treat an HTML search page or issuer-listing page as rss_v1 input.
+```
+
+### Candidate B: Euronext / regulated-information surfaces
+
+```text
+source authority: official exchange or regulated-information surface
+candidate category: issuer announcements / regulated information
+machine-readable shape: pending exact endpoint verification
+status: GOOD_FIRST_SCAN_TARGET_PENDING_MACHINE_ENDPOINT
+```
+
+Rationale:
+
+```text
+Euronext-listed issuer announcements and regulated-information surfaces are closer to the desired company-disclosure product than institutional policy feeds.
+```
+
+Acceptance caveat:
+
+```text
+Verify exact endpoint, terms/rate limits, pagination, parser compatibility, and rollback before source registration.
+Do not register a broad HTML page unless a bounded parser PR is explicitly accepted.
+```
+
+### Candidate C: National exchange or OAM disclosure repositories
+
+```text
+source authority: official exchange, OAM-style repository, or regulated-information mechanism
+candidate category: listed-company announcements / issuer filings
+candidate owners to verify: national exchange or disclosure repository surfaces
+machine-readable shape: pending exact endpoint verification
+status: GOOD_FIRST_SCAN_TARGET_PENDING_ENDPOINT_SELECTION
+```
+
+Rationale:
+
+```text
+National official disclosure repositories may provide issuer-level regulated information with better company-disclosure fidelity than pan-EU policy feeds.
+```
+
+Acceptance caveat:
+
+```text
+Keep EU member-state disclosure feeds region-labeled and source-labeled.
+Do not broaden into general market or macro news unless it is a separately labeled secondary source.
+```
+
+### Candidate D: ECB RSS feeds
 
 ```text
 source authority: official
 owner: European Central Bank
 candidate category: euro-area central bank / macro / market-moving policy news
 machine-readable shape: RSS
-candidate feed to verify first: https://www.ecb.europa.eu/rss/press.html
-status: PREFERRED_FIRST_EU_CANDIDATE_PENDING_STAGING_VERIFICATION
+candidate feed observed for later policy-news evaluation: https://www.ecb.europa.eu/rss/press.html
+status: DEPRIORITIZED_POLICY_NEWS_NOT_FIRST_COMPANY_DISCLOSURE_SOURCE
 ```
 
 Rationale:
 
 ```text
-ECB official RSS documentation states that RSS feeds are available for press releases, speeches, interviews, press conference transcripts, statistical press releases, publications, working papers, and recent open market operations/ad hoc communication.
+ECB feeds can be useful as macro or central-bank context, but they are not listed-company disclosures or issuer announcements.
 ```
 
 Acceptance caveat:
 
 ```text
-Do not add or schedule the ECB candidate until a staging smoke proves stable 2xx, rss_v1 parse compatibility, fetch.mode=live, and metadata.fallback_to_fixture=false.
+Do not add ECB as EU v1 if the product goal is public-company disclosure coverage.
+If added later, label it as policy/macro context and keep it separate from issuer announcements.
 ```
 
-### Candidate B: Eurostat RSS feeds
+### Candidate E: Eurostat RSS feeds
 
 ```text
 source authority: official
 owner: Eurostat / European Commission
 candidate category: economic statistics and releases
 machine-readable shape: RSS
-status: GOOD_SECONDARY_EU_CANDIDATE_PENDING_EXACT_FEED_SELECTION
+status: DEPRIORITIZED_MACRO_STATISTICS_NOT_FIRST_COMPANY_DISCLOSURE_SOURCE
 ```
 
 Rationale:
 
 ```text
-Eurostat documents RSS as XML and lists common feeds including news releases and Eurostat news across economy and finance, industry, trade and services, international trade, environment and energy, science and technology, and other categories.
+Eurostat feeds can support macro context, but they do not satisfy the listed-company disclosure target.
 ```
 
 Acceptance caveat:
 
 ```text
-Select one exact feed URL before adding a source registry entry.
-Do not add a broad or alert-builder URL unless it returns stable RSS/XML directly.
+Use only as a separately labeled macro/statistics source after company-disclosure coverage is established.
 ```
 
-### Candidate C: European Parliament XML feeds
+### Candidate F: European Parliament and ESMA policy surfaces
 
 ```text
 source authority: official
-owner: European Parliament
-candidate category: EU policy and legislative news
-machine-readable shape: XML feeds
-status: SECONDARY_POLICY_CANDIDATE_NOT_FIRST_MARKET_NEWS_SOURCE
+owner: European Parliament / European Securities and Markets Authority
+candidate category: EU policy, legislative, or securities-regulation news
+observed shape: XML/RSS possible for Parliament; ESMA public news HTML observed
+status: SECONDARY_POLICY_CANDIDATE_NOT_FIRST_COMPANY_DISCLOSURE_SOURCE
 ```
 
 Rationale:
 
 ```text
-European Parliament publishes RSS/XML feeds for news, all press releases, committee press releases, and topic feeds including economic and monetary affairs and internal market and industry.
+These sources may be relevant for regulatory context, but they are not the initial listed-company disclosure target.
 ```
 
 Acceptance caveat:
 
 ```text
-Use only if the product needs EU institutional/policy coverage.
-Do not treat this as a market-news source without category labeling.
-```
-
-### Candidate D: ESMA news page
-
-```text
-source authority: official
-owner: European Securities and Markets Authority
-candidate category: EU securities regulation and supervision
-observed shape: public news HTML page
-status: AUTHORITY_GOOD_BUT_MACHINE_READABLE_ENDPOINT_NOT_VERIFIED
-```
-
-Rationale:
-
-```text
-ESMA is directly relevant for EU financial markets regulation, but the currently observed public news page is an HTML listing and is not yet accepted as rss_v1 input.
-```
-
-Acceptance caveat:
-
-```text
-Find a verified RSS, Atom, JSON, or known API endpoint before adding ESMA as a live source.
+Use only if the product intentionally adds EU policy or regulator-news coverage.
 Do not poll an HTML news page with rss_v1.
 ```
 
 ## EU v1 Recommendation
 
 ```text
-EU_V1_CANDIDATE: ECB RSS press feed
-candidate URL: https://www.ecb.europa.eu/rss/press.html
-source_key proposal: eu_ecb_press
-parser_key: rss_v1
-coverage_tags: eu, macro, central_bank, policy, markets, news
+EU_V1_TARGET: listed-company regulated information
+candidate class: official exchange, official regulated-information service, or official OAM-style disclosure repository
+candidate examples to scan: Euronext issuer announcements, Deutsche Boerse issuer announcements, Borsa Italiana issuer news, Nasdaq Nordic company announcements, national regulated-information repositories
+source_key proposal: pending exact accepted endpoint
+parser_key: pending exact endpoint shape
+coverage_tags: eu, company_disclosure, issuer_announcement, regulated_information
 initial mode: manual/staging verification only
 scheduled polling: disabled until staging smoke passes
+deprioritized: ECB/Eurostat/European Parliament/ESMA policy or macro feeds are not first EU company-disclosure candidates
 ```
 
 ## Acceptance Gates
@@ -148,6 +208,7 @@ REJECT: live-polling https://example.com/globalpulse/eu-market-news
 REJECT: treating an HTML page as rss_v1 live source
 REJECT: claiming EU live success while falling back to fixture data
 REJECT: adding broad source scraping without a stable machine-readable endpoint
+REJECT: using ECB, Eurostat, Parliament, or broad policy feeds as the first EU listed-company disclosure source
 REJECT: changing public digest response shape just to support EU
 REJECT: exposing raw provider/auth/session/request diagnostics in public responses
 ```
@@ -155,11 +216,12 @@ REJECT: exposing raw provider/auth/session/request diagnostics in public respons
 ## Next Allowed PRs
 
 ```text
-1. Add disabled/manual ECB candidate source after exact feed URL is verified.
-2. Run staging live poll smoke for ECB with fetch.mode=live.
-3. Record EU ECB live polling smoke if successful.
-4. Evaluate Eurostat exact feed if ECB is too policy-heavy or needs economic-statistics supplement.
-5. Evaluate European Parliament topic feeds only as policy coverage, not generic market news.
+1. Start EU listed-company disclosure endpoint scan.
+2. Verify exact Euronext, Deutsche Boerse, Borsa Italiana, Nasdaq Nordic, or national disclosure-repository endpoints.
+3. Add a disabled/manual EU issuer-announcement source only after exact machine-readable endpoint and access terms are accepted.
+4. Run staging live poll smoke with fetch.mode=live and metadata.fallback_to_fixture=false.
+5. Record EU listed-company disclosure live polling smoke if successful.
+6. Evaluate ECB, Eurostat, European Parliament, or ESMA only later as separately labeled policy/macro/regulatory context.
 ```
 
 ## Current Conclusion
@@ -167,7 +229,9 @@ REJECT: exposing raw provider/auth/session/request diagnostics in public respons
 ```text
 EU_LIVE_SOURCE_TRACK_STARTED
 EU_CURRENT_PLACEHOLDER_REJECTED_FOR_LIVE_POLLING
-ECB_RSS_SELECTED_AS_FIRST_EU_CANDIDATE_PENDING_STAGING_VERIFICATION
+EU_LISTED_COMPANY_DISCLOSURE_TRACK_REQUIRED
+ECB_RSS_RECLASSIFIED_AS_POLICY_NEWS_NOT_DISCLOSURE_SOURCE
+EU_COMPANY_DISCLOSURE_ENDPOINT_PENDING
 EU_SCHEDULED_LIVE_POLLING_BLOCKED_UNTIL_STAGING_SMOKE_PASS
 JP_REMAINING_AUTHORITY_DECISION_TRACKED_IN_ISSUE_339
 ```

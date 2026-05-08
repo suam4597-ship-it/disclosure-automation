@@ -172,12 +172,12 @@ Do not use an HTML exchange homepage or search page as rss_v1 input.
 Verify exact endpoint, terms/rate limits, parser compatibility, and rollback before source registration.
 ```
 
-### Candidate D: ANZ exchange and policy feeds
+### Candidate D: ANZ listed-company disclosure feeds
 
 ```text
-source authority: official exchange, regulator, or central bank required
-candidate category: Australia/NZ announcements, market news, or policy news
-candidate owners to verify: ASX, NZX, ASIC, RBA, or another official owner
+source authority: official exchange or issuer-announcement authority required
+candidate category: Australia/NZ listed-company announcements and issuer disclosures
+candidate owners to verify: ASX, NZX, or another official issuer-announcement owner
 machine-readable shape: pending exact endpoint verification
 status: ANZ_LIVE_ENDPOINT_SCAN_STARTED
 ```
@@ -194,7 +194,8 @@ Acceptance caveat:
 
 ```text
 If the goal is listed-company disclosure coverage, prefer ASX/NZX announcement endpoints.
-If the goal is market-moving policy coverage, keep RBA/ASIC feeds labeled separately from company disclosures.
+Do not use central-bank or broad policy feeds as the first ANZ company-disclosure source.
+If market-moving policy coverage is added later, keep RBA/ASIC-style feeds labeled separately from company disclosures.
 Do not claim ANZ live success from an HTML announcement page.
 ```
 
