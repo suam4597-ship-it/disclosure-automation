@@ -132,6 +132,9 @@ defmodule DisclosureAutomation.Parser do
 
   defp parse_by_key("fca_nsm_search_api_v1", raw_payload), do: parse_fca_nsm_search(raw_payload)
 
+  defp parse_by_key("nasdaq_nordic_cns_jsonp_v1", raw_payload),
+    do: parse_nasdaq_nordic_cns(raw_payload)
+
   defp parse_by_key(parser_key, _raw_payload), do: {:error, {:unsupported_parser_key, parser_key}}
 
   defp limit_records(records, capability, opts) when is_list(records) and is_map(capability) do
@@ -735,6 +738,127 @@ defmodule DisclosureAutomation.Parser do
       ],
       " | "
     )
+  end
+
+  defp parse_nasdaq_nordic_cns(raw_payload) do
+    with {:ok, decoded} <- decode_json_or_jsonp(raw_payload),
+         records when is_list(records) <- nasdaq_nordic_cns_records(decoded) do
+      items =
+        records
+        |> Enum.map(&parse_nasdaq_nordic_cns_record/1)
+        |> Enum.filter(&(&1.url && &1.title))
+
+      {:ok, items}
+    else
+      {:error, error} -> {:error, {:invalid_jsonp, error}}
+      _ -> {:error, {:invalid_json_shape, "nasdaq_nordic_cns_jsonp_v1"}}
+    end
+  end
+
+  defp decode_json_or_jsonp(raw_payload) do
+    raw_payload
+    |> String.trim()
+    |> case do
+      "" ->
+        {:error, :empty_payload}
+
+      payload ->
+        json =
+          case Regex.run(~r/^\s*[A-Za-z_$][\w.$]*\((.*)\)\s*;?\s*$/s, payload) do
+            [_, wrapped_json] -> wrapped_json
+            _no_callback -> payload
+          end
+
+        Jason.decode(json)
+    end
+  end
+
+  defp nasdaq_nordic_cns_records(%{"results" => %{"item" => records}})
+       when is_list(records),
+       do: records
+
+  defp nasdaq_nordic_cns_records(%{"results" => %{"item" => record}})
+       when is_map(record),
+       do: [record]
+
+  defp nasdaq_nordic_cns_records(_decoded), do: nil
+
+  defp parse_nasdaq_nordic_cns_record(record) when is_map(record) do
+    company = string_field(record, "company")
+    headline = string_field(record, "headline")
+    category = string_field(record, "cnsCategory")
+    market = string_field(record, "market")
+    language = string_field(record, "language")
+
+    %{
+      external_id: string_field(record, "disclosureId") || string_field(record, "messageUrl"),
+      title: nasdaq_nordic_cns_title(company, headline),
+      url: string_field(record, "messageUrl"),
+      summary:
+        join_non_empty(
+          [
+            "Nasdaq Nordic company news",
+            prefixed("Category", category),
+            prefixed("Market", market),
+            prefixed("Language", language),
+            prefixed("Attachments", nasdaq_nordic_attachment_count(record))
+          ],
+          " | "
+        ),
+      published_at:
+        parse_nasdaq_nordic_cns_datetime(
+          string_field(record, "published") || string_field(record, "releaseTime")
+        ),
+      category: category
+    }
+  end
+
+  defp parse_nasdaq_nordic_cns_record(_record) do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: DateTime.utc_now(),
+      category: nil
+    }
+  end
+
+  defp nasdaq_nordic_cns_title(company, headline)
+       when is_binary(company) and is_binary(headline) do
+    if String.contains?(String.downcase(headline), String.downcase(company)) do
+      headline
+    else
+      join_non_empty([company, headline], " - ")
+    end
+  end
+
+  defp nasdaq_nordic_cns_title(company, headline), do: join_non_empty([company, headline], " - ")
+
+  defp nasdaq_nordic_attachment_count(%{"attachment" => attachments}) when is_list(attachments),
+    do: Integer.to_string(length(attachments))
+
+  defp nasdaq_nordic_attachment_count(_record), do: nil
+
+  defp parse_nasdaq_nordic_cns_datetime(nil), do: DateTime.utc_now()
+
+  defp parse_nasdaq_nordic_cns_datetime(value) do
+    with [_, year_text, month_text, day_text, hour_text, minute_text, second_text] <-
+           Regex.run(
+             ~r/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/,
+             value
+           ),
+         {year, ""} <- Integer.parse(year_text),
+         {month, ""} <- Integer.parse(month_text),
+         {day, ""} <- Integer.parse(day_text),
+         {hour, ""} <- Integer.parse(hour_text),
+         {minute, ""} <- Integer.parse(minute_text),
+         {second, ""} <- Integer.parse(second_text),
+         {:ok, datetime} <- build_utc_datetime(year, month, day, hour, minute, second) do
+      datetime
+    else
+      _ -> DateTime.utc_now()
+    end
   end
 
   defp parse_afm_csv_row(row) do
@@ -1382,6 +1506,29 @@ defmodule DisclosureAutomation.Ingestion do
     end
   end
 
+  defp validate_live_payload(%SourceRegistry{parser_key: "nasdaq_nordic_cns_jsonp_v1"}, response) do
+    cond do
+      html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "nasdaq_nordic_cns_jsonp_v1",
+          content_type(response.headers)}}
+
+      html_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "nasdaq_nordic_cns_jsonp_v1", :html}}
+
+      not javascript_or_json_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "nasdaq_nordic_cns_jsonp_v1",
+          content_type(response.headers)}}
+
+      not nasdaq_nordic_cns_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "nasdaq_nordic_cns_jsonp_v1", :unexpected_jsonp}}
+
+      true ->
+        :ok
+    end
+  end
+
   defp validate_live_payload(_source, _response), do: :ok
 
   defp source_live_headers(%SourceRegistry{config: config}) when is_map(config) do
@@ -1486,6 +1633,12 @@ defmodule DisclosureAutomation.Ingestion do
     |> String.contains?("json")
   end
 
+  defp javascript_or_json_content_type?(headers) do
+    content_type = headers |> content_type() |> String.downcase()
+
+    String.contains?(content_type, "javascript") or String.contains?(content_type, "json")
+  end
+
   defp html_payload?(body) when is_binary(body) do
     body
     |> String.trim_leading()
@@ -1528,6 +1681,12 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp fca_nsm_search_payload?(_body), do: false
+
+  defp nasdaq_nordic_cns_payload?(body) when is_binary(body) do
+    body =~ "handleResponse(" and body =~ "\"results\"" and body =~ "\"item\""
+  end
+
+  defp nasdaq_nordic_cns_payload?(_body), do: false
 
   defp load_fixture_payload(source) do
     fixture_path =

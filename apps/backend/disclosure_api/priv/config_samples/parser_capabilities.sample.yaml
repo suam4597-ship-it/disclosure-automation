@@ -148,6 +148,46 @@ parsers:
       reject_html_payload: true
       reject_future_timestamps: true
 
+  - parser_key: nasdaq_nordic_cns_jsonp_v1
+    display_name: Nasdaq Nordic Company News JSONP Parser
+    enabled: true
+    input_types: [jsonp, api]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: false
+    supports_detail_fetch: true
+    extraction:
+      id_fields:
+        - results.item.disclosureId
+        - results.item.messageUrl
+      title_fields:
+        - results.item.company
+        - results.item.headline
+      summary_fields:
+        - results.item.cnsCategory
+        - results.item.market
+        - results.item.language
+        - results.item.attachment.fileName
+      url_fields:
+        - results.item.messageUrl
+      published_at_fields:
+        - results.item.published
+        - results.item.releaseTime
+      category_fields:
+        - results.item.cnsCategory
+    normalization:
+      source_shape: nasdaq_nordic_cns_jsonp
+      trim_html: true
+      collapse_whitespace: true
+      timezone_strategy: source_cet_datetime
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_html_payload: true
+      reject_future_timestamps: true
+
   - parser_key: info_financiere_oam_v1
     display_name: France Info-Financiere OAM JSON Parser
     enabled: true

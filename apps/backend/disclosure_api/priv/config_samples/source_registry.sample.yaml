@@ -394,6 +394,38 @@ sources:
       live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
       max_items_per_poll: 25
 
+  - source_key: eu_nasdaq_nordic_company_news
+    display_name: Nasdaq Nordic Company News
+    source_type: api
+    base_url: https://api.news.eu.nasdaq.com/news/query.action?countResults=true&globalGroup=exchangeNotice&displayLanguage=en&timeZone=CET&dateMask=yyyy-MM-dd%20HH:mm:ss&limit=25&start=0&dir=DESC&globalName=NordicAllMarkets&callback=handleResponse
+    healthcheck_url: https://www.nasdaq.com/european-market-activity/news/company-news
+    parser_key: nasdaq_nordic_cns_jsonp_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.16
+    coverage_tags:
+      - eu
+      - eu_north
+      - nordic
+      - denmark
+      - sweden
+      - finland
+      - iceland
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - company_news
+    active: false
+    config:
+      fixture_path: source_payloads/eu_nasdaq_nordic_company_news.jsonp
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      max_items_per_poll: 25
+      live_timeout_ms: 30000
+      live_headers:
+        accept: application/javascript, application/json
+
   - source_key: greater_china_market_news
     display_name: Greater China Market News
     source_type: rss
