@@ -204,9 +204,9 @@ sources:
   - source_key: eu_netherlands_afm_financial_reporting
     display_name: Netherlands AFM Financial Reporting
     source_type: api
-    base_url: https://www.afm.nl/export.aspx?format=xml&type=e8825b05-4004-4301-b736-651e8c61053d
+    base_url: https://www.afm.nl/export.aspx?format=csv&type=e8825b05-4004-4301-b736-651e8c61053d
     healthcheck_url: https://www.afm.nl/en/sector/registers/meldingenregisters/financiele-verslaggeving
-    parser_key: afm_financial_reporting_xml_v1
+    parser_key: afm_financial_reporting_csv_v1
     poll_cron: "*/30 * * * *"
     ranking_weight: 1.2
     coverage_tags:
@@ -220,7 +220,7 @@ sources:
       - financial_reporting
     active: false
     config:
-      fixture_path: source_payloads/eu_netherlands_afm_financial_reporting.xml
+      fixture_path: source_payloads/eu_netherlands_afm_financial_reporting.csv
       candidate_status: manual_staging_only
       live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
       max_items_per_poll: 25

@@ -74,37 +74,38 @@ parsers:
       reject_html_payload: true
       reject_future_timestamps: true
 
-  - parser_key: afm_financial_reporting_xml_v1
-    display_name: Netherlands AFM Financial Reporting XML Parser
+  - parser_key: afm_financial_reporting_csv_v1
+    display_name: Netherlands AFM Financial Reporting CSV Parser
     enabled: true
-    input_types: [xml, api]
+    input_types: [csv, api]
     output_contract: canonical_document_v1
     timeout_ms: 5000
     max_items_per_poll: 25
     supports_pagination: false
     supports_detail_fetch: false
     extraction:
-      id_fields: [id, filename]
+      id_fields:
+        - datum_deponering
+        - uitgevende_instelling
+        - boekjaar
+        - soort
       title_fields:
-        - uitgevende-instelling
-        - objecttype_eng
-        - objecttype
+        - uitgevende_instelling
+        - soort
       summary_fields:
         - boekjaar
-        - filename
-        - vermelding
+        - soort
       url_fields:
-        - details_id
+        - register_url
       published_at_fields:
-        - datum
+        - datum_deponering
       category_fields:
-        - objecttype_eng
-        - objecttype
+        - soort
     normalization:
-      source_shape: afm_register_vermelding_xml
+      source_shape: afm_financial_reporting_semicolon_csv
       trim_html: true
       collapse_whitespace: true
-      timezone_strategy: source_naive_utc
+      timezone_strategy: source_naive_utc_iso
       missing_summary_strategy: bounded_metadata_summary
     quality:
       minimum_title_length: 8
