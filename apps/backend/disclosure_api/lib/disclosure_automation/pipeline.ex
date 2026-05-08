@@ -362,8 +362,21 @@ defmodule DisclosureAutomation.Ingestion do
               %{raw_document: raw_document, canonical_item: canonical_item}
             end)
 
-          latest_published_at =
+          raw_document_ids =
             persisted
+            |> Enum.map(& &1.raw_document.id)
+            |> Enum.uniq()
+
+          canonical_item_keys =
+            persisted
+            |> Enum.map(& &1.canonical_item.story_key)
+            |> Enum.uniq()
+
+          unique_persisted =
+            Enum.uniq_by(persisted, & &1.raw_document.id)
+
+          latest_published_at =
+            unique_persisted
             |> Enum.map(& &1.raw_document.published_at)
             |> Enum.reject(&is_nil/1)
             |> case do
@@ -376,8 +389,8 @@ defmodule DisclosureAutomation.Ingestion do
             status: "succeeded",
             finished_at: DateTime.utc_now(),
             records_seen: length(records),
-            records_inserted: length(records),
-            records_updated: 0,
+            records_inserted: length(raw_document_ids),
+            records_updated: max(length(records) - length(raw_document_ids), 0),
             records_rejected: 0
           })
           |> Repo.update!()
@@ -389,9 +402,9 @@ defmodule DisclosureAutomation.Ingestion do
             edition: edition,
             fetch: payload.fetch_info,
             records_seen: length(records),
-            records_inserted: length(records),
-            raw_documents: Enum.map(persisted, & &1.raw_document.id),
-            canonical_items: Enum.map(persisted, & &1.canonical_item.story_key)
+            records_inserted: length(raw_document_ids),
+            raw_documents: raw_document_ids,
+            canonical_items: canonical_item_keys
           }
         end)
 
