@@ -10,7 +10,7 @@ This is documentation-only. It does not add runtime code, routes, controllers, m
 primary target: listed-company disclosures and issuer announcements
 preferred authority: official exchange, OAM, regulated-information repository, or issuer-announcement authority
 not first target: ECB, central-bank feeds, macro-statistics feeds, parliament feeds, or broad policy news
-current result: France OAM manual source + parser + staging live smoke complete; Spain CNMV manual RSS sources + parser compatibility fix + staging live smoke + public UI smoke complete; Netherlands AFM CSV manual source + parser + staging live smoke complete; Italy eMarket Storage bounded HTML manual source + parser + staging live smoke + public UI smoke complete; Luxembourg LuxSE OAM GraphQL manual source + parser + staging live smoke + public UI smoke complete; Euronext company press release RSS manual source + bounded parser + staging live smoke + public UI smoke complete; remaining EU candidates need endpoint/parser confirmation
+current result: France OAM manual source + parser + staging live smoke complete; Spain CNMV manual RSS sources + parser compatibility fix + staging live smoke + public UI smoke complete; Netherlands AFM CSV manual source + parser + staging live smoke complete; Italy eMarket Storage bounded HTML manual source + parser + staging live smoke + public UI smoke complete; Luxembourg LuxSE OAM GraphQL manual source + parser + staging live smoke + public UI smoke complete; Euronext company press release RSS manual source + bounded parser + staging live smoke + public UI smoke complete; Belgium FSMA STORI API manual source + bounded parser candidate added; remaining EU candidates need endpoint/parser confirmation
 ```
 
 ## Candidate A: France Info-Financiere OAM API
@@ -98,6 +98,38 @@ The parser reuses the official RSS item contract, prefers English release links 
 Fixture source_payloads/eu_euronext_company_press_releases.xml captures the official RSS shape without carrying raw page material.
 Fly staging live poll returned fetch.mode=live, HTTP 200, fetch.bytes=119260, records_seen=6, records_inserted=6, and metadata.fallback_to_fixture=false in the latest digest.
 Public GlobalPulse Pages UI rendered Euronext Company Press Releases under the generic Europe section with Backend ok and no fatal browser console errors in the local headless browser smoke.
+Scheduled polling remains disabled until the broader EU source batch is intentionally promoted.
+```
+
+## Candidate C2: Belgium FSMA STORI API
+
+```text
+owner: FSMA
+authority class: official national regulator / central regulated-information storage mechanism
+supporting URL: https://www.fsma.be/en/stori
+machine-readable URL: https://webapi.fsma.be/api/v1/en/stori/result
+observed HTTP: page 200; API POST 200
+observed content-type: API application/json
+observed shape: JSON result with resultCount and storiResultItems containing companyName, reportingTopicName, datePublication, dateReceived, mainDocuments, attachments, isinCodes, and document metadata
+status: MANUAL_SOURCE_REGISTERED_PENDING_STAGING_LIVE_SMOKE
+```
+
+Why this fits the product:
+
+```text
+FSMA describes STORI as the Belgian official central storage mechanism for regulated information filed by issuers whose securities are admitted to trading on a regulated market, and for which Belgium is the home Member State, plus Euronext Growth issuers.
+The public STORI page uses a Vue app backed by the webapi.fsma.be JSON API.
+The endpoint returns issuer, document type, publication date, received date, document metadata, and ISIN information rather than central-bank or macro-policy material.
+```
+
+Current implementation status:
+
+```text
+Parser fsma_stori_api_v1 exists.
+Manual source eu_belgium_fsma_stori exists with active=false and candidate_status=manual_staging_only.
+The source uses a bounded POST body with sortColumn=DatePublication and pageSize=25.
+Fixture source_payloads/eu_belgium_fsma_stori.json captures the bounded public JSON shape.
+Fly staging live poll and public Pages UI smoke are still pending for this candidate.
 Scheduled polling remains disabled until the broader EU source batch is intentionally promoted.
 ```
 

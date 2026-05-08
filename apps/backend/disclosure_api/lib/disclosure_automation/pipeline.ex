@@ -92,6 +92,7 @@ defmodule DisclosureAutomation.Parser do
   @emarket_storage_html_limit 25
   @emarket_storage_base_url "https://www.emarketstorage.it"
   @luxse_oam_search_url "https://www.luxse.com/issuer-services-overview/oam/oam-search"
+  @fsma_stori_download_url "https://webapi.fsma.be/api/v1/en/stori/download"
 
   def parse(parser_key, raw_payload, opts \\ [])
       when is_binary(parser_key) and is_binary(raw_payload) do
@@ -122,6 +123,8 @@ defmodule DisclosureAutomation.Parser do
 
   defp parse_by_key("luxse_oam_graphql_v1", raw_payload),
     do: parse_luxse_oam(raw_payload)
+
+  defp parse_by_key("fsma_stori_api_v1", raw_payload), do: parse_fsma_stori(raw_payload)
 
   defp parse_by_key(parser_key, _raw_payload), do: {:error, {:unsupported_parser_key, parser_key}}
 
@@ -509,6 +512,142 @@ defmodule DisclosureAutomation.Parser do
   defp iso_date_part(nil), do: nil
   defp iso_date_part(value), do: String.slice(value, 0, 10)
 
+  defp parse_fsma_stori(raw_payload) do
+    with {:ok, decoded} <- Jason.decode(raw_payload),
+         records when is_list(records) <- fsma_stori_records(decoded) do
+      items =
+        records
+        |> Enum.map(&parse_fsma_stori_record/1)
+        |> Enum.filter(&(&1.url && &1.title))
+
+      {:ok, items}
+    else
+      {:error, error} -> {:error, {:invalid_json, error}}
+      _ -> {:error, {:invalid_json_shape, "fsma_stori_api_v1"}}
+    end
+  end
+
+  defp fsma_stori_records(%{"storiResultItems" => records}) when is_list(records), do: records
+
+  defp fsma_stori_records(%{"data" => %{"storiResultItems" => records}}) when is_list(records),
+    do: records
+
+  defp fsma_stori_records(_decoded), do: nil
+
+  defp parse_fsma_stori_record(record) when is_map(record) do
+    company_name = string_field(record, "companyName")
+    topic_name = string_field(record, "reportingTopicName")
+    document_title = string_field(record, "documentTitle")
+    document = fsma_stori_primary_document(record)
+
+    %{
+      external_id: fsma_stori_external_id(record, document),
+      title: join_non_empty([company_name, document_title || topic_name], " - "),
+      url: fsma_stori_document_url(document),
+      summary: fsma_stori_summary(record, document),
+      published_at: fsma_stori_datetime(record),
+      category: topic_name
+    }
+  end
+
+  defp parse_fsma_stori_record(_record) do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: DateTime.utc_now(),
+      category: nil
+    }
+  end
+
+  defp fsma_stori_primary_document(record) do
+    record
+    |> Map.get("mainDocuments", [])
+    |> case do
+      [document | _rest] when is_map(document) -> document
+      _documents -> nil
+    end
+  end
+
+  defp fsma_stori_external_id(record, document) do
+    string_field(record, "requiredReportingTopicId") ||
+      string_field(document || %{}, "fileDataId") ||
+      join_non_empty(
+        [
+          string_field(record, "companyName"),
+          string_field(record, "reportingTopicName"),
+          string_field(record, "datePublication")
+        ],
+        "-"
+      )
+  end
+
+  defp fsma_stori_datetime(record) do
+    ["datePublication", "dateReceived"]
+    |> Enum.find_value(fn key ->
+      record
+      |> string_field(key)
+      |> parse_fsma_stori_datetime()
+    end)
+    |> case do
+      nil -> DateTime.utc_now()
+      datetime -> datetime
+    end
+  end
+
+  defp parse_fsma_stori_datetime(nil), do: nil
+
+  defp parse_fsma_stori_datetime(value) do
+    parse_iso8601_datetime(value) || parse_naive_iso8601_datetime(value)
+  end
+
+  defp parse_naive_iso8601_datetime(value) do
+    with {:ok, naive_datetime} <- NaiveDateTime.from_iso8601(value),
+         {:ok, datetime} <- DateTime.from_naive(naive_datetime, "Etc/UTC") do
+      datetime
+    else
+      _ -> nil
+    end
+  end
+
+  defp fsma_stori_document_url(nil), do: "https://www.fsma.be/en/stori"
+
+  defp fsma_stori_document_url(document) do
+    case string_field(document, "fileDataId") do
+      nil -> "https://www.fsma.be/en/stori"
+      file_data_id -> "#{@fsma_stori_download_url}?fileDataId=#{file_data_id}"
+    end
+  end
+
+  defp fsma_stori_summary(record, document) do
+    documents =
+      record
+      |> Map.get("mainDocuments", [])
+      |> Enum.map(&string_field(&1, "originalFileName"))
+      |> Enum.reject(&is_nil/1)
+      |> Enum.take(3)
+      |> Enum.join(", ")
+
+    isin_codes =
+      record
+      |> Map.get("isinCodes", [])
+      |> Enum.map(&string_field(&1, "code"))
+      |> Enum.reject(&is_nil/1)
+      |> Enum.take(3)
+      |> Enum.join(", ")
+
+    join_non_empty(
+      [
+        "FSMA STORI regulated information",
+        prefixed("Topic", string_field(record, "reportingTopicName")),
+        prefixed("Document", string_field(document || %{}, "originalFileName") || documents),
+        prefixed("ISIN", isin_codes)
+      ],
+      " | "
+    )
+  end
+
   defp parse_afm_csv_row(row) do
     row
     |> String.trim()
@@ -658,6 +797,7 @@ defmodule DisclosureAutomation.Parser do
   end
 
   defp prefixed(_label, nil), do: nil
+  defp prefixed(_label, ""), do: nil
   defp prefixed(label, value), do: "#{label}: #{value}"
 
   defp join_non_empty(values, separator) do
@@ -993,7 +1133,10 @@ defmodule DisclosureAutomation.Ingestion do
     with {:ok, response} <-
            Http.fetch(source.base_url,
              timeout: source_live_timeout(source),
-             headers: source_live_headers(source)
+             headers: source_live_headers(source),
+             method: source_live_method(source),
+             body: source_live_body(source),
+             content_type: source_live_content_type(source)
            ),
          true <- response.status_code in 200..299,
          :ok <- validate_live_payload(source, response) do
@@ -1108,6 +1251,27 @@ defmodule DisclosureAutomation.Ingestion do
     end
   end
 
+  defp validate_live_payload(%SourceRegistry{parser_key: "fsma_stori_api_v1"}, response) do
+    cond do
+      html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "fsma_stori_api_v1", content_type(response.headers)}}
+
+      html_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "fsma_stori_api_v1", :html}}
+
+      not json_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "fsma_stori_api_v1", content_type(response.headers)}}
+
+      not fsma_stori_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "fsma_stori_api_v1", :unexpected_json}}
+
+      true ->
+        :ok
+    end
+  end
+
   defp validate_live_payload(_source, _response), do: :ok
 
   defp source_live_headers(%SourceRegistry{config: config}) when is_map(config) do
@@ -1138,6 +1302,38 @@ defmodule DisclosureAutomation.Ingestion do
       _ -> %{}
     end
   end
+
+  defp source_live_method(%SourceRegistry{config: config}) when is_map(config) do
+    config
+    |> Map.get("live_method", Map.get(config, :live_method))
+    |> case do
+      method when is_binary(method) -> method
+      _method -> "get"
+    end
+  end
+
+  defp source_live_method(_source), do: "get"
+
+  defp source_live_body(%SourceRegistry{config: config}) when is_map(config) do
+    case Map.get(config, "live_body") || Map.get(config, :live_body) do
+      body when is_binary(body) -> body
+      body when is_map(body) -> Jason.encode!(body)
+      _body -> ""
+    end
+  end
+
+  defp source_live_body(_source), do: ""
+
+  defp source_live_content_type(%SourceRegistry{config: config}) when is_map(config) do
+    config
+    |> Map.get("live_content_type", Map.get(config, :live_content_type))
+    |> case do
+      content_type when is_binary(content_type) -> content_type
+      _content_type -> "application/json"
+    end
+  end
+
+  defp source_live_content_type(_source), do: "application/json"
 
   defp source_live_timeout(%SourceRegistry{config: config}) when is_map(config) do
     config
@@ -1210,6 +1406,12 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp luxse_oam_graphql_payload?(_body), do: false
+
+  defp fsma_stori_payload?(body) when is_binary(body) do
+    body =~ "\"storiResultItems\"" and body =~ "\"resultCount\""
+  end
+
+  defp fsma_stori_payload?(_body), do: false
 
   defp load_fixture_payload(source) do
     fixture_path =

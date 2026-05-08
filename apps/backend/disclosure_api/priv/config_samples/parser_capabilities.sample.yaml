@@ -66,6 +66,46 @@ parsers:
       reject_html_payload: true
       reject_future_timestamps: true
 
+  - parser_key: fsma_stori_api_v1
+    display_name: Belgium FSMA STORI API Parser
+    enabled: true
+    input_types: [json, api]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: false
+    supports_detail_fetch: true
+    extraction:
+      id_fields:
+        - requiredReportingTopicId
+        - mainDocuments.fileDataId
+      title_fields:
+        - companyName
+        - documentTitle
+        - reportingTopicName
+      summary_fields:
+        - reportingTopicName
+        - mainDocuments.originalFileName
+        - isinCodes.code
+      url_fields:
+        - mainDocuments.fileDataId
+      published_at_fields:
+        - datePublication
+        - dateReceived
+      category_fields:
+        - reportingTopicName
+    normalization:
+      source_shape: fsma_stori_result_json
+      trim_html: true
+      collapse_whitespace: true
+      timezone_strategy: source_naive_utc_iso
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_html_payload: true
+      reject_future_timestamps: true
+
   - parser_key: info_financiere_oam_v1
     display_name: France Info-Financiere OAM JSON Parser
     enabled: true
