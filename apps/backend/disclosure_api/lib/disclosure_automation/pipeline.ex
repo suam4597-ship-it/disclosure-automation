@@ -97,6 +97,7 @@ defmodule DisclosureAutomation.Parser do
   @fsma_stori_download_url "https://webapi.fsma.be/api/v1/en/stori/download"
   @fca_nsm_artefacts_base_url "https://data.fca.org.uk/artefacts/"
   @fca_nsm_search_url "https://data.fca.org.uk/#/nsm/nationalstoragemechanism"
+  @wiener_borse_announcements_url "https://www.wienerborse.at/en/legal/announcements/"
 
   def parse(parser_key, raw_payload, opts \\ [])
       when is_binary(parser_key) and is_binary(raw_payload) do
@@ -134,6 +135,9 @@ defmodule DisclosureAutomation.Parser do
 
   defp parse_by_key("nasdaq_nordic_cns_jsonp_v1", raw_payload),
     do: parse_nasdaq_nordic_cns(raw_payload)
+
+  defp parse_by_key("wiener_borse_announcements_html_v1", raw_payload),
+    do: parse_wiener_borse_announcements(raw_payload)
 
   defp parse_by_key(parser_key, _raw_payload), do: {:error, {:unsupported_parser_key, parser_key}}
 
@@ -861,6 +865,125 @@ defmodule DisclosureAutomation.Parser do
     end
   end
 
+  defp parse_wiener_borse_announcements(raw_payload) do
+    items =
+      Regex.scan(~r/<tr data-key="([^"]+)">(.*?)<\/tr>/s, raw_payload)
+      |> Enum.map(&parse_wiener_borse_announcement_row/1)
+      |> Enum.filter(&(&1.url && &1.title))
+
+    {:ok, items}
+  end
+
+  defp parse_wiener_borse_announcement_row([_row, row_id, row_html]) do
+    cells =
+      Regex.scan(~r/<td[^>]*>(.*?)<\/td>/s, row_html)
+      |> Enum.map(fn [_cell, value] -> clean_html(value) end)
+
+    href =
+      row_html
+      |> regex_capture_raw(~r/href="([^"]+)"/)
+      |> wiener_borse_url()
+
+    case cells do
+      [date_text, kind, company, security_type, category, market | _rest] ->
+        company = reject_placeholder(company)
+
+        %{
+          external_id: row_id || href,
+          title: wiener_borse_title(company, kind),
+          url: href,
+          summary:
+            join_non_empty(
+              [
+                "Vienna Stock Exchange announcement",
+                prefixed("Security", reject_placeholder(security_type)),
+                prefixed("Category", reject_placeholder(category)),
+                prefixed("Market", reject_placeholder(market))
+              ],
+              " | "
+            ),
+          published_at: parse_wiener_borse_date(date_text),
+          category: kind
+        }
+
+      _cells ->
+        empty_wiener_borse_announcement()
+    end
+  end
+
+  defp parse_wiener_borse_announcement_row(_row), do: empty_wiener_borse_announcement()
+
+  defp empty_wiener_borse_announcement do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: DateTime.utc_now(),
+      category: nil
+    }
+  end
+
+  defp reject_placeholder(nil), do: nil
+  defp reject_placeholder("-"), do: nil
+  defp reject_placeholder(value), do: value
+
+  defp wiener_borse_title(nil, _kind), do: nil
+  defp wiener_borse_title(company, kind), do: join_non_empty([company, kind], " - ")
+
+  defp wiener_borse_url(nil), do: nil
+
+  defp wiener_borse_url(raw_url) do
+    url = decode_html_entities(raw_url)
+
+    cond do
+      String.starts_with?(url, "http") -> url
+      String.starts_with?(url, "/") -> "https://www.wienerborse.at" <> url
+      true -> @wiener_borse_announcements_url
+    end
+  end
+
+  defp parse_wiener_borse_date(nil), do: DateTime.utc_now()
+
+  defp parse_wiener_borse_date(value) do
+    with [_, first_text, second_text, year_text] <-
+           Regex.run(~r/^(\d{2})\/(\d{2})\/(\d{4})$/, value),
+         datetime <- parse_wiener_borse_date_parts(first_text, second_text, year_text),
+         true <- not is_nil(datetime) do
+      datetime
+    else
+      _ -> DateTime.utc_now()
+    end
+  end
+
+  defp parse_wiener_borse_date_parts(first_text, second_text, year_text) do
+    # The English page renders current dates as MM/DD/YYYY, but fall back to DD/MM
+    # if the primary interpretation would land implausibly far in the future.
+    parse_wiener_borse_mmdd(first_text, second_text, year_text) ||
+      parse_wiener_borse_ddmm(first_text, second_text, year_text)
+  end
+
+  defp parse_wiener_borse_mmdd(month_text, day_text, year_text) do
+    build_wiener_borse_date(year_text, month_text, day_text)
+  end
+
+  defp parse_wiener_borse_ddmm(day_text, month_text, year_text) do
+    build_wiener_borse_date(year_text, month_text, day_text)
+  end
+
+  defp build_wiener_borse_date(year_text, month_text, day_text) do
+    with {year, ""} <- Integer.parse(year_text),
+         {month, ""} <- Integer.parse(month_text),
+         {day, ""} <- Integer.parse(day_text),
+         {:ok, datetime} <- build_utc_datetime(year, month, day, 0, 0, 0),
+         true <-
+           DateTime.compare(datetime, DateTime.add(DateTime.utc_now(), 86_400, :second)) != :gt do
+      datetime
+    else
+      _ -> nil
+    end
+  end
+
   defp parse_afm_csv_row(row) do
     row
     |> String.trim()
@@ -887,6 +1010,13 @@ defmodule DisclosureAutomation.Parser do
   defp regex_capture(raw, regex) do
     case Regex.run(regex, raw, capture: :all_but_first) do
       [value | _rest] -> clean_html(value)
+      _ -> nil
+    end
+  end
+
+  defp regex_capture_raw(raw, regex) do
+    case Regex.run(regex, raw, capture: :all_but_first) do
+      [value | _rest] -> value
       _ -> nil
     end
   end
@@ -1529,6 +1659,25 @@ defmodule DisclosureAutomation.Ingestion do
     end
   end
 
+  defp validate_live_payload(
+         %SourceRegistry{parser_key: "wiener_borse_announcements_html_v1"},
+         response
+       ) do
+    cond do
+      not html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "wiener_borse_announcements_html_v1",
+          content_type(response.headers)}}
+
+      not wiener_borse_announcements_payload?(response.body) ->
+        {:error,
+         {:unsupported_live_payload, "wiener_borse_announcements_html_v1", :unexpected_html}}
+
+      true ->
+        :ok
+    end
+  end
+
   defp validate_live_payload(_source, _response), do: :ok
 
   defp source_live_headers(%SourceRegistry{config: config}) when is_map(config) do
@@ -1687,6 +1836,13 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp nasdaq_nordic_cns_payload?(_body), do: false
+
+  defp wiener_borse_announcements_payload?(body) when is_binary(body) do
+    body =~ "Announcements Found" and body =~ "filter-announcements" and
+      body =~ "kv-grid-table" and body =~ "<tr data-key="
+  end
+
+  defp wiener_borse_announcements_payload?(_body), do: false
 
   defp load_fixture_payload(source) do
     fixture_path =

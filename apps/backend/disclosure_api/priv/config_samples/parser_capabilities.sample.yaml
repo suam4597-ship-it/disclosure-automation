@@ -188,6 +188,45 @@ parsers:
       reject_html_payload: true
       reject_future_timestamps: true
 
+  - parser_key: wiener_borse_announcements_html_v1
+    display_name: Vienna Stock Exchange Announcements HTML Parser
+    enabled: true
+    input_types: [html]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: false
+    supports_detail_fetch: false
+    extraction:
+      id_fields:
+        - tr.data-key
+        - announcement_href
+      title_fields:
+        - company
+        - kind
+      summary_fields:
+        - typeOfSecurity
+        - category
+        - market
+      url_fields:
+        - announcement_href
+      published_at_fields:
+        - date
+      category_fields:
+        - kind
+    normalization:
+      source_shape: wiener_borse_announcements_table_html
+      trim_html: true
+      decode_entities: true
+      collapse_whitespace: true
+      timezone_strategy: source_naive_utc_mmddyyyy
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_non_wiener_borse_payload: true
+      reject_future_timestamps: true
+
   - parser_key: info_financiere_oam_v1
     display_name: France Info-Financiere OAM JSON Parser
     enabled: true
