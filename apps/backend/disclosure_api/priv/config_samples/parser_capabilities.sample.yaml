@@ -35,3 +35,41 @@ parsers:
       minimum_title_length: 8
       reject_empty_url: true
       reject_future_timestamps: true
+
+  - parser_key: info_financiere_oam_v1
+    display_name: France Info-Financiere OAM JSON Parser
+    enabled: true
+    input_types: [json, api]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: false
+    supports_detail_fetch: false
+    extraction:
+      id_fields: [uin_idt_uin, url_de_recuperation]
+      title_fields:
+        - identificationsociete_iso_nom_soc
+        - informationdeposee_inf_tit_inf
+      summary_fields:
+        - type_of_information
+        - subtype_of_information
+        - identificationsociete_iso_cd_isi
+        - identificationsociete_iso_code_tkr_iso_cd_tkr
+      url_fields: [url_de_recuperation]
+      published_at_fields:
+        - informationdeposee_inf_dat_emt
+        - uin_dat_amf
+      category_fields:
+        - subtype_of_information
+        - type_of_information
+    normalization:
+      source_shape: opendatasoft_results
+      trim_html: true
+      collapse_whitespace: true
+      timezone_strategy: source_timestamp_offset
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_html_payload: true
+      reject_future_timestamps: true

@@ -103,6 +103,7 @@ defmodule DisclosureAutomation.Parser do
   end
 
   defp parse_by_key("rss_v1", raw_payload), do: parse_rss(raw_payload)
+  defp parse_by_key("info_financiere_oam_v1", raw_payload), do: parse_info_financiere(raw_payload)
   defp parse_by_key(parser_key, _raw_payload), do: {:error, {:unsupported_parser_key, parser_key}}
 
   defp limit_records(records, capability, opts) when is_list(records) and is_map(capability) do
@@ -143,6 +144,139 @@ defmodule DisclosureAutomation.Parser do
         |> Enum.filter(&(&1.url && &1.title))
 
       {:ok, items}
+    end
+  end
+
+  defp parse_info_financiere(raw_payload) do
+    with {:ok, decoded} <- Jason.decode(raw_payload),
+         records when is_list(records) <- info_financiere_records(decoded) do
+      items =
+        records
+        |> Enum.map(&parse_info_financiere_record/1)
+        |> Enum.filter(&(&1.url && &1.title))
+
+      {:ok, items}
+    else
+      {:error, error} -> {:error, {:invalid_json, error}}
+      _ -> {:error, {:invalid_json_shape, "info_financiere_oam_v1"}}
+    end
+  end
+
+  defp info_financiere_records(%{"results" => records}) when is_list(records), do: records
+
+  defp info_financiere_records(%{"records" => records}) when is_list(records) do
+    Enum.map(records, fn
+      %{"fields" => fields} when is_map(fields) -> fields
+      record -> record
+    end)
+  end
+
+  defp info_financiere_records(records) when is_list(records), do: records
+  defp info_financiere_records(_decoded), do: nil
+
+  defp parse_info_financiere_record(record) when is_map(record) do
+    company = string_field(record, "identificationsociete_iso_nom_soc")
+    issuer_title = string_field(record, "informationdeposee_inf_tit_inf")
+
+    type =
+      string_field(record, "type_of_information") || string_field(record, "type_d_information")
+
+    subtype =
+      string_field(record, "subtype_of_information") ||
+        string_field(record, "sous_type_d_information")
+
+    isin = string_field(record, "identificationsociete_iso_cd_isi")
+    ticker = string_field(record, "identificationsociete_iso_code_tkr_iso_cd_tkr")
+    language = string_field(record, "informationdeposee_inf_lng_inf")
+
+    %{
+      external_id:
+        string_field(record, "uin_idt_uin") || string_field(record, "url_de_recuperation"),
+      title: join_non_empty([company, issuer_title || subtype || type], " - "),
+      url: string_field(record, "url_de_recuperation"),
+      summary:
+        join_non_empty(
+          [
+            type,
+            subtype,
+            prefixed("ISIN", isin),
+            prefixed("Ticker", ticker),
+            prefixed("Language", language)
+          ],
+          " | "
+        ),
+      published_at:
+        datetime_field(record, [
+          "informationdeposee_inf_dat_emt",
+          "uin_dat_amf",
+          "uin_dat_mar"
+        ]),
+      category: subtype || type
+    }
+  end
+
+  defp parse_info_financiere_record(_record) do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: DateTime.utc_now(),
+      category: nil
+    }
+  end
+
+  defp string_field(record, key) do
+    record
+    |> Map.get(key)
+    |> case do
+      value when is_binary(value) -> String.trim(value)
+      value when is_integer(value) or is_float(value) -> to_string(value)
+      _ -> nil
+    end
+    |> case do
+      "" -> nil
+      value -> value
+    end
+  end
+
+  defp datetime_field(record, keys) do
+    keys
+    |> Enum.find_value(&parse_iso8601_datetime(string_field(record, &1)))
+    |> case do
+      nil -> DateTime.utc_now()
+      datetime -> datetime
+    end
+  end
+
+  defp parse_iso8601_datetime(nil), do: nil
+
+  defp parse_iso8601_datetime(value) do
+    case DateTime.from_iso8601(value) do
+      {:ok, datetime, _offset} ->
+        if DateTime.compare(datetime, DateTime.add(DateTime.utc_now(), 86_400, :second)) == :gt do
+          nil
+        else
+          datetime
+        end
+
+      _ ->
+        nil
+    end
+  end
+
+  defp prefixed(_label, nil), do: nil
+  defp prefixed(label, value), do: "#{label}: #{value}"
+
+  defp join_non_empty(values, separator) do
+    values
+    |> Enum.reject(&is_nil/1)
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.join(separator)
+    |> case do
+      "" -> nil
+      value -> value
     end
   end
 
@@ -490,6 +624,26 @@ defmodule DisclosureAutomation.Ingestion do
     end
   end
 
+  defp validate_live_payload(%SourceRegistry{parser_key: "info_financiere_oam_v1"}, response) do
+    cond do
+      html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "info_financiere_oam_v1",
+          content_type(response.headers)}}
+
+      html_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "info_financiere_oam_v1", :html}}
+
+      not json_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "info_financiere_oam_v1",
+          content_type(response.headers)}}
+
+      true ->
+        :ok
+    end
+  end
+
   defp validate_live_payload(_source, _response), do: :ok
 
   defp html_content_type?(headers) do
@@ -505,6 +659,13 @@ defmodule DisclosureAutomation.Ingestion do
         to_string(value)
       end
     end)
+  end
+
+  defp json_content_type?(headers) do
+    headers
+    |> content_type()
+    |> String.downcase()
+    |> String.contains?("json")
   end
 
   defp html_payload?(body) when is_binary(body) do
