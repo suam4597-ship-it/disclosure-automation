@@ -1,0 +1,53 @@
+handleResponse({
+  "results": {
+    "item": [
+      {
+        "disclosureId": 1441110,
+        "categoryId": 102,
+        "headline": "Neovici Holding AB (publ) publishes the annual report for 2025",
+        "language": "en",
+        "languages": ["en", "sv"],
+        "cnsCategory": "Annual financial report",
+        "messageUrl": "https://view.news.eu.nasdaq.com/view?id=b8161a70d1afc217ca9f396813f6aeb52&lang=en&src=listed",
+        "releaseTime": "2026-05-08 21:15:00",
+        "published": "2026-05-08 21:15:00",
+        "market": "First North Sweden",
+        "attachment": [
+          {
+            "mimetype": "application/pdf",
+            "fileName": "Arsredovisning Neovici Holding AB For 2025.pdf",
+            "attachmentUrl": "https://attachment.news.eu.nasdaq.com/ac973a7d08c7689430a3f7f17e4160c09"
+          }
+        ],
+        "company": "Neovici Holding AB",
+        "cnsTypeId": "11"
+      },
+      {
+        "disclosureId": 1441109,
+        "categoryId": 144,
+        "headline": "Major Shareholder Announcement",
+        "language": "en",
+        "languages": ["en"],
+        "cnsCategory": "Major shareholder announcements",
+        "messageUrl": "https://view.news.eu.nasdaq.com/view?id=bd6fb9f5c566d009434f44efcc6d38bf5&lang=en&src=listed",
+        "releaseTime": "2026-05-08 21:05:12",
+        "published": "2026-05-08 21:05:12",
+        "market": "Main Market, Copenhagen",
+        "attachment": [
+          {
+            "mimetype": "application/pdf",
+            "fileName": "Orbis Shareholder Notification.pdf",
+            "attachmentUrl": "https://attachment.news.eu.nasdaq.com/a458b43158fdc5be1f5dbb1f5b4efe06b"
+          },
+          {
+            "mimetype": "application/pdf",
+            "fileName": "080526_CA26_Major Shareholder Orbis.pdf",
+            "attachmentUrl": "https://attachment.news.eu.nasdaq.com/a55899f764fbbdd142d96635ea0b125cc"
+          }
+        ],
+        "company": "Genmab A/S",
+        "cnsTypeId": "6"
+      }
+    ]
+  }
+});
