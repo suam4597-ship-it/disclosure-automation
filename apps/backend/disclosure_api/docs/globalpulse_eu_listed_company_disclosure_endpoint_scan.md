@@ -10,7 +10,7 @@ This is documentation-only. It does not add runtime code, routes, controllers, m
 primary target: listed-company disclosures and issuer announcements
 preferred authority: official exchange, OAM, regulated-information repository, or issuer-announcement authority
 not first target: ECB, central-bank feeds, macro-statistics feeds, parliament feeds, or broad policy news
-current result: France OAM manual source + parser + staging live smoke complete; Spain CNMV manual RSS sources + parser compatibility fix + staging live smoke + public UI smoke complete; Netherlands AFM CSV manual source + parser + staging live smoke complete; Italy eMarket Storage bounded HTML manual source + parser + staging live smoke + public UI smoke complete; Luxembourg LuxSE OAM GraphQL manual source + parser + staging live smoke + public UI smoke complete; Euronext company press release RSS manual source + bounded parser + staging live smoke + public UI smoke complete; Belgium FSMA STORI API manual source + bounded parser + staging live smoke + public UI smoke complete; remaining EU candidates need endpoint/parser confirmation
+current result: France OAM manual source + parser + staging live smoke complete; Spain CNMV manual RSS sources + parser compatibility fix + staging live smoke + public UI smoke complete; Netherlands AFM CSV manual source + parser + staging live smoke complete; Italy eMarket Storage bounded HTML manual source + parser + staging live smoke + public UI smoke complete; Luxembourg LuxSE OAM GraphQL manual source + parser + staging live smoke + public UI smoke complete; Euronext company press release RSS manual source + bounded parser + staging live smoke + public UI smoke complete; Belgium FSMA STORI API manual source + bounded parser + staging live smoke + public UI smoke complete; UK FCA NSM API manual source + bounded parser candidate added; remaining Europe candidates need endpoint/parser confirmation
 ```
 
 ## Candidate A: France Info-Financiere OAM API
@@ -132,6 +132,38 @@ Fixture source_payloads/eu_belgium_fsma_stori.json captures the bounded public J
 Fly staging live poll passed with fetch.mode=live, records_seen=25, records_inserted=25, and latest digest fallback_to_fixture=false.
 Public GlobalPulse Pages UI rendered Belgium FSMA STORI Regulated Information under Central Europe.
 Scheduled polling remains disabled until the broader EU source batch is intentionally promoted.
+```
+
+## Candidate C3: UK FCA National Storage Mechanism Search API
+
+```text
+owner: Financial Conduct Authority
+authority class: official national storage mechanism / regulated-information repository
+supporting URL: https://www.fca.org.uk/markets/ukla/regulatory-disclosures/national-storage-mechanism
+machine-readable URL: https://api.data.fca.org.uk/search?index=fca-nsm-searchdata
+observed HTTP: supporting page 200; API POST 200
+observed content-type: API application/json
+observed shape: JSON search result with hits.hits._source containing company, headline, type, publication_date, submitted_date, document_date, source, lei, disclosure_id, seq_id, and download_link
+status: MANUAL_SOURCE_REGISTERED_PENDING_STAGING_LIVE_SMOKE
+```
+
+Why this fits the product:
+
+```text
+FCA describes the NSM as the official system for storing regulated information that issuers must disclose under UK Listing Rules, Disclosure Guidance and Transparency Rules, and UK MAR.
+The public FCA data portal uses the api.data.fca.org.uk search endpoint for NSM search results.
+The endpoint returns issuer/company names, regulatory headline categories, publication timestamps, LEI metadata, and links to stored announcement artefacts rather than central-bank or macro-policy material.
+```
+
+Current implementation status:
+
+```text
+Parser fca_nsm_search_api_v1 exists.
+Manual source uk_fca_nsm_regulated_information exists with active=false and candidate_status=manual_staging_only.
+The source uses a bounded POST body with sort=submitted_date, sortorder=desc, and size=25.
+Fixture source_payloads/uk_fca_nsm_regulated_information.json captures the bounded public JSON shape.
+Fly staging live poll and public Pages UI smoke are still pending for this candidate.
+Scheduled polling remains disabled until the broader Europe source batch is intentionally promoted.
 ```
 
 ## Candidate D: Borsa Italiana / Italian SDIR and Storage Systems

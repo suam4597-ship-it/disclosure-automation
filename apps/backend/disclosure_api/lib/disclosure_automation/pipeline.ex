@@ -49,6 +49,7 @@ defmodule DisclosureAutomation.Canonicalizer do
       "eu_north" in tags or "europe_north" in tags -> ["eu_north"]
       "eu_central" in tags or "europe_central" in tags -> ["eu_central"]
       "eu_south" in tags or "europe_south" in tags -> ["eu_south"]
+      "uk" in tags or "united_kingdom" in tags -> ["uk"]
       "eu" in tags or "europe" in tags -> ["eu"]
       "asean" in tags or "southeast_asia" in tags -> ["asean"]
       "india" in tags or "in" in tags -> ["india"]
@@ -93,6 +94,8 @@ defmodule DisclosureAutomation.Parser do
   @emarket_storage_base_url "https://www.emarketstorage.it"
   @luxse_oam_search_url "https://www.luxse.com/issuer-services-overview/oam/oam-search"
   @fsma_stori_download_url "https://webapi.fsma.be/api/v1/en/stori/download"
+  @fca_nsm_artefacts_base_url "https://data.fca.org.uk/artefacts/"
+  @fca_nsm_search_url "https://data.fca.org.uk/#/nsm/nationalstoragemechanism"
 
   def parse(parser_key, raw_payload, opts \\ [])
       when is_binary(parser_key) and is_binary(raw_payload) do
@@ -125,6 +128,8 @@ defmodule DisclosureAutomation.Parser do
     do: parse_luxse_oam(raw_payload)
 
   defp parse_by_key("fsma_stori_api_v1", raw_payload), do: parse_fsma_stori(raw_payload)
+
+  defp parse_by_key("fca_nsm_search_api_v1", raw_payload), do: parse_fca_nsm_search(raw_payload)
 
   defp parse_by_key(parser_key, _raw_payload), do: {:error, {:unsupported_parser_key, parser_key}}
 
@@ -643,6 +648,89 @@ defmodule DisclosureAutomation.Parser do
         prefixed("Topic", string_field(record, "reportingTopicName")),
         prefixed("Document", string_field(document || %{}, "originalFileName") || documents),
         prefixed("ISIN", isin_codes)
+      ],
+      " | "
+    )
+  end
+
+  defp parse_fca_nsm_search(raw_payload) do
+    with {:ok, decoded} <- Jason.decode(raw_payload),
+         records when is_list(records) <- fca_nsm_records(decoded) do
+      items =
+        records
+        |> Enum.map(&parse_fca_nsm_record/1)
+        |> Enum.filter(&(&1.url && &1.title))
+
+      {:ok, items}
+    else
+      {:error, error} -> {:error, {:invalid_json, error}}
+      _ -> {:error, {:invalid_json_shape, "fca_nsm_search_api_v1"}}
+    end
+  end
+
+  defp fca_nsm_records(%{"hits" => %{"hits" => records}}) when is_list(records), do: records
+
+  defp fca_nsm_records(%{"data" => %{"hits" => %{"hits" => records}}}) when is_list(records),
+    do: records
+
+  defp fca_nsm_records(_decoded), do: nil
+
+  defp parse_fca_nsm_record(%{"_source" => record}) when is_map(record),
+    do: parse_fca_nsm_record(record)
+
+  defp parse_fca_nsm_record(record) when is_map(record) do
+    company = string_field(record, "company")
+    headline = string_field(record, "headline")
+
+    %{
+      external_id:
+        string_field(record, "disclosure_id") ||
+          string_field(record, "seq_id") ||
+          string_field(record, "download_link"),
+      title: fca_nsm_title(company, headline),
+      url: fca_nsm_url(string_field(record, "download_link")),
+      summary: fca_nsm_summary(record),
+      published_at:
+        datetime_field(record, ["publication_date", "submitted_date", "document_date"]),
+      category: string_field(record, "type")
+    }
+  end
+
+  defp parse_fca_nsm_record(_record) do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: DateTime.utc_now(),
+      category: nil
+    }
+  end
+
+  defp fca_nsm_title(nil, headline), do: headline
+  defp fca_nsm_title(company, nil), do: company
+
+  defp fca_nsm_title(company, headline) do
+    if String.downcase(company) == String.downcase(headline) do
+      headline
+    else
+      join_non_empty([company, headline], " - ")
+    end
+  end
+
+  defp fca_nsm_url(nil), do: @fca_nsm_search_url
+  defp fca_nsm_url("http" <> _rest = url), do: url
+  defp fca_nsm_url("/" <> rest), do: @fca_nsm_artefacts_base_url <> rest
+  defp fca_nsm_url(path), do: @fca_nsm_artefacts_base_url <> path
+
+  defp fca_nsm_summary(record) do
+    join_non_empty(
+      [
+        "FCA NSM regulated information",
+        prefixed("Category", string_field(record, "type")),
+        prefixed("Source", string_field(record, "source")),
+        prefixed("LEI", string_field(record, "lei")),
+        prefixed("ESEF", string_field(record, "tag_esef"))
       ],
       " | "
     )
@@ -1272,6 +1360,27 @@ defmodule DisclosureAutomation.Ingestion do
     end
   end
 
+  defp validate_live_payload(%SourceRegistry{parser_key: "fca_nsm_search_api_v1"}, response) do
+    cond do
+      html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "fca_nsm_search_api_v1", content_type(response.headers)}}
+
+      html_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "fca_nsm_search_api_v1", :html}}
+
+      not json_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "fca_nsm_search_api_v1", content_type(response.headers)}}
+
+      not fca_nsm_search_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "fca_nsm_search_api_v1", :unexpected_json}}
+
+      true ->
+        :ok
+    end
+  end
+
   defp validate_live_payload(_source, _response), do: :ok
 
   defp source_live_headers(%SourceRegistry{config: config}) when is_map(config) do
@@ -1412,6 +1521,12 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp fsma_stori_payload?(_body), do: false
+
+  defp fca_nsm_search_payload?(body) when is_binary(body) do
+    body =~ "\"hits\"" and body =~ "\"_source\"" and body =~ "\"download_link\""
+  end
+
+  defp fca_nsm_search_payload?(_body), do: false
 
   defp load_fixture_payload(source) do
     fixture_path =

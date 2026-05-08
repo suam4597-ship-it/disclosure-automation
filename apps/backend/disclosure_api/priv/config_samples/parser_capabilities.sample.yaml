@@ -106,6 +106,48 @@ parsers:
       reject_html_payload: true
       reject_future_timestamps: true
 
+  - parser_key: fca_nsm_search_api_v1
+    display_name: UK FCA NSM Search API Parser
+    enabled: true
+    input_types: [json, api]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: false
+    supports_detail_fetch: true
+    extraction:
+      id_fields:
+        - hits.hits._source.disclosure_id
+        - hits.hits._source.seq_id
+        - hits.hits._source.download_link
+      title_fields:
+        - hits.hits._source.company
+        - hits.hits._source.headline
+      summary_fields:
+        - hits.hits._source.type
+        - hits.hits._source.source
+        - hits.hits._source.lei
+        - hits.hits._source.tag_esef
+      url_fields:
+        - hits.hits._source.download_link
+      published_at_fields:
+        - hits.hits._source.publication_date
+        - hits.hits._source.submitted_date
+        - hits.hits._source.document_date
+      category_fields:
+        - hits.hits._source.type
+    normalization:
+      source_shape: fca_nsm_search_json
+      trim_html: true
+      collapse_whitespace: true
+      timezone_strategy: source_utc_iso
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_html_payload: true
+      reject_future_timestamps: true
+
   - parser_key: info_financiere_oam_v1
     display_name: France Info-Financiere OAM JSON Parser
     enabled: true
