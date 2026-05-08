@@ -335,6 +335,40 @@ sources:
         sortDirection: Descending
         sortColumn: DatePublication
 
+  - source_key: uk_fca_nsm_regulated_information
+    display_name: UK FCA NSM Regulated Information
+    source_type: api
+    base_url: https://api.data.fca.org.uk/search?index=fca-nsm-searchdata
+    healthcheck_url: https://www.fca.org.uk/markets/ukla/regulatory-disclosures/national-storage-mechanism
+    parser_key: fca_nsm_search_api_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.17
+    coverage_tags:
+      - uk
+      - europe
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - nsm
+    active: false
+    config:
+      fixture_path: source_payloads/uk_fca_nsm_regulated_information.json
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      max_items_per_poll: 25
+      live_method: post
+      live_content_type: application/json
+      live_timeout_ms: 30000
+      live_headers:
+        accept: application/json
+      live_body:
+        from: 0
+        size: 25
+        sort: submitted_date
+        sortorder: desc
+
   - source_key: greater_china_market_news
     display_name: Greater China Market News
     source_type: rss

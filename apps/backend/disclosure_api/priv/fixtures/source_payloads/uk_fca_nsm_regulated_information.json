@@ -1,0 +1,72 @@
+{
+  "took": 12,
+  "timed_out": false,
+  "_shards": {
+    "failed": 0,
+    "skipped": 0,
+    "successful": 4,
+    "total": 4
+  },
+  "hits": {
+    "total": {
+      "relation": "eq",
+      "value": 2
+    },
+    "hits": [
+      {
+        "_index": "fca-nsm-searchdata",
+        "_id": "globalpulse-fca-nsm-diversified-energy-agm",
+        "_source": {
+          "submitted_date": "2026-05-08T18:35:12Z",
+          "tag_esef": "",
+          "classifications_code": "",
+          "document_date": "2026-05-08T18:35:12Z",
+          "source": "GNW",
+          "type": "Result of AGM",
+          "related_org": [],
+          "lei_remediation_flag": "N",
+          "classifications": "",
+          "lei": "213800YR9TFRVHPGOS67",
+          "download_link": "NSM/GNW/globalpulse-fca-nsm-diversified-energy-agm.html",
+          "disclosure_id": "globalpulse-fca-nsm-diversified-energy-agm",
+          "latest_flag": "Y",
+          "hist_seq": "1",
+          "publication_date": "2026-05-08T18:35:12Z",
+          "seq_id": "globalpulse-fca-nsm-diversified-energy-agm",
+          "company": "DIVERSIFIED ENERGY COMPANY LIMITED",
+          "last_updated_date": "2026-05-08T18:35:12Z",
+          "headline": "Results of Annual General Meeting",
+          "type_code": "RAG"
+        },
+        "sort": [1778265312000]
+      },
+      {
+        "_index": "fca-nsm-searchdata",
+        "_id": "globalpulse-fca-nsm-sample-final-announcement",
+        "_source": {
+          "submitted_date": "2026-05-08T17:42:24Z",
+          "tag_esef": "",
+          "classifications_code": "",
+          "document_date": "2026-05-08T17:42:24Z",
+          "source": "RNS",
+          "type": "Final Announcement Released",
+          "related_org": [],
+          "lei_remediation_flag": "N",
+          "classifications": "",
+          "lei": "",
+          "download_link": "NSM/RNS/globalpulse-fca-nsm-sample-final-announcement.html",
+          "disclosure_id": "globalpulse-fca-nsm-sample-final-announcement",
+          "latest_flag": "Y",
+          "hist_seq": "1",
+          "publication_date": "2026-05-08T17:30:10Z",
+          "seq_id": "globalpulse-fca-nsm-sample-final-announcement",
+          "company": "RNS",
+          "last_updated_date": "2026-05-08T17:30:10Z",
+          "headline": "Final Announcement Released",
+          "type_code": "EOD"
+        },
+        "sort": [1778262144000]
+      }
+    ]
+  }
+}
