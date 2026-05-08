@@ -277,6 +277,30 @@ sources:
         accept: application/json
         apollo-require-preflight: "true"
 
+  - source_key: eu_euronext_company_press_releases
+    display_name: Euronext Company Press Releases
+    source_type: rss
+    base_url: https://live.euronext.com/rss/company-pr-release
+    healthcheck_url: https://live.euronext.com/en/products/equities/company-news
+    parser_key: euronext_company_pr_rss_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.17
+    coverage_tags:
+      - eu
+      - euronext
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - company_press_release
+    active: false
+    config:
+      fixture_path: source_payloads/eu_euronext_company_press_releases.xml
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      max_items_per_poll: 25
+
   - source_key: greater_china_market_news
     display_name: Greater China Market News
     source_type: rss
