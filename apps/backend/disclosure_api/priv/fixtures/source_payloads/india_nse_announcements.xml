@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+  <channel>
+    <title>NSE News - Latest Announcements</title>
+    <atom:link href="https://nsearchives.nseindia.com/content/RSS/Online_announcements.xml" rel="self" type="application/rss+xml"/>
+    <item>
+      <title>India exchange issuer files board meeting outcome</title>
+      <link>https://nsearchives.nseindia.com/corporate/example-board-meeting-outcome.pdf</link>
+      <guid>india-nse-announcement-20260508-board-meeting-outcome</guid>
+      <description>Fixture sample shaped like an NSE online announcement RSS item for parser and staging fallback safety.</description>
+      <pubDate>08-May-2026 19:02:31</pubDate>
+      <category>announcement</category>
+    </item>
+    <item>
+      <title>India listed company submits prior intimation disclosure</title>
+      <link>https://nsearchives.nseindia.com/corporate/example-prior-intimation.xml</link>
+      <guid>india-nse-announcement-20260508-prior-intimation</guid>
+      <description>Fixture sample preserves the NSE short-month timestamp shape without claiming live source success.</description>
+      <pubDate>08-May-2026 18:52:32</pubDate>
+      <category>announcement</category>
+    </item>
+  </channel>
+</rss>

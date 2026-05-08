@@ -250,6 +250,26 @@ sources:
     config:
       fixture_path: source_payloads/india_market_disclosures.xml
 
+  - source_key: india_nse_announcements
+    display_name: India NSE Announcements
+    source_type: rss
+    base_url: https://nsearchives.nseindia.com/content/RSS/Online_announcements.xml
+    healthcheck_url: https://www.nseindia.com/static/rss-feed
+    parser_key: rss_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.18
+    coverage_tags:
+      - india
+      - disclosure
+      - exchange
+      - listed_companies
+      - markets
+    active: false
+    config:
+      fixture_path: source_payloads/india_nse_announcements.xml
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_apac_live_source_verification_contract.md
+
   - source_key: anz_market_news
     display_name: Australia/NZ Market News
     source_type: rss
