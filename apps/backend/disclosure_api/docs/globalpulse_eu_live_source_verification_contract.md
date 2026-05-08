@@ -216,12 +216,13 @@ REJECT: exposing raw provider/auth/session/request diagnostics in public respons
 ## Next Allowed PRs
 
 ```text
-1. Start EU listed-company disclosure endpoint scan.
-2. Verify exact Euronext, Deutsche Boerse, Borsa Italiana, Nasdaq Nordic, or national disclosure-repository endpoints.
-3. Add a disabled/manual EU issuer-announcement source only after exact machine-readable endpoint and access terms are accepted.
+1. Use globalpulse_eu_listed_company_disclosure_endpoint_scan.md as the current EU company-disclosure source scan record.
+2. Add a bounded parser/adapter contract for the France Info-Financiere OAM JSON API.
+3. Add a disabled/manual EU issuer-announcement source only after the parser contract, rate limits, and access terms are accepted.
 4. Run staging live poll smoke with fetch.mode=live and metadata.fallback_to_fixture=false.
 5. Record EU listed-company disclosure live polling smoke if successful.
-6. Evaluate ECB, Eurostat, European Parliament, or ESMA only later as separately labeled policy/macro/regulatory context.
+6. Continue Euronext/Borsa/OAM endpoint scans only as follow-up candidates.
+7. Evaluate ECB, Eurostat, European Parliament, or ESMA only later as separately labeled policy/macro/regulatory context.
 ```
 
 ## Current Conclusion
@@ -231,7 +232,8 @@ EU_LIVE_SOURCE_TRACK_STARTED
 EU_CURRENT_PLACEHOLDER_REJECTED_FOR_LIVE_POLLING
 EU_LISTED_COMPANY_DISCLOSURE_TRACK_REQUIRED
 ECB_RSS_RECLASSIFIED_AS_POLICY_NEWS_NOT_DISCLOSURE_SOURCE
-EU_COMPANY_DISCLOSURE_ENDPOINT_PENDING
+FRANCE_INFO_FINANCIERE_OAM_API_FOUND_AS_FIRST_EU_COMPANY_DISCLOSURE_CANDIDATE
+EU_COMPANY_DISCLOSURE_SOURCE_REGISTRATION_BLOCKED_PENDING_JSON_PARSER_OR_ADAPTER_CONTRACT
 EU_SCHEDULED_LIVE_POLLING_BLOCKED_UNTIL_STAGING_SMOKE_PASS
 JP_REMAINING_AUTHORITY_DECISION_TRACKED_IN_ISSUE_339
 ```
