@@ -197,8 +197,9 @@ report records are not canonicalized until a precise published_at contract is co
 ## Next Step
 
 ```text
-Validate the issuer-news-only source-specific fetch adapter locally, then deploy to Fly staging and record a live poll smoke result.
-Local fixture and live aggregate parser smoke passed for the issuer-news-only implementation slice.
+The issuer-news-only source-specific fetch adapter passed local fixture/live parser smoke and Fly staging live poll smoke.
+Staging live poll inserted 15 canonical PSE issuer-news rows with fetch.mode=live, universe_count=63, selected_issuer_count=10, and fixture fallback disabled.
+Date-specific digest visibility passed for historical PSE rows on 2022-02-25 and 2021-06-01.
 Keep reports deferred until report publication dates are confirmed.
 Do not register the HTML root, global PSE news endpoint, or per-issuer endpoints as standalone rss_v1 sources.
 Keep EU scheduled polling disabled.
