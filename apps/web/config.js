@@ -10,58 +10,89 @@
 window.DISCLOSURE_API_BASE_URL =
   window.DISCLOSURE_API_BASE_URL || "https://globalpulse-backend-staging.fly.dev";
 
-// UI adapter for backend region codes that were added after the original
-// single-file GlobalPulse shell. This keeps the large index.html stable while
-// allowing backend canonical regions to render as distinct regional buckets.
-window.addEventListener("load", () => {
-  const labels = {
-    greater_china: "CN/TW Greater China",
-    cn: "Mainland China",
-    tw: "Taiwan",
-    hk: "Hong Kong",
-    asean: "ASEAN",
-    india: "India",
-    anz: "Australia/NZ",
+// Canonical region metadata shared with the single-file dashboard shell.
+// Keep this aligned with DisclosureAutomation.Canonicalizer.infer_regions/1.
+window.GLOBALPULSE_REGION_LABELS = Object.assign(
+  {
+    global: "Global",
+    us: "US Americas",
+    eu: "EU Europe",
     eu_north: "Northern Europe",
     eu_central: "Central Europe",
     eu_south: "Southern Europe",
     uk: "United Kingdom",
-    ch: "Switzerland"
-  };
+    ch: "Switzerland",
+    kr: "KR Korea",
+    jp: "JP Japan",
+    greater_china: "CN/TW Greater China",
+    cn: "Mainland China",
+    tw: "Taiwan",
+    hk: "Hong Kong",
+    apac: "Asia-Pacific",
+    asean: "ASEAN",
+    india: "India",
+    anz: "Australia/NZ",
+    other: "Other Regions"
+  },
+  window.GLOBALPULSE_REGION_LABELS || {}
+);
 
-  const normalize = value => {
-    const raw = String(value || "global").toLowerCase();
-    if (raw === "europe_north") return "eu_north";
-    if (raw === "europe_central") return "eu_central";
-    if (raw === "europe_south") return "eu_south";
-    if (labels[raw]) return raw;
-    if (raw === "usa") return "us";
-    if (raw === "united_kingdom" || raw === "gb" || raw === "great_britain") return "uk";
-    if (raw === "switzerland") return "ch";
-    if (raw === "europe") return "eu";
-    if (raw === "korea") return "kr";
-    if (raw === "japan") return "jp";
-    if (raw === "china") return "cn";
-    if (raw === "mainland_china") return "cn";
-    if (raw === "taiwan") return "tw";
-    if (raw === "hong_kong" || raw === "hongkong") return "hk";
-    if (raw === "cn_tw" || raw === "greaterchina") return "greater_china";
-    if (raw === "southeast_asia" || raw === "south_east_asia") return "asean";
-    if (raw === "in") return "india";
-    if (raw === "australia_nz" || raw === "australia" || raw === "new_zealand") return "anz";
-    return typeof window.REGION_LABELS !== "undefined" && window.REGION_LABELS?.[raw] ? raw : raw;
-  };
+window.GLOBALPULSE_REGION_ALIASES = Object.assign(
+  {
+    americas: "us",
+    usa: "us",
+    united_states: "us",
+    united_states_of_america: "us",
+    europe: "eu",
+    europe_north: "eu_north",
+    northern_europe: "eu_north",
+    europe_central: "eu_central",
+    central_europe: "eu_central",
+    europe_south: "eu_south",
+    southern_europe: "eu_south",
+    gb: "uk",
+    great_britain: "uk",
+    united_kingdom: "uk",
+    switzerland: "ch",
+    korea: "kr",
+    south_korea: "kr",
+    japan: "jp",
+    cn_tw: "greater_china",
+    greaterchina: "greater_china",
+    china: "cn",
+    mainland_china: "cn",
+    taiwan: "tw",
+    hong_kong: "hk",
+    hongkong: "hk",
+    southeast_asia: "asean",
+    south_east_asia: "asean",
+    in: "india",
+    australia_nz: "anz",
+    australia: "anz",
+    new_zealand: "anz"
+  },
+  window.GLOBALPULSE_REGION_ALIASES || {}
+);
 
-  if (typeof window.canonicalRegion === "function") {
-    window.canonicalRegion = normalize;
-  }
-
-  if (typeof window.regionLabel === "function") {
-    const previousRegionLabel = window.regionLabel;
-    window.regionLabel = code => labels[code] || previousRegionLabel(code);
-  }
-
-  if (typeof window.loadBackend === "function") {
-    window.loadBackend();
-  }
-});
+window.GLOBALPULSE_REGION_ORDER =
+  window.GLOBALPULSE_REGION_ORDER || [
+    "global",
+    "us",
+    "kr",
+    "jp",
+    "greater_china",
+    "cn",
+    "tw",
+    "hk",
+    "apac",
+    "asean",
+    "india",
+    "anz",
+    "eu",
+    "eu_north",
+    "eu_central",
+    "eu_south",
+    "uk",
+    "ch",
+    "other"
+  ];
