@@ -702,6 +702,37 @@ sources:
       live_headers:
         accept: text/html
 
+  - source_key: lt_oam_regulated_information
+    display_name: Lithuania OAM Regulated Information
+    source_type: html
+    base_url: https://www.oam.lt/?language=en
+    healthcheck_url: https://www.oam.lt/?language=en
+    parser_key: lt_oam_regulated_information_html_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.13
+    coverage_tags:
+      - eu
+      - eu_north
+      - baltic
+      - lithuania
+      - lt
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - market_announcement
+      - oam
+    active: false
+    config:
+      fixture_path: source_payloads/lt_oam_regulated_information.html
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      max_items_per_poll: 25
+      live_timeout_ms: 30000
+      live_headers:
+        accept: text/html
+
   - source_key: eu_austria_wiener_borse_announcements
     display_name: Austria Wiener Boerse Announcements
     source_type: html
