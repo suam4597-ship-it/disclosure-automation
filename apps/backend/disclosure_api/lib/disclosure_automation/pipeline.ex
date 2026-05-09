@@ -114,6 +114,7 @@ defmodule DisclosureAutomation.Parser do
   @fca_nsm_search_url "https://data.fca.org.uk/#/nsm/nationalstoragemechanism"
   @wiener_borse_announcements_url "https://www.wienerborse.at/en/legal/announcements/"
   @xetra_newsboard_url "https://www.xetra.com/xetra-en/newsroom/xetra-newsboard/"
+  @oslo_newsweb_message_url "https://newsweb.oslobors.no/message/"
 
   def parse(parser_key, raw_payload, opts \\ [])
       when is_binary(parser_key) and is_binary(raw_payload) do
@@ -151,6 +152,9 @@ defmodule DisclosureAutomation.Parser do
 
   defp parse_by_key("nasdaq_nordic_cns_jsonp_v1", raw_payload),
     do: parse_nasdaq_nordic_cns(raw_payload)
+
+  defp parse_by_key("oslo_newsweb_json_v1", raw_payload),
+    do: parse_oslo_newsweb(raw_payload)
 
   defp parse_by_key("wiener_borse_announcements_html_v1", raw_payload),
     do: parse_wiener_borse_announcements(raw_payload)
@@ -883,6 +887,107 @@ defmodule DisclosureAutomation.Parser do
       _ -> DateTime.utc_now()
     end
   end
+
+  defp parse_oslo_newsweb(raw_payload) do
+    with {:ok, decoded} <- Jason.decode(raw_payload),
+         records when is_list(records) <- oslo_newsweb_records(decoded) do
+      items =
+        records
+        |> Enum.map(&parse_oslo_newsweb_record/1)
+        |> Enum.filter(&(&1.url && &1.title))
+
+      {:ok, items}
+    else
+      {:error, error} -> {:error, {:invalid_json, error}}
+      _ -> {:error, {:invalid_json_shape, "oslo_newsweb_json_v1"}}
+    end
+  end
+
+  defp oslo_newsweb_records(%{"data" => %{"messages" => records}}) when is_list(records),
+    do: records
+
+  defp oslo_newsweb_records(_decoded), do: nil
+
+  defp parse_oslo_newsweb_record(record) when is_map(record) do
+    issuer = string_field(record, "issuerName")
+    title = string_field(record, "title")
+    category = oslo_newsweb_category(record)
+    markets = oslo_newsweb_markets(record)
+
+    %{
+      external_id:
+        string_field(record, "clientAnnouncementId") || string_field(record, "messageId"),
+      title: oslo_newsweb_title(issuer, title),
+      url: oslo_newsweb_url(record),
+      summary:
+        join_non_empty(
+          [
+            "Oslo Bors NewsWeb issuer announcement",
+            prefixed("Issuer", issuer),
+            prefixed("Ticker", string_field(record, "issuerSign")),
+            prefixed("Market", markets),
+            prefixed("Category", category),
+            prefixed("Attachments", string_field(record, "numbAttachments"))
+          ],
+          " | "
+        ),
+      published_at:
+        parse_iso8601_datetime(string_field(record, "publishedTime")) || DateTime.utc_now(),
+      category: category
+    }
+  end
+
+  defp parse_oslo_newsweb_record(_record) do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: DateTime.utc_now(),
+      category: nil
+    }
+  end
+
+  defp oslo_newsweb_title(issuer, title) when is_binary(issuer) and is_binary(title) do
+    if String.contains?(String.downcase(title), String.downcase(issuer)) do
+      title
+    else
+      join_non_empty([issuer, title], " - ")
+    end
+  end
+
+  defp oslo_newsweb_title(issuer, title), do: join_non_empty([issuer, title], " - ")
+
+  defp oslo_newsweb_url(record) do
+    case string_field(record, "messageId") do
+      nil -> nil
+      message_id -> @oslo_newsweb_message_url <> message_id
+    end
+  end
+
+  defp oslo_newsweb_category(%{"category" => [first | _rest]}) when is_map(first) do
+    string_field(first, "category_en") || string_field(first, "category_no")
+  end
+
+  defp oslo_newsweb_category(%{"category" => first}) when is_map(first) do
+    string_field(first, "category_en") || string_field(first, "category_no")
+  end
+
+  defp oslo_newsweb_category(_record), do: nil
+
+  defp oslo_newsweb_markets(%{"markets" => markets}) when is_list(markets) do
+    markets
+    |> Enum.map(&to_string/1)
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.join(", ")
+    |> case do
+      "" -> nil
+      value -> value
+    end
+  end
+
+  defp oslo_newsweb_markets(_record), do: nil
 
   defp parse_wiener_borse_announcements(raw_payload) do
     items =
@@ -1862,6 +1967,27 @@ defmodule DisclosureAutomation.Ingestion do
     end
   end
 
+  defp validate_live_payload(%SourceRegistry{parser_key: "oslo_newsweb_json_v1"}, response) do
+    cond do
+      html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "oslo_newsweb_json_v1", content_type(response.headers)}}
+
+      html_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "oslo_newsweb_json_v1", :html}}
+
+      not json_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "oslo_newsweb_json_v1", content_type(response.headers)}}
+
+      not oslo_newsweb_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "oslo_newsweb_json_v1", :unexpected_json}}
+
+      true ->
+        :ok
+    end
+  end
+
   defp validate_live_payload(
          %SourceRegistry{parser_key: "wiener_borse_announcements_html_v1"},
          response
@@ -2054,6 +2180,13 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp nasdaq_nordic_cns_payload?(_body), do: false
+
+  defp oslo_newsweb_payload?(body) when is_binary(body) do
+    body =~ "\"messages\"" and body =~ "\"messageId\"" and body =~ "\"publishedTime\"" and
+      body =~ "\"issuerName\""
+  end
+
+  defp oslo_newsweb_payload?(_body), do: false
 
   defp wiener_borse_announcements_payload?(body) when is_binary(body) do
     body =~ "Announcements Found" and body =~ "filter-announcements" and

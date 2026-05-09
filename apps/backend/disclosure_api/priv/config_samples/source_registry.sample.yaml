@@ -426,6 +426,39 @@ sources:
       live_headers:
         accept: application/javascript, application/json
 
+  - source_key: no_oslo_bors_newsweb_main_market
+    display_name: Norway Oslo Bors NewsWeb Main Market Announcements
+    source_type: api
+    base_url: https://api3.oslo.oslobors.no/v1/newsreader/list?market=XOSL&category=&issuer=&fromDate=&toDate=&messageTitle=
+    healthcheck_url: https://newsweb.oslobors.no/
+    parser_key: oslo_newsweb_json_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.15
+    coverage_tags:
+      - eu
+      - eu_north
+      - norway
+      - no
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - exchange_announcement
+      - company_news
+    active: false
+    config:
+      fixture_path: source_payloads/no_oslo_bors_newsweb_main_market.json
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      max_items_per_poll: 25
+      live_method: post
+      live_content_type: application/json
+      live_timeout_ms: 30000
+      live_headers:
+        accept: application/json
+      live_body: {}
+
   - source_key: eu_austria_wiener_borse_announcements
     display_name: Austria Wiener Boerse Announcements
     source_type: html

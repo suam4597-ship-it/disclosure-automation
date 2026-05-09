@@ -608,6 +608,41 @@ Identify the exact official machine-readable endpoint or add a bounded parser on
 Do not use third-party register APIs as official GlobalPulse disclosure sources without explicit acceptance.
 ```
 
+## Candidate M: Norway Oslo Bors NewsWeb Main Market
+
+```text
+owner: Oslo Bors / Euronext
+authority class: official exchange issuer announcement surface
+candidate URL: https://newsweb.oslobors.no/
+runtime config URL: https://newsweb.oslobors.no/urls.json
+API base observed from runtime config: https://api3.oslo.oslobors.no
+candidate API URL: https://api3.oslo.oslobors.no/v1/newsreader/list?market=XOSL&category=&issuer=&fromDate=&toDate=&messageTitle=
+observed HTTP: POST 200
+observed content-type: application/json
+observed shape: JSON with data.messages records containing messageId, title, category, markets, issuerName, issuerSign, publishedTime, and clientAnnouncementId
+status: MANUAL_SOURCE_REGISTERED_LOCAL_LIVE_PROBE_PASS_STAGING_LIVE_POLL_PENDING
+```
+
+Why this fits the product:
+
+```text
+NewsWeb is the official Oslo Bors issuer announcement surface and the public SPA loads its API base from a bounded urls.json runtime config.
+The newsreader API returns issuer/company announcements for the Oslo Bors main market rather than central-bank, macro, or policy material.
+The first integration is intentionally limited to market=XOSL so the candidate stays scoped to the main listed-company market before considering Euronext Expand, Nordic ABM, or Euronext Growth Oslo.
+```
+
+Implementation status:
+
+```text
+Parser oslo_newsweb_json_v1 exists.
+Manual source no_oslo_bors_newsweb_main_market exists with active=false and candidate_status=manual_staging_only.
+The source uses POST with an empty JSON body because the NewsWeb API returns an empty message list for the same URL over GET.
+Fixture source_payloads/no_oslo_bors_newsweb_main_market.json captures the bounded public JSON shape.
+Local live probe returned HTTP 200 application/json and a populated data.messages list for market=XOSL.
+Fly staging live poll and public Pages UI visibility are still pending.
+Scheduled polling remains disabled until the broader EU source batch is intentionally promoted.
+```
+
 ## Recommended EU v1 Path
 
 ```text
@@ -620,8 +655,9 @@ Do not use third-party register APIs as official GlobalPulse disclosure sources 
 7. Keep Austria Wiener Boerse announcements as a proven manual_staging_only exchange-announcement candidate with public latest UI visibility pending.
 8. Keep Germany Xetra Frankfurt Newsboard as a proven manual_staging_only exchange-announcement candidate with public latest UI visibility pending.
 9. Keep Greece ATHEX issuer announcements and corporate actions as proven manual_staging_only RSS candidates with public latest UI visibility pending.
-10. Continue endpoint/parser discovery for Germany official register surfaces, OeKB issuerinfo, and other official issuer-announcement surfaces.
-11. Only batch-promote scheduled EU polling after the target list, rollback path, source-specific parser risk, and staging live smoke evidence are documented together.
+10. Keep Norway Oslo Bors NewsWeb main market as a manual_staging_only API candidate pending Fly staging live poll and public UI smoke.
+11. Continue endpoint/parser discovery for Germany official register surfaces, OeKB issuerinfo, Portugal, Poland, Prague, and other official issuer-announcement surfaces.
+12. Only batch-promote scheduled EU polling after the target list, rollback path, source-specific parser risk, and staging live smoke evidence are documented together.
 ```
 
 ## Explicit Non-Goals
@@ -655,6 +691,8 @@ LUXEMBOURG_LUXSE_OAM_PUBLIC_UI_PASS
 AUSTRIA_WIENER_BORSE_ANNOUNCEMENTS_MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS
 AUSTRIA_WIENER_BORSE_PUBLIC_LATEST_UI_VISIBILITY_PENDING
 AUSTRIA_OEKB_ISSUERINFO_OFFICIAL_SURFACE_FOUND_MACHINE_ENDPOINT_PENDING
+NORWAY_OSLO_BORS_NEWSWEB_MAIN_MARKET_MANUAL_SOURCE_REGISTERED_LOCAL_LIVE_PROBE_PASS
+NORWAY_OSLO_BORS_NEWSWEB_STAGING_LIVE_POLL_PENDING
 GERMANY_OFFICIAL_REGISTER_SURFACE_DIRECTION_FOUND_MACHINE_ENDPOINT_PENDING
 EURONEXT_COMPANY_PRESS_RELEASES_PUBLIC_HTML_SURFACE_FOUND
 BORSA_ITALIANA_POINTS_TO_CONSOB_AUTHORIZED_STORAGE_SYSTEMS

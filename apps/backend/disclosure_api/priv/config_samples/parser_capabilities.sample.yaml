@@ -188,6 +188,46 @@ parsers:
       reject_html_payload: true
       reject_future_timestamps: true
 
+  - parser_key: oslo_newsweb_json_v1
+    display_name: Oslo Bors NewsWeb JSON Parser
+    enabled: true
+    input_types: [json, api]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: false
+    supports_detail_fetch: true
+    extraction:
+      id_fields:
+        - data.messages.clientAnnouncementId
+        - data.messages.messageId
+      title_fields:
+        - data.messages.issuerName
+        - data.messages.title
+      summary_fields:
+        - data.messages.issuerSign
+        - data.messages.markets
+        - data.messages.category.category_en
+        - data.messages.numbAttachments
+      url_fields:
+        - data.messages.messageId
+      published_at_fields:
+        - data.messages.publishedTime
+      category_fields:
+        - data.messages.category.category_en
+        - data.messages.category.category_no
+    normalization:
+      source_shape: oslo_newsweb_newsreader_messages_json
+      trim_html: true
+      collapse_whitespace: true
+      timezone_strategy: source_utc_iso
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_html_payload: true
+      reject_future_timestamps: true
+
   - parser_key: wiener_borse_announcements_html_v1
     display_name: Vienna Stock Exchange Announcements HTML Parser
     enabled: true
