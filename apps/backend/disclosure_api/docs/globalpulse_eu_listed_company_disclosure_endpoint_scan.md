@@ -10,7 +10,7 @@ This is documentation-only. It does not add runtime code, routes, controllers, m
 primary target: listed-company disclosures and issuer announcements
 preferred authority: official exchange, OAM, regulated-information repository, or issuer-announcement authority
 not first target: ECB, central-bank feeds, macro-statistics feeds, parliament feeds, or broad policy news
-current result: France OAM manual source + parser + staging live smoke complete; Spain CNMV manual RSS sources + parser compatibility fix + staging live smoke + public UI smoke complete; Netherlands AFM CSV manual source + parser + staging live smoke complete; Italy eMarket Storage bounded HTML manual source + parser + staging live smoke + public UI smoke complete; Luxembourg LuxSE OAM GraphQL manual source + parser + staging live smoke + public UI smoke complete; Euronext company press release RSS manual source + bounded parser + staging live smoke + public UI smoke complete; Belgium FSMA STORI API manual source + bounded parser + staging live smoke + public UI smoke complete; UK FCA NSM API manual source + bounded parser + staging live smoke complete; Switzerland SIX SER official notices RSS manual source + staging live smoke + public UI smoke complete; Nasdaq Nordic Company News JSONP manual source + staging live smoke + public UI smoke complete; Austria Wiener Boerse announcements bounded HTML manual source + staging live poll complete with public latest UI visibility pending; Germany Xetra Frankfurt Newsboard bounded HTML manual source registered pending staging live smoke; remaining Europe candidates need endpoint/parser confirmation
+current result: France OAM manual source + parser + staging live smoke complete; Spain CNMV manual RSS sources + parser compatibility fix + staging live smoke + public UI smoke complete; Netherlands AFM CSV manual source + parser + staging live smoke complete; Italy eMarket Storage bounded HTML manual source + parser + staging live smoke + public UI smoke complete; Luxembourg LuxSE OAM GraphQL manual source + parser + staging live smoke + public UI smoke complete; Euronext company press release RSS manual source + bounded parser + staging live smoke + public UI smoke complete; Belgium FSMA STORI API manual source + bounded parser + staging live smoke + public UI smoke complete; UK FCA NSM API manual source + bounded parser + staging live smoke complete; Switzerland SIX SER official notices RSS manual source + staging live smoke + public UI smoke complete; Nasdaq Nordic Company News JSONP manual source + staging live smoke + public UI smoke complete; Austria Wiener Boerse announcements bounded HTML manual source + staging live poll complete with public latest UI visibility pending; Germany Xetra Frankfurt Newsboard bounded HTML manual source + staging live smoke complete with public latest UI visibility pending; remaining Europe candidates need endpoint/parser confirmation
 ```
 
 ## Candidate A: France Info-Financiere OAM API
@@ -275,7 +275,7 @@ candidate URL: https://www.xetra.com/xetra-en/newsroom/xetra-newsboard/
 observed HTTP: page 200
 observed content-type: text/html; charset=UTF-8
 observed shape: server-rendered search-result cards with date, venue/tagline, title, and detail link
-status: MANUAL_SOURCE_REGISTERED_STAGING_LIVE_SMOKE_PENDING_SCHEDULED_POLLING_DISABLED
+status: MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS_PUBLIC_LATEST_UI_VISIBILITY_PENDING_SCHEDULED_POLLING_DISABLED
 ```
 
 Why this fits the product:
@@ -294,6 +294,10 @@ Parser xetra_newsboard_html_v1 exists.
 Manual source de_xetra_frankfurt_newsboard exists with active=false and candidate_status=manual_staging_only.
 Fixture source_payloads/de_xetra_frankfurt_newsboard.html captures bounded search-result card shape and includes an operational service notice fixture row that must be filtered out.
 Live-payload validation requires the official newsboard markers and rejects non-matching HTML.
+Fly staging live poll returned fetch.mode=live, HTTP 200, fetch.bytes=234647, records_seen=25, records_inserted=25, and metadata.fallback_to_fixture=false.
+Source health returned healthy with last_seen_published_at=2026-05-08T18:34:37.000000Z.
+Date-specific digest GET /api/feed/digest/2026-05-08/breaking rendered Germany Xetra Frankfurt Newsboard under Central Europe.
+Public latest UI visibility remains pending because the source inserted 2026-05-08 items while the public shell currently renders latest digest date 2026-05-09.
 Scheduled polling remains disabled until the broader Europe source batch is intentionally promoted.
 ```
 
@@ -579,7 +583,7 @@ Do not use third-party register APIs as official GlobalPulse disclosure sources 
 5. Keep Italy eMarket Storage regulated communications as a proven manual_staging_only live candidate.
 6. Keep Luxembourg LuxSE OAM as a proven manual_staging_only GraphQL live candidate.
 7. Keep Austria Wiener Boerse announcements as a proven manual_staging_only exchange-announcement candidate with public latest UI visibility pending.
-8. Keep Germany Xetra Frankfurt Newsboard as a manual_staging_only exchange-announcement candidate pending staging live smoke and public UI smoke.
+8. Keep Germany Xetra Frankfurt Newsboard as a proven manual_staging_only exchange-announcement candidate with public latest UI visibility pending.
 9. Continue endpoint/parser discovery for Germany official register surfaces, OeKB issuerinfo, and other official issuer-announcement surfaces.
 10. Only batch-promote scheduled EU polling after the target list, rollback path, source-specific parser risk, and staging live smoke evidence are documented together.
 ```
