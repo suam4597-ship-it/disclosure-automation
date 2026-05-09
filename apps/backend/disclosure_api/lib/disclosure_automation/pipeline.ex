@@ -118,6 +118,8 @@ defmodule DisclosureAutomation.Parser do
   @gpw_espi_ebi_report_base_url "https://www.gpw.pl/"
   @bse_issuers_news_url "https://www.bse.hu/issuers_news"
   @bvb_current_reports_url "https://bvb.ro/FinancialInstruments/SelectedData/CurrentReports"
+  @ceri_search_url "https://ceri.nbs.sk/search"
+  @ceri_document_base_url "https://ceri.nbs.sk/static/data/"
 
   def parse(parser_key, raw_payload, opts \\ [])
       when is_binary(parser_key) and is_binary(raw_payload) do
@@ -167,6 +169,9 @@ defmodule DisclosureAutomation.Parser do
 
   defp parse_by_key("bvb_current_reports_html_v1", raw_payload),
     do: parse_bvb_current_reports(raw_payload)
+
+  defp parse_by_key("ceri_regulated_information_html_v1", raw_payload),
+    do: parse_ceri_regulated_information(raw_payload)
 
   defp parse_by_key("wiener_borse_announcements_html_v1", raw_payload),
     do: parse_wiener_borse_announcements(raw_payload)
@@ -1431,6 +1436,129 @@ defmodule DisclosureAutomation.Parser do
 
   defp bvb_apply_bucharest_zone(datetime), do: DateTime.add(datetime, -7_200, :second)
 
+  defp parse_ceri_regulated_information(raw_payload) do
+    items =
+      Regex.scan(
+        ~r/<tr class="(?:even|odd)">\s*<td rowspan="2"[^>]*>\s*<span class="ceridoc" id="img([^"]+)"[^>]*>.*?<\/span>\s*<\/td>\s*<td>(.*?)<\/td>\s*<td[^>]*title="([^"]*)"[^>]*>(.*?)<\/td>\s*<td[^>]*title="([^"]*)"[^>]*>(.*?)<\/td>\s*<td>(\d{2}\.\d{2}\.\d{4}\s+\d{2}:\d{2})<\/td>\s*<\/tr>\s*<tr class="(?:even|odd)">\s*<td colspan="4">\s*<span class="ceridoc" id="tit([^"]+)"[^>]*>(.*?)<\/span>\s*<\/td>\s*<\/tr>/s,
+        raw_payload
+      )
+      |> Enum.map(&parse_ceri_regulated_information_row/1)
+      |> Enum.filter(&(&1.url && &1.title))
+
+    {:ok, items}
+  end
+
+  defp parse_ceri_regulated_information_row([
+         _row,
+         file_id,
+         issuer,
+         mark_title,
+         mark,
+         category_title,
+         category,
+         published_at_text,
+         _title_file_id,
+         document_title
+       ]) do
+    issuer = clean_html(issuer)
+    document_title = clean_html(document_title)
+    category = clean_html(category)
+    regulated? = ceri_regulated_information?(mark_title, mark, category_title)
+    url = ceri_document_url(file_id)
+
+    %{
+      external_id: ceri_document_id(file_id),
+      title: ceri_title(issuer, document_title),
+      url: url,
+      summary:
+        join_non_empty(
+          [
+            "Slovakia CERI regulated information",
+            prefixed("Issuer", issuer),
+            prefixed("Document type", category),
+            if(regulated?, do: "Regulated information", else: nil)
+          ],
+          " | "
+        ),
+      published_at: parse_ceri_datetime(published_at_text),
+      category: category
+    }
+  end
+
+  defp parse_ceri_regulated_information_row(_row), do: empty_ceri_regulated_information_record()
+
+  defp empty_ceri_regulated_information_record do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: DateTime.utc_now(),
+      category: nil
+    }
+  end
+
+  defp ceri_regulated_information?(mark_title, mark, category_title) do
+    [mark_title, mark, category_title]
+    |> Enum.map(&(clean_html(&1) || ""))
+    |> Enum.any?(fn value ->
+      String.contains?(value, "Regulovan")
+    end)
+  end
+
+  defp ceri_title(nil, nil), do: nil
+  defp ceri_title(issuer, nil), do: issuer
+  defp ceri_title(nil, document_title), do: document_title
+  defp ceri_title(issuer, document_title), do: issuer <> " - " <> document_title
+
+  defp ceri_document_id(nil), do: nil
+
+  defp ceri_document_id(file_id) do
+    file_id
+    |> decode_html_entities()
+    |> String.replace_prefix("img", "")
+    |> String.replace_prefix("tit", "")
+  end
+
+  defp ceri_document_url(nil), do: nil
+
+  defp ceri_document_url(file_id) do
+    document_id = ceri_document_id(file_id)
+
+    case document_id do
+      nil ->
+        nil
+
+      <<prefix::binary-size(5), _rest::binary>> ->
+        @ceri_document_base_url <> prefix <> "/" <> document_id
+
+      _document_id ->
+        @ceri_search_url
+    end
+  end
+
+  defp parse_ceri_datetime(nil), do: DateTime.utc_now()
+
+  defp parse_ceri_datetime(value) do
+    with [_, day_text, month_text, year_text, hour_text, minute_text] <-
+           Regex.run(~r/^(\d{2})\.(\d{2})\.(\d{4})\s+(\d{2}):(\d{2})$/, value),
+         {day, ""} <- Integer.parse(day_text),
+         {month, ""} <- Integer.parse(month_text),
+         {year, ""} <- Integer.parse(year_text),
+         {hour, ""} <- Integer.parse(hour_text),
+         {minute, ""} <- Integer.parse(minute_text),
+         {:ok, datetime} <- build_utc_datetime(year, month, day, hour, minute, 0) do
+      ceri_apply_slovakia_zone(datetime)
+    else
+      _ -> DateTime.utc_now()
+    end
+  end
+
+  defp ceri_apply_slovakia_zone(%DateTime{month: month} = datetime) when month in 4..10,
+    do: DateTime.add(datetime, -7_200, :second)
+
+  defp ceri_apply_slovakia_zone(datetime), do: DateTime.add(datetime, -3_600, :second)
+
   defp parse_wiener_borse_announcements(raw_payload) do
     items =
       Regex.scan(~r/<tr data-key="([^"]+)">(.*?)<\/tr>/s, raw_payload)
@@ -2495,6 +2623,25 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp validate_live_payload(
+         %SourceRegistry{parser_key: "ceri_regulated_information_html_v1"},
+         response
+       ) do
+    cond do
+      not html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "ceri_regulated_information_html_v1",
+          content_type(response.headers)}}
+
+      not ceri_regulated_information_payload?(response.body) ->
+        {:error,
+         {:unsupported_live_payload, "ceri_regulated_information_html_v1", :unexpected_html}}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_live_payload(
          %SourceRegistry{parser_key: "wiener_borse_announcements_html_v1"},
          response
        ) do
@@ -2715,6 +2862,16 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp bvb_current_reports_payload?(_body), do: false
+
+  defp ceri_regulated_information_payload?(body) when is_binary(body) do
+    body =~ "Centr" and
+      body =~ "evidencia regulovan" and
+      body =~ "Aktu" and
+      body =~ "class=\"ceridoc\"" and
+      body =~ "prijatia"
+  end
+
+  defp ceri_regulated_information_payload?(_body), do: false
 
   defp wiener_borse_announcements_payload?(body) when is_binary(body) do
     body =~ "Announcements Found" and body =~ "filter-announcements" and

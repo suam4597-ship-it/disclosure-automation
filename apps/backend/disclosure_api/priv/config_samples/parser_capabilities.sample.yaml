@@ -344,6 +344,44 @@ parsers:
       reject_non_bvb_current_reports_payload: true
       reject_future_timestamps: true
 
+  - parser_key: ceri_regulated_information_html_v1
+    display_name: Slovakia CERI Regulated Information HTML Parser
+    enabled: true
+    input_types: [html]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: false
+    supports_detail_fetch: true
+    extraction:
+      id_fields:
+        - ceridoc_file_id
+      title_fields:
+        - issuer
+        - document_title
+      summary_fields:
+        - issuer
+        - document_type
+        - regulated_information_marker
+      url_fields:
+        - static_data_document_href
+      published_at_fields:
+        - date_received
+      category_fields:
+        - document_type
+    normalization:
+      source_shape: ceri_latest_regulated_information_table_html
+      trim_html: true
+      decode_entities: true
+      collapse_whitespace: true
+      timezone_strategy: source_slovakia_cet_cest_datetime
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_non_ceri_payload: true
+      reject_future_timestamps: true
+
   - parser_key: wiener_borse_announcements_html_v1
     display_name: Vienna Stock Exchange Announcements HTML Parser
     enabled: true

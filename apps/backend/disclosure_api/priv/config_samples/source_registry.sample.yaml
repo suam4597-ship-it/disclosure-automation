@@ -640,6 +640,37 @@ sources:
       live_headers:
         accept: application/rss+xml, application/xml, text/xml
 
+  - source_key: sk_ceri_regulated_information
+    display_name: Slovakia CERI Regulated Information
+    source_type: html
+    base_url: https://ceri.nbs.sk/search
+    healthcheck_url: https://ceri.nbs.sk/index
+    parser_key: ceri_regulated_information_html_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.12
+    coverage_tags:
+      - eu
+      - eu_central
+      - slovakia
+      - sk
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - financial_report
+      - oam
+      - ceri
+    active: false
+    config:
+      fixture_path: source_payloads/sk_ceri_regulated_information.html
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      max_items_per_poll: 25
+      live_timeout_ms: 30000
+      live_headers:
+        accept: text/html
+
   - source_key: eu_austria_wiener_borse_announcements
     display_name: Austria Wiener Boerse Announcements
     source_type: html
