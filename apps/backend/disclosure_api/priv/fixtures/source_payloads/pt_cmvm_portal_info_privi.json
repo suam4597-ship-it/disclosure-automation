@@ -1,0 +1,46 @@
+{
+  "versionInfo": {
+    "hasModuleVersionChanged": false,
+    "hasApiVersionChanged": false
+  },
+  "data": {
+    "InfoPrivi": {
+      "List": [
+        {
+          "Id": 1253421,
+          "Table": "F",
+          "Date": "2026-05-08",
+          "Time": "17:57:48",
+          "TimeStamp_Date": "1900-01-01",
+          "TimeStamp_Time": "00:00:00",
+          "Desc": "CTT - Correios de Portugal, S.A. informs on: Management transactions",
+          "Tipo": "Management Transactions",
+          "IsEN": true
+        },
+        {
+          "Id": 1253420,
+          "Table": "F",
+          "Date": "2026-05-08",
+          "Time": "17:03:18",
+          "TimeStamp_Date": "1900-01-01",
+          "TimeStamp_Time": "00:00:00",
+          "Desc": "SIC - Sociedade Independente de Comunicação, SA informs on: Change in the Composition of the Supervisory Board",
+          "Tipo": "Board Members",
+          "IsEN": true
+        },
+        {
+          "Id": 1253419,
+          "Table": "F",
+          "Date": "2026-05-08",
+          "Time": "16:41:28",
+          "TimeStamp_Date": "1900-01-01",
+          "TimeStamp_Time": "00:00:00",
+          "Desc": "Caixa Geral de Depositos, SA informs on: 1Q2026 consolidated results presentation",
+          "Tipo": "Material Information",
+          "IsEN": true
+        }
+      ]
+    }
+  },
+  "rolesInfo": ","
+}
