@@ -787,7 +787,7 @@ financial reports RSS URL: https://eho.zse.hr/en/feed/rss?vrsta=financ
 observed HTTP: 200
 observed content-type: text/xml;charset=utf-8
 observed shape: RSS 2.0 feeds with issuer/company title, detail/document link, description, pubDate, local publication time, and XZAG venue marker
-status: MANUAL_SOURCE_REGISTERED_LOCAL_LIVE_PARSER_PASS_STAGING_SMOKE_PENDING
+status: MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS_PARTIAL_DIGEST_VISIBILITY_SCHEDULED_POLLING_DISABLED
 ```
 
 Why this fits the product:
@@ -805,6 +805,10 @@ Manual source hr_zse_eho_issuer_news exists with active=false and candidate_stat
 Manual source hr_zse_eho_financial_reports exists with active=false and candidate_status=manual_staging_only.
 Fixture source_payloads/hr_zse_eho_issuer_news.xml captures the bounded issuer-news RSS shape.
 Fixture source_payloads/hr_zse_eho_financial_reports.xml captures the bounded financial-report RSS shape.
+Fly staging live poll for hr_zse_eho_issuer_news returned fetch.mode=live, HTTP 200, fetch.bytes=7717, records_seen=20, records_inserted=20, canonical_items=20, and no fixture fallback.
+Fly staging live poll for hr_zse_eho_financial_reports returned fetch.mode=live, HTTP 200, fetch.bytes=8007, records_seen=20, records_inserted=20, canonical_items=20, and no fixture fallback.
+Date-specific digest GET /api/feed/digest/2026-05-04/breaking rendered Croatia ZSE EHO Financial Reports under Southern Europe.
+Issuer-news digest top-n visibility remains pending because the 2026-05-08 digest top-n window is filled by other higher-ranked/diverse items.
 Scheduled polling remains disabled until the broader EU source batch is intentionally promoted.
 ```
 
@@ -825,7 +829,7 @@ Scheduled polling remains disabled until the broader EU source batch is intentio
 12. Keep Hungary Budapest Stock Exchange Issuers News as a proven manual_staging_only HTML parser candidate with public latest UI visibility pending.
 13. Keep Romania BVB Current Reports as a proven manual_staging_only HTML parser candidate with digest top-n/public latest UI visibility pending.
 14. Keep Slovenia OAM / INFO STORAGE as a proven manual_staging_only official RSS candidate with digest top-n/public latest UI visibility pending.
-15. Keep Croatia ZSE EHO issuer news and financial reports as manual_staging_only official RSS candidates with staging smoke pending.
+15. Keep Croatia ZSE EHO issuer news and financial reports as proven manual_staging_only official RSS candidates, with financial-report digest visibility passing and issuer-news top-n visibility pending.
 16. Continue endpoint/parser discovery for Germany official register surfaces, OeKB issuerinfo, Portugal, Prague, and other official issuer-announcement surfaces.
 17. Only batch-promote scheduled EU polling after the target list, rollback path, source-specific parser risk, and staging live smoke evidence are documented together.
 ```
@@ -871,8 +875,10 @@ ROMANIA_BVB_CURRENT_REPORTS_MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS
 ROMANIA_BVB_CURRENT_REPORTS_DIGEST_TOP_N_VISIBILITY_PENDING
 SLOVENIA_OAM_REGULATED_INFORMATION_MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS
 SLOVENIA_OAM_REGULATED_INFORMATION_DIGEST_TOP_N_VISIBILITY_PENDING
-CROATIA_ZSE_EHO_ISSUER_NEWS_MANUAL_SOURCE_REGISTERED_LOCAL_LIVE_PARSER_PASS_STAGING_SMOKE_PENDING
-CROATIA_ZSE_EHO_FINANCIAL_REPORTS_MANUAL_SOURCE_REGISTERED_LOCAL_LIVE_PARSER_PASS_STAGING_SMOKE_PENDING
+CROATIA_ZSE_EHO_ISSUER_NEWS_MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS
+CROATIA_ZSE_EHO_ISSUER_NEWS_DIGEST_TOP_N_VISIBILITY_PENDING
+CROATIA_ZSE_EHO_FINANCIAL_REPORTS_MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS
+CROATIA_ZSE_EHO_FINANCIAL_REPORTS_DATE_SPECIFIC_DIGEST_VISIBILITY_PASS
 GERMANY_OFFICIAL_REGISTER_SURFACE_DIRECTION_FOUND_MACHINE_ENDPOINT_PENDING
 EURONEXT_COMPANY_PRESS_RELEASES_PUBLIC_HTML_SURFACE_FOUND
 BORSA_ITALIANA_POINTS_TO_CONSOB_AUTHORIZED_STORAGE_SYSTEMS
