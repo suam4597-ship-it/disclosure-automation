@@ -579,6 +579,67 @@ sources:
       live_headers:
         accept: application/rss+xml, application/xml, text/xml
 
+  - source_key: hr_zse_eho_issuer_news
+    display_name: Croatia ZSE EHO Issuer News
+    source_type: rss
+    base_url: https://eho.zse.hr/en/feed/rss?variant=issuerNews
+    healthcheck_url: https://eho.zse.hr/en/feed
+    parser_key: rss_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.13
+    coverage_tags:
+      - eu
+      - eu_south
+      - croatia
+      - hr
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - exchange_announcement
+      - eho
+    active: false
+    config:
+      fixture_path: source_payloads/hr_zse_eho_issuer_news.xml
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      max_items_per_poll: 25
+      live_timeout_ms: 30000
+      live_headers:
+        accept: application/rss+xml, application/xml, text/xml
+
+  - source_key: hr_zse_eho_financial_reports
+    display_name: Croatia ZSE EHO Financial Reports
+    source_type: rss
+    base_url: https://eho.zse.hr/en/feed/rss?vrsta=financ
+    healthcheck_url: https://eho.zse.hr/en/feed
+    parser_key: rss_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.12
+    coverage_tags:
+      - eu
+      - eu_south
+      - croatia
+      - hr
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - exchange_announcement
+      - financial_report
+      - eho
+    active: false
+    config:
+      fixture_path: source_payloads/hr_zse_eho_financial_reports.xml
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      max_items_per_poll: 25
+      live_timeout_ms: 30000
+      live_headers:
+        accept: application/rss+xml, application/xml, text/xml
+
   - source_key: eu_austria_wiener_borse_announcements
     display_name: Austria Wiener Boerse Announcements
     source_type: html
