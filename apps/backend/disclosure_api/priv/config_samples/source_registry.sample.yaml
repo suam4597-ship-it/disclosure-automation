@@ -733,6 +733,39 @@ sources:
       live_headers:
         accept: text/html
 
+  - source_key: lv_csri_regulated_information
+    display_name: Latvia CSRI Regulated Information
+    source_type: html
+    base_url: https://csri.investinfo.lv/en/?view=csridocuments
+    healthcheck_url: https://www.bank.lv/darbibas-jomas/uzraudziba/finansu-instrumentu-tirgus/emitents/publiski-atklajama-informacija
+    parser_key: lv_csri_regulated_information_html_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.13
+    coverage_tags:
+      - eu
+      - eu_north
+      - baltic
+      - latvia
+      - lv
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - market_announcement
+      - oam
+      - csri
+      - oricgs
+    active: false
+    config:
+      fixture_path: source_payloads/lv_csri_regulated_information.html
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      max_items_per_poll: 25
+      live_timeout_ms: 30000
+      live_headers:
+        accept: text/html
+
   - source_key: eu_austria_wiener_borse_announcements
     display_name: Austria Wiener Boerse Announcements
     source_type: html

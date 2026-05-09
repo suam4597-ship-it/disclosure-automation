@@ -122,6 +122,7 @@ defmodule DisclosureAutomation.Parser do
   @ceri_document_base_url "https://ceri.nbs.sk/static/data/"
   @ee_oam_base_url "https://oam.fi.ee"
   @lt_oam_base_url "https://www.oam.lt"
+  @lv_csri_base_url "https://csri.investinfo.lv"
 
   def parse(parser_key, raw_payload, opts \\ [])
       when is_binary(parser_key) and is_binary(raw_payload) do
@@ -180,6 +181,9 @@ defmodule DisclosureAutomation.Parser do
 
   defp parse_by_key("lt_oam_regulated_information_html_v1", raw_payload),
     do: parse_lt_oam_regulated_information(raw_payload)
+
+  defp parse_by_key("lv_csri_regulated_information_html_v1", raw_payload),
+    do: parse_lv_csri_regulated_information(raw_payload)
 
   defp parse_by_key("wiener_borse_announcements_html_v1", raw_payload),
     do: parse_wiener_borse_announcements(raw_payload)
@@ -1786,6 +1790,123 @@ defmodule DisclosureAutomation.Parser do
 
   defp lt_oam_apply_lithuania_zone(datetime), do: DateTime.add(datetime, -7_200, :second)
 
+  defp parse_lv_csri_regulated_information(raw_payload) do
+    items =
+      Regex.scan(
+        ~r/<tr>\s*<td>\s*(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\s*<\/td>\s*<td>\s*<a href="[^"]*">\s*(.*?)\s*<\/a>\s*<\/td>\s*<td>\s*(.*?)\s*<\/td>\s*<td>\s*(.*?)\s*<\/td>\s*<td>\s*<a href="([^"]+)">\s*(.*?)\s*<\/a>\s*<\/td>\s*<\/tr>/s,
+        raw_payload
+      )
+      |> Enum.map(&parse_lv_csri_regulated_information_row/1)
+      |> Enum.filter(&(&1.url && &1.title))
+
+    {:ok, items}
+  end
+
+  defp parse_lv_csri_regulated_information_row([
+         _row,
+         published_at_text,
+         issuer,
+         version,
+         language,
+         href,
+         title
+       ]) do
+    issuer = clean_html(issuer)
+    version = clean_html(version)
+    language = clean_html(language)
+    title = clean_html(title)
+    url = lv_csri_regulated_information_url(href)
+
+    %{
+      external_id: lv_csri_regulated_information_external_id(url),
+      title: lv_csri_regulated_information_title(issuer, title),
+      url: url,
+      summary:
+        join_non_empty(
+          [
+            "Latvia CSRI regulated information",
+            prefixed("Issuer", issuer),
+            prefixed("Language", language),
+            prefixed("Version", version)
+          ],
+          " | "
+        ),
+      published_at: parse_lv_csri_datetime(clean_html(published_at_text)),
+      category: "Regulated information"
+    }
+  end
+
+  defp parse_lv_csri_regulated_information_row(_row),
+    do: empty_lv_csri_regulated_information()
+
+  defp empty_lv_csri_regulated_information do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: DateTime.utc_now(),
+      category: nil
+    }
+  end
+
+  defp lv_csri_regulated_information_title(nil, nil), do: nil
+  defp lv_csri_regulated_information_title(issuer, nil), do: issuer
+  defp lv_csri_regulated_information_title(nil, title), do: title
+  defp lv_csri_regulated_information_title(issuer, title), do: issuer <> " - " <> title
+
+  defp lv_csri_regulated_information_url(nil), do: nil
+
+  defp lv_csri_regulated_information_url(raw_url) do
+    url = decode_html_entities(raw_url)
+
+    cond do
+      String.starts_with?(url, "http") -> url
+      String.starts_with?(url, "/") -> @lv_csri_base_url <> url
+      true -> @lv_csri_base_url <> "/" <> url
+    end
+  end
+
+  defp lv_csri_regulated_information_external_id(nil), do: nil
+
+  defp lv_csri_regulated_information_external_id(url) do
+    case URI.parse(url) do
+      %URI{query: query} when is_binary(query) ->
+        query
+        |> URI.decode_query()
+        |> Map.get("id")
+
+      %URI{path: path} when is_binary(path) ->
+        List.last(String.split(path, "/", trim: true))
+
+      _uri ->
+        nil
+    end
+  end
+
+  defp parse_lv_csri_datetime(nil), do: DateTime.utc_now()
+
+  defp parse_lv_csri_datetime(value) do
+    with [_, year_text, month_text, day_text, hour_text, minute_text, second_text] <-
+           Regex.run(~r/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2}):(\d{2})$/, value),
+         {day, ""} <- Integer.parse(day_text),
+         {month, ""} <- Integer.parse(month_text),
+         {year, ""} <- Integer.parse(year_text),
+         {hour, ""} <- Integer.parse(hour_text),
+         {minute, ""} <- Integer.parse(minute_text),
+         {second, ""} <- Integer.parse(second_text),
+         {:ok, datetime} <- build_utc_datetime(year, month, day, hour, minute, second) do
+      lv_csri_apply_latvia_zone(datetime)
+    else
+      _ -> DateTime.utc_now()
+    end
+  end
+
+  defp lv_csri_apply_latvia_zone(%DateTime{month: month} = datetime) when month in 4..10,
+    do: DateTime.add(datetime, -10_800, :second)
+
+  defp lv_csri_apply_latvia_zone(datetime), do: DateTime.add(datetime, -7_200, :second)
+
   defp parse_wiener_borse_announcements(raw_payload) do
     items =
       Regex.scan(~r/<tr data-key="([^"]+)">(.*?)<\/tr>/s, raw_payload)
@@ -2907,6 +3028,25 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp validate_live_payload(
+         %SourceRegistry{parser_key: "lv_csri_regulated_information_html_v1"},
+         response
+       ) do
+    cond do
+      not html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "lv_csri_regulated_information_html_v1",
+          content_type(response.headers)}}
+
+      not lv_csri_regulated_information_payload?(response.body) ->
+        {:error,
+         {:unsupported_live_payload, "lv_csri_regulated_information_html_v1", :unexpected_html}}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_live_payload(
          %SourceRegistry{parser_key: "wiener_borse_announcements_html_v1"},
          response
        ) do
@@ -3155,6 +3295,15 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp lt_oam_regulated_information_payload?(_body), do: false
+
+  defp lv_csri_regulated_information_payload?(body) when is_binary(body) do
+    body =~ "LATEST DOCUMENTS" and
+      body =~ "csridocumentsdetails" and
+      body =~ "Date Time" and
+      body =~ "Issuer"
+  end
+
+  defp lv_csri_regulated_information_payload?(_body), do: false
 
   defp wiener_borse_announcements_payload?(body) when is_binary(body) do
     body =~ "Announcements Found" and body =~ "filter-announcements" and
