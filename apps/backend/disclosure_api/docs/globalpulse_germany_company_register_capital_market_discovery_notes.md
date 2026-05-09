@@ -10,6 +10,7 @@ This is documentation-only. It does not add a source, parser, fixture, route, co
 GERMANY_COMPANY_REGISTER_OFFICIAL_CAPITAL_MARKET_SURFACE_CONFIRMED
 GERMANY_COMPANY_REGISTER_SEARCH_TOKEN_ENDPOINT_CONFIRMED
 GERMANY_COMPANY_REGISTER_SEARCH_RESULTS_HTML_FLIGHT_DATA_CONFIRMED
+GERMANY_COMPANY_REGISTER_TOKEN_PREFLIGHT_FETCH_CONTRACT_RECORDED
 GERMANY_COMPANY_REGISTER_STATIC_POLL_URL_NOT_CONFIRMED
 GERMANY_COMPANY_REGISTER_SOURCE_REGISTRATION_BLOCKED
 GERMANY_COMPANY_REGISTER_TOKEN_PREFLIGHT_OR_STABLE_JSON_ENDPOINT_REQUIRED
@@ -94,10 +95,21 @@ Publication detail/download URLs appear to depend on encryptedPayload-style valu
 The unfiltered result order is not yet confirmed as newest-first; observed page 1 contained older rows, so date/sort parameters must be proven before candidate registration.
 ```
 
+## Token Preflight Contract
+
+```text
+contract doc: globalpulse_germany_company_register_token_preflight_contract.md
+future live_fetch_strategy: germany_company_register_token_preflight_v1
+future parser_key: germany_company_register_capital_market_flight_v1
+future candidate source_key: de_company_register_capital_market_info
+candidate registration: still blocked
+reason: stable detail URL, date-range parameters, newest-first or bounded date-specific ordering, React/Next flight parser shape, staging reachability, and captcha/rate-limit behavior still need evidence
+```
+
 ## Next Step
 
 ```text
-Either find a stable official JSON/CSV/XML endpoint for German Company Register capital-market information, or design a source-specific token-preflight live fetch contract.
-Before candidate registration, prove date range, sort order, page size, rate limits, fixture shape, parser validation markers, duplicate keys, and rollback behavior.
+Use the token-preflight contract to run a browser/network or staging-network preflight against the official Company Register from an environment that can reach TCP 443.
+Before candidate registration, prove date range, sort order, stable detail URL, page size, rate limits, fixture shape, parser validation markers, duplicate keys, and rollback behavior.
 Keep scheduled EU polling disabled.
 ```
