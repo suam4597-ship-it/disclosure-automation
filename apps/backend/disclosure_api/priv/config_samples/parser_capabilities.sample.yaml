@@ -228,6 +228,45 @@ parsers:
       reject_html_payload: true
       reject_future_timestamps: true
 
+  - parser_key: gpw_espi_ebi_html_v1
+    display_name: GPW ESPI/EBI Company Reports HTML Parser
+    enabled: true
+    input_types: [html]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: false
+    supports_detail_fetch: true
+    extraction:
+      id_fields:
+        - espi_ebi_report.geru_id
+      title_fields:
+        - strong.name
+        - report_title
+      summary_fields:
+        - status
+        - system
+        - report_number
+      url_fields:
+        - espi_ebi_report_href
+      published_at_fields:
+        - span.date
+      category_fields:
+        - system
+        - status
+    normalization:
+      source_shape: gpw_espi_ebi_report_list_html
+      trim_html: true
+      decode_entities: true
+      collapse_whitespace: true
+      timezone_strategy: source_warsaw_cet_cest_datetime
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_non_gpw_espi_ebi_payload: true
+      reject_future_timestamps: true
+
   - parser_key: wiener_borse_announcements_html_v1
     display_name: Vienna Stock Exchange Announcements HTML Parser
     enabled: true

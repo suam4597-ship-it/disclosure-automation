@@ -645,6 +645,37 @@ Public latest UI visibility remains pending because the source inserted 2026-05-
 Scheduled polling remains disabled until the broader EU source batch is intentionally promoted.
 ```
 
+## Candidate N: Poland GPW ESPI/EBI Company Reports
+
+```text
+owner: Warsaw Stock Exchange / GPW
+authority class: official exchange issuer disclosure and company-report surface
+candidate URL: https://www.gpw.pl/espi-ebi-reports
+observed HTTP: 200
+observed content-type: text/html
+observed shape: HTML ESPI/EBI company-report list with bounded report metadata, issuer link text, report title, geru_id detail links, status, system, report number, and publication timestamp
+supporting AJAX form: action=GPWEspiReportUnion, start=ajaxSearch, page=espi-ebi-reports, categoryRaports[]=EBI/ESPI
+status: MANUAL_SOURCE_REGISTERED_LOCAL_LIVE_PROBE_PENDING_STAGING_LIVE_POLL_PENDING
+```
+
+Why this fits the product:
+
+```text
+The GPW ESPI/EBI page is the official exchange surface for listed-company reports rather than central-bank, macro, or policy material.
+The public page renders current ESPI/EBI issuer report entries and stable espi-ebi-report?geru_id=... detail links.
+The first integration intentionally uses a bounded HTML parser instead of rss_v1, because the official surface is HTML rather than RSS/XML.
+```
+
+Implementation status:
+
+```text
+Parser gpw_espi_ebi_html_v1 exists.
+Manual source pl_gpw_espi_ebi_reports exists with active=false and candidate_status=manual_staging_only.
+Parser output is bounded to geru_id, issuer/company text, report title, source report URL, status, ESPI/EBI system, report number, and publication timestamp.
+Fixture source_payloads/pl_gpw_espi_ebi_reports.html captures the bounded public HTML shape.
+Scheduled polling remains disabled until the broader EU source batch is intentionally promoted.
+```
+
 ## Recommended EU v1 Path
 
 ```text
@@ -658,8 +689,9 @@ Scheduled polling remains disabled until the broader EU source batch is intentio
 8. Keep Germany Xetra Frankfurt Newsboard as a proven manual_staging_only exchange-announcement candidate with public latest UI visibility pending.
 9. Keep Greece ATHEX issuer announcements and corporate actions as proven manual_staging_only RSS candidates with public latest UI visibility pending.
 10. Keep Norway Oslo Bors NewsWeb main market as a proven manual_staging_only API candidate with public latest UI visibility pending.
-11. Continue endpoint/parser discovery for Germany official register surfaces, OeKB issuerinfo, Portugal, Poland, Prague, and other official issuer-announcement surfaces.
-12. Only batch-promote scheduled EU polling after the target list, rollback path, source-specific parser risk, and staging live smoke evidence are documented together.
+11. Keep Poland GPW ESPI/EBI company reports as a manual_staging_only HTML parser candidate pending staging live smoke.
+12. Continue endpoint/parser discovery for Germany official register surfaces, OeKB issuerinfo, Portugal, Prague, and other official issuer-announcement surfaces.
+13. Only batch-promote scheduled EU polling after the target list, rollback path, source-specific parser risk, and staging live smoke evidence are documented together.
 ```
 
 ## Explicit Non-Goals
@@ -695,10 +727,11 @@ AUSTRIA_WIENER_BORSE_PUBLIC_LATEST_UI_VISIBILITY_PENDING
 AUSTRIA_OEKB_ISSUERINFO_OFFICIAL_SURFACE_FOUND_MACHINE_ENDPOINT_PENDING
 NORWAY_OSLO_BORS_NEWSWEB_MAIN_MARKET_MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS
 NORWAY_OSLO_BORS_NEWSWEB_PUBLIC_LATEST_UI_VISIBILITY_PENDING
+POLAND_GPW_ESPI_EBI_COMPANY_REPORTS_MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PENDING
 GERMANY_OFFICIAL_REGISTER_SURFACE_DIRECTION_FOUND_MACHINE_ENDPOINT_PENDING
 EURONEXT_COMPANY_PRESS_RELEASES_PUBLIC_HTML_SURFACE_FOUND
 BORSA_ITALIANA_POINTS_TO_CONSOB_AUTHORIZED_STORAGE_SYSTEMS
 ESMA_OAM_DIRECTORY_ACCEPTED_AS_AUTHORITY_MAP_NOT_POLL_SOURCE
-EU_NEXT_IMPLEMENTATION_STEP_AUSTRIA_STAGING_SMOKE_THEN_GERMANY_OR_OEKB_ENDPOINT_DISCOVERY
+EU_NEXT_IMPLEMENTATION_STEP_POLAND_GPW_STAGING_SMOKE_THEN_PORTUGAL_OR_PRAGUE_ENDPOINT_DISCOVERY
 EU_SCHEDULED_LIVE_POLLING_BLOCKED
 ```
