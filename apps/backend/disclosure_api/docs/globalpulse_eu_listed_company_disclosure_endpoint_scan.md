@@ -620,7 +620,7 @@ candidate API URL: https://api3.oslo.oslobors.no/v1/newsreader/list?market=XOSL&
 observed HTTP: POST 200
 observed content-type: application/json
 observed shape: JSON with data.messages records containing messageId, title, category, markets, issuerName, issuerSign, publishedTime, and clientAnnouncementId
-status: MANUAL_SOURCE_REGISTERED_LOCAL_LIVE_PROBE_PASS_STAGING_LIVE_POLL_PENDING
+status: MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS_PUBLIC_LATEST_UI_VISIBILITY_PENDING_SCHEDULED_POLLING_DISABLED
 ```
 
 Why this fits the product:
@@ -639,7 +639,9 @@ Manual source no_oslo_bors_newsweb_main_market exists with active=false and cand
 The source uses POST with an empty JSON body because the NewsWeb API returns an empty message list for the same URL over GET.
 Fixture source_payloads/no_oslo_bors_newsweb_main_market.json captures the bounded public JSON shape.
 Local live probe returned HTTP 200 application/json and a populated data.messages list for market=XOSL.
-Fly staging live poll and public Pages UI visibility are still pending.
+Fly staging live poll returned fetch.mode=live, HTTP 200, fetch.bytes=374782, records_seen=25, records_inserted=25, canonical_items=25, and metadata.fallback_to_fixture=false.
+Date-specific digest GET /api/feed/digest/2026-05-08/breaking rendered Norway Oslo Bors NewsWeb Main Market Announcements under Northern Europe.
+Public latest UI visibility remains pending because the source inserted 2026-05-08 items while the public shell currently renders latest digest date 2026-05-09.
 Scheduled polling remains disabled until the broader EU source batch is intentionally promoted.
 ```
 
@@ -655,7 +657,7 @@ Scheduled polling remains disabled until the broader EU source batch is intentio
 7. Keep Austria Wiener Boerse announcements as a proven manual_staging_only exchange-announcement candidate with public latest UI visibility pending.
 8. Keep Germany Xetra Frankfurt Newsboard as a proven manual_staging_only exchange-announcement candidate with public latest UI visibility pending.
 9. Keep Greece ATHEX issuer announcements and corporate actions as proven manual_staging_only RSS candidates with public latest UI visibility pending.
-10. Keep Norway Oslo Bors NewsWeb main market as a manual_staging_only API candidate pending Fly staging live poll and public UI smoke.
+10. Keep Norway Oslo Bors NewsWeb main market as a proven manual_staging_only API candidate with public latest UI visibility pending.
 11. Continue endpoint/parser discovery for Germany official register surfaces, OeKB issuerinfo, Portugal, Poland, Prague, and other official issuer-announcement surfaces.
 12. Only batch-promote scheduled EU polling after the target list, rollback path, source-specific parser risk, and staging live smoke evidence are documented together.
 ```
@@ -691,8 +693,8 @@ LUXEMBOURG_LUXSE_OAM_PUBLIC_UI_PASS
 AUSTRIA_WIENER_BORSE_ANNOUNCEMENTS_MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS
 AUSTRIA_WIENER_BORSE_PUBLIC_LATEST_UI_VISIBILITY_PENDING
 AUSTRIA_OEKB_ISSUERINFO_OFFICIAL_SURFACE_FOUND_MACHINE_ENDPOINT_PENDING
-NORWAY_OSLO_BORS_NEWSWEB_MAIN_MARKET_MANUAL_SOURCE_REGISTERED_LOCAL_LIVE_PROBE_PASS
-NORWAY_OSLO_BORS_NEWSWEB_STAGING_LIVE_POLL_PENDING
+NORWAY_OSLO_BORS_NEWSWEB_MAIN_MARKET_MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS
+NORWAY_OSLO_BORS_NEWSWEB_PUBLIC_LATEST_UI_VISIBILITY_PENDING
 GERMANY_OFFICIAL_REGISTER_SURFACE_DIRECTION_FOUND_MACHINE_ENDPOINT_PENDING
 EURONEXT_COMPANY_PRESS_RELEASES_PUBLIC_HTML_SURFACE_FOUND
 BORSA_ITALIANA_POINTS_TO_CONSOB_AUTHORIZED_STORAGE_SYSTEMS
