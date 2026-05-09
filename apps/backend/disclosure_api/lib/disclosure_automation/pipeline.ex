@@ -98,6 +98,7 @@ defmodule DisclosureAutomation.Parser do
   @fca_nsm_artefacts_base_url "https://data.fca.org.uk/artefacts/"
   @fca_nsm_search_url "https://data.fca.org.uk/#/nsm/nationalstoragemechanism"
   @wiener_borse_announcements_url "https://www.wienerborse.at/en/legal/announcements/"
+  @xetra_newsboard_url "https://www.xetra.com/xetra-en/newsroom/xetra-newsboard/"
 
   def parse(parser_key, raw_payload, opts \\ [])
       when is_binary(parser_key) and is_binary(raw_payload) do
@@ -138,6 +139,9 @@ defmodule DisclosureAutomation.Parser do
 
   defp parse_by_key("wiener_borse_announcements_html_v1", raw_payload),
     do: parse_wiener_borse_announcements(raw_payload)
+
+  defp parse_by_key("xetra_newsboard_html_v1", raw_payload),
+    do: parse_xetra_newsboard(raw_payload)
 
   defp parse_by_key(parser_key, _raw_payload), do: {:error, {:unsupported_parser_key, parser_key}}
 
@@ -984,6 +988,183 @@ defmodule DisclosureAutomation.Parser do
     end
   end
 
+  defp parse_xetra_newsboard(raw_payload) do
+    items =
+      Regex.scan(
+        ~r/<a class="teasable-search-result-link[^"]*" href="([^"]+)">(.*?)<\/a>/s,
+        raw_payload
+      )
+      |> Enum.map(&parse_xetra_newsboard_row/1)
+      |> Enum.filter(&(&1.url && &1.title))
+
+    {:ok, items}
+  end
+
+  defp parse_xetra_newsboard_row([_row, href, row_html]) do
+    published_at_text =
+      regex_capture(row_html, ~r/<p class="search-result-date">(.*?)<\/p>/s)
+
+    venue =
+      regex_capture(row_html, ~r/<h2 class="search-result-tagline">\s*(.*?)\s*<\/h2>/s)
+
+    title =
+      regex_capture(row_html, ~r/<h1 class="search-result-description[^"]*">\s*(.*?)\s*<\/h1>/s)
+
+    if xetra_newsboard_company_notice?(title) do
+      %{
+        external_id: xetra_newsboard_external_id(href),
+        title: title,
+        url: xetra_newsboard_url(href),
+        summary:
+          join_non_empty(
+            [
+              "Xetra Frankfurt Newsboard announcement",
+              prefixed("Venue", venue),
+              prefixed("Notice type", xetra_newsboard_notice_type(title))
+            ],
+            " | "
+          ),
+        published_at: parse_xetra_newsboard_datetime(published_at_text),
+        category: xetra_newsboard_notice_type(title)
+      }
+    else
+      empty_xetra_newsboard_record()
+    end
+  end
+
+  defp parse_xetra_newsboard_row(_row), do: empty_xetra_newsboard_record()
+
+  defp empty_xetra_newsboard_record do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: DateTime.utc_now(),
+      category: nil
+    }
+  end
+
+  defp xetra_newsboard_company_notice?(nil), do: false
+
+  defp xetra_newsboard_company_notice?(title) do
+    normalized = String.downcase(title)
+
+    Enum.any?(
+      [
+        "dividend",
+        "capital adjustment",
+        "instrument_suspension",
+        "new instrument",
+        "deletion of instruments",
+        "isin change",
+        "aussetzung",
+        "suspension",
+        "wiederaufnahme",
+        "resumption"
+      ],
+      &String.contains?(normalized, &1)
+    ) and not String.contains?(normalized, "service is down")
+  end
+
+  defp xetra_newsboard_external_id(nil), do: nil
+
+  defp xetra_newsboard_external_id(href) do
+    href
+    |> decode_html_entities()
+    |> String.split("-")
+    |> List.last()
+  end
+
+  defp xetra_newsboard_url(nil), do: nil
+
+  defp xetra_newsboard_url(raw_url) do
+    url = decode_html_entities(raw_url)
+
+    cond do
+      String.starts_with?(url, "http") -> url
+      String.starts_with?(url, "/") -> "https://www.cashmarket.deutsche-boerse.com" <> url
+      true -> @xetra_newsboard_url
+    end
+  end
+
+  defp xetra_newsboard_notice_type(nil), do: nil
+
+  defp xetra_newsboard_notice_type(title) do
+    normalized = String.downcase(title)
+
+    cond do
+      String.contains?(normalized, "dividend") ->
+        "Dividend"
+
+      String.contains?(normalized, "capital adjustment") ->
+        "Capital adjustment"
+
+      String.contains?(normalized, "new instrument") ->
+        "New instrument"
+
+      String.contains?(normalized, "deletion of instruments") ->
+        "Deletion of instruments"
+
+      String.contains?(normalized, "isin change") ->
+        "ISIN change"
+
+      String.contains?(normalized, "wiederaufnahme") or String.contains?(normalized, "resumption") ->
+        "Resumption"
+
+      String.contains?(normalized, "aussetzung") or String.contains?(normalized, "suspension") ->
+        "Suspension"
+
+      true ->
+        "Exchange notice"
+    end
+  end
+
+  defp parse_xetra_newsboard_datetime(nil), do: DateTime.utc_now()
+
+  defp parse_xetra_newsboard_datetime(value) do
+    with [_, month_text, day_text, year_text, hour_text, minute_text, second_text, am_pm, zone] <-
+           Regex.run(
+             ~r/^([A-Za-z]+) (\d{2}), (\d{4}) (\d{2}):(\d{2}):(\d{2}) ([AP]M) (CEST|CET)$/,
+             value
+           ),
+         {:ok, month} <- xetra_month(month_text),
+         {day, ""} <- Integer.parse(day_text),
+         {year, ""} <- Integer.parse(year_text),
+         {hour_12, ""} <- Integer.parse(hour_text),
+         {minute, ""} <- Integer.parse(minute_text),
+         {second, ""} <- Integer.parse(second_text),
+         hour <- xetra_24_hour(hour_12, am_pm),
+         {:ok, datetime} <- build_utc_datetime(year, month, day, hour, minute, second) do
+      xetra_apply_zone(datetime, zone)
+    else
+      _ -> DateTime.utc_now()
+    end
+  end
+
+  defp xetra_month("January"), do: {:ok, 1}
+  defp xetra_month("February"), do: {:ok, 2}
+  defp xetra_month("March"), do: {:ok, 3}
+  defp xetra_month("April"), do: {:ok, 4}
+  defp xetra_month("May"), do: {:ok, 5}
+  defp xetra_month("June"), do: {:ok, 6}
+  defp xetra_month("July"), do: {:ok, 7}
+  defp xetra_month("August"), do: {:ok, 8}
+  defp xetra_month("September"), do: {:ok, 9}
+  defp xetra_month("October"), do: {:ok, 10}
+  defp xetra_month("November"), do: {:ok, 11}
+  defp xetra_month("December"), do: {:ok, 12}
+  defp xetra_month(_month), do: :error
+
+  defp xetra_24_hour(12, "AM"), do: 0
+  defp xetra_24_hour(12, "PM"), do: 12
+  defp xetra_24_hour(hour, "PM"), do: hour + 12
+  defp xetra_24_hour(hour, _am_pm), do: hour
+
+  defp xetra_apply_zone(datetime, "CEST"), do: DateTime.add(datetime, -7_200, :second)
+  defp xetra_apply_zone(datetime, "CET"), do: DateTime.add(datetime, -3_600, :second)
+  defp xetra_apply_zone(datetime, _zone), do: datetime
+
   defp parse_afm_csv_row(row) do
     row
     |> String.trim()
@@ -1678,6 +1859,21 @@ defmodule DisclosureAutomation.Ingestion do
     end
   end
 
+  defp validate_live_payload(%SourceRegistry{parser_key: "xetra_newsboard_html_v1"}, response) do
+    cond do
+      not html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "xetra_newsboard_html_v1",
+          content_type(response.headers)}}
+
+      not xetra_newsboard_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "xetra_newsboard_html_v1", :unexpected_html}}
+
+      true ->
+        :ok
+    end
+  end
+
   defp validate_live_payload(_source, _response), do: :ok
 
   defp source_live_headers(%SourceRegistry{config: config}) when is_map(config) do
@@ -1843,6 +2039,13 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp wiener_borse_announcements_payload?(_body), do: false
+
+  defp xetra_newsboard_payload?(body) when is_binary(body) do
+    body =~ "Xetra-Frankfurt-Newsboard" and body =~ "teasable-search-result-link" and
+      body =~ "search-result-description"
+  end
+
+  defp xetra_newsboard_payload?(_body), do: false
 
   defp load_fixture_payload(source) do
     fixture_path =
