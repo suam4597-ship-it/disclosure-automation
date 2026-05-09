@@ -10,7 +10,7 @@ This is documentation-only. It does not add runtime code, routes, controllers, m
 primary target: listed-company disclosures and issuer announcements
 preferred authority: official exchange, OAM, regulated-information repository, or issuer-announcement authority
 not first target: ECB, central-bank feeds, macro-statistics feeds, parliament feeds, or broad policy news
-current result: France OAM manual source + parser + staging live smoke complete; Spain CNMV manual RSS sources + parser compatibility fix + staging live smoke + public UI smoke complete; Netherlands AFM CSV manual source + parser + staging live smoke complete; Italy eMarket Storage bounded HTML manual source + parser + staging live smoke + public UI smoke complete; Luxembourg LuxSE OAM GraphQL manual source + parser + staging live smoke + public UI smoke complete; Euronext company press release RSS manual source + bounded parser + staging live smoke + public UI smoke complete; Belgium FSMA STORI API manual source + bounded parser + staging live smoke + public UI smoke complete; UK FCA NSM API manual source + bounded parser + staging live smoke complete; Switzerland SIX SER official notices RSS manual source + staging live smoke + public UI smoke complete; Nasdaq Nordic Company News JSONP manual source + staging live smoke + public UI smoke complete; Austria Wiener Boerse announcements bounded HTML manual source + staging live poll complete with public latest UI visibility pending; Germany Xetra Frankfurt Newsboard bounded HTML manual source + staging live smoke complete with public latest UI visibility pending; Greece ATHEX issuer announcements and corporate actions RSS manual sources staging live smoke complete with public latest UI visibility pending; Poland GPW ESPI/EBI bounded HTML manual source + staging live smoke complete with public latest UI visibility pending; Slovakia CERI bounded HTML manual source + staging live smoke complete with public latest UI visibility pending; Estonia OAM bounded HTML manual source + staging live smoke complete with public latest UI visibility pending; Lithuania OAM bounded HTML manual source + staging live smoke complete with public latest UI visibility pending; Latvia CSRI bounded HTML manual source + local parser compatibility pending staging smoke; remaining Europe candidates need endpoint/parser confirmation
+current result: France OAM manual source + parser + staging live smoke complete; Spain CNMV manual RSS sources + parser compatibility fix + staging live smoke + public UI smoke complete; Netherlands AFM CSV manual source + parser + staging live smoke complete; Italy eMarket Storage bounded HTML manual source + parser + staging live smoke + public UI smoke complete; Luxembourg LuxSE OAM GraphQL manual source + parser + staging live smoke + public UI smoke complete; Euronext company press release RSS manual source + bounded parser + staging live smoke + public UI smoke complete; Belgium FSMA STORI API manual source + bounded parser + staging live smoke + public UI smoke complete; UK FCA NSM API manual source + bounded parser + staging live smoke complete; Switzerland SIX SER official notices RSS manual source + staging live smoke + public UI smoke complete; Nasdaq Nordic Company News JSONP manual source + staging live smoke + public UI smoke complete; Austria Wiener Boerse announcements bounded HTML manual source + staging live poll complete with public latest UI visibility pending; Germany Xetra Frankfurt Newsboard bounded HTML manual source + staging live smoke complete with public latest UI visibility pending; Greece ATHEX issuer announcements and corporate actions RSS manual sources staging live smoke complete with public latest UI visibility pending; Poland GPW ESPI/EBI bounded HTML manual source + staging live smoke complete with public latest UI visibility pending; Slovakia CERI bounded HTML manual source + staging live smoke complete with public latest UI visibility pending; Estonia OAM bounded HTML manual source + staging live smoke complete with public latest UI visibility pending; Lithuania OAM bounded HTML manual source + staging live smoke complete with public latest UI visibility pending; Latvia CSRI bounded HTML manual source + staging live smoke complete with digest top-n visibility pending; remaining Europe candidates need endpoint/parser confirmation
 ```
 
 ## Candidate A: France Info-Financiere OAM API
@@ -929,7 +929,7 @@ legacy URL redirect: https://www.oricgs.lv/ -> https://csri.investinfo.lv/lv/
 observed HTTP: 200
 observed content-type: text/html; charset=utf-8
 observed shape: Joomla HTML table of latest documents with Date Time, Issuer, Version, Language, Title, and csridocumentsdetails id links
-status: MANUAL_SOURCE_REGISTERED_LOCAL_LIVE_PARSER_PASS_STAGING_SMOKE_PENDING
+status: MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS_DIGEST_TOP_N_VISIBILITY_PENDING_SCHEDULED_POLLING_DISABLED
 ```
 
 Why this fits the product:
@@ -947,7 +947,8 @@ Implementation status:
 Manual source lv_csri_regulated_information exists with active=false and candidate_status=manual_staging_only.
 The source uses parser_key=lv_csri_regulated_information_html_v1 against the official CSRI latest-documents table.
 Fixture source_payloads/lv_csri_regulated_information.html captures the bounded public HTML row shape.
-Staging live poll remains pending.
+Fly staging live poll returned fetch.mode=live, HTTP 200, fetch.bytes=71883, records_seen=20, records_inserted=20, canonical_items=20, and no fixture fallback.
+Current digest top-n windows did not include Latvia CSRI rows because existing higher-ranked/diverse items filled the visible digest windows.
 Scheduled polling remains disabled until the broader EU source batch is intentionally promoted.
 ```
 
@@ -972,7 +973,7 @@ Scheduled polling remains disabled until the broader EU source batch is intentio
 16. Keep Slovakia CERI regulated information as a proven manual_staging_only official OAM-style HTML parser candidate with date-specific digest visibility passing and public latest UI visibility pending.
 17. Keep Estonia OAM market announcements as a proven manual_staging_only official OAM-style HTML parser candidate with date-specific digest visibility passing and public latest UI visibility pending.
 18. Keep Lithuania OAM regulated information as a proven manual_staging_only official OAM-style HTML parser candidate with date-specific digest visibility passing and public latest UI visibility pending.
-19. Keep Latvia CSRI / ORICGS regulated information as a manual_staging_only official OAM-style HTML parser candidate with staging smoke pending.
+19. Keep Latvia CSRI / ORICGS regulated information as a proven manual_staging_only official OAM-style HTML parser candidate with digest top-n/public latest UI visibility pending.
 20. Continue endpoint/parser discovery for Germany official register surfaces, OeKB issuerinfo, Portugal, Prague, and other official issuer-announcement surfaces.
 21. Only batch-promote scheduled EU polling after the target list, rollback path, source-specific parser risk, and staging live smoke evidence are documented together.
 ```
@@ -1031,11 +1032,12 @@ ESTONIA_OAM_MARKET_ANNOUNCEMENTS_PUBLIC_LATEST_UI_VISIBILITY_PENDING
 LITHUANIA_OAM_REGULATED_INFORMATION_MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS
 LITHUANIA_OAM_REGULATED_INFORMATION_DATE_SPECIFIC_DIGEST_VISIBILITY_PASS
 LITHUANIA_OAM_REGULATED_INFORMATION_PUBLIC_LATEST_UI_VISIBILITY_PENDING
-LATVIA_CSRI_REGULATED_INFORMATION_MANUAL_SOURCE_REGISTERED_LOCAL_LIVE_PARSER_PASS_STAGING_SMOKE_PENDING
+LATVIA_CSRI_REGULATED_INFORMATION_MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS
+LATVIA_CSRI_REGULATED_INFORMATION_DIGEST_TOP_N_VISIBILITY_PENDING
 GERMANY_OFFICIAL_REGISTER_SURFACE_DIRECTION_FOUND_MACHINE_ENDPOINT_PENDING
 EURONEXT_COMPANY_PRESS_RELEASES_PUBLIC_HTML_SURFACE_FOUND
 BORSA_ITALIANA_POINTS_TO_CONSOB_AUTHORIZED_STORAGE_SYSTEMS
 ESMA_OAM_DIRECTORY_ACCEPTED_AS_AUTHORITY_MAP_NOT_POLL_SOURCE
-EU_NEXT_IMPLEMENTATION_STEP_LATVIA_STAGING_SMOKE_THEN_PORTUGAL_OR_PRAGUE_ENDPOINT_DISCOVERY
+EU_NEXT_IMPLEMENTATION_STEP_PORTUGAL_OR_PRAGUE_ENDPOINT_DISCOVERY_AFTER_LATVIA_STAGING_SMOKE
 EU_SCHEDULED_LIVE_POLLING_BLOCKED
 ```
