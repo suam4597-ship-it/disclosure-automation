@@ -124,6 +124,9 @@ defmodule DisclosureAutomation.Parser do
   @lt_oam_base_url "https://www.oam.lt"
   @lv_csri_base_url "https://csri.investinfo.lv"
   @cmvm_portal_url "https://www.cmvm.pt/PInstitucional/PortalInstitucional?Input_language=en-US"
+  @oekb_oam_detail_base_url "https://my.oekb.at/kapitalmarkt-services/kms-output/oamn/iic/detail?doc-id="
+  @oekb_oam_download_base_url "https://my.oekb.at/issuer-info/rest/public/meldedaten/download/"
+  @oekb_oam_list_url "https://my.oekb.at/kapitalmarkt-services/kms-output/oamn/iic/list"
 
   def parse(parser_key, raw_payload, opts \\ [])
       when is_binary(parser_key) and is_binary(raw_payload) do
@@ -161,6 +164,9 @@ defmodule DisclosureAutomation.Parser do
 
   defp parse_by_key("cmvm_portal_info_privi_json_v1", raw_payload),
     do: parse_cmvm_portal_info_privi(raw_payload)
+
+  defp parse_by_key("oekb_oam_issuer_info_json_v1", raw_payload),
+    do: parse_oekb_oam_issuer_info(raw_payload)
 
   defp parse_by_key("nasdaq_nordic_cns_jsonp_v1", raw_payload),
     do: parse_nasdaq_nordic_cns(raw_payload)
@@ -918,6 +924,158 @@ defmodule DisclosureAutomation.Parser do
     do: DateTime.add(datetime, -3_600, :second)
 
   defp cmvm_apply_lisbon_zone(datetime), do: datetime
+
+  defp parse_oekb_oam_issuer_info(raw_payload) do
+    with {:ok, decoded} <- Jason.decode(raw_payload),
+         records when is_list(records) <- oekb_oam_issuer_info_records(decoded) do
+      items =
+        records
+        |> Enum.map(&parse_oekb_oam_issuer_info_record/1)
+        |> Enum.filter(&(&1.url && &1.title))
+
+      {:ok, items}
+    else
+      {:error, error} -> {:error, {:invalid_json, error}}
+      _ -> {:error, {:invalid_json_shape, "oekb_oam_issuer_info_json_v1"}}
+    end
+  end
+
+  defp oekb_oam_issuer_info_records(%{"dokumente" => records}) when is_list(records),
+    do: records
+
+  defp oekb_oam_issuer_info_records(_decoded), do: nil
+
+  defp parse_oekb_oam_issuer_info_record(record) when is_map(record) do
+    issuer = record |> Map.get("emittent", %{}) |> string_field("name")
+    title = string_field(record, "titel")
+    file_id = oekb_oam_first_file_id(record)
+
+    %{
+      external_id: join_non_empty(["oekb", string_field(record, "id") || file_id], ":"),
+      title: oekb_oam_title(issuer, title),
+      url: oekb_oam_url(string_field(record, "id"), file_id),
+      summary: oekb_oam_summary(record, issuer),
+      published_at: oekb_oam_datetime(record),
+      category: string_field(record, "meldetypCode")
+    }
+  end
+
+  defp parse_oekb_oam_issuer_info_record(_record) do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: DateTime.utc_now(),
+      category: nil
+    }
+  end
+
+  defp oekb_oam_title(nil, title), do: title
+  defp oekb_oam_title(issuer, nil), do: issuer
+
+  defp oekb_oam_title(issuer, title) do
+    if String.contains?(String.downcase(title), String.downcase(issuer)) do
+      title
+    else
+      join_non_empty([issuer, title], " - ")
+    end
+  end
+
+  defp oekb_oam_url(nil, nil), do: @oekb_oam_list_url
+
+  defp oekb_oam_url(_record_id, file_id) when is_binary(file_id),
+    do: @oekb_oam_download_base_url <> file_id
+
+  defp oekb_oam_url(record_id, nil), do: @oekb_oam_detail_base_url <> record_id
+
+  defp oekb_oam_summary(record, issuer) do
+    files =
+      record
+      |> Map.get("dateien", [])
+      |> Enum.map(&string_field(&1, "dateiname"))
+      |> Enum.reject(&is_nil/1)
+      |> Enum.take(3)
+      |> Enum.join(", ")
+
+    isin_values =
+      record
+      |> Map.get("isinBezug", [])
+      |> oekb_oam_string_list()
+      |> Enum.take(3)
+      |> Enum.join(", ")
+
+    join_non_empty(
+      [
+        "OeKB OAM Issuer Info regulated information",
+        prefixed("Issuer", issuer),
+        prefixed("Type", string_field(record, "meldetypCode")),
+        prefixed("Obligation", string_field(record, "meldeTypType")),
+        prefixed("Language", string_field(record, "sprachcode")),
+        prefixed("ISIN", isin_values),
+        prefixed("Files", files)
+      ],
+      " | "
+    )
+  end
+
+  defp oekb_oam_first_file_id(%{"dateien" => files}) when is_list(files) do
+    Enum.find_value(files, &string_field(&1, "id"))
+  end
+
+  defp oekb_oam_first_file_id(_record), do: nil
+
+  defp oekb_oam_string_list(values) when is_list(values) do
+    values
+    |> Enum.map(fn
+      value when is_binary(value) ->
+        value
+        |> String.trim()
+        |> case do
+          "" -> nil
+          cleaned -> cleaned
+        end
+
+      _value ->
+        nil
+    end)
+    |> Enum.reject(&is_nil/1)
+  end
+
+  defp oekb_oam_string_list(_values), do: []
+
+  defp oekb_oam_datetime(record) do
+    record
+    |> Map.get("uploadzeitpunkt")
+    |> oekb_oam_unix_ms_datetime()
+    |> case do
+      %DateTime{} = datetime -> datetime
+      nil -> DateTime.utc_now()
+    end
+  end
+
+  defp oekb_oam_unix_ms_datetime(value) when is_integer(value) do
+    case DateTime.from_unix(value, :millisecond) do
+      {:ok, datetime} ->
+        if DateTime.compare(datetime, DateTime.add(DateTime.utc_now(), 86_400, :second)) == :gt do
+          nil
+        else
+          datetime
+        end
+
+      _ ->
+        nil
+    end
+  end
+
+  defp oekb_oam_unix_ms_datetime(value) when is_binary(value) do
+    case Integer.parse(value) do
+      {parsed, ""} -> oekb_oam_unix_ms_datetime(parsed)
+      _ -> nil
+    end
+  end
+
+  defp oekb_oam_unix_ms_datetime(_value), do: nil
 
   defp parse_nasdaq_nordic_cns(raw_payload) do
     with {:ok, decoded} <- decode_json_or_jsonp(raw_payload),
@@ -3031,6 +3189,32 @@ defmodule DisclosureAutomation.Ingestion do
     end
   end
 
+  defp validate_live_payload(
+         %SourceRegistry{parser_key: "oekb_oam_issuer_info_json_v1"},
+         response
+       ) do
+    cond do
+      html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "oekb_oam_issuer_info_json_v1",
+          content_type(response.headers)}}
+
+      html_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "oekb_oam_issuer_info_json_v1", :html}}
+
+      not json_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "oekb_oam_issuer_info_json_v1",
+          content_type(response.headers)}}
+
+      not oekb_oam_issuer_info_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "oekb_oam_issuer_info_json_v1", :unexpected_json}}
+
+      true ->
+        :ok
+    end
+  end
+
   defp validate_live_payload(%SourceRegistry{parser_key: "nasdaq_nordic_cns_jsonp_v1"}, response) do
     cond do
       html_content_type?(response.headers) ->
@@ -3387,6 +3571,13 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp cmvm_portal_info_privi_payload?(_body), do: false
+
+  defp oekb_oam_issuer_info_payload?(body) when is_binary(body) do
+    body =~ "\"anzahlTreffer\"" and body =~ "\"dokumente\"" and
+      body =~ "\"uploadzeitpunkt\"" and body =~ "\"emittent\""
+  end
+
+  defp oekb_oam_issuer_info_payload?(_body), do: false
 
   defp nasdaq_nordic_cns_payload?(body) when is_binary(body) do
     body =~ "handleResponse(" and body =~ "\"results\"" and body =~ "\"item\""

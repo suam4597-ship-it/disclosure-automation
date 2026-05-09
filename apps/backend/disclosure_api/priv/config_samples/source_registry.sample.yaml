@@ -855,6 +855,36 @@ sources:
       live_headers:
         accept: text/html
 
+  - source_key: at_oekb_oam_issuer_info
+    display_name: Austria OeKB OAM Issuer Info
+    source_type: api
+    base_url: https://my.oekb.at/issuer-info/rest/public/meldedaten/iic?startPosition=0&offset=25&locale=en
+    healthcheck_url: https://www.oekb.at/en/capital-market-services/our-range-of-data-knowledge-creates-an-advantage/information-about-listed-issuers.html
+    parser_key: oekb_oam_issuer_info_json_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.16
+    coverage_tags:
+      - eu
+      - eu_central
+      - austria
+      - at
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - oam
+      - official_storage
+    active: false
+    config:
+      fixture_path: source_payloads/at_oekb_oam_issuer_info.json
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      max_items_per_poll: 25
+      live_timeout_ms: 30000
+      live_headers:
+        accept: application/json
+
   - source_key: de_xetra_frankfurt_newsboard
     display_name: Germany Xetra Frankfurt Newsboard
     source_type: html
