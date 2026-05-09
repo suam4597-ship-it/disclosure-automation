@@ -86,7 +86,7 @@ Exclusion reasons:
 
 ```text
 Germany Company Register has proven live compatibility, but the smoke date returned over_page_cap=true; separate pagination, duplicate, rate, captcha, and rollback design is recorded and multi-page staging smoke evidence is still required before scheduled polling.
-Prague/PSE uses source-specific multi-ISIN fan-out and should receive a separate cadence/rate design before scheduling.
+Prague/PSE uses source-specific multi-ISIN fan-out; separate cadence/rate design is recorded and issuer-window rotation plus repeated staging smoke evidence are still required before scheduling.
 The remaining manual candidates are valid, but the first canary should minimize parser-shape diversity and operational blast radius.
 Sources with digest top-N or public latest visibility pending can stay manual-only until the first canary observation window is understood.
 ```
@@ -281,6 +281,7 @@ Do not enable JP live polling before issue #339 source-authority decision is res
 3. Record first automated EU scheduled staging canary smoke after the cron fires.
 4. Record 7-day EU canary observation summary.
 5. Add separate Germany Company Register multi-page staging smoke only after the pagination/rate/captcha design is implemented in a staging-only path.
+6. Add separate Prague/PSE issuer-window rotation smoke only after the cadence/rate design is implemented in a staging-only path.
 ```
 
 ## Current Conclusion
@@ -290,5 +291,6 @@ EU_FIRST_SCHEDULED_STAGING_CANARY_RUNBOOK_READY
 EU_FIRST_CANARY_SOURCE_LIST_FINAL
 EU_WORKFLOW_CONFIG_PR_RECORDED
 GERMANY_COMPANY_REGISTER_PAGINATION_RATE_CAPTCHA_DESIGN_RECORDED
+PRAGUE_PSE_CADENCE_RATE_DESIGN_RECORDED
 EU_PRODUCTION_SCHEDULED_POLLING_BLOCKED
 ```
