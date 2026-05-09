@@ -1,0 +1,73 @@
+{
+  "anzahlTreffer": 53920,
+  "dokumente": [
+    {
+      "id": 248338,
+      "emittent": {
+        "id": 184773,
+        "name": "AUSTRIACARD HOLDINGS AG",
+        "lei": "529900QI445M00DK4407",
+        "aktiv": true,
+        "ort": "Wien"
+      },
+      "titel": "EQS-DD: AUSTRIACARD HOLDINGS AG: Notification and public disclosure of transactions by persons discharging managerial responsibilities and persons closely associated with them",
+      "kurzbeschreibung": "EQS-DD: AUSTRIACARD HOLDINGS AG: Notification and public disclosure of transactions by persons discharging managerial responsibilities and persons closely associated with them\n\nUser: AUSTRIACARD HOLDINGS AG",
+      "enKurzbeschreibung": null,
+      "lei": null,
+      "meldetypCode": "EP_EIGENGESCHAEFT_VON_FUEHRUNGSKRAFT",
+      "meldeTypType": "MANDATORY",
+      "sprachcode": "EN",
+      "uploadzeitpunkt": 1778251887327,
+      "status": "VEROEFFENTLICHT",
+      "von": null,
+      "bis": null,
+      "isinBezug": [
+        "AT0000A325L0"
+      ],
+      "dateien": [
+        {
+          "id": 248337,
+          "dateiname": "dd_E_2026_05_08T16_50_01.pdf",
+          "isinBezug": null,
+          "type": null,
+          "sprachcode": "EN",
+          "sizeInKB": 30685
+        }
+      ]
+    },
+    {
+      "id": 248324,
+      "emittent": {
+        "id": 112109,
+        "name": "BAWAG Group AG",
+        "lei": "529900S9YO2JHTIIDG38",
+        "aktiv": true,
+        "ort": "Wien"
+      },
+      "titel": "PTA-DD: Managers' transactions announcement according to article 19 MAR",
+      "kurzbeschreibung": "PTA-DD: Managers' transactions announcement according to article 19 MAR\n\nUser: BAWAG Group Compliance",
+      "enKurzbeschreibung": null,
+      "lei": null,
+      "meldetypCode": "EP_EIGENGESCHAEFT_VON_FUEHRUNGSKRAFT",
+      "meldeTypType": "MANDATORY",
+      "sprachcode": "EN",
+      "uploadzeitpunkt": 1778174033257,
+      "status": "VEROEFFENTLICHT",
+      "von": null,
+      "bis": null,
+      "isinBezug": [
+        "AT0000BAWAG2 (Aktie), "
+      ],
+      "dateien": [
+        {
+          "id": 248323,
+          "dateiname": "news_7173652_20260507_1912.pdf",
+          "isinBezug": null,
+          "type": null,
+          "sprachcode": "EN",
+          "sizeInKB": 8484
+        }
+      ]
+    }
+  ]
+}

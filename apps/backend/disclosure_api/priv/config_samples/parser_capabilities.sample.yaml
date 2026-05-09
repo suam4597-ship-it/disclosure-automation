@@ -187,6 +187,49 @@ parsers:
       reject_non_cmvm_info_privi_payload: true
       reject_future_timestamps: true
 
+  - parser_key: oekb_oam_issuer_info_json_v1
+    display_name: Austria OeKB OAM Issuer Info JSON Parser
+    enabled: true
+    input_types: [json, api]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: true
+    supports_detail_fetch: true
+    extraction:
+      id_fields:
+        - dokumente.id
+        - dokumente.dateien.id
+      title_fields:
+        - dokumente.emittent.name
+        - dokumente.titel
+      summary_fields:
+        - dokumente.meldetypCode
+        - dokumente.meldeTypType
+        - dokumente.sprachcode
+        - dokumente.isinBezug
+        - dokumente.dateien.dateiname
+      url_fields:
+        - generated_download_url
+        - generated_detail_url
+      published_at_fields:
+        - dokumente.uploadzeitpunkt
+      category_fields:
+        - dokumente.meldetypCode
+    normalization:
+      source_shape: oekb_oam_issuer_info_json
+      trim_html: true
+      collapse_whitespace: true
+      timezone_strategy: epoch_milliseconds_utc
+      generated_url_strategy: official_oekb_download_or_detail_url
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_html_payload: true
+      reject_non_oekb_oam_payload: true
+      reject_future_timestamps: true
+
   - parser_key: nasdaq_nordic_cns_jsonp_v1
     display_name: Nasdaq Nordic Company News JSONP Parser
     enabled: true
