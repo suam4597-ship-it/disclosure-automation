@@ -22,6 +22,7 @@ public Pages URL: https://suam4597-ship-it.github.io/disclosure-automation/
 latest Germany candidate PR: #442 Add Germany Company Register manual candidate
 latest Germany smoke PR: #443 Record Germany Company Register staging smoke
 latest Germany scheduling-blocker design: globalpulse_germany_company_register_pagination_rate_captcha_design.md
+latest Prague/PSE scheduling-blocker design: globalpulse_prague_pse_cadence_rate_design.md
 first canary runbook: globalpulse_eu_scheduled_staging_canary_runbook.md
 first canary configuration result: globalpulse_eu_scheduled_staging_canary_configuration_results.md
 current source default: active=false
@@ -111,7 +112,7 @@ Rationale:
 
 ```text
 Germany Company Register has a proven over_page_cap=true condition for the smoke date; its pagination/rate/captcha design is recorded separately and still requires multi-page staging smoke evidence before scheduling.
-Prague/PSE uses source-specific multi-ISIN fan-out and should get its own cadence/rate design before scheduling.
+Prague/PSE uses source-specific multi-ISIN fan-out; its cadence/rate design is recorded separately and still requires issuer-window rotation plus repeated staging smoke evidence before scheduling.
 The remaining sources are valid manual candidates, but the first canary should be deliberately small to isolate failures and digest impact.
 Some bounded HTML and high-volume sources have digest top-n or public latest visibility pending, which is acceptable for manual status but not enough for first batch scheduling.
 ```
@@ -258,6 +259,7 @@ Do not enable JP live polling before issue #339 source-authority decision is res
 3. Record first scheduled staging canary smoke after the workflow runs.
 4. Record a 7-day EU canary observation summary before any production decision.
 5. Record Germany Company Register multi-page staging smoke only after the separate pagination/rate/captcha design is implemented in a staging-only path.
+6. Record Prague/PSE issuer-window rotation smoke only after the separate cadence/rate design is implemented in a staging-only path.
 ```
 
 ## Current Conclusion
@@ -271,6 +273,7 @@ EU_DEFAULT_BRANCH_ACTIVATION_PASS
 EU_CANARY_MANUAL_DISPATCH_PATH_RECORDED
 EU_CANARY_WORKFLOW_DISPATCH_PASS
 GERMANY_COMPANY_REGISTER_PAGINATION_RATE_CAPTCHA_DESIGN_RECORDED
+PRAGUE_PSE_CADENCE_RATE_DESIGN_RECORDED
 EU_HIGHER_RISK_MANUAL_SOURCES_DEFERRED
 EU_PRODUCTION_SCHEDULED_POLLING_BLOCKED
 NEXT_STEP_EU_FIRST_AUTOMATED_CANARY_SMOKE

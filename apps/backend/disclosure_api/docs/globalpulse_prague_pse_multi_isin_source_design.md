@@ -12,6 +12,7 @@ PRAGUE_PSE_ISSUER_UNIVERSE_SURFACE_CONFIRMED
 PRAGUE_PSE_MULTI_ISIN_FANOUT_CONTRACT_RECORDED
 PRAGUE_PSE_ISSUER_NEWS_MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS
 PRAGUE_PSE_ISSUER_REPORT_CALENDAR_MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS
+PRAGUE_PSE_CADENCE_RATE_DESIGN_RECORDED
 PRAGUE_PSE_STATIC_SINGLE_URL_SOURCE_BLOCKED
 PRAGUE_PSE_SCHEDULED_POLLING_DISABLED
 ```
@@ -136,6 +137,7 @@ Promotion caps after staging evidence:
 max_issuers_per_poll: 25
 max_items_per_poll: 50
 scheduled polling: still disabled until EU batch promotion design
+cadence/rate gate: globalpulse_prague_pse_cadence_rate_design.md
 ```
 
 ## Parser Contract
@@ -227,7 +229,8 @@ The issuer-news-only source-specific fetch adapter passed local fixture/live par
 Staging live poll inserted 15 canonical PSE issuer-news rows with fetch.mode=live, universe_count=63, selected_issuer_count=10, and fixture fallback disabled.
 Date-specific digest visibility passed for historical PSE rows on 2022-02-25 and 2021-06-01.
 The issuer-report-calendar candidate passed local fixture smoke, live aggregate parser smoke with universe_count=63, selected_count=10, response_records=65, strict_records=20, and Fly staging live poll smoke with records_seen=20 and records_inserted=20.
-Keep both PSE candidates manual-only until EU scheduled polling promotion is designed.
+The cadence/rate design is recorded in globalpulse_prague_pse_cadence_rate_design.md.
+Keep both PSE candidates manual-only until issuer-window rotation, request budget, source separation, and repeated staging smoke evidence pass under that design.
 Do not register the HTML root, global PSE news endpoint, or per-issuer endpoints as standalone rss_v1 sources.
 Keep EU scheduled polling disabled.
 ```

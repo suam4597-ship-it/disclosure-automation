@@ -10,6 +10,7 @@ PRAGUE_PSE_ISSUER_NEWS_SOURCE_HEALTH_PASS
 PRAGUE_PSE_ISSUER_NEWS_STAGING_LIVE_POLL_PASS
 PRAGUE_PSE_ISSUER_NEWS_CANONICAL_INSERT_PASS
 PRAGUE_PSE_ISSUER_NEWS_DATE_SPECIFIC_DIGEST_VISIBILITY_PASS
+PRAGUE_PSE_CADENCE_RATE_DESIGN_RECORDED
 PRAGUE_PSE_ISSUER_NEWS_MANUAL_ONLY_READY
 ```
 
@@ -178,6 +179,6 @@ no central-bank, macro, or policy feed added
 ## Next Step
 
 ```text
-Continue Europe listed-company disclosure expansion with Germany official company-register preflight/token contract work or Prague/PSE issuer-report publication-date contract discovery.
-Do not batch-promote scheduled EU polling until the wider source list, rollback path, source-specific risk, and staging evidence are documented together.
+The cadence/rate design is recorded in globalpulse_prague_pse_cadence_rate_design.md.
+Keep this source manual-only until issuer-window rotation, request budget, source separation, and repeated staging smoke evidence pass under that design.
 ```
