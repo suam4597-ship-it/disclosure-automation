@@ -14,7 +14,7 @@ GERMANY_COMPANY_REGISTER_NEXT_PAYLOAD_MARKER_CHANGED
 GERMANY_COMPANY_REGISTER_ISO_DATE_RANGE_QUERY_PASS
 GERMANY_COMPANY_REGISTER_PUBLICATION_DETAIL_URL_ROUTE_PASS
 GERMANY_COMPANY_REGISTER_DAILY_PAGINATION_OVER_CAP_CONFIRMED
-GERMANY_COMPANY_REGISTER_MANUAL_SOURCE_REGISTERED_IN_FOLLOW_UP
+GERMANY_COMPANY_REGISTER_MANUAL_SOURCE_REGISTERED_AND_SMOKED_IN_FOLLOW_UP
 GERMANY_COMPANY_REGISTER_SCHEDULED_POLLING_DISABLED
 ```
 
@@ -182,8 +182,8 @@ Keep scheduled polling disabled.
 ## Next Step
 
 ```text
-Run staging live poll smoke for the follow-up inactive/manual_staging_only candidate.
-Record source health, live fetch metadata, max_pages_per_poll, over_page_cap, records_seen, records_inserted, fixture fallback=false, and digest visibility.
+Follow-up staging live poll smoke is recorded in globalpulse_germany_company_register_staging_live_poll_smoke_results.md.
+Keep source health, live fetch metadata, max_pages_per_poll, over_page_cap, records_seen, records_inserted, fixture fallback=false, and digest visibility as required evidence for future follow-up smokes.
 Optionally probe PDF/XML download routes, but do not require them for canonical URL formation if /en/publication?payload remains stable.
 Keep scheduled EU polling disabled until over-cap pagination, duplicate-key behavior, rate/captcha behavior, and rollback are designed.
 ```

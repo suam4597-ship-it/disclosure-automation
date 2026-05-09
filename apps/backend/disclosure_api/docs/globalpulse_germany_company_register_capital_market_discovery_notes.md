@@ -16,7 +16,8 @@ GERMANY_COMPANY_REGISTER_ISO_DATE_RANGE_QUERY_CONFIRMED
 GERMANY_COMPANY_REGISTER_PUBLICATION_DETAIL_URL_ROUTE_CONFIRMED
 GERMANY_COMPANY_REGISTER_TOKEN_PREFLIGHT_FETCH_CONTRACT_RECORDED
 GERMANY_COMPANY_REGISTER_STATIC_POLL_URL_NOT_USED
-GERMANY_COMPANY_REGISTER_MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PENDING
+GERMANY_COMPANY_REGISTER_MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS
+GERMANY_COMPANY_REGISTER_DATE_SPECIFIC_DIGEST_VISIBILITY_PASS
 GERMANY_COMPANY_REGISTER_TOKEN_PREFLIGHT_FETCH_ADAPTER_ADDED
 ```
 
@@ -130,14 +131,14 @@ contract doc: globalpulse_germany_company_register_token_preflight_contract.md
 live_fetch_strategy: germany_company_register_token_preflight_v1
 parser_key: germany_company_register_capital_market_flight_v1
 candidate source_key: de_company_register_capital_market_info
-candidate registration: inactive/manual_staging_only registered
+candidate registration: inactive/manual_staging_only registered and staging live smoke passed
 reason scheduled promotion remains blocked: over-cap pagination, duplicate keys, rate/captcha behavior, and rollback still need a separate design
 ```
 
 ## Next Step
 
 ```text
-Run Fly staging live poll smoke for the inactive/manual_staging_only candidate.
+Record follow-up staging evidence in globalpulse_germany_company_register_staging_live_poll_smoke_results.md.
 Before any scheduled promotion, prove multi-page traversal, duplicate handling, rate limits, captcha/security-query behavior, and rollback behavior.
 Keep scheduled EU polling disabled.
 ```
