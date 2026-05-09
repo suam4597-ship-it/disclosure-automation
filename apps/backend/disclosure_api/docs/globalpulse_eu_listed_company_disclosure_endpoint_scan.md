@@ -655,7 +655,7 @@ observed HTTP: 200
 observed content-type: text/html
 observed shape: HTML ESPI/EBI company-report list with bounded report metadata, issuer link text, report title, geru_id detail links, status, system, report number, and publication timestamp
 supporting AJAX form: action=GPWEspiReportUnion, start=ajaxSearch, page=espi-ebi-reports, categoryRaports[]=EBI/ESPI
-status: MANUAL_SOURCE_REGISTERED_LOCAL_LIVE_PROBE_PENDING_STAGING_LIVE_POLL_PENDING
+status: MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS_PUBLIC_LATEST_UI_VISIBILITY_PENDING_SCHEDULED_POLLING_DISABLED
 ```
 
 Why this fits the product:
@@ -673,6 +673,10 @@ Parser gpw_espi_ebi_html_v1 exists.
 Manual source pl_gpw_espi_ebi_reports exists with active=false and candidate_status=manual_staging_only.
 Parser output is bounded to geru_id, issuer/company text, report title, source report URL, status, ESPI/EBI system, report number, and publication timestamp.
 Fixture source_payloads/pl_gpw_espi_ebi_reports.html captures the bounded public HTML shape.
+Local live probe returned 20 records from the official GPW HTML page and first external_id=488361.
+Fly staging live poll returned fetch.mode=live, HTTP 200, fetch.bytes=107916, records_seen=20, records_inserted=20, canonical_items=20, and metadata.fallback_to_fixture=false.
+Date-specific digest GET /api/feed/digest/2026-05-08/breaking rendered Poland GPW ESPI/EBI Company Reports under Central Europe.
+Public latest UI visibility remains pending because the source inserted 2026-05-08 items while the public shell currently renders latest digest date 2026-05-09.
 Scheduled polling remains disabled until the broader EU source batch is intentionally promoted.
 ```
 
@@ -689,7 +693,7 @@ Scheduled polling remains disabled until the broader EU source batch is intentio
 8. Keep Germany Xetra Frankfurt Newsboard as a proven manual_staging_only exchange-announcement candidate with public latest UI visibility pending.
 9. Keep Greece ATHEX issuer announcements and corporate actions as proven manual_staging_only RSS candidates with public latest UI visibility pending.
 10. Keep Norway Oslo Bors NewsWeb main market as a proven manual_staging_only API candidate with public latest UI visibility pending.
-11. Keep Poland GPW ESPI/EBI company reports as a manual_staging_only HTML parser candidate pending staging live smoke.
+11. Keep Poland GPW ESPI/EBI company reports as a proven manual_staging_only HTML parser candidate with public latest UI visibility pending.
 12. Continue endpoint/parser discovery for Germany official register surfaces, OeKB issuerinfo, Portugal, Prague, and other official issuer-announcement surfaces.
 13. Only batch-promote scheduled EU polling after the target list, rollback path, source-specific parser risk, and staging live smoke evidence are documented together.
 ```
@@ -727,11 +731,12 @@ AUSTRIA_WIENER_BORSE_PUBLIC_LATEST_UI_VISIBILITY_PENDING
 AUSTRIA_OEKB_ISSUERINFO_OFFICIAL_SURFACE_FOUND_MACHINE_ENDPOINT_PENDING
 NORWAY_OSLO_BORS_NEWSWEB_MAIN_MARKET_MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS
 NORWAY_OSLO_BORS_NEWSWEB_PUBLIC_LATEST_UI_VISIBILITY_PENDING
-POLAND_GPW_ESPI_EBI_COMPANY_REPORTS_MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PENDING
+POLAND_GPW_ESPI_EBI_COMPANY_REPORTS_MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS
+POLAND_GPW_ESPI_EBI_COMPANY_REPORTS_PUBLIC_LATEST_UI_VISIBILITY_PENDING
 GERMANY_OFFICIAL_REGISTER_SURFACE_DIRECTION_FOUND_MACHINE_ENDPOINT_PENDING
 EURONEXT_COMPANY_PRESS_RELEASES_PUBLIC_HTML_SURFACE_FOUND
 BORSA_ITALIANA_POINTS_TO_CONSOB_AUTHORIZED_STORAGE_SYSTEMS
 ESMA_OAM_DIRECTORY_ACCEPTED_AS_AUTHORITY_MAP_NOT_POLL_SOURCE
-EU_NEXT_IMPLEMENTATION_STEP_POLAND_GPW_STAGING_SMOKE_THEN_PORTUGAL_OR_PRAGUE_ENDPOINT_DISCOVERY
+EU_NEXT_IMPLEMENTATION_STEP_PORTUGAL_OR_PRAGUE_ENDPOINT_DISCOVERY
 EU_SCHEDULED_LIVE_POLLING_BLOCKED
 ```
