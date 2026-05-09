@@ -83,6 +83,15 @@ active: false
 scheduled polling: disabled
 ```
 
+First implementation slice:
+
+```text
+implemented source key: cz_pse_issuer_news_multi_isin
+implemented parser key: pse_multi_isin_issuer_news_json_v1
+scope: issuer-news-only fan-out over official share-market ISIN universe
+reports: deferred until precise report publication-date semantics are confirmed
+```
+
 Fan-out sequence:
 
 ```text
@@ -188,8 +197,9 @@ report records are not canonicalized until a precise published_at contract is co
 ## Next Step
 
 ```text
-Implement the smallest manual-only candidate only after adding first-class fan-out support or a source-specific fetch adapter.
-Prefer an issuer-news-only candidate first if report publication dates cannot be confirmed.
+Validate the issuer-news-only source-specific fetch adapter locally, then deploy to Fly staging and record a live poll smoke result.
+Local fixture and live aggregate parser smoke passed for the issuer-news-only implementation slice.
+Keep reports deferred until report publication dates are confirmed.
 Do not register the HTML root, global PSE news endpoint, or per-issuer endpoints as standalone rss_v1 sources.
 Keep EU scheduled polling disabled.
 ```

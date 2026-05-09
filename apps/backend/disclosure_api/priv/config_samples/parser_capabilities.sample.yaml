@@ -230,6 +230,46 @@ parsers:
       reject_non_oekb_oam_payload: true
       reject_future_timestamps: true
 
+  - parser_key: pse_multi_isin_issuer_news_json_v1
+    display_name: Prague PSE Multi-ISIN Issuer News JSON Parser
+    enabled: true
+    input_types: [json, api, fanout]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: false
+    supports_detail_fetch: false
+    extraction:
+      id_fields:
+        - responses.data.id
+      title_fields:
+        - responses.data.title
+      summary_fields:
+        - responses.data.type
+        - responses.data.content
+        - responses.isin
+      url_fields:
+        - generated_news_slug_url
+        - generated_issuer_detail_url
+      published_at_fields:
+        - responses.data.publishedAt
+      category_fields:
+        - responses.data.type
+    normalization:
+      source_shape: pse_multi_isin_fanout_json
+      trim_html: true
+      collapse_whitespace: true
+      timezone_strategy: prague_local_timestamp_to_utc_approx
+      generated_url_strategy: official_pse_news_slug_or_issuer_detail_url
+      missing_summary_strategy: bounded_metadata_summary
+      row_filter_strategy: require_query_isin_in_row_isin_list
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_html_payload: true
+      reject_non_pse_multi_isin_payload: true
+      reject_future_timestamps: true
+
   - parser_key: nasdaq_nordic_cns_jsonp_v1
     display_name: Nasdaq Nordic Company News JSONP Parser
     enabled: true
