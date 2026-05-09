@@ -1125,7 +1125,8 @@ Alternatively, continue Czech official OAM discovery if a stable machine-readabl
 21. Keep Portugal CMVM portal InfoPrivi as a proven manual_staging_only bounded latest-disclosure API candidate with digest top-n/public latest UI visibility pending.
 22. Keep Prague/PSE issuer news and issuer report calendar as proven manual_staging_only source-specific fan-out candidates with date-specific digest visibility passing.
 23. Keep Germany Company Register capital-market information as a proven inactive/manual_staging_only candidate with date-specific digest visibility passing and public latest UI visibility pending; do not promote it to scheduled polling until over-cap pagination, duplicate handling, rate/captcha behavior, and rollback are designed.
-24. Only batch-promote scheduled EU polling after the target list, rollback path, source-specific parser risk, and staging live smoke evidence are documented together.
+24. Use globalpulse_eu_source_batch_promotion_design.md as the next decision gate before any EU scheduled staging canary.
+25. Only batch-promote scheduled EU polling after the target list, rollback path, source-specific parser risk, and staging live smoke evidence are documented together.
 ```
 
 ## Explicit Non-Goals
@@ -1198,9 +1199,10 @@ GERMANY_COMPANY_REGISTER_TOKEN_PREFLIGHT_FETCH_ADAPTER_ADDED
 GERMANY_COMPANY_REGISTER_ISO_DATE_RANGE_AND_PUBLICATION_DETAIL_ROUTE_CONFIRMED
 GERMANY_COMPANY_REGISTER_DATE_SPECIFIC_DIGEST_VISIBILITY_PASS
 GERMANY_COMPANY_REGISTER_PUBLIC_LATEST_UI_VISIBILITY_PENDING
+EU_BATCH_PROMOTION_DESIGN_RECORDED
 EURONEXT_COMPANY_PRESS_RELEASES_PUBLIC_HTML_SURFACE_FOUND
 BORSA_ITALIANA_POINTS_TO_CONSOB_AUTHORIZED_STORAGE_SYSTEMS
 ESMA_OAM_DIRECTORY_ACCEPTED_AS_AUTHORITY_MAP_NOT_POLL_SOURCE
-EU_NEXT_IMPLEMENTATION_STEP_EU_BATCH_PROMOTION_DESIGN_OR_NEXT_OFFICIAL_LISTED_COMPANY_DISCLOSURE_SOURCE
+EU_NEXT_IMPLEMENTATION_STEP_EU_SCHEDULED_STAGING_CANARY_RUNBOOK_OR_NEXT_OFFICIAL_LISTED_COMPANY_DISCLOSURE_SOURCE
 EU_SCHEDULED_LIVE_POLLING_BLOCKED
 ```
