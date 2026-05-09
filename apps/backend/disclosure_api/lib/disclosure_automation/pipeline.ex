@@ -1978,13 +1978,33 @@ defmodule DisclosureAutomation.Parser do
         end
 
       _ ->
-        parse_iso8601_pub_date(pub_date) || parse_short_month_pub_date(pub_date)
+        parse_iso8601_pub_date(pub_date) || parse_rfc1123_pub_date_without_zone(pub_date) ||
+          parse_short_month_pub_date(pub_date)
     end
   end
 
   defp parse_iso8601_pub_date(pub_date) do
     case DateTime.from_iso8601(pub_date) do
       {:ok, datetime, _offset} -> datetime
+      _ -> nil
+    end
+  end
+
+  defp parse_rfc1123_pub_date_without_zone(pub_date) do
+    with [_, _weekday, day_text, month_text, year_text, hour_text, minute_text, second_text] <-
+           Regex.run(
+             ~r/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun),\s+(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4})\s+(\d{2}):(\d{2}):(\d{2})\s*$/u,
+             pub_date
+           ),
+         {day, ""} <- Integer.parse(day_text),
+         {:ok, month} <- month_number(month_text),
+         {year, ""} <- Integer.parse(year_text),
+         {hour, ""} <- Integer.parse(hour_text),
+         {minute, ""} <- Integer.parse(minute_text),
+         {second, ""} <- Integer.parse(second_text),
+         {:ok, datetime} <- build_utc_datetime(year, month, day, hour, minute, second) do
+      datetime
+    else
       _ -> nil
     end
   end
