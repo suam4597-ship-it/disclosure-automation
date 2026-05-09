@@ -712,6 +712,36 @@ Date-specific digest 2026-05-08/breaking includes the first Hungary item under e
 Scheduled polling remains disabled until the broader EU source batch is intentionally promoted.
 ```
 
+## Candidate P: Romania Bucharest Stock Exchange Current Reports
+
+```text
+owner: Bucharest Stock Exchange
+authority class: official exchange issuer current-report surface
+candidate URL: https://bvb.ro/FinancialInstruments/SelectedData/CurrentReports
+observed HTTP: 200
+observed content-type: text/html; charset=utf-8
+observed shape: ASP.NET HTML table with symbol, issuer/company, description, publication timestamp, document type, PDF links, and /FinancialInstruments/SelectedData/NewsItem/... detail links
+status: MANUAL_SOURCE_REGISTERED_LOCAL_LIVE_PROBE_PENDING_STAGING_LIVE_POLL_PENDING
+```
+
+Why this fits the product:
+
+```text
+The BVB Current Reports page is an official Bucharest Stock Exchange issuer-report surface and lists listed-company announcements/current reports, not central-bank, macro, or policy material.
+The public page exposes bounded issuer, ticker, ISIN, description, timestamp, document type, and BVB NewsItem/detail-link metadata directly in HTML.
+The first integration intentionally uses a bounded HTML parser instead of rss_v1 because the official surface is HTML.
+```
+
+Implementation status:
+
+```text
+Parser bvb_current_reports_html_v1 exists.
+Manual source ro_bvb_current_reports exists with active=false and candidate_status=manual_staging_only.
+Parser output is bounded to BVB NewsItem/PDF URL, issuer, description, ticker, ISIN, document type, and publication timestamp.
+Fixture source_payloads/ro_bvb_current_reports.html captures the bounded public HTML table shape.
+Scheduled polling remains disabled until the broader EU source batch is intentionally promoted.
+```
+
 ## Recommended EU v1 Path
 
 ```text
@@ -727,8 +757,9 @@ Scheduled polling remains disabled until the broader EU source batch is intentio
 10. Keep Norway Oslo Bors NewsWeb main market as a proven manual_staging_only API candidate with public latest UI visibility pending.
 11. Keep Poland GPW ESPI/EBI company reports as a proven manual_staging_only HTML parser candidate with public latest UI visibility pending.
 12. Keep Hungary Budapest Stock Exchange Issuers News as a proven manual_staging_only HTML parser candidate with public latest UI visibility pending.
-13. Continue endpoint/parser discovery for Germany official register surfaces, OeKB issuerinfo, Portugal, Prague, Bucharest BVB IRIS, and other official issuer-announcement surfaces.
-14. Only batch-promote scheduled EU polling after the target list, rollback path, source-specific parser risk, and staging live smoke evidence are documented together.
+13. Keep Romania BVB Current Reports as a manual_staging_only HTML parser candidate pending staging live smoke.
+14. Continue endpoint/parser discovery for Germany official register surfaces, OeKB issuerinfo, Portugal, Prague, and other official issuer-announcement surfaces.
+15. Only batch-promote scheduled EU polling after the target list, rollback path, source-specific parser risk, and staging live smoke evidence are documented together.
 ```
 
 ## Explicit Non-Goals
@@ -768,10 +799,11 @@ POLAND_GPW_ESPI_EBI_COMPANY_REPORTS_MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_P
 POLAND_GPW_ESPI_EBI_COMPANY_REPORTS_PUBLIC_LATEST_UI_VISIBILITY_PENDING
 HUNGARY_BSE_ISSUERS_NEWS_MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS
 HUNGARY_BSE_ISSUERS_NEWS_PUBLIC_LATEST_UI_VISIBILITY_PENDING
+ROMANIA_BVB_CURRENT_REPORTS_MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PENDING
 GERMANY_OFFICIAL_REGISTER_SURFACE_DIRECTION_FOUND_MACHINE_ENDPOINT_PENDING
 EURONEXT_COMPANY_PRESS_RELEASES_PUBLIC_HTML_SURFACE_FOUND
 BORSA_ITALIANA_POINTS_TO_CONSOB_AUTHORIZED_STORAGE_SYSTEMS
 ESMA_OAM_DIRECTORY_ACCEPTED_AS_AUTHORITY_MAP_NOT_POLL_SOURCE
-EU_NEXT_IMPLEMENTATION_STEP_PORTUGAL_OR_PRAGUE_ENDPOINT_DISCOVERY
+EU_NEXT_IMPLEMENTATION_STEP_PORTUGAL_OR_PRAGUE_ENDPOINT_DISCOVERY_AFTER_ROMANIA_STAGING_SMOKE
 EU_SCHEDULED_LIVE_POLLING_BLOCKED
 ```
