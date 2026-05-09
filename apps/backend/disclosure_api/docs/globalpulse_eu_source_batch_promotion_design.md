@@ -21,6 +21,7 @@ backend URL: https://globalpulse-backend-staging.fly.dev
 public Pages URL: https://suam4597-ship-it.github.io/disclosure-automation/
 latest Germany candidate PR: #442 Add Germany Company Register manual candidate
 latest Germany smoke PR: #443 Record Germany Company Register staging smoke
+first canary runbook: globalpulse_eu_scheduled_staging_canary_runbook.md
 current source default: active=false
 current candidate status default: manual_staging_only
 scheduled EU polling: disabled
@@ -262,7 +263,8 @@ Do not enable JP live polling before issue #339 source-authority decision is res
 ```text
 EU_MANUAL_SOURCE_BATCH_READY_FOR_CONSERVATIVE_STAGING_CANARY_DESIGN
 EU_FIRST_CANARY_SOURCE_SET_RECOMMENDED
+EU_SCHEDULED_STAGING_CANARY_RUNBOOK_RECORDED
 EU_HIGHER_RISK_MANUAL_SOURCES_DEFERRED
 EU_PRODUCTION_SCHEDULED_POLLING_BLOCKED
-NEXT_STEP_EU_SCHEDULED_STAGING_CANARY_RUNBOOK_OR_CONFIG_PR
+NEXT_STEP_EU_SCHEDULED_STAGING_CANARY_CONFIG_PR
 ```
