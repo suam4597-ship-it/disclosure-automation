@@ -10,7 +10,7 @@ This is documentation-only. It does not add runtime code, routes, controllers, m
 EU_SCHEDULED_STAGING_CANARY_WORKFLOW_CONFIGURED_ON_PHASE0
 EU_FIRST_CANARY_SOURCE_LIST_CONFIGURED
 EU_MANUAL_PREFLIGHT_CANARY_POLL_PASS
-EU_DEFAULT_BRANCH_ACTIVATION_PENDING
+EU_DEFAULT_BRANCH_ACTIVATION_PASS
 EU_PRODUCTION_SCHEDULED_POLLING_NOT_ENABLED
 ```
 
@@ -22,6 +22,8 @@ runbook doc: globalpulse_eu_scheduled_staging_canary_runbook.md
 workflow path: .github/workflows/globalpulse-live-staging-poll.yml
 backend URL: https://globalpulse-backend-staging.fly.dev
 branch target: phase0-foundation
+main activation PR: #447 Activate EU staging canary schedule on main
+main activation merge commit: 09fdcb747022bf47709e913298495c595819f6fe
 source status: active=false
 candidate status: manual_staging_only
 ```
@@ -128,15 +130,18 @@ No first-canary source exceeded the configured 25-item cap in the manual preflig
 
 ## Default Branch Activation
 
-GitHub scheduled workflows execute from the repository default branch. This phase0 configuration does not by itself prove the EU cron will fire from the default branch if the default branch remains different from `phase0-foundation`.
+GitHub scheduled workflows execute from the repository default branch. PR #447 applied the workflow-only EU canary schedule change to `main`, which is the repository default branch.
 
-Required follow-up:
+Verified default-branch workflow state:
 
 ```text
-apply the workflow-only EU schedule change to the repository default branch if needed
-confirm the default-branch workflow remains active
-wait for the next 17 */4 * * 1-5 cron
-record first automated EU scheduled staging canary smoke
+default branch: main
+workflow path: .github/workflows/globalpulse-live-staging-poll.yml
+SEC cron present: 7 * * * *
+India NSE cron present: 37 */2 * * 1-5
+EU canary cron present: 17 */4 * * 1-5
+EU canary run mode: eu_canary
+default branch activation: complete
 ```
 
 ## Guardrails Preserved
@@ -177,7 +182,7 @@ any rollback action if a source fails
 
 ```text
 EU_SCHEDULED_STAGING_CANARY_PHASE0_CONFIG_READY
-EU_DEFAULT_BRANCH_ACTIVATION_IS_NEXT
+EU_DEFAULT_BRANCH_ACTIVATION_PASS
 EU_FIRST_AUTOMATED_CANARY_RUN_PENDING
 EU_PRODUCTION_SCHEDULED_POLLING_BLOCKED
 ```
