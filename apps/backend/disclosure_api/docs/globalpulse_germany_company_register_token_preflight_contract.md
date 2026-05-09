@@ -8,8 +8,10 @@ This is documentation-only. It does not add a source, parser, fixture, route, co
 
 ```text
 GERMANY_COMPANY_REGISTER_OFFICIAL_CAPITAL_MARKET_SURFACE_RECONFIRMED
+GERMANY_COMPANY_REGISTER_STAGING_NETWORK_REACHABILITY_CONFIRMED
 GERMANY_COMPANY_REGISTER_SEARCH_SORT_RELEVANCE_NOT_NEWEST_CONFIRMED
 GERMANY_COMPANY_REGISTER_TOKEN_PREFLIGHT_FETCH_CONTRACT_RECORDED
+GERMANY_COMPANY_REGISTER_CURRENT_NEXT_PAYLOAD_MARKER_CHANGED
 GERMANY_COMPANY_REGISTER_DETAIL_URL_CONTRACT_STILL_BLOCKED
 GERMANY_COMPANY_REGISTER_SOURCE_REGISTRATION_BLOCKED
 GERMANY_COMPANY_REGISTER_SCHEDULED_POLLING_DISABLED
@@ -44,7 +46,9 @@ official page review: Company Register capital-market page and help pages review
 local workspace DNS: www.unternehmensregister.de -> 128.65.211.50
 local workspace TCP 443: failed from the current Windows workspace
 local curl/Invoke-WebRequest live smoke: not accepted as a source failure or source success because the current workspace could not open TCP 443 to the official host
-source registration decision: blocked until token preflight, parser, date ordering, and stable detail URL are proven in a reachable environment
+Fly staging support page/token/tokenized search: HTTP 200 confirmed from globalpulse-backend-staging
+staging preflight doc: globalpulse_germany_company_register_staging_network_preflight_results.md
+source registration decision: blocked until parser markers, date ordering, and stable detail URL are proven
 ```
 
 Important ordering constraint:
@@ -108,7 +112,7 @@ Source-specific live fetch sequence:
 6. Build the CAPITAL_MARKET search URL only from the freshly issued token.
 7. Add publication-period/date and sort/page parameters only after they have been independently proven.
 8. GET the tokenized CAPITAL_MARKET search URL with the same session.
-9. Require HTTP 200, text/html content type, Search result marker, searchResults.elasticSearchDtos marker, and publicationDto marker.
+9. Require HTTP 200, text/html content type, and current embedded payload markers that include publicationDto/sourceDate/companyNameAtTimeOfPublication or equivalent row fields.
 10. Parse only bounded publicationDto rows from the embedded result payload.
 11. Reject tokenless search shells, login pages, captcha/security-query pages, unsupported content types, missing markers, empty unbounded searches, and fixture fallback.
 ```
@@ -126,6 +130,14 @@ fetch.token_expires_at: populated
 fetch.search_result_marker_present: true
 fetch.publication_row_count: >= 1
 fetch.fixture_fallback: false
+```
+
+Staging-network marker update:
+
+```text
+2026-05-09 Fly staging tokenized search returned HTTP 200 with elasticSearch, publicationDto, and sourceDate markers.
+2026-05-09 Fly staging tokenized search did not include the exact searchResults.elasticSearchDtos marker.
+Parser registration must therefore be based on the current embedded payload shape, not the earlier exact marker assumption.
 ```
 
 ## Parser Contract
@@ -157,7 +169,7 @@ url: blocked until publicationNavigationDto/encryptedPayload can be converted in
 Parser rejection rules:
 
 ```text
-reject if the payload lacks searchResults.elasticSearchDtos
+reject if the payload lacks the current embedded publication result payload markers
 reject if the payload lacks publicationDto rows
 reject if sourceDate is missing
 reject if company name and title are both missing
@@ -174,7 +186,8 @@ publication date/time normalization: unresolved for date-only rows
 date-range query parameters: unresolved
 newest-first or bounded date-specific ordering: unresolved
 parser approach for React/Next flight payload: unresolved
-direct workspace/Fly reachability: unresolved after the current workspace TCP 443 failure
+local workspace reachability: unresolved after the current workspace TCP 443 failure
+Fly staging reachability: confirmed for support page, token endpoint, and tokenized search
 rate-limit behavior: unresolved
 captcha/security-query behavior: unresolved
 ```
@@ -182,10 +195,10 @@ captcha/security-query behavior: unresolved
 ## Required Evidence Before Source Registration
 
 ```text
-live HTTP 200 for the official capital-market support page from the intended staging environment
-live HTTP 200 for /api/search-token from the intended staging environment
-live HTTP 200 for a tokenized CAPITAL_MARKET search from the intended staging environment
-tokenized search includes searchResults.elasticSearchDtos and publicationDto rows
+live HTTP 200 for the official capital-market support page from the intended staging environment: satisfied on 2026-05-09
+live HTTP 200 for /api/search-token from the intended staging environment: satisfied on 2026-05-09
+live HTTP 200 for a tokenized CAPITAL_MARKET search from the intended staging environment: satisfied on 2026-05-09
+tokenized search includes current embedded publication result markers and publicationDto rows
 tokenless search is proven to be rejected by the parser/fetch adapter
 date-range parameters produce bounded results for the target polling window
 ordering is proven newest-first, or a date-specific visibility contract is recorded
@@ -209,8 +222,8 @@ Do not use third-party German register APIs as official GlobalPulse sources with
 ## Next Step
 
 ```text
-Run a browser/network or staging-network preflight against the official Company Register from an environment that can reach TCP 443.
-Capture the tokenized search payload and identify the exact publication-period/date/sort parameters and detail/PDF navigation URL contract.
+Use the staging-network preflight result to identify the exact publication-period/date/sort parameters and detail/PDF navigation URL contract.
+Refresh the parser marker contract against the current embedded payload shape.
 Only after that, add an inactive/manual_staging_only candidate source with disable_live_fixture_fallback=true and a source-specific fetch adapter.
 Keep EU scheduled polling disabled.
 ```
