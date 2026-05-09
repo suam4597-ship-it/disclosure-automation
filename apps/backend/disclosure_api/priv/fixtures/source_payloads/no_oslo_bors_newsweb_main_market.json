@@ -1,0 +1,69 @@
+{
+  "header": {
+    "OB_REQUEST_ID": "fixture-oslo-newsweb",
+    "result.val": 0,
+    "http.code": 200,
+    "result.text": "OK"
+  },
+  "data": {
+    "messages": [
+      {
+        "id": 672925,
+        "messageId": 672925,
+        "newsId": 625371,
+        "title": "Okeanis Eco Tankers Corp. - Invitation to Q1 2026 Results Webcast",
+        "category": [
+          {
+            "id": 1104,
+            "category_no": "IKKE-INFORMASJONSPLIKTIGE PRESSEMELDINGER",
+            "category_en": "NON-REGULATORY PRESS RELEASES"
+          }
+        ],
+        "markets": ["XOSL"],
+        "issuerId": 12643,
+        "correctionForMessageId": 0,
+        "correctedByMessageId": 0,
+        "issuerSign": "OET",
+        "issuerName": "Okeanis Eco Tankers Corp.",
+        "instrId": 0,
+        "instrumentName": "",
+        "instrumentFullName": "",
+        "publishedTime": "2026-05-08T20:15:00.000Z",
+        "test": false,
+        "numbAttachments": 0,
+        "clientAnnouncementId": "54496879-69a6-4d41-9325-e74967215f7d",
+        "infoRequired": 0,
+        "oamMandatory": 0
+      },
+      {
+        "id": 672920,
+        "messageId": 672920,
+        "newsId": 625366,
+        "title": "Tieto: Share repurchases on 8.5.2026",
+        "category": [
+          {
+            "id": 1007,
+            "category_no": "UTSTEDERS MELDEPLIKT VED HANDEL I EGNE AKSJER",
+            "category_en": "ACQUISITION OR DISPOSAL OF AN ISSUER'S OWN SHARES"
+          }
+        ],
+        "markets": ["XOSL"],
+        "issuerId": 12743,
+        "correctionForMessageId": 0,
+        "correctedByMessageId": 0,
+        "issuerSign": "TIETO",
+        "issuerName": "Tieto Oyj",
+        "instrId": 0,
+        "instrumentName": "",
+        "instrumentFullName": "",
+        "publishedTime": "2026-05-08T15:30:16.898Z",
+        "test": false,
+        "numbAttachments": 1,
+        "clientAnnouncementId": "1da0346c-aa97-4ae5-8a35-1731f44203ce",
+        "infoRequired": 0,
+        "oamMandatory": 0
+      }
+    ],
+    "overflow": false
+  }
+}
