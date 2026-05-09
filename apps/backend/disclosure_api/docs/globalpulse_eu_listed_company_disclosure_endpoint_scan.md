@@ -689,7 +689,7 @@ candidate URL: https://www.bse.hu/issuers_news
 observed HTTP: 200
 observed content-type: text/html;charset=UTF-8
 observed shape: HTML issuer-news list with issuer name, publication timestamp, title, /site/newkib/... detail links, and embedded bounded JSON result data
-status: MANUAL_SOURCE_REGISTERED_LOCAL_LIVE_PROBE_PENDING_STAGING_LIVE_POLL_PENDING
+status: MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS_PUBLIC_LATEST_UI_VISIBILITY_PENDING_SCHEDULED_POLLING_DISABLED
 ```
 
 Why this fits the product:
@@ -707,6 +707,8 @@ Parser bse_issuers_news_html_v1 exists.
 Manual source hu_bse_issuers_news exists with active=false and candidate_status=manual_staging_only.
 Parser output is bounded to newkib detail slug/id, issuer text, title, source URL, category=Issuer news, and publication timestamp.
 Fixture source_payloads/hu_bse_issuers_news.html captures the bounded public HTML shape.
+Fly staging live poll passed with fetch.mode=live, fetch.status_code=200, records_seen=10, and records_inserted=10.
+Date-specific digest 2026-05-08/breaking includes the first Hungary item under eu_central.
 Scheduled polling remains disabled until the broader EU source batch is intentionally promoted.
 ```
 
@@ -724,7 +726,7 @@ Scheduled polling remains disabled until the broader EU source batch is intentio
 9. Keep Greece ATHEX issuer announcements and corporate actions as proven manual_staging_only RSS candidates with public latest UI visibility pending.
 10. Keep Norway Oslo Bors NewsWeb main market as a proven manual_staging_only API candidate with public latest UI visibility pending.
 11. Keep Poland GPW ESPI/EBI company reports as a proven manual_staging_only HTML parser candidate with public latest UI visibility pending.
-12. Keep Hungary Budapest Stock Exchange Issuers News as a manual_staging_only HTML parser candidate pending staging live smoke.
+12. Keep Hungary Budapest Stock Exchange Issuers News as a proven manual_staging_only HTML parser candidate with public latest UI visibility pending.
 13. Continue endpoint/parser discovery for Germany official register surfaces, OeKB issuerinfo, Portugal, Prague, Bucharest BVB IRIS, and other official issuer-announcement surfaces.
 14. Only batch-promote scheduled EU polling after the target list, rollback path, source-specific parser risk, and staging live smoke evidence are documented together.
 ```
@@ -764,7 +766,8 @@ NORWAY_OSLO_BORS_NEWSWEB_MAIN_MARKET_MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_
 NORWAY_OSLO_BORS_NEWSWEB_PUBLIC_LATEST_UI_VISIBILITY_PENDING
 POLAND_GPW_ESPI_EBI_COMPANY_REPORTS_MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS
 POLAND_GPW_ESPI_EBI_COMPANY_REPORTS_PUBLIC_LATEST_UI_VISIBILITY_PENDING
-HUNGARY_BSE_ISSUERS_NEWS_MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PENDING
+HUNGARY_BSE_ISSUERS_NEWS_MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS
+HUNGARY_BSE_ISSUERS_NEWS_PUBLIC_LATEST_UI_VISIBILITY_PENDING
 GERMANY_OFFICIAL_REGISTER_SURFACE_DIRECTION_FOUND_MACHINE_ENDPOINT_PENDING
 EURONEXT_COMPANY_PRESS_RELEASES_PUBLIC_HTML_SURFACE_FOUND
 BORSA_ITALIANA_POINTS_TO_CONSOB_AUTHORIZED_STORAGE_SYSTEMS
