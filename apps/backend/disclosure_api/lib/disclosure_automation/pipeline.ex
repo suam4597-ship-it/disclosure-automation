@@ -121,6 +121,7 @@ defmodule DisclosureAutomation.Parser do
   @ceri_search_url "https://ceri.nbs.sk/search"
   @ceri_document_base_url "https://ceri.nbs.sk/static/data/"
   @ee_oam_base_url "https://oam.fi.ee"
+  @lt_oam_base_url "https://www.oam.lt"
 
   def parse(parser_key, raw_payload, opts \\ [])
       when is_binary(parser_key) and is_binary(raw_payload) do
@@ -176,6 +177,9 @@ defmodule DisclosureAutomation.Parser do
 
   defp parse_by_key("ee_oam_market_announcements_html_v1", raw_payload),
     do: parse_ee_oam_market_announcements(raw_payload)
+
+  defp parse_by_key("lt_oam_regulated_information_html_v1", raw_payload),
+    do: parse_lt_oam_regulated_information(raw_payload)
 
   defp parse_by_key("wiener_borse_announcements_html_v1", raw_payload),
     do: parse_wiener_borse_announcements(raw_payload)
@@ -1671,6 +1675,117 @@ defmodule DisclosureAutomation.Parser do
 
   defp ee_oam_apply_estonia_zone(datetime), do: DateTime.add(datetime, -7_200, :second)
 
+  defp parse_lt_oam_regulated_information(raw_payload) do
+    items =
+      Regex.scan(
+        ~r/<nef-table-row class="message-row">\s*<nef-table-cell class="table-published">.*?<span class="table-content"[^>]*>(.*?)<\/span>.*?<\/nef-table-cell>\s*<nef-table-cell class="table-company">.*?<span\s+class="table-content">(.*?)<\/span>.*?<\/nef-table-cell>\s*<nef-table-cell class="table-headline">.*?<nef-link href="([^"]+)"[^>]*>.*?<span class="table-link">(.*?)<\/span>.*?<\/nef-table-cell>\s*<nef-table-cell class="table-category">.*?<span class="table-content">(.*?)<\/span>.*?<\/nef-table-cell>\s*<\/nef-table-row>/s,
+        raw_payload
+      )
+      |> Enum.map(&parse_lt_oam_regulated_information_row/1)
+      |> Enum.filter(&(&1.url && &1.title))
+
+    {:ok, items}
+  end
+
+  defp parse_lt_oam_regulated_information_row([
+         _row,
+         published_at_text,
+         issuer,
+         href,
+         headline,
+         category
+       ]) do
+    issuer = clean_html(issuer)
+    headline = clean_html(headline)
+    category = clean_html(category)
+    url = lt_oam_regulated_information_url(href)
+
+    %{
+      external_id: lt_oam_regulated_information_external_id(url),
+      title: lt_oam_regulated_information_title(issuer, headline),
+      url: url,
+      summary:
+        join_non_empty(
+          [
+            "Lithuania OAM regulated information",
+            prefixed("Issuer", issuer),
+            prefixed("Message category", category)
+          ],
+          " | "
+        ),
+      published_at: parse_lt_oam_datetime(clean_html(published_at_text)),
+      category: category
+    }
+  end
+
+  defp parse_lt_oam_regulated_information_row(_row), do: empty_lt_oam_regulated_information()
+
+  defp empty_lt_oam_regulated_information do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: DateTime.utc_now(),
+      category: nil
+    }
+  end
+
+  defp lt_oam_regulated_information_title(nil, nil), do: nil
+  defp lt_oam_regulated_information_title(issuer, nil), do: issuer
+  defp lt_oam_regulated_information_title(nil, headline), do: headline
+  defp lt_oam_regulated_information_title(issuer, headline), do: issuer <> " - " <> headline
+
+  defp lt_oam_regulated_information_url(nil), do: nil
+
+  defp lt_oam_regulated_information_url(raw_url) do
+    url = decode_html_entities(raw_url)
+
+    cond do
+      String.starts_with?(url, "http") -> url
+      String.starts_with?(url, "/") -> @lt_oam_base_url <> url
+      true -> @lt_oam_base_url <> "/" <> url
+    end
+  end
+
+  defp lt_oam_regulated_information_external_id(nil), do: nil
+
+  defp lt_oam_regulated_information_external_id(url) do
+    url
+    |> URI.parse()
+    |> Map.get(:path)
+    |> case do
+      nil -> nil
+      path -> List.last(String.split(path, "/", trim: true))
+    end
+  end
+
+  defp parse_lt_oam_datetime(nil), do: DateTime.utc_now()
+
+  defp parse_lt_oam_datetime(value) do
+    with [_, year_text, month_text, day_text, hour_text, minute_text, second_text] <-
+           Regex.run(
+             ~r/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2}):(\d{2})(?:\s+[A-Z]+)?$/,
+             value
+           ),
+         {day, ""} <- Integer.parse(day_text),
+         {month, ""} <- Integer.parse(month_text),
+         {year, ""} <- Integer.parse(year_text),
+         {hour, ""} <- Integer.parse(hour_text),
+         {minute, ""} <- Integer.parse(minute_text),
+         {second, ""} <- Integer.parse(second_text),
+         {:ok, datetime} <- build_utc_datetime(year, month, day, hour, minute, second) do
+      lt_oam_apply_lithuania_zone(datetime)
+    else
+      _ -> DateTime.utc_now()
+    end
+  end
+
+  defp lt_oam_apply_lithuania_zone(%DateTime{month: month} = datetime) when month in 4..10,
+    do: DateTime.add(datetime, -10_800, :second)
+
+  defp lt_oam_apply_lithuania_zone(datetime), do: DateTime.add(datetime, -7_200, :second)
+
   defp parse_wiener_borse_announcements(raw_payload) do
     items =
       Regex.scan(~r/<tr data-key="([^"]+)">(.*?)<\/tr>/s, raw_payload)
@@ -2773,6 +2888,25 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp validate_live_payload(
+         %SourceRegistry{parser_key: "lt_oam_regulated_information_html_v1"},
+         response
+       ) do
+    cond do
+      not html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "lt_oam_regulated_information_html_v1",
+          content_type(response.headers)}}
+
+      not lt_oam_regulated_information_payload?(response.body) ->
+        {:error,
+         {:unsupported_live_payload, "lt_oam_regulated_information_html_v1", :unexpected_html}}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_live_payload(
          %SourceRegistry{parser_key: "wiener_borse_announcements_html_v1"},
          response
        ) do
@@ -3012,6 +3146,15 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp ee_oam_market_announcements_payload?(_body), do: false
+
+  defp lt_oam_regulated_information_payload?(body) when is_binary(body) do
+    body =~ "OAM, Officially Appointed Mechanism" and
+      body =~ "Nasdaq Vilnius listed issuers" and
+      body =~ "<nef-table-row class=\"message-row\"" and
+      body =~ "/view/"
+  end
+
+  defp lt_oam_regulated_information_payload?(_body), do: false
 
   defp wiener_borse_announcements_payload?(body) when is_binary(body) do
     body =~ "Announcements Found" and body =~ "filter-announcements" and
