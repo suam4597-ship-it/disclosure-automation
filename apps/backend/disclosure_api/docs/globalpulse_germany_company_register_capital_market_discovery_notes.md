@@ -2,7 +2,7 @@
 
 This document records the follow-up discovery pass for the German Company Register capital-market information surface.
 
-This is documentation-only. It does not add a source, parser, fixture, route, controller, migration, backend response-shape change, frontend shell change, frontend framework, poll UI, audit UI, public Source Health UI, provider behavior, materializer behavior, canonical behavior, dashboard, alert, or scheduled polling.
+This discovery note is paired with a later inactive/manual_staging_only candidate implementation. It does not add a route, controller, migration, backend response-shape change, frontend shell change, frontend framework, poll UI, audit UI, public Source Health UI, dashboard, alert, or scheduled polling.
 
 ## Conclusion
 
@@ -15,9 +15,9 @@ GERMANY_COMPANY_REGISTER_CURRENT_PAYLOAD_MARKER_CHANGED
 GERMANY_COMPANY_REGISTER_ISO_DATE_RANGE_QUERY_CONFIRMED
 GERMANY_COMPANY_REGISTER_PUBLICATION_DETAIL_URL_ROUTE_CONFIRMED
 GERMANY_COMPANY_REGISTER_TOKEN_PREFLIGHT_FETCH_CONTRACT_RECORDED
-GERMANY_COMPANY_REGISTER_STATIC_POLL_URL_NOT_CONFIRMED
-GERMANY_COMPANY_REGISTER_SOURCE_REGISTRATION_BLOCKED
-GERMANY_COMPANY_REGISTER_TOKEN_PREFLIGHT_OR_STABLE_JSON_ENDPOINT_REQUIRED
+GERMANY_COMPANY_REGISTER_STATIC_POLL_URL_NOT_USED
+GERMANY_COMPANY_REGISTER_MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PENDING
+GERMANY_COMPANY_REGISTER_TOKEN_PREFLIGHT_FETCH_ADAPTER_ADDED
 ```
 
 ## Official Surface
@@ -78,7 +78,7 @@ Representative embedded result shape:
 The embedded payload contains publicationDto-style entries with companyNameAtTimeOfPublication, sourceDate, and publicationNavigationDto fields.
 The first observed publication row in the unfiltered capital-market query used sourceName=Elektronischer Bundesanzeiger, sourceDate=2009-02-20, title=Sachstand, publicationPart.id=21.
 The latest Fly staging tokenized search did not include the exact searchResults.elasticSearchDtos marker, so parser registration must be based on the current payload shape.
-The latest Fly staging tokenized search exposed sourceDateFrom and sourceDateTo input names, but the actual accepted date-range query contract is not yet proven.
+The latest Fly staging tokenized search exposed sourceDateFrom and sourceDateTo input names; the accepted ISO date-range query contract was proven in the follow-up staging preflight.
 ```
 
 ## Staging Network Preflight
@@ -105,7 +105,7 @@ canonical URL template: https://www.unternehmensregister.de/en/publication?paylo
 ## Registration Decision
 
 ```text
-No source is registered.
+Inactive/manual_staging_only source de_company_register_capital_market_info is registered for staging smoke only.
 Do not register the static search page as rss_v1.
 Do not register the tokenized search URL as a static base_url because searchToken is ephemeral.
 Do not treat the tokenless search URL as live success because it returns the shell without searchResults.
@@ -115,29 +115,29 @@ Do not register third-party German register APIs as official GlobalPulse sources
 ## Blocking Items
 
 ```text
-Current source live fetch supports a static base_url plus static headers/body, not a per-poll preflight token request.
-The result payload is embedded in Next.js/React flight HTML, not returned as a clean JSON/CSV/XML feed.
+Scheduled polling still needs a promotion design; the manual candidate now uses a source-specific per-poll preflight token request.
+The result payload is embedded in Next.js/React flight HTML, not returned as a clean JSON/CSV/XML feed, so the manual parser consumes a structured fan-out JSON envelope produced by the live adapter.
 Publication detail URLs use /en/publication?payload=<encryptedPayload>; PDF/XML download URLs still need confirmation.
-The unfiltered result order is not yet confirmed as newest-first; observed page 1 contained older rows, so date/sort parameters must be proven before candidate registration.
-The current staging HTML does not include the earlier exact searchResults.elasticSearchDtos marker, so parser markers need a refreshed contract before implementation.
-ISO sourceDateFrom/sourceDateTo is proven, but single-day result windows can exceed one page and need a pagination/over-cap contract.
+The unfiltered result order is not confirmed as newest-first; the manual candidate uses a static date-specific staging smoke window instead.
+The current staging HTML does not include the earlier exact searchResults.elasticSearchDtos marker; the manual parser extracts the current escaped searchResults payload shape.
+ISO sourceDateFrom/sourceDateTo is proven, but single-day result windows can exceed one page; manual staging records max_pages_per_poll=1 and over_page_cap metadata.
 ```
 
 ## Token Preflight Contract
 
 ```text
 contract doc: globalpulse_germany_company_register_token_preflight_contract.md
-future live_fetch_strategy: germany_company_register_token_preflight_v1
-future parser_key: germany_company_register_capital_market_flight_v1
-future candidate source_key: de_company_register_capital_market_info
-candidate registration: still blocked
-reason: pagination cap, over-cap handling, current React/Next payload parser shape, duplicate keys, and captcha/rate-limit behavior still need evidence
+live_fetch_strategy: germany_company_register_token_preflight_v1
+parser_key: germany_company_register_capital_market_flight_v1
+candidate source_key: de_company_register_capital_market_info
+candidate registration: inactive/manual_staging_only registered
+reason scheduled promotion remains blocked: over-cap pagination, duplicate keys, rate/captcha behavior, and rollback still need a separate design
 ```
 
 ## Next Step
 
 ```text
-Use the ISO date-range and /en/publication detail-route evidence to continue with pagination and parser-shape discovery.
-Before candidate registration, prove max_pages_per_poll, over-cap handling, page traversal, rate limits, fixture shape, parser validation markers, duplicate keys, and rollback behavior.
+Run Fly staging live poll smoke for the inactive/manual_staging_only candidate.
+Before any scheduled promotion, prove multi-page traversal, duplicate handling, rate limits, captcha/security-query behavior, and rollback behavior.
 Keep scheduled EU polling disabled.
 ```

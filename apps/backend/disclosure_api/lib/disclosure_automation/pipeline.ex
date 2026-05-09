@@ -129,6 +129,8 @@ defmodule DisclosureAutomation.Parser do
   @oekb_oam_list_url "https://my.oekb.at/kapitalmarkt-services/kms-output/oamn/iic/list"
   @pse_news_base_url "https://www.pse.cz/en/news/"
   @pse_detail_base_url "https://www.pse.cz/en/detail/"
+  @de_company_register_publication_url "https://www.unternehmensregister.de/en/publication?payload="
+  @de_company_register_strategy "germany_company_register_token_preflight_v1"
 
   def parse(parser_key, raw_payload, opts \\ [])
       when is_binary(parser_key) and is_binary(raw_payload) do
@@ -175,6 +177,9 @@ defmodule DisclosureAutomation.Parser do
 
   defp parse_by_key("pse_multi_isin_issuer_report_calendar_json_v1", raw_payload),
     do: parse_pse_multi_isin_issuer_report_calendar(raw_payload)
+
+  defp parse_by_key("germany_company_register_capital_market_flight_v1", raw_payload),
+    do: parse_de_company_register_capital_market(raw_payload)
 
   defp parse_by_key("nasdaq_nordic_cns_jsonp_v1", raw_payload),
     do: parse_nasdaq_nordic_cns(raw_payload)
@@ -1051,6 +1056,138 @@ defmodule DisclosureAutomation.Parser do
   end
 
   defp oekb_oam_string_list(_values), do: []
+
+  defp parse_de_company_register_capital_market(raw_payload) do
+    with {:ok, decoded} <- Jason.decode(raw_payload),
+         true <- Map.get(decoded, "strategy") == @de_company_register_strategy,
+         responses when is_list(responses) <- Map.get(decoded, "responses") do
+      items =
+        responses
+        |> Enum.flat_map(&parse_de_company_register_response/1)
+        |> Enum.filter(&(&1.url && &1.title && &1.published_at))
+
+      {:ok, items}
+    else
+      {:error, error} ->
+        {:error, {:invalid_json, error}}
+
+      false ->
+        {:error, {:invalid_json_shape, "germany_company_register_capital_market_flight_v1"}}
+
+      _ ->
+        {:error, {:invalid_json_shape, "germany_company_register_capital_market_flight_v1"}}
+    end
+  end
+
+  defp parse_de_company_register_response(%{"data" => rows}) when is_list(rows) do
+    Enum.map(rows, &parse_de_company_register_record/1)
+  end
+
+  defp parse_de_company_register_response(_response), do: []
+
+  defp parse_de_company_register_record(record) when is_map(record) do
+    payload = string_field(record, "encryptedPayload")
+    issuer = string_field(record, "companyNameAtTimeOfPublication")
+    title = string_field(record, "title")
+    source_date = string_field(record, "sourceDate")
+    category = de_company_register_category(record)
+
+    %{
+      external_id: de_company_register_external_id(payload),
+      title: title,
+      url: de_company_register_publication_url(payload),
+      summary: de_company_register_summary(record, issuer, source_date, category),
+      published_at: parse_de_company_register_date(source_date),
+      category: category
+    }
+  end
+
+  defp parse_de_company_register_record(_record) do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: nil,
+      category: nil
+    }
+  end
+
+  defp de_company_register_external_id(nil), do: nil
+
+  defp de_company_register_external_id(payload) do
+    digest =
+      :sha256
+      |> :crypto.hash(payload)
+      |> Base.encode16(case: :lower)
+      |> String.slice(0, 32)
+
+    "de-company-register:" <> digest
+  end
+
+  defp de_company_register_publication_url(nil), do: nil
+
+  defp de_company_register_publication_url(payload) do
+    @de_company_register_publication_url <> URI.encode(payload, &URI.char_unreserved?/1)
+  end
+
+  defp de_company_register_summary(record, issuer, source_date, category) do
+    join_non_empty(
+      [
+        "Germany Company Register capital-market information",
+        prefixed("Issuer", issuer),
+        prefixed("Source", string_field(record, "sourceName")),
+        prefixed("Date", source_date),
+        prefixed("Category", category),
+        prefixed("Language", string_field(record, "language")),
+        prefixed("PDF", string_field(record, "hasPdf"))
+      ],
+      " | "
+    )
+  end
+
+  defp de_company_register_category(record) do
+    category_id = de_company_register_nested_id(record, "publicationCategory")
+    type_id = de_company_register_nested_id(record, "publicationType")
+
+    cond do
+      category_id == "69" -> "Securities"
+      category_id == "70" -> "Securities acquisition and takeover"
+      category_id == "79" -> "Insider information"
+      category_id == "80" -> "Managers' transactions"
+      category_id == "81" -> "Voting rights announcement"
+      category_id == "82" -> "Prospectus notice"
+      category_id == "83" -> "Miscellaneous capital-market information"
+      category_id == "85" -> "Accounting / financial report"
+      category_id == "87" -> "Country of origin"
+      category_id == "90" -> "Further financial report"
+      category_id -> "Capital-market information category " <> category_id
+      type_id -> "Capital-market information type " <> type_id
+      true -> "Capital-market information"
+    end
+  end
+
+  defp de_company_register_nested_id(record, key) do
+    case Map.get(record, key) do
+      %{"id" => value} when is_integer(value) or is_binary(value) -> to_string(value)
+      %{id: value} when is_integer(value) or is_binary(value) -> to_string(value)
+      _ -> string_field(record, key <> "Id")
+    end
+  end
+
+  defp parse_de_company_register_date(nil), do: nil
+
+  defp parse_de_company_register_date(value) do
+    with [_, year_text, month_text, day_text] <- Regex.run(~r/^(\d{4})-(\d{2})-(\d{2})$/, value),
+         {year, ""} <- Integer.parse(year_text),
+         {month, ""} <- Integer.parse(month_text),
+         {day, ""} <- Integer.parse(day_text),
+         {:ok, datetime} <- build_utc_datetime(year, month, day, 0, 0, 0) do
+      datetime
+    else
+      _ -> nil
+    end
+  end
 
   defp parse_pse_multi_isin_issuer_news(raw_payload) do
     with {:ok, decoded} <- Jason.decode(raw_payload),
@@ -3110,6 +3247,10 @@ defmodule DisclosureAutomation.Ingestion do
   ]
   @pse_news_url_template "https://www.pse.cz/api/news?lang=en&type=pse&page=1&homepage=0&searchKey=&dateFrom=&dateTo=&isin={isin}"
   @pse_calendar_url_template "https://www.pse.cz/api/corporation-calendar?isin={isin}&order=date-DESC&lang=en"
+  @de_company_register_support_url "https://www.unternehmensregister.de/en/search/capital-market-info"
+  @de_company_register_token_url "https://www.unternehmensregister.de/api/search-token"
+  @de_company_register_search_url_template "https://www.unternehmensregister.de/en/search?formType=CAPITAL_MARKET&searchToken={token}&sourceDateFrom={source_date_from}&sourceDateTo={source_date_to}&from={from}"
+  @de_company_register_strategy "germany_company_register_token_preflight_v1"
 
   def poll_source(source_key, opts \\ []) when is_binary(source_key) do
     trigger_kind = Keyword.get(opts, :trigger_kind, "manual")
@@ -3255,6 +3396,78 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp maybe_load_live_payload(
+         %SourceRegistry{parser_key: "germany_company_register_capital_market_flight_v1"} =
+           source,
+         true
+       ) do
+    with {:ok, support_response, support_cookie} <-
+           fetch_de_company_register_support_page(source),
+         {:ok, token, token_response, token_cookie} <-
+           fetch_de_company_register_search_token(source, support_cookie),
+         cookie <- merge_cookie_headers(support_cookie, token_cookie),
+         {:ok, page_responses} <- fetch_de_company_register_search_pages(source, token, cookie) do
+      raw_payload =
+        Jason.encode!(%{
+          "strategy" => @de_company_register_strategy,
+          "source_date_from" => de_company_register_source_date_from(source),
+          "source_date_to" => de_company_register_source_date_to(source),
+          "page_size" => de_company_register_page_size(source),
+          "max_pages_per_poll" => de_company_register_max_pages_per_poll(source),
+          "pages_fetched" => length(page_responses),
+          "total_pages" => de_company_register_first_meta(page_responses, "total_pages"),
+          "total_results" => de_company_register_first_meta(page_responses, "total_results"),
+          "over_page_cap" =>
+            de_company_register_over_page_cap?(
+              page_responses,
+              de_company_register_max_pages_per_poll(source)
+            ),
+          "responses" => page_responses
+        })
+
+      {:ok,
+       %{
+         raw_payload: raw_payload,
+         http_status: 200,
+         fetch_info: %{
+           "mode" => "live",
+           "loaded" => true,
+           "strategy" => @de_company_register_strategy,
+           "url" => source.base_url,
+           "support_status_code" => support_response.status_code,
+           "token_status_code" => token_response.status_code,
+           "search_status_code" => de_company_register_first_meta(page_responses, "status_code"),
+           "status_code" => 200,
+           "bytes" => byte_size(raw_payload),
+           "source_date_from" => de_company_register_source_date_from(source),
+           "source_date_to" => de_company_register_source_date_to(source),
+           "page_size" => de_company_register_page_size(source),
+           "max_pages_per_poll" => de_company_register_max_pages_per_poll(source),
+           "pages_fetched" => length(page_responses),
+           "total_pages" => de_company_register_first_meta(page_responses, "total_pages"),
+           "total_results" => de_company_register_first_meta(page_responses, "total_results"),
+           "records_seen" => de_company_register_records_seen(page_responses),
+           "records_kept" =>
+             min(
+               de_company_register_records_seen(page_responses),
+               source_config_positive_integer(
+                 source,
+                 "max_items_per_poll",
+                 :max_items_per_poll,
+                 25
+               )
+             ),
+           "over_page_cap" =>
+             de_company_register_over_page_cap?(
+               page_responses,
+               de_company_register_max_pages_per_poll(source)
+             ),
+           "fixture_fallback" => false
+         }
+       }}
+    end
+  end
+
+  defp maybe_load_live_payload(
          %SourceRegistry{parser_key: "pse_multi_isin_issuer_news_json_v1"} = source,
          true
        ) do
@@ -3354,6 +3567,293 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp maybe_load_live_payload(_source, false), do: :skip
+
+  defp fetch_de_company_register_support_page(source) do
+    url =
+      source_config_value(
+        source,
+        "support_url",
+        :support_url,
+        @de_company_register_support_url
+      )
+
+    case Http.fetch(url,
+           timeout: source_live_timeout(source),
+           headers: source_live_headers(source)
+         ) do
+      {:ok, %{status_code: status_code} = response} when status_code in 200..299 ->
+        cond do
+          not html_content_type?(response.headers) ->
+            {:error,
+             {:de_company_register_support_unsupported_content_type,
+              content_type(response.headers)}}
+
+          not de_company_register_support_page?(response.body) ->
+            {:error, :de_company_register_unexpected_support_page}
+
+          true ->
+            {:ok, response, response_cookie_header(response.headers)}
+        end
+
+      {:ok, response} ->
+        {:error, {:de_company_register_support_unexpected_status, response.status_code}}
+
+      {:error, reason} ->
+        {:error, {:de_company_register_support_fetch_failed, reason}}
+    end
+  end
+
+  defp fetch_de_company_register_search_token(source, cookie) do
+    url =
+      source_config_value(
+        source,
+        "token_url",
+        :token_url,
+        @de_company_register_token_url
+      )
+
+    case Http.fetch(url,
+           timeout: source_live_timeout(source),
+           headers: source_live_headers(source) |> add_cookie_header(cookie)
+         ) do
+      {:ok, %{status_code: status_code} = response} when status_code in 200..299 ->
+        with {:ok, decoded} <- Jason.decode(response.body),
+             token when is_binary(token) <- Map.get(decoded, "token"),
+             200 <- Map.get(decoded, "status") do
+          {:ok, token, response, response_cookie_header(response.headers)}
+        else
+          {:error, reason} -> {:error, {:de_company_register_token_invalid_json, reason}}
+          _ -> {:error, :de_company_register_token_unexpected_shape}
+        end
+
+      {:ok, response} ->
+        {:error, {:de_company_register_token_unexpected_status, response.status_code}}
+
+      {:error, reason} ->
+        {:error, {:de_company_register_token_fetch_failed, reason}}
+    end
+  end
+
+  defp fetch_de_company_register_search_pages(source, token, cookie) do
+    max_pages = de_company_register_max_pages_per_poll(source)
+    page_size = de_company_register_page_size(source)
+
+    1..max_pages
+    |> Enum.reduce_while({:ok, []}, fn page_number, {:ok, pages} ->
+      from = (page_number - 1) * page_size
+      url = de_company_register_search_url(source, token, from)
+
+      case fetch_de_company_register_search_page(source, url, cookie) do
+        {:ok, page} ->
+          page =
+            page
+            |> Map.put("from", from)
+            |> Map.put("url", redact_de_company_register_token(url))
+
+          pages = pages ++ [page]
+          total_pages = de_company_register_total_pages(page, page_number)
+
+          if page_number >= total_pages or Map.get(page, "records_seen", 0) == 0 do
+            {:halt, {:ok, pages}}
+          else
+            {:cont, {:ok, pages}}
+          end
+
+        {:error, reason} ->
+          {:halt, {:error, reason}}
+      end
+    end)
+  end
+
+  defp fetch_de_company_register_search_page(source, url, cookie) do
+    case Http.fetch(url,
+           timeout: source_live_timeout(source),
+           headers: source_live_headers(source) |> add_cookie_header(cookie)
+         ) do
+      {:ok, %{status_code: status_code} = response} when status_code in 200..299 ->
+        cond do
+          not html_content_type?(response.headers) ->
+            {:error,
+             {:de_company_register_search_unsupported_content_type,
+              content_type(response.headers)}}
+
+          true ->
+            with {:ok, payload} <- de_company_register_extract_search_payload(response.body) do
+              rows = Map.get(payload, "rows", [])
+
+              {:ok,
+               %{
+                 "status_code" => response.status_code,
+                 "bytes" => response.bytes,
+                 "records_seen" => length(rows),
+                 "current_page" => Map.get(payload, "current_page"),
+                 "total_pages" => Map.get(payload, "total_pages"),
+                 "total_results" => Map.get(payload, "total_results"),
+                 "has_reached_results_limit" => Map.get(payload, "has_reached_results_limit"),
+                 "is_restricted_search" => Map.get(payload, "is_restricted_search"),
+                 "data" => rows
+               }}
+            end
+        end
+
+      {:ok, response} ->
+        {:error, {:de_company_register_search_unexpected_status, response.status_code}}
+
+      {:error, reason} ->
+        {:error, {:de_company_register_search_fetch_failed, reason}}
+    end
+  end
+
+  defp de_company_register_extract_search_payload(html) when is_binary(html) do
+    with {:ok, escaped_payload} <- de_company_register_escaped_search_results(html),
+         {:ok, json_text} <- Jason.decode("\"" <> escaped_payload <> "\""),
+         {:ok, decoded} <- Jason.decode(json_text),
+         %{"searchResults" => search_results} when is_map(search_results) <- decoded,
+         entries when is_list(entries) <- Map.get(search_results, "elasticSearchDtos") do
+      rows =
+        entries
+        |> Enum.map(&Map.get(&1, "publicationDto"))
+        |> Enum.reject(&is_nil/1)
+
+      {:ok,
+       %{
+         "rows" => rows,
+         "current_page" => Map.get(search_results, "currentPage"),
+         "total_pages" => Map.get(search_results, "totalPages"),
+         "total_results" => get_in(search_results, ["drilldown", "totalResults"]),
+         "has_reached_results_limit" => Map.get(search_results, "hasReachedResultsLimit"),
+         "is_restricted_search" => Map.get(search_results, "isRestrictedSearch")
+       }}
+    else
+      {:error, reason} -> {:error, {:de_company_register_search_invalid_payload, reason}}
+      _ -> {:error, :de_company_register_search_unexpected_payload}
+    end
+  end
+
+  defp de_company_register_escaped_search_results(html) do
+    marker = "\\\"searchResults\\\":"
+    suffix = ",\\\"formType\\\":\\\"CAPITAL_MARKET\\\"}"
+
+    with {start, _length} <- :binary.match(html, marker),
+         rest <- binary_part(html, start, byte_size(html) - start),
+         {end_offset, suffix_length} <- :binary.match(rest, suffix) do
+      {:ok, "{" <> binary_part(rest, 0, end_offset + suffix_length)}
+    else
+      :nomatch -> {:error, :missing_search_results_marker}
+    end
+  end
+
+  defp de_company_register_support_page?(body) when is_binary(body) do
+    body =~ "Company Register" and
+      (body =~ "capital-market" or body =~ "CAPITAL_MARKET" or body =~ "issuer")
+  end
+
+  defp de_company_register_support_page?(_body), do: false
+
+  defp de_company_register_search_url(source, token, from) do
+    source
+    |> source_config_value(
+      "search_url_template",
+      :search_url_template,
+      @de_company_register_search_url_template
+    )
+    |> to_string()
+    |> String.replace("{token}", URI.encode_www_form(token))
+    |> String.replace("{searchToken}", URI.encode_www_form(token))
+    |> String.replace("{source_date_from}", de_company_register_source_date_from(source))
+    |> String.replace("{source_date_to}", de_company_register_source_date_to(source))
+    |> String.replace("{from}", to_string(from))
+  end
+
+  defp de_company_register_source_date_from(source) do
+    source_config_value(
+      source,
+      "source_date_from",
+      :source_date_from,
+      Date.utc_today() |> Date.add(-1) |> Date.to_iso8601()
+    )
+    |> to_string()
+  end
+
+  defp de_company_register_source_date_to(source) do
+    source_config_value(
+      source,
+      "source_date_to",
+      :source_date_to,
+      Date.utc_today() |> Date.to_iso8601()
+    )
+    |> to_string()
+  end
+
+  defp de_company_register_page_size(source) do
+    source_config_positive_integer(source, "page_size", :page_size, 30)
+  end
+
+  defp de_company_register_max_pages_per_poll(source) do
+    source_config_positive_integer(source, "max_pages_per_poll", :max_pages_per_poll, 1)
+  end
+
+  defp de_company_register_first_meta([page | _pages], key), do: Map.get(page, key)
+  defp de_company_register_first_meta(_pages, _key), do: nil
+
+  defp de_company_register_total_pages(page, default) do
+    case Map.get(page, "total_pages") do
+      value when is_integer(value) and value > 0 -> value
+      _ -> default
+    end
+  end
+
+  defp de_company_register_records_seen(pages) do
+    Enum.reduce(pages, 0, fn page, count -> count + (Map.get(page, "records_seen") || 0) end)
+  end
+
+  defp de_company_register_over_page_cap?(pages, max_pages) do
+    case de_company_register_first_meta(pages, "total_pages") do
+      total_pages when is_integer(total_pages) -> total_pages > max_pages
+      _ -> false
+    end
+  end
+
+  defp redact_de_company_register_token(url) do
+    String.replace(url, ~r/searchToken=[^&]+/, "searchToken=<redacted>")
+  end
+
+  defp response_cookie_header(headers) do
+    headers
+    |> Enum.filter(fn {key, _value} -> String.downcase(to_string(key)) == "set-cookie" end)
+    |> Enum.map(fn {_key, value} ->
+      value
+      |> to_string()
+      |> String.split(";", parts: 2)
+      |> List.first()
+      |> String.trim()
+    end)
+    |> Enum.reject(&(&1 == ""))
+    |> case do
+      [] -> nil
+      cookies -> Enum.join(cookies, "; ")
+    end
+  end
+
+  defp merge_cookie_headers(nil, nil), do: nil
+  defp merge_cookie_headers(cookie, nil), do: cookie
+  defp merge_cookie_headers(nil, cookie), do: cookie
+
+  defp merge_cookie_headers(first_cookie, second_cookie) do
+    [first_cookie, second_cookie]
+    |> Enum.join("; ")
+    |> String.split("; ")
+    |> Enum.uniq()
+    |> Enum.join("; ")
+  end
+
+  defp add_cookie_header(headers, nil), do: headers
+
+  defp add_cookie_header(headers, cookie) do
+    headers
+    |> Enum.reject(fn {key, _value} -> String.downcase(to_string(key)) == "cookie" end)
+    |> Kernel.++([{~c"cookie", String.to_charlist(cookie)}])
+  end
 
   defp fetch_pse_issuer_universe_pages(source) do
     source

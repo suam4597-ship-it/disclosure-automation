@@ -1,8 +1,8 @@
 # GlobalPulse Germany Company Register Token Preflight Contract
 
-This document records the pre-candidate fetch contract for the German Company Register capital-market information surface.
+This document records the manual-candidate fetch contract for the German Company Register capital-market information surface.
 
-This is documentation-only. It does not add a source, parser, fixture, route, controller, migration, backend response-shape change, frontend shell change, frontend framework, poll UI, audit UI, public Source Health UI, provider behavior, materializer behavior, canonical behavior, dashboard, alert, or scheduled polling.
+This contract is paired with an inactive/manual_staging_only source, a source-specific token preflight fetch adapter, a parser, and a fixture. It does not add a route, controller, migration, backend response-shape change, frontend shell change, frontend framework, poll UI, audit UI, public Source Health UI, dashboard, alert, or scheduled polling.
 
 ## Conclusion
 
@@ -14,8 +14,8 @@ GERMANY_COMPANY_REGISTER_TOKEN_PREFLIGHT_FETCH_CONTRACT_RECORDED
 GERMANY_COMPANY_REGISTER_CURRENT_NEXT_PAYLOAD_MARKER_CHANGED
 GERMANY_COMPANY_REGISTER_ISO_DATE_RANGE_QUERY_CONFIRMED
 GERMANY_COMPANY_REGISTER_PUBLICATION_DETAIL_URL_ROUTE_CONFIRMED
-GERMANY_COMPANY_REGISTER_PAGINATION_CONTRACT_STILL_BLOCKED
-GERMANY_COMPANY_REGISTER_SOURCE_REGISTRATION_BLOCKED
+GERMANY_COMPANY_REGISTER_PAGE_CAPPED_MANUAL_FETCH_CONTRACT_RECORDED
+GERMANY_COMPANY_REGISTER_MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PENDING
 GERMANY_COMPANY_REGISTER_SCHEDULED_POLLING_DISABLED
 ```
 
@@ -50,7 +50,7 @@ local workspace TCP 443: failed from the current Windows workspace
 local curl/Invoke-WebRequest live smoke: not accepted as a source failure or source success because the current workspace could not open TCP 443 to the official host
 Fly staging support page/token/tokenized search: HTTP 200 confirmed from globalpulse-backend-staging
 staging preflight doc: globalpulse_germany_company_register_staging_network_preflight_results.md
-source registration decision: blocked until parser markers, pagination cap, duplicate handling, and over-cap behavior are proven
+source registration decision: inactive/manual_staging_only source registered for staging smoke only; scheduled polling and batch promotion remain blocked
 ```
 
 Important ordering constraint:
@@ -58,19 +58,19 @@ Important ordering constraint:
 ```text
 The official search help describes Company Register search results as sorted by relevance and narrowed by company and publication data.
 Therefore an unfiltered CAPITAL_MARKET result page must not be treated as a newest-first disclosure feed.
-Candidate registration requires a proven publication-period query and either a proven newest-first ordering or a bounded top-N date-specific retrieval contract.
+The manual candidate uses a bounded date-specific retrieval contract rather than unfiltered newest-first ordering.
 ```
 
 Important search-access constraint:
 
 ```text
 The official search help notes search-limit behavior around disclosures after their first publication period and describes later search as constrained by prescribed search criteria.
-Candidate registration must therefore avoid relying on unbounded historical search behavior as the live polling contract.
+Candidate promotion must therefore avoid relying on unbounded historical search behavior as the live polling contract.
 ```
 
 ## Candidate Shape
 
-Future candidate identity, if the blocking items are resolved:
+Registered manual candidate identity:
 
 ```text
 candidate source_key: de_company_register_capital_market_info
@@ -84,22 +84,27 @@ candidate_status: manual_staging_only
 scheduled polling: disabled
 ```
 
-Future candidate config, if the blocking items are resolved:
+Registered manual candidate config:
 
 ```yaml
 config:
+  fixture_path: source_payloads/de_company_register_capital_market_info.json
   candidate_status: manual_staging_only
   live_source_contract: globalpulse_germany_company_register_token_preflight_contract.md
+  max_items_per_poll: 25
   live_fetch_strategy: germany_company_register_token_preflight_v1
   disable_live_fixture_fallback: true
+  support_url: https://www.unternehmensregister.de/en/search/capital-market-info
   token_url: https://www.unternehmensregister.de/api/search-token
-  search_url_template: https://www.unternehmensregister.de/en/search?formType=CAPITAL_MARKET&searchToken={token}
+  search_url_template: https://www.unternehmensregister.de/en/search?formType=CAPITAL_MARKET&searchToken={token}&sourceDateFrom={source_date_from}&sourceDateTo={source_date_to}&from={from}
+  source_date_from: "2024-09-30"
+  source_date_to: "2024-09-30"
+  page_size: 30
   max_pages_per_poll: 1
-  max_items_per_poll: 25
   live_timeout_ms: 30000
 ```
 
-Do not add this config until the blocking items in this document are closed.
+Do not promote this config to scheduled polling until over-cap pagination, duplicate handling, rate/captcha behavior, and rollback are designed and smoke-tested.
 
 ## Fetch Contract
 
@@ -115,9 +120,10 @@ Source-specific live fetch sequence:
 7. Add ISO date-range parameters as sourceDateFrom=YYYY-MM-DD and sourceDateTo=YYYY-MM-DD.
 8. GET the tokenized CAPITAL_MARKET search URL with the same session.
 9. Require HTTP 200, text/html content type, and current embedded payload markers that include publicationDto/sourceDate/companyNameAtTimeOfPublication or equivalent row fields.
-10. Use from offsets in increments of 30 only after max_pages_per_poll, duplicate handling, and over-cap behavior are documented.
-11. Parse only bounded publicationDto rows from the embedded result payload.
-12. Reject tokenless search shells, login pages, captcha/security-query pages, unsupported content types, missing markers, empty unbounded searches, and fixture fallback.
+10. Use from offsets in increments of page_size and stop at max_pages_per_poll for the manual candidate.
+11. Record total_pages, total_results, pages_fetched, records_seen, records_kept, and over_page_cap when a date window exceeds the page cap.
+12. Parse only bounded publicationDto rows from the embedded result payload.
+13. Reject tokenless search shells, login pages, captcha/security-query pages, unsupported content types, missing markers, empty unbounded searches, and fixture fallback.
 ```
 
 Expected live fetch metadata:
@@ -129,9 +135,11 @@ fetch.status_code: 200
 fetch.token_status_code: 200
 fetch.search_status_code: 200
 fetch.loaded: true
-fetch.token_expires_at: populated
-fetch.search_result_marker_present: true
-fetch.publication_row_count: >= 1
+fetch.source_date_from: populated
+fetch.source_date_to: populated
+fetch.records_seen: >= 1
+fetch.records_kept: >= 1
+fetch.over_page_cap: recorded
 fetch.fixture_fallback: false
 ```
 
@@ -140,7 +148,7 @@ Staging-network marker update:
 ```text
 2026-05-09 Fly staging tokenized search returned HTTP 200 with elasticSearch, publicationDto, and sourceDate markers.
 2026-05-09 Fly staging tokenized search did not include the exact searchResults.elasticSearchDtos marker.
-Parser registration must therefore be based on the current embedded payload shape, not the earlier exact marker assumption.
+The manual candidate parser is based on the current escaped embedded searchResults payload shape, not the earlier exact marker assumption.
 ```
 
 Staging-network date/detail update:
@@ -195,49 +203,49 @@ reject if the only available URL includes an expired searchToken
 ```text
 stable detail URL: resolved for /en/publication?payload=<encryptedPayload>
 PDF/XML download URL: unresolved
-publication date/time normalization: unresolved for date-only rows
+publication date/time normalization: resolved for manual candidate as UTC midnight for date-only rows
 date-range query parameters: resolved as sourceDateFrom/sourceDateTo with ISO YYYY-MM-DD values
-pagination cap and over-cap behavior: unresolved
+pagination cap and over-cap behavior: resolved for manual candidate as max_pages_per_poll=1 with over_page_cap metadata; unresolved for scheduled-poll promotion
 newest-first ordering: unresolved; date-specific retrieval is proven but can span multiple pages
-parser approach for React/Next flight payload: unresolved
+parser approach for React/Next flight payload: resolved for manual candidate using the current escaped searchResults envelope
 local workspace reachability: unresolved after the current workspace TCP 443 failure
 Fly staging reachability: confirmed for support page, token endpoint, and tokenized search
 rate-limit behavior: unresolved
 captcha/security-query behavior: unresolved
 ```
 
-## Required Evidence Before Source Registration
+## Required Evidence
 
 ```text
 live HTTP 200 for the official capital-market support page from the intended staging environment: satisfied on 2026-05-09
 live HTTP 200 for /api/search-token from the intended staging environment: satisfied on 2026-05-09
 live HTTP 200 for a tokenized CAPITAL_MARKET search from the intended staging environment: satisfied on 2026-05-09
-tokenized search includes current embedded publication result markers and publicationDto rows
-tokenless search is proven to be rejected by the parser/fetch adapter
+tokenized search includes current embedded publication result markers and publicationDto rows: satisfied on 2026-05-09
+tokenless search is proven to be rejected by the parser/fetch adapter: satisfied by requiring token preflight envelope strategy
 date-range parameters produce bounded results for the target polling window: ISO sourceDateFrom/sourceDateTo satisfied on 2026-05-09
-ordering is proven newest-first, or a date-specific visibility contract is recorded: still blocked because daily results can span pages
+ordering is proven newest-first, or a date-specific visibility contract is recorded: manual date-specific contract recorded with page-cap/over-cap metadata; scheduled promotion still blocked
 stable canonical URL contract is proven without retaining an expired searchToken: /en/publication?payload satisfied on 2026-05-09
-fixture includes token response, tokenized search result with at least two rows, tokenless shell, and captcha/login/error marker samples
-local parser smoke proves records >= 1 and first record has issuer/title/url/published_at
+fixture includes tokenized search result with at least two rows: satisfied by source_payloads/de_company_register_capital_market_info.json
+local parser smoke proves records >= 1 and first record has issuer/title/url/published_at: satisfied with 3 fixture records in candidate PR validation
 staging live poll smoke proves records_seen >= 1, records_inserted >= 1, fetch.mode=live, fixture fallback=false, and digest visibility behavior
 ```
 
 ## Registration Decision
 
 ```text
-Do not register a source in this pass.
+Register only the inactive/manual_staging_only source in this pass.
 Do not register the static capital-market search page as rss_v1.
 Do not register a tokenized URL with a hard-coded searchToken.
 Do not treat tokenless HTML shell fetches as live success.
-Do not canonicalize records until a stable detail/PDF URL contract exists.
+Do not require PDF/XML download URLs for canonical records while the public /en/publication?payload route remains stable.
 Do not use third-party German register APIs as official GlobalPulse sources without explicit approval.
 ```
 
 ## Next Step
 
 ```text
-Use the ISO sourceDateFrom/sourceDateTo contract to prove pagination, max_pages_per_poll, duplicate handling, and over-cap behavior.
-Refresh the parser marker contract against the current embedded payload shape and use /en/publication?payload=<encryptedPayload> as the canonical URL template.
-Only after that, add an inactive/manual_staging_only candidate source with disable_live_fixture_fallback=true and a source-specific fetch adapter.
+Deploy the inactive/manual_staging_only candidate to Fly staging and run live poll smoke.
+Record source health, live fetch metadata, records_seen, records_inserted, canonical item count, fixture fallback=false, and digest visibility.
+Keep over-cap pagination, duplicate handling, rate/captcha behavior, and rollback as blockers for any scheduled-poll promotion.
 Keep EU scheduled polling disabled.
 ```
