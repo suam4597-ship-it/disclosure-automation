@@ -115,6 +115,7 @@ defmodule DisclosureAutomation.Parser do
   @wiener_borse_announcements_url "https://www.wienerborse.at/en/legal/announcements/"
   @xetra_newsboard_url "https://www.xetra.com/xetra-en/newsroom/xetra-newsboard/"
   @oslo_newsweb_message_url "https://newsweb.oslobors.no/message/"
+  @gpw_espi_ebi_report_base_url "https://www.gpw.pl/"
 
   def parse(parser_key, raw_payload, opts \\ [])
       when is_binary(parser_key) and is_binary(raw_payload) do
@@ -155,6 +156,9 @@ defmodule DisclosureAutomation.Parser do
 
   defp parse_by_key("oslo_newsweb_json_v1", raw_payload),
     do: parse_oslo_newsweb(raw_payload)
+
+  defp parse_by_key("gpw_espi_ebi_html_v1", raw_payload),
+    do: parse_gpw_espi_ebi(raw_payload)
 
   defp parse_by_key("wiener_borse_announcements_html_v1", raw_payload),
     do: parse_wiener_borse_announcements(raw_payload)
@@ -988,6 +992,151 @@ defmodule DisclosureAutomation.Parser do
   end
 
   defp oslo_newsweb_markets(_record), do: nil
+
+  defp parse_gpw_espi_ebi(raw_payload) do
+    items =
+      Regex.scan(
+        ~r/<li[^>]*>\s*<span class="date">(.*?)<\/span>(.*?)<\/li>/s,
+        raw_payload
+      )
+      |> Enum.map(&parse_gpw_espi_ebi_row/1)
+      |> Enum.filter(&(&1.url && &1.title))
+
+    {:ok, items}
+  end
+
+  defp parse_gpw_espi_ebi_row([_row, metadata_text, row_html]) do
+    href =
+      row_html
+      |> regex_capture_raw(~r/<a\s+href="([^"]*espi-ebi-report\?geru_id=[^"]+)"/s)
+      |> gpw_espi_ebi_url()
+
+    company =
+      regex_capture(
+        row_html,
+        ~r/<strong class="name">\s*<a[^>]*>\s*(.*?)\s*<\/a>\s*<\/strong>/s
+      )
+
+    report_title = regex_capture(row_html, ~r/<p[^>]*>\s*(.*?)\s*<\/p>/s)
+    metadata = gpw_espi_ebi_metadata(metadata_text)
+
+    %{
+      external_id: gpw_espi_ebi_external_id(href),
+      title: gpw_espi_ebi_title(company, report_title),
+      url: href,
+      summary: gpw_espi_ebi_summary(metadata),
+      published_at: gpw_espi_ebi_datetime(metadata["published_at"]),
+      category: gpw_espi_ebi_category(metadata)
+    }
+  end
+
+  defp parse_gpw_espi_ebi_row(_row), do: empty_gpw_espi_ebi_record()
+
+  defp empty_gpw_espi_ebi_record do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: DateTime.utc_now(),
+      category: nil
+    }
+  end
+
+  defp gpw_espi_ebi_metadata(nil), do: %{}
+
+  defp gpw_espi_ebi_metadata(value) do
+    parts =
+      value
+      |> clean_html()
+      |> case do
+        nil -> []
+        cleaned -> String.split(cleaned, "|", trim: true)
+      end
+      |> Enum.map(&String.trim/1)
+
+    %{
+      "published_at" => Enum.at(parts, 0),
+      "status" => Enum.at(parts, 1),
+      "system" => Enum.at(parts, 2),
+      "report_number" => Enum.at(parts, 3)
+    }
+  end
+
+  defp gpw_espi_ebi_title(nil, nil), do: nil
+  defp gpw_espi_ebi_title(company, nil), do: company
+  defp gpw_espi_ebi_title(nil, report_title), do: report_title
+  defp gpw_espi_ebi_title(company, report_title), do: company <> " - " <> report_title
+
+  defp gpw_espi_ebi_summary(metadata) do
+    join_non_empty(
+      [
+        "GPW ESPI/EBI company report",
+        prefixed("Status", metadata["status"]),
+        prefixed("System", metadata["system"]),
+        prefixed("Report", metadata["report_number"])
+      ],
+      " | "
+    )
+  end
+
+  defp gpw_espi_ebi_category(metadata) do
+    join_non_empty([metadata["system"], metadata["status"]], " ")
+  end
+
+  defp gpw_espi_ebi_external_id(nil), do: nil
+
+  defp gpw_espi_ebi_external_id(url) do
+    url
+    |> decode_html_entities()
+    |> URI.parse()
+    |> Map.get(:query)
+    |> case do
+      query when is_binary(query) -> URI.decode_query(query)
+      _query -> %{}
+    end
+    |> Map.get("geru_id")
+  end
+
+  defp gpw_espi_ebi_url(nil), do: nil
+
+  defp gpw_espi_ebi_url(raw_url) do
+    url = decode_html_entities(raw_url)
+
+    cond do
+      String.starts_with?(url, "http") ->
+        url
+
+      String.starts_with?(url, "/") ->
+        String.trim_trailing(@gpw_espi_ebi_report_base_url, "/") <> url
+
+      true ->
+        @gpw_espi_ebi_report_base_url <> url
+    end
+  end
+
+  defp gpw_espi_ebi_datetime(nil), do: DateTime.utc_now()
+
+  defp gpw_espi_ebi_datetime(value) do
+    with [_, day_text, month_text, year_text, hour_text, minute_text, second_text] <-
+           Regex.run(~r/^(\d{2})-(\d{2})-(\d{4}) (\d{2}):(\d{2}):(\d{2})$/, value),
+         {day, ""} <- Integer.parse(day_text),
+         {month, ""} <- Integer.parse(month_text),
+         {year, ""} <- Integer.parse(year_text),
+         {hour, ""} <- Integer.parse(hour_text),
+         {minute, ""} <- Integer.parse(minute_text),
+         {second, ""} <- Integer.parse(second_text),
+         {:ok, datetime} <- build_utc_datetime(year, month, day, hour, minute, second) do
+      gpw_apply_warsaw_zone(datetime)
+    else
+      _ -> DateTime.utc_now()
+    end
+  end
+
+  defp gpw_apply_warsaw_zone(%DateTime{month: month} = datetime) when month in 4..10,
+    do: DateTime.add(datetime, -7_200, :second)
+
+  defp gpw_apply_warsaw_zone(datetime), do: DateTime.add(datetime, -3_600, :second)
 
   defp parse_wiener_borse_announcements(raw_payload) do
     items =
@@ -1988,6 +2137,20 @@ defmodule DisclosureAutomation.Ingestion do
     end
   end
 
+  defp validate_live_payload(%SourceRegistry{parser_key: "gpw_espi_ebi_html_v1"}, response) do
+    cond do
+      not html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "gpw_espi_ebi_html_v1", content_type(response.headers)}}
+
+      not gpw_espi_ebi_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "gpw_espi_ebi_html_v1", :unexpected_html}}
+
+      true ->
+        :ok
+    end
+  end
+
   defp validate_live_payload(
          %SourceRegistry{parser_key: "wiener_borse_announcements_html_v1"},
          response
@@ -2187,6 +2350,13 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp oslo_newsweb_payload?(_body), do: false
+
+  defp gpw_espi_ebi_payload?(body) when is_binary(body) do
+    body =~ "ESPI/EBI Company reports" and body =~ "espi-union-reports" and
+      body =~ "espi-ebi-report?geru_id="
+  end
+
+  defp gpw_espi_ebi_payload?(_body), do: false
 
   defp wiener_borse_announcements_payload?(body) when is_binary(body) do
     body =~ "Announcements Found" and body =~ "filter-announcements" and
