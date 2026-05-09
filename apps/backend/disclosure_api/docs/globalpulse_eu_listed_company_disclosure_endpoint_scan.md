@@ -744,6 +744,36 @@ The 2026-05-08/breaking digest top-n result did not yet include Romania BVB beca
 Scheduled polling remains disabled until the broader EU source batch is intentionally promoted.
 ```
 
+## Candidate Q: Slovenia OAM / INFO STORAGE Regulated Information
+
+```text
+owner: Ljubljana Stock Exchange
+authority class: official OAM / regulated-information storage surface
+candidate URL: https://www.oam.si/rss
+supporting URL: https://www.oam.si/default_en.aspx?doc=HELP
+observed HTTP: 200
+observed content-type: application/rss+xml; charset=utf-8
+observed shape: RSS 2.0 feed with doc_id links, issuer/category text, announcement title, description, and pubDate
+status: MANUAL_SOURCE_REGISTERED_LOCAL_LIVE_PARSER_PASS_STAGING_SMOKE_PENDING
+```
+
+Why this fits the product:
+
+```text
+INFO STORAGE is described by its help page as the central storage of regulated information operated by the Ljubljana Stock Exchange.
+It stores regulated information published by listed companies, including inside information, periodic reports, substantial holdings, general meetings, financial calendars, corporate actions, and other statutory reporting obligations.
+The official help page documents RSS updates at http://www.oam.si/rss, so this source can use rss_v1 instead of treating an HTML search page as RSS.
+```
+
+Implementation status:
+
+```text
+Manual source si_oam_regulated_information exists with active=false and candidate_status=manual_staging_only.
+The source uses parser_key=rss_v1 against the official application/rss+xml feed.
+Fixture source_payloads/si_oam_regulated_information.xml captures the bounded public RSS shape.
+Scheduled polling remains disabled until the broader EU source batch is intentionally promoted.
+```
+
 ## Recommended EU v1 Path
 
 ```text
@@ -760,8 +790,9 @@ Scheduled polling remains disabled until the broader EU source batch is intentio
 11. Keep Poland GPW ESPI/EBI company reports as a proven manual_staging_only HTML parser candidate with public latest UI visibility pending.
 12. Keep Hungary Budapest Stock Exchange Issuers News as a proven manual_staging_only HTML parser candidate with public latest UI visibility pending.
 13. Keep Romania BVB Current Reports as a proven manual_staging_only HTML parser candidate with digest top-n/public latest UI visibility pending.
-14. Continue endpoint/parser discovery for Germany official register surfaces, OeKB issuerinfo, Portugal, Prague, and other official issuer-announcement surfaces.
-15. Only batch-promote scheduled EU polling after the target list, rollback path, source-specific parser risk, and staging live smoke evidence are documented together.
+14. Keep Slovenia OAM / INFO STORAGE as a manual_staging_only official RSS candidate with staging smoke pending.
+15. Continue endpoint/parser discovery for Germany official register surfaces, OeKB issuerinfo, Portugal, Prague, and other official issuer-announcement surfaces.
+16. Only batch-promote scheduled EU polling after the target list, rollback path, source-specific parser risk, and staging live smoke evidence are documented together.
 ```
 
 ## Explicit Non-Goals
@@ -803,6 +834,7 @@ HUNGARY_BSE_ISSUERS_NEWS_MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS
 HUNGARY_BSE_ISSUERS_NEWS_PUBLIC_LATEST_UI_VISIBILITY_PENDING
 ROMANIA_BVB_CURRENT_REPORTS_MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS
 ROMANIA_BVB_CURRENT_REPORTS_DIGEST_TOP_N_VISIBILITY_PENDING
+SLOVENIA_OAM_REGULATED_INFORMATION_MANUAL_SOURCE_REGISTERED_LOCAL_LIVE_PARSER_PASS_STAGING_SMOKE_PENDING
 GERMANY_OFFICIAL_REGISTER_SURFACE_DIRECTION_FOUND_MACHINE_ENDPOINT_PENDING
 EURONEXT_COMPANY_PRESS_RELEASES_PUBLIC_HTML_SURFACE_FOUND
 BORSA_ITALIANA_POINTS_TO_CONSOB_AUTHORIZED_STORAGE_SYSTEMS
