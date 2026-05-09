@@ -11,6 +11,7 @@ EU_SCHEDULED_STAGING_CANARY_WORKFLOW_CONFIGURED_ON_PHASE0
 EU_FIRST_CANARY_SOURCE_LIST_CONFIGURED
 EU_MANUAL_PREFLIGHT_CANARY_POLL_PASS
 EU_DEFAULT_BRANCH_ACTIVATION_PASS
+EU_CANARY_MANUAL_DISPATCH_PATH_RECORDED
 EU_PRODUCTION_SCHEDULED_POLLING_NOT_ENABLED
 ```
 
@@ -24,6 +25,7 @@ backend URL: https://globalpulse-backend-staging.fly.dev
 branch target: phase0-foundation
 main activation PR: #447 Activate EU staging canary schedule on main
 main activation merge commit: 09fdcb747022bf47709e913298495c595819f6fe
+manual dispatch doc: globalpulse_eu_scheduled_staging_canary_manual_dispatch.md
 source status: active=false
 candidate status: manual_staging_only
 ```
@@ -68,6 +70,7 @@ pt_cmvm_portal_info_privi
 ```text
 workflow_dispatch source_key input still wins when provided
 manual workflow_dispatch default source_key remains sec_press_releases
+workflow_dispatch source_key=eu_scheduled_staging_canary runs the EU canary source list manually
 SEC and India NSE scheduled routing remains intact
 EU cron polls the full first-canary source list sequentially
 EU cron writes one poll-<source_key>.json artifact per source
@@ -183,6 +186,7 @@ any rollback action if a source fails
 ```text
 EU_SCHEDULED_STAGING_CANARY_PHASE0_CONFIG_READY
 EU_DEFAULT_BRANCH_ACTIVATION_PASS
-EU_FIRST_AUTOMATED_CANARY_RUN_PENDING
+EU_CANARY_MANUAL_DISPATCH_READY
+EU_FIRST_CANARY_RUN_SMOKE_PENDING
 EU_PRODUCTION_SCHEDULED_POLLING_BLOCKED
 ```
