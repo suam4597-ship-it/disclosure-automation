@@ -11,6 +11,7 @@ GERMANY_COMPANY_REGISTER_STAGING_LIVE_POLL_PASS
 GERMANY_COMPANY_REGISTER_CANONICAL_INSERT_PASS
 GERMANY_COMPANY_REGISTER_DATE_SPECIFIC_DIGEST_VISIBILITY_PASS
 GERMANY_COMPANY_REGISTER_PUBLIC_LATEST_UI_VISIBILITY_PENDING
+GERMANY_COMPANY_REGISTER_PAGINATION_RATE_CAPTCHA_DESIGN_RECORDED
 GERMANY_COMPANY_REGISTER_MANUAL_ONLY_READY
 ```
 
@@ -160,5 +161,6 @@ no central-bank, macro, or policy feed added
 
 ```text
 Keep this candidate manual-only until over-cap pagination, duplicate handling, rate/captcha behavior, and rollback are designed.
-The next EU track step can be EU source batch-promotion design, or another remaining official listed-company disclosure source if the batch-promotion design is deferred.
+The design is recorded in globalpulse_germany_company_register_pagination_rate_captcha_design.md.
+The next Germany-specific step is a separate staging-only multi-page manual/dispatch smoke after the first EU canary observation window.
 ```

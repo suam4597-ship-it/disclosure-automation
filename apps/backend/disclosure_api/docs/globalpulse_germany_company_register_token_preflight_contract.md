@@ -17,6 +17,7 @@ GERMANY_COMPANY_REGISTER_PUBLICATION_DETAIL_URL_ROUTE_CONFIRMED
 GERMANY_COMPANY_REGISTER_PAGE_CAPPED_MANUAL_FETCH_CONTRACT_RECORDED
 GERMANY_COMPANY_REGISTER_MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS
 GERMANY_COMPANY_REGISTER_DATE_SPECIFIC_DIGEST_VISIBILITY_PASS
+GERMANY_COMPANY_REGISTER_PAGINATION_RATE_CAPTCHA_DESIGN_RECORDED
 GERMANY_COMPANY_REGISTER_SCHEDULED_POLLING_DISABLED
 ```
 
@@ -105,7 +106,7 @@ config:
   live_timeout_ms: 30000
 ```
 
-Do not promote this config to scheduled polling until over-cap pagination, duplicate handling, rate/captcha behavior, and rollback are designed and smoke-tested.
+Do not promote this config to scheduled polling until over-cap pagination, duplicate handling, rate/captcha behavior, and rollback are implemented and smoke-tested according to globalpulse_germany_company_register_pagination_rate_captcha_design.md.
 
 ## Fetch Contract
 
@@ -211,8 +212,8 @@ newest-first ordering: unresolved; date-specific retrieval is proven but can spa
 parser approach for React/Next flight payload: resolved for manual candidate using the current escaped searchResults envelope
 local workspace reachability: unresolved after the current workspace TCP 443 failure
 Fly staging reachability: confirmed for support page, token endpoint, and tokenized search
-rate-limit behavior: unresolved
-captcha/security-query behavior: unresolved
+rate-limit behavior: design recorded in globalpulse_germany_company_register_pagination_rate_captcha_design.md; live multi-page evidence still required
+captcha/security-query behavior: design recorded in globalpulse_germany_company_register_pagination_rate_captcha_design.md; live multi-page evidence still required
 ```
 
 ## Required Evidence
@@ -246,6 +247,6 @@ Do not use third-party German register APIs as official GlobalPulse sources with
 
 ```text
 Keep the inactive/manual_staging_only candidate in staging and record follow-up evidence in globalpulse_germany_company_register_staging_live_poll_smoke_results.md.
-Keep over-cap pagination, duplicate handling, rate/captcha behavior, and rollback as blockers for any scheduled-poll promotion.
+Use globalpulse_germany_company_register_pagination_rate_captcha_design.md as the blocker contract before any multi-page staging smoke or scheduled-poll promotion.
 Keep EU scheduled polling disabled.
 ```
