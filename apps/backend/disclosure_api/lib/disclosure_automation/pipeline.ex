@@ -127,6 +127,8 @@ defmodule DisclosureAutomation.Parser do
   @oekb_oam_detail_base_url "https://my.oekb.at/kapitalmarkt-services/kms-output/oamn/iic/detail?doc-id="
   @oekb_oam_download_base_url "https://my.oekb.at/issuer-info/rest/public/meldedaten/download/"
   @oekb_oam_list_url "https://my.oekb.at/kapitalmarkt-services/kms-output/oamn/iic/list"
+  @pse_news_base_url "https://www.pse.cz/en/news/"
+  @pse_detail_base_url "https://www.pse.cz/en/detail/"
 
   def parse(parser_key, raw_payload, opts \\ [])
       when is_binary(parser_key) and is_binary(raw_payload) do
@@ -167,6 +169,9 @@ defmodule DisclosureAutomation.Parser do
 
   defp parse_by_key("oekb_oam_issuer_info_json_v1", raw_payload),
     do: parse_oekb_oam_issuer_info(raw_payload)
+
+  defp parse_by_key("pse_multi_isin_issuer_news_json_v1", raw_payload),
+    do: parse_pse_multi_isin_issuer_news(raw_payload)
 
   defp parse_by_key("nasdaq_nordic_cns_jsonp_v1", raw_payload),
     do: parse_nasdaq_nordic_cns(raw_payload)
@@ -1043,6 +1048,139 @@ defmodule DisclosureAutomation.Parser do
   end
 
   defp oekb_oam_string_list(_values), do: []
+
+  defp parse_pse_multi_isin_issuer_news(raw_payload) do
+    with {:ok, decoded} <- Jason.decode(raw_payload),
+         records when is_list(records) <- pse_multi_isin_news_records(decoded) do
+      items =
+        records
+        |> Enum.flat_map(&parse_pse_multi_isin_news_response/1)
+        |> Enum.filter(&(&1.url && &1.title))
+
+      {:ok, items}
+    else
+      {:error, error} -> {:error, {:invalid_json, error}}
+      _ -> {:error, {:invalid_json_shape, "pse_multi_isin_issuer_news_json_v1"}}
+    end
+  end
+
+  defp pse_multi_isin_news_records(%{"responses" => records}) when is_list(records),
+    do: records
+
+  defp pse_multi_isin_news_records(_decoded), do: nil
+
+  defp parse_pse_multi_isin_news_response(%{"isin" => query_isin, "data" => rows})
+       when is_binary(query_isin) and is_list(rows) do
+    rows
+    |> Enum.filter(&pse_news_matches_query_isin?(&1, query_isin))
+    |> Enum.map(&parse_pse_issuer_news_record(&1, query_isin))
+  end
+
+  defp parse_pse_multi_isin_news_response(_response), do: []
+
+  defp parse_pse_issuer_news_record(record, query_isin) when is_map(record) do
+    slug = string_field(record, "slug")
+
+    %{
+      external_id: join_non_empty(["pse-news", query_isin, string_field(record, "id")], ":"),
+      title: string_field(record, "title"),
+      url: pse_issuer_news_url(slug, query_isin),
+      summary: pse_issuer_news_summary(record, query_isin),
+      published_at: pse_issuer_news_datetime(record),
+      category: string_field(record, "type")
+    }
+  end
+
+  defp pse_issuer_news_url(nil, query_isin), do: @pse_detail_base_url <> query_isin
+  defp pse_issuer_news_url(slug, _query_isin), do: @pse_news_base_url <> slug
+
+  defp pse_issuer_news_summary(record, query_isin) do
+    join_non_empty(
+      [
+        "Prague Stock Exchange issuer news",
+        prefixed("ISIN", query_isin),
+        prefixed("Type", string_field(record, "type")),
+        prefixed("Source", string_field(record, "source")),
+        pse_bounded_text(string_field(record, "content"))
+      ],
+      " | "
+    )
+  end
+
+  defp pse_bounded_text(nil), do: nil
+
+  defp pse_bounded_text(value) do
+    value
+    |> clean_html()
+    |> case do
+      nil -> nil
+      cleaned -> String.slice(cleaned, 0, 500)
+    end
+  end
+
+  defp pse_news_matches_query_isin?(record, query_isin) when is_map(record) do
+    query_isin = normalize_isin(query_isin)
+
+    record
+    |> string_field("isin")
+    |> pse_isin_list()
+    |> Enum.member?(query_isin)
+  end
+
+  defp pse_news_matches_query_isin?(_record, _query_isin), do: false
+
+  defp pse_isin_list(nil), do: []
+
+  defp pse_isin_list(value) do
+    value
+    |> String.split(",")
+    |> Enum.map(&normalize_isin/1)
+    |> Enum.reject(&(&1 == ""))
+  end
+
+  defp normalize_isin(value) when is_binary(value) do
+    value
+    |> String.trim()
+    |> String.upcase()
+  end
+
+  defp normalize_isin(_value), do: ""
+
+  defp pse_issuer_news_datetime(record) do
+    record
+    |> string_field("publishedAt")
+    |> parse_pse_news_datetime()
+    |> case do
+      nil -> DateTime.utc_now()
+      datetime -> datetime
+    end
+  end
+
+  defp parse_pse_news_datetime(nil), do: nil
+
+  defp parse_pse_news_datetime(value) do
+    with [_, year_text, month_text, day_text, hour_text, minute_text, second_text] <-
+           Regex.run(
+             ~r/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2}):(\d{2})$/,
+             value
+           ),
+         {year, ""} <- Integer.parse(year_text),
+         {month, ""} <- Integer.parse(month_text),
+         {day, ""} <- Integer.parse(day_text),
+         {hour, ""} <- Integer.parse(hour_text),
+         {minute, ""} <- Integer.parse(minute_text),
+         {second, ""} <- Integer.parse(second_text),
+         {:ok, datetime} <- build_utc_datetime(year, month, day, hour, minute, second) do
+      pse_apply_prague_zone(datetime)
+    else
+      _ -> parse_iso8601_datetime(value)
+    end
+  end
+
+  defp pse_apply_prague_zone(%DateTime{month: month} = datetime) when month in 4..10,
+    do: DateTime.add(datetime, -7_200, :second)
+
+  defp pse_apply_prague_zone(datetime), do: DateTime.add(datetime, -3_600, :second)
 
   defp oekb_oam_datetime(record) do
     record
@@ -2859,6 +2997,13 @@ defmodule DisclosureAutomation.Ingestion do
   alias DisclosureAutomation.Sources
 
   @default_live_headers [{"user-agent", "disclosure-automation-phase1"}]
+  @pse_default_issuer_universe_urls [
+    "https://www.pse.cz/en/market-data/shares/prime-market",
+    "https://www.pse.cz/en/market-data/shares/standard-market",
+    "https://www.pse.cz/en/market-data/shares/start-market",
+    "https://www.pse.cz/en/market-data/shares/free-market"
+  ]
+  @pse_news_url_template "https://www.pse.cz/api/news?lang=en&type=pse&page=1&homepage=0&searchKey=&dateFrom=&dateTo=&isin={isin}"
 
   def poll_source(source_key, opts \\ []) when is_binary(source_key) do
     trigger_kind = Keyword.get(opts, :trigger_kind, "manual")
@@ -2991,11 +3136,50 @@ defmodule DisclosureAutomation.Ingestion do
       {:ok, payload} ->
         {:ok, payload}
 
-      {:error, _reason} when prefer_live_fetch ->
-        load_fixture_payload(source)
+      {:error, reason} when prefer_live_fetch ->
+        if disable_live_fixture_fallback?(source) do
+          {:error, reason}
+        else
+          load_fixture_payload(source)
+        end
 
       :skip ->
         load_fixture_payload(source)
+    end
+  end
+
+  defp maybe_load_live_payload(
+         %SourceRegistry{parser_key: "pse_multi_isin_issuer_news_json_v1"} = source,
+         true
+       ) do
+    with {:ok, universe_pages} <- fetch_pse_issuer_universe_pages(source),
+         {:ok, universe} <- pse_issuer_universe(universe_pages),
+         selected_universe <- Enum.take(universe, pse_max_issuers_per_poll(source)),
+         {:ok, responses} <- fetch_pse_issuer_news_responses(source, selected_universe) do
+      raw_payload =
+        Jason.encode!(%{
+          "strategy" => "pse_multi_isin_news_v1",
+          "universe" => universe,
+          "selected_isins" => Enum.map(selected_universe, & &1["isin"]),
+          "responses" => responses
+        })
+
+      {:ok,
+       %{
+         raw_payload: raw_payload,
+         http_status: 200,
+         fetch_info: %{
+           "mode" => "live",
+           "loaded" => true,
+           "strategy" => "pse_multi_isin_news_v1",
+           "url" => source.base_url,
+           "status_code" => 200,
+           "bytes" => byte_size(raw_payload),
+           "universe_count" => length(universe),
+           "selected_issuer_count" => length(selected_universe),
+           "issuer_request_count" => length(responses)
+         }
+       }}
     end
   end
 
@@ -3029,6 +3213,222 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp maybe_load_live_payload(_source, false), do: :skip
+
+  defp fetch_pse_issuer_universe_pages(source) do
+    source
+    |> source_config_string_list(
+      "pse_issuer_universe_urls",
+      :pse_issuer_universe_urls,
+      @pse_default_issuer_universe_urls
+    )
+    |> Enum.reduce_while({:ok, []}, fn url, {:ok, pages} ->
+      case Http.fetch(url,
+             timeout: source_live_timeout(source),
+             headers: source_live_headers(source)
+           ) do
+        {:ok, %{status_code: status_code} = response}
+        when status_code in 200..299 ->
+          if html_content_type?(response.headers) do
+            {:cont,
+             {:ok,
+              pages ++
+                [
+                  %{
+                    url: url,
+                    market: pse_market_from_url(url),
+                    body: response.body,
+                    bytes: response.bytes
+                  }
+                ]}}
+          else
+            {:halt,
+             {:error,
+              {:pse_universe_unsupported_content_type, url, content_type(response.headers)}}}
+          end
+
+        {:ok, response} ->
+          {:halt, {:error, {:pse_universe_unexpected_status, url, response.status_code}}}
+
+        {:error, reason} ->
+          {:halt, {:error, {:pse_universe_fetch_failed, url, reason}}}
+      end
+    end)
+  end
+
+  defp pse_issuer_universe(pages) when is_list(pages) do
+    universe =
+      pages
+      |> Enum.flat_map(&pse_issuer_universe_entries/1)
+      |> Enum.uniq_by(& &1["isin"])
+
+    case universe do
+      [] -> {:error, :pse_empty_issuer_universe}
+      entries -> {:ok, entries}
+    end
+  end
+
+  defp pse_issuer_universe_entries(%{url: url, market: market, body: body}) do
+    ~r/\/en\/detail\/([A-Z0-9]{12})/
+    |> Regex.scan(body, capture: :all_but_first)
+    |> Enum.map(fn [isin] ->
+      %{
+        "market" => market,
+        "isin" => isin,
+        "detail_url" => "https://www.pse.cz/en/detail/" <> isin,
+        "source_url" => url
+      }
+    end)
+  end
+
+  defp pse_market_from_url(url) do
+    url
+    |> URI.parse()
+    |> Map.get(:path, "")
+    |> String.split("/", trim: true)
+    |> List.last()
+    |> case do
+      nil -> "unknown"
+      "" -> "unknown"
+      market -> market
+    end
+  end
+
+  defp fetch_pse_issuer_news_responses(source, selected_universe) do
+    selected_universe
+    |> Enum.reduce_while({:ok, []}, fn %{"isin" => isin} = universe_entry, {:ok, responses} ->
+      url = pse_issuer_news_url(source, isin)
+
+      case Http.fetch(url,
+             timeout: source_live_timeout(source),
+             headers: source_live_headers(source)
+           ) do
+        {:ok, %{status_code: status_code} = response}
+        when status_code in 200..299 ->
+          with true <- json_content_type?(response.headers),
+               {:ok, decoded} <- Jason.decode(response.body),
+               data when is_list(data) <- Map.get(decoded, "data") do
+            limited_data = Enum.take(data, pse_max_news_items_per_issuer(source))
+
+            {:cont,
+             {:ok,
+              responses ++
+                [
+                  %{
+                    "isin" => isin,
+                    "market" => Map.get(universe_entry, "market"),
+                    "url" => url,
+                    "status_code" => status_code,
+                    "bytes" => response.bytes,
+                    "records_seen" => length(data),
+                    "records_kept" => length(limited_data),
+                    "data" => limited_data
+                  }
+                ]}}
+          else
+            false ->
+              {:halt,
+               {:error,
+                {:pse_news_unsupported_content_type, isin, content_type(response.headers)}}}
+
+            {:error, reason} ->
+              {:halt, {:error, {:pse_news_invalid_json, isin, reason}}}
+
+            _shape ->
+              {:halt, {:error, {:pse_news_unexpected_json_shape, isin}}}
+          end
+
+        {:ok, response} ->
+          {:halt, {:error, {:pse_news_unexpected_status, isin, response.status_code}}}
+
+        {:error, reason} ->
+          {:halt, {:error, {:pse_news_fetch_failed, isin, reason}}}
+      end
+    end)
+  end
+
+  defp pse_issuer_news_url(source, isin) do
+    source
+    |> source_config_value(
+      "pse_news_url_template",
+      :pse_news_url_template,
+      @pse_news_url_template
+    )
+    |> to_string()
+    |> String.replace("{isin}", URI.encode(isin))
+    |> String.replace("<ISIN>", URI.encode(isin))
+  end
+
+  defp pse_max_issuers_per_poll(source) do
+    source_config_positive_integer(source, "max_issuers_per_poll", :max_issuers_per_poll, 10)
+  end
+
+  defp pse_max_news_items_per_issuer(source) do
+    source_config_positive_integer(
+      source,
+      "max_news_items_per_issuer",
+      :max_news_items_per_issuer,
+      5
+    )
+  end
+
+  defp disable_live_fixture_fallback?(source) do
+    source_config_boolean(
+      source,
+      "disable_live_fixture_fallback",
+      :disable_live_fixture_fallback,
+      false
+    )
+  end
+
+  defp source_config_value(%SourceRegistry{config: config}, string_key, atom_key, default)
+       when is_map(config) do
+    Map.get(config, string_key) || Map.get(config, atom_key) || default
+  end
+
+  defp source_config_value(_source, _string_key, _atom_key, default), do: default
+
+  defp source_config_string_list(source, string_key, atom_key, default) do
+    case source_config_value(source, string_key, atom_key, default) do
+      values when is_list(values) ->
+        values
+        |> Enum.filter(&is_binary/1)
+        |> case do
+          [] -> default
+          filtered -> filtered
+        end
+
+      value when is_binary(value) ->
+        [value]
+
+      _value ->
+        default
+    end
+  end
+
+  defp source_config_positive_integer(source, string_key, atom_key, default) do
+    source
+    |> source_config_value(string_key, atom_key, default)
+    |> case do
+      value when is_integer(value) and value > 0 -> value
+      value when is_binary(value) -> parse_positive_integer(value, default)
+      _value -> default
+    end
+  end
+
+  defp parse_positive_integer(value, default) do
+    case Integer.parse(value) do
+      {parsed, ""} when parsed > 0 -> parsed
+      _ -> default
+    end
+  end
+
+  defp source_config_boolean(source, string_key, atom_key, default) do
+    case source_config_value(source, string_key, atom_key, default) do
+      value when is_boolean(value) -> value
+      value when is_binary(value) -> String.downcase(value) == "true"
+      _value -> default
+    end
+  end
 
   defp validate_live_payload(%SourceRegistry{parser_key: parser_key}, response)
        when parser_key in ["rss_v1", "euronext_company_pr_rss_v1"] do
