@@ -12,6 +12,8 @@ GERMANY_COMPANY_REGISTER_SEARCH_TOKEN_ENDPOINT_CONFIRMED
 GERMANY_COMPANY_REGISTER_SEARCH_RESULTS_HTML_FLIGHT_DATA_CONFIRMED
 GERMANY_COMPANY_REGISTER_STAGING_NETWORK_PREFLIGHT_CONFIRMED
 GERMANY_COMPANY_REGISTER_CURRENT_PAYLOAD_MARKER_CHANGED
+GERMANY_COMPANY_REGISTER_ISO_DATE_RANGE_QUERY_CONFIRMED
+GERMANY_COMPANY_REGISTER_PUBLICATION_DETAIL_URL_ROUTE_CONFIRMED
 GERMANY_COMPANY_REGISTER_TOKEN_PREFLIGHT_FETCH_CONTRACT_RECORDED
 GERMANY_COMPANY_REGISTER_STATIC_POLL_URL_NOT_CONFIRMED
 GERMANY_COMPANY_REGISTER_SOURCE_REGISTRATION_BLOCKED
@@ -90,6 +92,16 @@ tokenized search: HTTP 200, text/html, 693558 bytes
 fixture fallback: false
 ```
 
+Follow-up date/detail evidence:
+
+```text
+ISO month query: sourceDateFrom=2024-09-01&sourceDateTo=2024-09-30 returned HTTP 200, 731794 bytes, first-page publication URLs=30, and September 2024 sourceDate rows.
+dotted date query: sourceDateFrom=01.09.2024&sourceDateTo=30.09.2024 returned HTTP 200 but publication URLs=0.
+ISO daily query: sourceDateFrom=2024-09-30&sourceDateTo=2024-09-30 returned HTTP 200, first-page publication URLs=30, Page 1 of 7, totalResults=188, totalPages=7, and from offsets in increments of 30.
+publication detail route: /en/publication?payload=<encryptedPayload> returned HTTP 200 without searchToken in the URL and exposed sourceDate markers.
+canonical URL template: https://www.unternehmensregister.de/en/publication?payload=<encryptedPayload>
+```
+
 ## Registration Decision
 
 ```text
@@ -105,9 +117,10 @@ Do not register third-party German register APIs as official GlobalPulse sources
 ```text
 Current source live fetch supports a static base_url plus static headers/body, not a per-poll preflight token request.
 The result payload is embedded in Next.js/React flight HTML, not returned as a clean JSON/CSV/XML feed.
-Publication detail/download URLs appear to depend on encryptedPayload-style values, so a stable detail URL contract still needs confirmation.
+Publication detail URLs use /en/publication?payload=<encryptedPayload>; PDF/XML download URLs still need confirmation.
 The unfiltered result order is not yet confirmed as newest-first; observed page 1 contained older rows, so date/sort parameters must be proven before candidate registration.
 The current staging HTML does not include the earlier exact searchResults.elasticSearchDtos marker, so parser markers need a refreshed contract before implementation.
+ISO sourceDateFrom/sourceDateTo is proven, but single-day result windows can exceed one page and need a pagination/over-cap contract.
 ```
 
 ## Token Preflight Contract
@@ -118,13 +131,13 @@ future live_fetch_strategy: germany_company_register_token_preflight_v1
 future parser_key: germany_company_register_capital_market_flight_v1
 future candidate source_key: de_company_register_capital_market_info
 candidate registration: still blocked
-reason: stable detail URL, date-range parameters, newest-first or bounded date-specific ordering, current React/Next payload parser shape, and captcha/rate-limit behavior still need evidence
+reason: pagination cap, over-cap handling, current React/Next payload parser shape, duplicate keys, and captcha/rate-limit behavior still need evidence
 ```
 
 ## Next Step
 
 ```text
-Use the staging-network preflight result to continue with date-range submission and detail/download navigation discovery.
-Before candidate registration, prove date range, sort order, stable detail URL, page size, rate limits, fixture shape, parser validation markers, duplicate keys, and rollback behavior.
+Use the ISO date-range and /en/publication detail-route evidence to continue with pagination and parser-shape discovery.
+Before candidate registration, prove max_pages_per_poll, over-cap handling, page traversal, rate limits, fixture shape, parser validation markers, duplicate keys, and rollback behavior.
 Keep scheduled EU polling disabled.
 ```

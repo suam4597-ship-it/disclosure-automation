@@ -12,7 +12,9 @@ GERMANY_COMPANY_REGISTER_STAGING_NETWORK_REACHABILITY_CONFIRMED
 GERMANY_COMPANY_REGISTER_SEARCH_SORT_RELEVANCE_NOT_NEWEST_CONFIRMED
 GERMANY_COMPANY_REGISTER_TOKEN_PREFLIGHT_FETCH_CONTRACT_RECORDED
 GERMANY_COMPANY_REGISTER_CURRENT_NEXT_PAYLOAD_MARKER_CHANGED
-GERMANY_COMPANY_REGISTER_DETAIL_URL_CONTRACT_STILL_BLOCKED
+GERMANY_COMPANY_REGISTER_ISO_DATE_RANGE_QUERY_CONFIRMED
+GERMANY_COMPANY_REGISTER_PUBLICATION_DETAIL_URL_ROUTE_CONFIRMED
+GERMANY_COMPANY_REGISTER_PAGINATION_CONTRACT_STILL_BLOCKED
 GERMANY_COMPANY_REGISTER_SOURCE_REGISTRATION_BLOCKED
 GERMANY_COMPANY_REGISTER_SCHEDULED_POLLING_DISABLED
 ```
@@ -48,7 +50,7 @@ local workspace TCP 443: failed from the current Windows workspace
 local curl/Invoke-WebRequest live smoke: not accepted as a source failure or source success because the current workspace could not open TCP 443 to the official host
 Fly staging support page/token/tokenized search: HTTP 200 confirmed from globalpulse-backend-staging
 staging preflight doc: globalpulse_germany_company_register_staging_network_preflight_results.md
-source registration decision: blocked until parser markers, date ordering, and stable detail URL are proven
+source registration decision: blocked until parser markers, pagination cap, duplicate handling, and over-cap behavior are proven
 ```
 
 Important ordering constraint:
@@ -110,11 +112,12 @@ Source-specific live fetch sequence:
 4. GET https://www.unternehmensregister.de/api/search-token with the same session.
 5. Require HTTP 200 and a token response containing token, expiresAt, and status.
 6. Build the CAPITAL_MARKET search URL only from the freshly issued token.
-7. Add publication-period/date and sort/page parameters only after they have been independently proven.
+7. Add ISO date-range parameters as sourceDateFrom=YYYY-MM-DD and sourceDateTo=YYYY-MM-DD.
 8. GET the tokenized CAPITAL_MARKET search URL with the same session.
 9. Require HTTP 200, text/html content type, and current embedded payload markers that include publicationDto/sourceDate/companyNameAtTimeOfPublication or equivalent row fields.
-10. Parse only bounded publicationDto rows from the embedded result payload.
-11. Reject tokenless search shells, login pages, captcha/security-query pages, unsupported content types, missing markers, empty unbounded searches, and fixture fallback.
+10. Use from offsets in increments of 30 only after max_pages_per_poll, duplicate handling, and over-cap behavior are documented.
+11. Parse only bounded publicationDto rows from the embedded result payload.
+12. Reject tokenless search shells, login pages, captcha/security-query pages, unsupported content types, missing markers, empty unbounded searches, and fixture fallback.
 ```
 
 Expected live fetch metadata:
@@ -140,6 +143,15 @@ Staging-network marker update:
 Parser registration must therefore be based on the current embedded payload shape, not the earlier exact marker assumption.
 ```
 
+Staging-network date/detail update:
+
+```text
+2026-05-09 Fly staging ISO query sourceDateFrom=2024-09-01&sourceDateTo=2024-09-30 returned HTTP 200, first-page publication URLs=30, and September 2024 sourceDate rows.
+2026-05-09 Fly staging dotted date query sourceDateFrom=01.09.2024&sourceDateTo=30.09.2024 returned HTTP 200 but no publication URLs.
+2026-05-09 Fly staging daily ISO query sourceDateFrom=2024-09-30&sourceDateTo=2024-09-30 returned HTTP 200, first-page publication URLs=30, Page 1 of 7, totalResults=188, totalPages=7, and from offsets in increments of 30.
+2026-05-09 Fly staging publication detail route /en/publication?payload=<encryptedPayload> returned HTTP 200 without searchToken in the URL.
+```
+
 ## Parser Contract
 
 Required row fields before canonical insertion:
@@ -162,8 +174,8 @@ title: title
 published_at: sourceDate normalized to UTC date/time; if only a date exists, record a documented date-only normalization rule before registration
 category: publicationType/publicationCategory/publicationPart label
 summary: bounded text from publication type/category/sourceName/sourceDate
-external_id: de-company-register:<stable publication id or encrypted payload digest>
-url: blocked until publicationNavigationDto/encryptedPayload can be converted into a stable public detail or PDF URL
+external_id: de-company-register:<digest of encryptedPayload>
+url: https://www.unternehmensregister.de/en/publication?payload=<encryptedPayload>
 ```
 
 Parser rejection rules:
@@ -181,10 +193,12 @@ reject if the only available URL includes an expired searchToken
 ## Blocking Items
 
 ```text
-stable detail URL: unresolved
+stable detail URL: resolved for /en/publication?payload=<encryptedPayload>
+PDF/XML download URL: unresolved
 publication date/time normalization: unresolved for date-only rows
-date-range query parameters: unresolved
-newest-first or bounded date-specific ordering: unresolved
+date-range query parameters: resolved as sourceDateFrom/sourceDateTo with ISO YYYY-MM-DD values
+pagination cap and over-cap behavior: unresolved
+newest-first ordering: unresolved; date-specific retrieval is proven but can span multiple pages
 parser approach for React/Next flight payload: unresolved
 local workspace reachability: unresolved after the current workspace TCP 443 failure
 Fly staging reachability: confirmed for support page, token endpoint, and tokenized search
@@ -200,9 +214,9 @@ live HTTP 200 for /api/search-token from the intended staging environment: satis
 live HTTP 200 for a tokenized CAPITAL_MARKET search from the intended staging environment: satisfied on 2026-05-09
 tokenized search includes current embedded publication result markers and publicationDto rows
 tokenless search is proven to be rejected by the parser/fetch adapter
-date-range parameters produce bounded results for the target polling window
-ordering is proven newest-first, or a date-specific visibility contract is recorded
-stable canonical URL contract is proven without retaining an expired searchToken
+date-range parameters produce bounded results for the target polling window: ISO sourceDateFrom/sourceDateTo satisfied on 2026-05-09
+ordering is proven newest-first, or a date-specific visibility contract is recorded: still blocked because daily results can span pages
+stable canonical URL contract is proven without retaining an expired searchToken: /en/publication?payload satisfied on 2026-05-09
 fixture includes token response, tokenized search result with at least two rows, tokenless shell, and captcha/login/error marker samples
 local parser smoke proves records >= 1 and first record has issuer/title/url/published_at
 staging live poll smoke proves records_seen >= 1, records_inserted >= 1, fetch.mode=live, fixture fallback=false, and digest visibility behavior
@@ -222,8 +236,8 @@ Do not use third-party German register APIs as official GlobalPulse sources with
 ## Next Step
 
 ```text
-Use the staging-network preflight result to identify the exact publication-period/date/sort parameters and detail/PDF navigation URL contract.
-Refresh the parser marker contract against the current embedded payload shape.
+Use the ISO sourceDateFrom/sourceDateTo contract to prove pagination, max_pages_per_poll, duplicate handling, and over-cap behavior.
+Refresh the parser marker contract against the current embedded payload shape and use /en/publication?payload=<encryptedPayload> as the canonical URL template.
 Only after that, add an inactive/manual_staging_only candidate source with disable_live_fixture_fallback=true and a source-specific fetch adapter.
 Keep EU scheduled polling disabled.
 ```
