@@ -227,6 +227,43 @@ parsers:
       reject_non_wiener_borse_payload: true
       reject_future_timestamps: true
 
+  - parser_key: xetra_newsboard_html_v1
+    display_name: Xetra Frankfurt Newsboard HTML Parser
+    enabled: true
+    input_types: [html]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: false
+    supports_detail_fetch: false
+    extraction:
+      id_fields:
+        - newsboard_href_slug
+      title_fields:
+        - search-result-description
+      summary_fields:
+        - search-result-tagline
+        - notice_type
+      url_fields:
+        - newsboard_href
+      published_at_fields:
+        - search-result-date
+      category_fields:
+        - notice_type
+    normalization:
+      source_shape: xetra_newsboard_search_result_html
+      trim_html: true
+      decode_entities: true
+      collapse_whitespace: true
+      timezone_strategy: source_cet_cest_datetime
+      missing_summary_strategy: bounded_metadata_summary
+      filter_operational_service_notices: true
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_non_xetra_newsboard_payload: true
+      reject_future_timestamps: true
+
   - parser_key: info_financiere_oam_v1
     display_name: France Info-Financiere OAM JSON Parser
     enabled: true

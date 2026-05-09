@@ -455,6 +455,36 @@ sources:
       live_headers:
         accept: text/html
 
+  - source_key: de_xetra_frankfurt_newsboard
+    display_name: Germany Xetra Frankfurt Newsboard
+    source_type: html
+    base_url: https://www.xetra.com/xetra-en/newsroom/xetra-newsboard/
+    healthcheck_url: https://www.xetra.com/xetra-en/newsroom/xetra-newsboard/
+    parser_key: xetra_newsboard_html_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.14
+    coverage_tags:
+      - eu
+      - eu_central
+      - germany
+      - de
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - exchange_announcement
+      - corporate_action
+    active: false
+    config:
+      fixture_path: source_payloads/de_xetra_frankfurt_newsboard.html
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      max_items_per_poll: 25
+      live_timeout_ms: 30000
+      live_headers:
+        accept: text/html
+
   - source_key: greater_china_market_news
     display_name: Greater China Market News
     source_type: rss
