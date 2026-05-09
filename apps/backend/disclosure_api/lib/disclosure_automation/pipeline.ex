@@ -16,7 +16,7 @@ defmodule DisclosureAutomation.Canonicalizer do
       edition: edition,
       story_key: "#{edition}-#{Date.to_iso8601(digest_date)}-#{slug(story_seed)}",
       headline: document[:title] || "Untitled",
-      summary: document[:summary] || "",
+      summary: canonical_summary(document),
       canonical_url: document[:url],
       published_at: published_at,
       tickers: [],
@@ -69,6 +69,21 @@ defmodule DisclosureAutomation.Canonicalizer do
       Enum.any?(tags, &(&1 in ["regulatory", "enforcement"])) -> ["regulation"]
       Enum.any?(tags, &(&1 in ["markets", "exchange"])) -> ["markets"]
       true -> tags
+    end
+  end
+
+  defp canonical_summary(document) do
+    document
+    |> Map.get(:summary)
+    |> case do
+      summary when is_binary(summary) ->
+        case String.trim(summary) do
+          "" -> "Summary unavailable from source feed."
+          value -> value
+        end
+
+      _summary ->
+        "Summary unavailable from source feed."
     end
   end
 
