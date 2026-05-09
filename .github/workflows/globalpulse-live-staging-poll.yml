@@ -20,6 +20,8 @@ on:
     - cron: "7 * * * *"
     # Run the verified India NSE candidate every 2 hours on weekdays in staging.
     - cron: "37 */2 * * 1-5"
+    # Run the first EU listed-company disclosure canary every 4 hours on weekdays in staging.
+    - cron: "17 */4 * * 1-5"
 
 permissions:
   contents: read
@@ -36,26 +38,46 @@ jobs:
       REQUESTED_SOURCE_KEY: ${{ github.event.inputs.source_key }}
       SCHEDULE_EXPR: ${{ github.event.schedule }}
       EDITION: ${{ github.event.inputs.edition || 'breaking' }}
+      EU_CANARY_SOURCES: >-
+        eu_france_info_financiere_oam
+        eu_spain_cnmv_inside_information
+        eu_spain_cnmv_other_relevant_information
+        eu_belgium_fsma_stori
+        uk_fca_nsm_regulated_information
+        ch_six_ser_official_notices
+        eu_euronext_company_press_releases
+        pt_cmvm_portal_info_privi
 
     steps:
       - name: Resolve source
         run: |
           if [ -n "${REQUESTED_SOURCE_KEY}" ]; then
             resolved_source="${REQUESTED_SOURCE_KEY}"
+            run_mode="single_source"
+          elif [ "${SCHEDULE_EXPR}" = "17 */4 * * 1-5" ]; then
+            resolved_source="eu_scheduled_staging_canary"
+            run_mode="eu_canary"
           elif [ "${SCHEDULE_EXPR}" = "37 */2 * * 1-5" ]; then
             resolved_source="india_nse_announcements"
+            run_mode="single_source"
           else
             resolved_source="sec_press_releases"
+            run_mode="single_source"
           fi
 
           echo "SOURCE_KEY=${resolved_source}" >> "${GITHUB_ENV}"
+          echo "RUN_MODE=${run_mode}" >> "${GITHUB_ENV}"
 
       - name: Show target
         run: |
           echo "backend=${BACKEND_URL}"
           echo "source=${SOURCE_KEY}"
+          echo "run_mode=${RUN_MODE}"
           echo "schedule=${SCHEDULE_EXPR}"
           echo "edition=${EDITION}"
+          if [ "${RUN_MODE}" = "eu_canary" ]; then
+            echo "eu_canary_sources=${EU_CANARY_SOURCES}"
+          fi
 
       - name: Health check
         run: |
@@ -68,21 +90,114 @@ jobs:
 
       - name: Poll live source
         run: |
-          status=$(curl -sS -o poll.json -w "%{http_code}" -X POST "${BACKEND_URL}/api/admin/sources/${SOURCE_KEY}/poll?use_live_fetch=true&edition=${EDITION}")
-          echo "poll status=${status}"
-          cat poll.json
-          if [ "${status}" -lt 200 ] || [ "${status}" -ge 300 ]; then
-            exit 1
+          if [ "${RUN_MODE}" = "eu_canary" ]; then
+            failed=0
+
+            for source in ${EU_CANARY_SOURCES}; do
+              output="poll-${source}.json"
+              status=$(curl -sS -o "${output}" -w "%{http_code}" -X POST "${BACKEND_URL}/api/admin/sources/${source}/poll?use_live_fetch=true&edition=${EDITION}")
+              echo "source=${source} poll status=${status}"
+              cat "${output}"
+
+              if [ "${status}" -lt 200 ] || [ "${status}" -ge 300 ]; then
+                failed=1
+                continue
+              fi
+
+              POLL_JSON="${output}" POLL_SOURCE="${source}" python3 - <<'PY' || failed=1
+          import json
+          import os
+          import sys
+
+          path = os.environ["POLL_JSON"]
+          source = os.environ["POLL_SOURCE"]
+
+          with open(path, "r", encoding="utf-8") as handle:
+              payload = json.load(handle)
+
+          fetch = payload.get("fetch") or {}
+          records_seen = payload.get("records_seen")
+          records_inserted = payload.get("records_inserted")
+          canonical_items = payload.get("canonical_items") or []
+          raw_documents = payload.get("raw_documents") or []
+          errors = []
+
+          if fetch.get("mode") != "live":
+              errors.append(f"{source}: expected fetch.mode=live, got {fetch.get('mode')!r}")
+
+          if fetch.get("fixture_fallback") is True:
+              errors.append(f"{source}: fixture_fallback=true cannot be claimed as live")
+
+          if fetch.get("status_code") != 200:
+              errors.append(f"{source}: expected fetch.status_code=200, got {fetch.get('status_code')!r}")
+
+          if not isinstance(records_seen, int):
+              errors.append(f"{source}: records_seen is not an integer")
+          elif records_seen > 25:
+              errors.append(f"{source}: records_seen {records_seen} exceeds canary cap 25")
+
+          if not isinstance(records_inserted, int):
+              errors.append(f"{source}: records_inserted is not an integer")
+          elif isinstance(records_seen, int) and records_inserted > records_seen:
+              errors.append(f"{source}: records_inserted {records_inserted} exceeds records_seen {records_seen}")
+
+          if isinstance(records_seen, int) and len(canonical_items) > records_seen:
+              errors.append(f"{source}: canonical_items count {len(canonical_items)} exceeds records_seen {records_seen}")
+
+          if isinstance(records_seen, int) and len(raw_documents) > records_seen:
+              errors.append(f"{source}: raw_documents count {len(raw_documents)} exceeds records_seen {records_seen}")
+
+          if errors:
+              print("\n".join(errors))
+              sys.exit(1)
+
+          print(f"{source}: poll contract pass")
+          PY
+            done
+
+            exit "${failed}"
+          else
+            status=$(curl -sS -o poll.json -w "%{http_code}" -X POST "${BACKEND_URL}/api/admin/sources/${SOURCE_KEY}/poll?use_live_fetch=true&edition=${EDITION}")
+            echo "poll status=${status}"
+            cat poll.json
+            if [ "${status}" -lt 200 ] || [ "${status}" -ge 300 ]; then
+              exit 1
+            fi
           fi
 
       - name: Verify digest
         run: |
-          status=$(curl -sS -o digest.json -w "%{http_code}" "${BACKEND_URL}/api/feed/digest/latest?edition=${EDITION}")
+          if [ "${RUN_MODE}" = "eu_canary" ]; then
+            digest_output="digest-eu-canary.json"
+          else
+            digest_output="digest.json"
+          fi
+
+          status=$(curl -sS -o "${digest_output}" -w "%{http_code}" "${BACKEND_URL}/api/feed/digest/latest?edition=${EDITION}")
           echo "digest status=${status}"
-          cat digest.json
+          cat "${digest_output}"
           if [ "${status}" -lt 200 ] || [ "${status}" -ge 300 ]; then
             exit 1
           fi
+
+          DIGEST_JSON="${digest_output}" python3 - <<'PY'
+          import json
+          import os
+          import sys
+
+          path = os.environ["DIGEST_JSON"]
+
+          with open(path, "r", encoding="utf-8") as handle:
+              payload = json.load(handle)
+
+          metadata = payload.get("metadata") or {}
+
+          if metadata.get("fallback_to_fixture") is not False:
+              print(f"expected digest.metadata.fallback_to_fixture=false, got {metadata.get('fallback_to_fixture')!r}")
+              sys.exit(1)
+
+          print("digest contract pass")
+          PY
 
       - name: Upload smoke outputs
         uses: actions/upload-artifact@v4
@@ -92,5 +207,7 @@ jobs:
           path: |
             health.json
             poll.json
+            poll-*.json
             digest.json
+            digest-*.json
           if-no-files-found: ignore
