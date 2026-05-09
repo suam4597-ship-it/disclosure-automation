@@ -485,6 +485,65 @@ sources:
       live_headers:
         accept: text/html
 
+  - source_key: gr_athex_issuer_announcements
+    display_name: Greece ATHEX Issuer Announcements
+    source_type: rss
+    base_url: https://athens.euronext.com/en/rss/issuer-announcements
+    healthcheck_url: https://athens.euronext.com/en/rss
+    parser_key: rss_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.13
+    coverage_tags:
+      - eu
+      - eu_south
+      - greece
+      - gr
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - exchange_announcement
+    active: false
+    config:
+      fixture_path: source_payloads/gr_athex_issuer_announcements.xml
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      max_items_per_poll: 25
+      live_timeout_ms: 30000
+      live_headers:
+        accept: application/rss+xml, application/xml, text/xml
+
+  - source_key: gr_athex_corporate_actions
+    display_name: Greece ATHEX Corporate Actions
+    source_type: rss
+    base_url: https://athens.euronext.com/en/rss/corporate-actions
+    healthcheck_url: https://athens.euronext.com/en/rss
+    parser_key: rss_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.13
+    coverage_tags:
+      - eu
+      - eu_south
+      - greece
+      - gr
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - exchange_announcement
+      - corporate_action
+    active: false
+    config:
+      fixture_path: source_payloads/gr_athex_corporate_actions.xml
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      max_items_per_poll: 25
+      live_timeout_ms: 30000
+      live_headers:
+        accept: application/rss+xml, application/xml, text/xml
+
   - source_key: greater_china_market_news
     display_name: Greater China Market News
     source_type: rss

@@ -1416,7 +1416,14 @@ defmodule DisclosureAutomation.Parser do
         end
 
       _ ->
-        parse_short_month_pub_date(pub_date)
+        parse_iso8601_pub_date(pub_date) || parse_short_month_pub_date(pub_date)
+    end
+  end
+
+  defp parse_iso8601_pub_date(pub_date) do
+    case DateTime.from_iso8601(pub_date) do
+      {:ok, datetime, _offset} -> datetime
+      _ -> nil
     end
   end
 

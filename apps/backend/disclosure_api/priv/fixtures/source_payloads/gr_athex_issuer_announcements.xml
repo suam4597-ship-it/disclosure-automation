@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xml:base="https://athens.euronext.com/en">
+  <channel>
+    <title>Issuer Announcements</title>
+    <link>https://athens.euronext.com/en</link>
+    <description>Euronext Athens issuer announcements</description>
+    <item>
+      <title>Announcement on the Greek Information Document</title>
+      <link>https://athens.euronext.com/en/node/966264</link>
+      <description>Issuer announcement published through the Euronext Athens RSS surface.</description>
+      <pubDate>2026-05-08T21:37:14Z</pubDate>
+      <guid>https://athens.euronext.com/en/node/966264</guid>
+      <category>Issuer Announcements</category>
+    </item>
+    <item>
+      <title>Annex IX Document under Regulation 2017/1129</title>
+      <link>https://athens.euronext.com/en/node/966263</link>
+      <description>Bounded issuer filing item from the official Euronext Athens feed.</description>
+      <pubDate>2026-05-08T21:24:24Z</pubDate>
+      <guid>https://athens.euronext.com/en/node/966263</guid>
+      <category>Issuer Announcements</category>
+    </item>
+  </channel>
+</rss>
