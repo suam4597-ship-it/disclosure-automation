@@ -10,7 +10,7 @@ This is documentation-only. It does not add runtime code, routes, controllers, m
 primary target: listed-company disclosures and issuer announcements
 preferred authority: official exchange, OAM, regulated-information repository, or issuer-announcement authority
 not first target: ECB, central-bank feeds, macro-statistics feeds, parliament feeds, or broad policy news
-current result: France OAM manual source + parser + staging live smoke complete; Spain CNMV manual RSS sources + parser compatibility fix + staging live smoke + public UI smoke complete; Netherlands AFM CSV manual source + parser + staging live smoke complete; Italy eMarket Storage bounded HTML manual source + parser + staging live smoke + public UI smoke complete; Luxembourg LuxSE OAM GraphQL manual source + parser + staging live smoke + public UI smoke complete; Euronext company press release RSS manual source + bounded parser + staging live smoke + public UI smoke complete; Belgium FSMA STORI API manual source + bounded parser + staging live smoke + public UI smoke complete; UK FCA NSM API manual source + bounded parser + staging live smoke complete; Switzerland SIX SER official notices RSS manual source + staging live smoke + public UI smoke complete; Nasdaq Nordic Company News JSONP manual source + staging live smoke + public UI smoke complete; Austria Wiener Boerse announcements bounded HTML manual source + staging live poll complete with public latest UI visibility pending; Austria OeKB OAM Issuer Info JSON manual source + staging live smoke complete with digest top-n visibility pending; Germany Xetra Frankfurt Newsboard bounded HTML manual source + staging live smoke complete with public latest UI visibility pending; Germany Company Register capital-market surface confirmed but tokenized search requires preflight/stable endpoint work before source registration; Greece ATHEX issuer announcements and corporate actions RSS manual sources staging live smoke complete with public latest UI visibility pending; Poland GPW ESPI/EBI bounded HTML manual source + staging live smoke complete with public latest UI visibility pending; Slovakia CERI bounded HTML manual source + staging live smoke complete with public latest UI visibility pending; Estonia OAM bounded HTML manual source + staging live smoke complete with public latest UI visibility pending; Lithuania OAM bounded HTML manual source + staging live smoke complete with public latest UI visibility pending; Latvia CSRI bounded HTML manual source + staging live smoke complete with digest top-n visibility pending; Portugal CMVM portal InfoPrivi JSON manual source + staging live smoke complete with digest top-n visibility pending; Prague/PSE official JSON surfaces found but require multi-ISIN source design before registration; remaining Europe candidates need endpoint/parser confirmation
+current result: France OAM manual source + parser + staging live smoke complete; Spain CNMV manual RSS sources + parser compatibility fix + staging live smoke + public UI smoke complete; Netherlands AFM CSV manual source + parser + staging live smoke complete; Italy eMarket Storage bounded HTML manual source + parser + staging live smoke + public UI smoke complete; Luxembourg LuxSE OAM GraphQL manual source + parser + staging live smoke + public UI smoke complete; Euronext company press release RSS manual source + bounded parser + staging live smoke + public UI smoke complete; Belgium FSMA STORI API manual source + bounded parser + staging live smoke + public UI smoke complete; UK FCA NSM API manual source + bounded parser + staging live smoke complete; Switzerland SIX SER official notices RSS manual source + staging live smoke + public UI smoke complete; Nasdaq Nordic Company News JSONP manual source + staging live smoke + public UI smoke complete; Austria Wiener Boerse announcements bounded HTML manual source + staging live poll complete with public latest UI visibility pending; Austria OeKB OAM Issuer Info JSON manual source + staging live smoke complete with digest top-n visibility pending; Germany Xetra Frankfurt Newsboard bounded HTML manual source + staging live smoke complete with public latest UI visibility pending; Germany Company Register capital-market surface confirmed but tokenized search requires preflight/stable endpoint work before source registration; Greece ATHEX issuer announcements and corporate actions RSS manual sources staging live smoke complete with public latest UI visibility pending; Poland GPW ESPI/EBI bounded HTML manual source + staging live smoke complete with public latest UI visibility pending; Slovakia CERI bounded HTML manual source + staging live smoke complete with public latest UI visibility pending; Estonia OAM bounded HTML manual source + staging live smoke complete with public latest UI visibility pending; Lithuania OAM bounded HTML manual source + staging live smoke complete with public latest UI visibility pending; Latvia CSRI bounded HTML manual source + staging live smoke complete with digest top-n visibility pending; Portugal CMVM portal InfoPrivi JSON manual source + staging live smoke complete with digest top-n visibility pending; Prague/PSE official JSON surfaces and issuer universe confirmed, with multi-ISIN fan-out contract recorded before source registration; remaining Europe candidates need endpoint/parser confirmation
 ```
 
 ## Candidate A: France Info-Financiere OAM API
@@ -1040,7 +1040,7 @@ issuer news URL pattern: https://www.pse.cz/api/news?lang=en&type=&page=1&homepa
 issuer reports URL pattern: https://www.pse.cz/api/file-reports?isin=NL0010391108&order=year-desc&lang=en
 observed HTTP: 200 for global PSE news, issuer-specific news, and issuer-specific file reports
 observed shape: JSON data arrays for news; JSON result.data grouped by year for reports
-status: OFFICIAL_JSON_SURFACES_FOUND_MULTI_ISIN_SOURCE_DESIGN_REQUIRED_DO_NOT_REGISTER_YET
+status: OFFICIAL_JSON_SURFACES_AND_ISSUER_UNIVERSE_CONFIRMED_MULTI_ISIN_FANOUT_CONTRACT_RECORDED_SOURCE_REGISTRATION_DEFERRED
 ```
 
 Why this is not registered yet:
@@ -1050,7 +1050,9 @@ The global PSE news endpoint returned 10 records, but rows are broad exchange/in
 The issuer news endpoint is bounded and official, but requires an isin parameter; NL0010391108 returned 6 Photon Energy records with id, title, publishedAt, isin, slug, and content.
 The issuer file-reports endpoint is bounded and official, but requires an isin parameter; NL0010391108 returned year-grouped PDF records with uuid, label, ref, size, path, and extension.
 The file-reports endpoint without isin returned 404, and with an empty isin returned 500, so it cannot be treated as an all-issuer reports source.
-The highlighted-instruments endpoint returned current highlighted instruments, but that is not yet a comprehensive issuer universe contract.
+The four official share-market pages returned 63 unique ISIN detail links across Prime, Standard, Start, and Free Market pages.
+Issuer-news responses may include PSE rows with isin=null or rows covering multiple comma-separated ISINs, so the parser must strictly retain only rows whose isin list contains the query ISIN.
+Issuer report responses may return year-keyed rows or an empty array, and reports do not yet have a precise publication timestamp contract.
 ```
 
 Implementation status:
@@ -1058,7 +1060,8 @@ Implementation status:
 ```text
 No source is registered yet.
 Do not register the PSE HTML root or the broad global PSE news endpoint as rss_v1.
-Next Prague/PSE work should first define an issuer-universe source and a bounded multi-ISIN fan-out contract, including rate limits, max_items_per_poll behavior, duplicate keys, and rollback.
+The multi-ISIN fan-out contract is recorded in globalpulse_prague_pse_multi_isin_source_design.md.
+Next Prague/PSE implementation should add first-class fan-out support or a source-specific fetch adapter before registering a manual-only candidate.
 Alternatively, continue Czech official OAM discovery if a stable machine-readable all-issuer regulated-information endpoint is found.
 ```
 
@@ -1086,7 +1089,7 @@ Alternatively, continue Czech official OAM discovery if a stable machine-readabl
 19. Keep Lithuania OAM regulated information as a proven manual_staging_only official OAM-style HTML parser candidate with date-specific digest visibility passing and public latest UI visibility pending.
 20. Keep Latvia CSRI / ORICGS regulated information as a proven manual_staging_only official OAM-style HTML parser candidate with digest top-n/public latest UI visibility pending.
 21. Keep Portugal CMVM portal InfoPrivi as a proven manual_staging_only bounded latest-disclosure API candidate with digest top-n/public latest UI visibility pending.
-22. Keep Prague/PSE as an official JSON surface requiring multi-ISIN source design before source registration.
+22. Keep Prague/PSE as an official JSON surface with a recorded multi-ISIN fan-out contract; source registration remains deferred until first-class fan-out support or a source-specific fetch adapter exists.
 23. Keep Germany Company Register capital-market information blocked from source registration until a stable endpoint or token-preflight live fetch contract is designed.
 24. Only batch-promote scheduled EU polling after the target list, rollback path, source-specific parser risk, and staging live smoke evidence are documented together.
 ```
@@ -1150,11 +1153,11 @@ LATVIA_CSRI_REGULATED_INFORMATION_MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PAS
 LATVIA_CSRI_REGULATED_INFORMATION_DIGEST_TOP_N_VISIBILITY_PENDING
 PORTUGAL_CMVM_PORTAL_INFOPRIVI_MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS
 PORTUGAL_CMVM_PORTAL_INFOPRIVI_DIGEST_TOP_N_VISIBILITY_PENDING
-PRAGUE_PSE_OFFICIAL_JSON_SURFACES_FOUND_MULTI_ISIN_DESIGN_REQUIRED
+PRAGUE_PSE_MULTI_ISIN_FANOUT_CONTRACT_RECORDED_SOURCE_REGISTRATION_DEFERRED
 GERMANY_COMPANY_REGISTER_CAPITAL_MARKET_TOKENIZED_SEARCH_CONFIRMED_STATIC_SOURCE_BLOCKED
 EURONEXT_COMPANY_PRESS_RELEASES_PUBLIC_HTML_SURFACE_FOUND
 BORSA_ITALIANA_POINTS_TO_CONSOB_AUTHORIZED_STORAGE_SYSTEMS
 ESMA_OAM_DIRECTORY_ACCEPTED_AS_AUTHORITY_MAP_NOT_POLL_SOURCE
-EU_NEXT_IMPLEMENTATION_STEP_PRAGUE_MULTI_ISIN_DESIGN_OR_GERMANY_TOKEN_PREFLIGHT_FETCH_CONTRACT
+EU_NEXT_IMPLEMENTATION_STEP_PSE_FANOUT_FETCH_ADAPTER_OR_GERMANY_TOKEN_PREFLIGHT_FETCH_CONTRACT
 EU_SCHEDULED_LIVE_POLLING_BLOCKED
 ```
