@@ -8,6 +8,7 @@ This is documentation-only. It does not add runtime code, routes, controllers, m
 
 ```text
 EU_CANARY_MANUAL_DISPATCH_PATH_RECORDED
+EU_CANARY_WORKFLOW_DISPATCH_PASS
 EU_CANARY_SCHEDULED_CRON_PRESERVED
 EU_PRODUCTION_SCHEDULED_POLLING_NOT_ENABLED
 EU_PUBLIC_UI_AND_API_SHAPE_UNCHANGED
@@ -18,6 +19,7 @@ EU_PUBLIC_UI_AND_API_SHAPE_UNCHANGED
 ```text
 runbook doc: globalpulse_eu_scheduled_staging_canary_runbook.md
 configuration doc: globalpulse_eu_scheduled_staging_canary_configuration_results.md
+first dispatch smoke doc: globalpulse_eu_scheduled_staging_canary_first_run_smoke_results.md
 workflow path: .github/workflows/globalpulse-live-staging-poll.yml
 scheduled EU cron: 17 */4 * * 1-5
 backend URL: https://globalpulse-backend-staging.fly.dev
@@ -81,6 +83,6 @@ any date-specific digest checks needed because latest top-N does not show a sour
 ## Current Conclusion
 
 ```text
-EU_CANARY_MANUAL_DISPATCH_READY
-NEXT_STEP_RUN_WORKFLOW_DISPATCH_AND_RECORD_SMOKE
+EU_CANARY_WORKFLOW_DISPATCH_PASS
+NEXT_STEP_RECORD_FIRST_AUTOMATED_CANARY_SMOKE
 ```
