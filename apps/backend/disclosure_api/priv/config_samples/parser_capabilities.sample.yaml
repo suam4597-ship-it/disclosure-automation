@@ -734,6 +734,48 @@ parsers:
       reject_non_xetra_newsboard_payload: true
       reject_future_timestamps: true
 
+  - parser_key: germany_company_register_capital_market_flight_v1
+    display_name: Germany Company Register Capital Market Flight Payload Parser
+    enabled: true
+    input_types: [json, html, api, fanout]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: true
+    supports_detail_fetch: false
+    extraction:
+      id_fields:
+        - responses.data.encryptedPayload
+      title_fields:
+        - responses.data.title
+      summary_fields:
+        - responses.data.companyNameAtTimeOfPublication
+        - responses.data.sourceName
+        - responses.data.sourceDate
+        - responses.data.publicationCategory.id
+      url_fields:
+        - generated_publication_payload_url
+      published_at_fields:
+        - responses.data.sourceDate
+      category_fields:
+        - responses.data.publicationCategory.id
+        - responses.data.publicationType.id
+    normalization:
+      source_shape: germany_company_register_token_preflight_fanout_json
+      trim_html: true
+      decode_entities: true
+      collapse_whitespace: true
+      timezone_strategy: date_only_utc_midnight
+      generated_url_strategy: official_company_register_publication_payload_url
+      missing_summary_strategy: bounded_metadata_summary
+      pagination_strategy: token_preflight_iso_date_window_from_offsets
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_html_payload: true
+      reject_non_company_register_payload: true
+      reject_future_timestamps: true
+
   - parser_key: info_financiere_oam_v1
     display_name: France Info-Financiere OAM JSON Parser
     enabled: true

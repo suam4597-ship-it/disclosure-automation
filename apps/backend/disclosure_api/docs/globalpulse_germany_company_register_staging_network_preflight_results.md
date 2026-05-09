@@ -13,8 +13,8 @@ GERMANY_COMPANY_REGISTER_STAGING_NETWORK_TOKENIZED_SEARCH_PASS
 GERMANY_COMPANY_REGISTER_NEXT_PAYLOAD_MARKER_CHANGED
 GERMANY_COMPANY_REGISTER_ISO_DATE_RANGE_QUERY_PASS
 GERMANY_COMPANY_REGISTER_PUBLICATION_DETAIL_URL_ROUTE_PASS
-GERMANY_COMPANY_REGISTER_DAILY_PAGINATION_CONTRACT_STILL_BLOCKED
-GERMANY_COMPANY_REGISTER_SOURCE_REGISTRATION_BLOCKED
+GERMANY_COMPANY_REGISTER_DAILY_PAGINATION_OVER_CAP_CONFIRMED
+GERMANY_COMPANY_REGISTER_MANUAL_SOURCE_REGISTERED_IN_FOLLOW_UP
 GERMANY_COMPANY_REGISTER_SCHEDULED_POLLING_DISABLED
 ```
 
@@ -131,7 +131,7 @@ page size: 30
 fixture fallback: false
 ```
 
-This proves the ISO `YYYY-MM-DD` date-range query contract, but it also proves a single source date can exceed one page. Candidate registration therefore requires an explicit pagination cap, duplicate handling, and rate/captcha behavior evidence.
+This proves the ISO `YYYY-MM-DD` date-range query contract, but it also proves a single source date can exceed one page. The follow-up manual candidate therefore records an explicit max_pages_per_poll cap and over_page_cap metadata, while duplicate handling and rate/captcha behavior remain blockers for scheduled-poll promotion.
 
 ## Publication Detail URL
 
@@ -165,28 +165,25 @@ ISO sourceDateFrom/sourceDateTo query parameters are now proven.
 The public /en/publication?payload=<encryptedPayload> detail route is now proven for canonical URLs.
 The exact payload marker assumed by the first token-preflight note changed or is not present in the staging HTML.
 The unfiltered tokenized search is not acceptable as a live polling source because the first observed sourceDate values are historical and the page includes mixed historical/newer dates.
-Daily date windows can exceed one page, so pagination and duplicate handling remain required before candidate registration.
+Daily date windows can exceed one page, so the follow-up manual candidate uses a documented page cap and keeps full pagination/duplicate handling as scheduled-promotion blockers.
 Publication detail URL behavior is proven, but PDF/XML download behavior is not.
 ```
 
 ## Registration Decision
 
 ```text
-Do not register a source in this pass.
-Do not add a parser in this pass.
-Do not add a fixture in this pass.
+This preflight did not itself register a source, parser, or fixture; the follow-up candidate registers only an inactive/manual_staging_only source with a source-specific token preflight fetch adapter.
 Do not treat the unfiltered tokenized search page as newest-first.
 Do not rely on searchResults.elasticSearchDtos as a required exact marker without refreshing the parser contract.
-Do not limit a live poll to page 1 without a documented pagination cap and rollback rule.
+Do not promote page-capped live polling without a documented pagination and rollback design.
 Keep scheduled polling disabled.
 ```
 
 ## Next Step
 
 ```text
-Use the ISO sourceDateFrom/sourceDateTo query contract with from offsets to prove bounded pagination behavior.
-Record max_pages_per_poll, duplicate-key behavior, and what to do when a daily window exceeds the cap.
-Refresh the parser contract against the current embedded payload shape.
+Run staging live poll smoke for the follow-up inactive/manual_staging_only candidate.
+Record source health, live fetch metadata, max_pages_per_poll, over_page_cap, records_seen, records_inserted, fixture fallback=false, and digest visibility.
 Optionally probe PDF/XML download routes, but do not require them for canonical URL formation if /en/publication?payload remains stable.
-After those items are proven, add only an inactive/manual_staging_only candidate source with a source-specific token preflight fetch adapter.
+Keep scheduled EU polling disabled until over-cap pagination, duplicate-key behavior, rate/captcha behavior, and rollback are designed.
 ```
