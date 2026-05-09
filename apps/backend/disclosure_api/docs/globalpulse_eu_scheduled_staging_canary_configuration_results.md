@@ -12,6 +12,7 @@ EU_FIRST_CANARY_SOURCE_LIST_CONFIGURED
 EU_MANUAL_PREFLIGHT_CANARY_POLL_PASS
 EU_DEFAULT_BRANCH_ACTIVATION_PASS
 EU_CANARY_MANUAL_DISPATCH_PATH_RECORDED
+EU_CANARY_WORKFLOW_DISPATCH_PASS
 EU_PRODUCTION_SCHEDULED_POLLING_NOT_ENABLED
 ```
 
@@ -26,6 +27,7 @@ branch target: phase0-foundation
 main activation PR: #447 Activate EU staging canary schedule on main
 main activation merge commit: 09fdcb747022bf47709e913298495c595819f6fe
 manual dispatch doc: globalpulse_eu_scheduled_staging_canary_manual_dispatch.md
+first dispatch smoke doc: globalpulse_eu_scheduled_staging_canary_first_run_smoke_results.md
 source status: active=false
 candidate status: manual_staging_only
 ```
@@ -186,7 +188,7 @@ any rollback action if a source fails
 ```text
 EU_SCHEDULED_STAGING_CANARY_PHASE0_CONFIG_READY
 EU_DEFAULT_BRANCH_ACTIVATION_PASS
-EU_CANARY_MANUAL_DISPATCH_READY
-EU_FIRST_CANARY_RUN_SMOKE_PENDING
+EU_CANARY_WORKFLOW_DISPATCH_PASS
+EU_FIRST_AUTOMATED_CANARY_RUN_PENDING
 EU_PRODUCTION_SCHEDULED_POLLING_BLOCKED
 ```
