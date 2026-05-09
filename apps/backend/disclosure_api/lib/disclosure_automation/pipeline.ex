@@ -173,6 +173,9 @@ defmodule DisclosureAutomation.Parser do
   defp parse_by_key("pse_multi_isin_issuer_news_json_v1", raw_payload),
     do: parse_pse_multi_isin_issuer_news(raw_payload)
 
+  defp parse_by_key("pse_multi_isin_issuer_report_calendar_json_v1", raw_payload),
+    do: parse_pse_multi_isin_issuer_report_calendar(raw_payload)
+
   defp parse_by_key("nasdaq_nordic_cns_jsonp_v1", raw_payload),
     do: parse_nasdaq_nordic_cns(raw_payload)
 
@@ -1093,6 +1096,108 @@ defmodule DisclosureAutomation.Parser do
 
   defp pse_issuer_news_url(nil, query_isin), do: @pse_detail_base_url <> query_isin
   defp pse_issuer_news_url(slug, _query_isin), do: @pse_news_base_url <> slug
+
+  defp parse_pse_multi_isin_issuer_report_calendar(raw_payload) do
+    with {:ok, decoded} <- Jason.decode(raw_payload),
+         records when is_list(records) <- pse_multi_isin_calendar_records(decoded) do
+      items =
+        records
+        |> Enum.flat_map(&parse_pse_multi_isin_calendar_response/1)
+        |> Enum.filter(&(&1.url && &1.title && &1.published_at))
+
+      {:ok, items}
+    else
+      {:error, error} -> {:error, {:invalid_json, error}}
+      _ -> {:error, {:invalid_json_shape, "pse_multi_isin_issuer_report_calendar_json_v1"}}
+    end
+  end
+
+  defp pse_multi_isin_calendar_records(%{"responses" => records}) when is_list(records),
+    do: records
+
+  defp pse_multi_isin_calendar_records(_decoded), do: nil
+
+  defp parse_pse_multi_isin_calendar_response(%{"isin" => query_isin, "data" => rows})
+       when is_binary(query_isin) and is_list(rows) do
+    rows
+    |> Enum.filter(&pse_report_calendar_row?(&1, query_isin))
+    |> Enum.map(&parse_pse_report_calendar_record(&1, query_isin))
+  end
+
+  defp parse_pse_multi_isin_calendar_response(_response), do: []
+
+  defp pse_report_calendar_row?(record, query_isin) when is_map(record) do
+    pse_report_calendar_matches_query_isin?(record, query_isin) and
+      not is_nil(string_field(record, "ref")) and
+      not is_nil(parse_pse_report_calendar_date(string_field(record, "date")))
+  end
+
+  defp pse_report_calendar_row?(_record, _query_isin), do: false
+
+  defp pse_report_calendar_matches_query_isin?(record, query_isin) do
+    record
+    |> string_field("instrumentIsin")
+    |> case do
+      nil -> true
+      isin -> normalize_isin(isin) == normalize_isin(query_isin)
+    end
+  end
+
+  defp parse_pse_report_calendar_record(record, query_isin) when is_map(record) do
+    ref = string_field(record, "ref")
+    title = string_field(record, "name")
+
+    %{
+      external_id:
+        join_non_empty(
+          ["pse-report-calendar", query_isin, string_field(record, "id") || ref],
+          ":"
+        ),
+      title: title,
+      url: pse_report_calendar_url(query_isin, ref),
+      summary: pse_report_calendar_summary(record, query_isin),
+      published_at: parse_pse_report_calendar_date(string_field(record, "date")),
+      category: "PSE issuer report"
+    }
+  end
+
+  defp pse_report_calendar_url(_query_isin, nil), do: nil
+
+  defp pse_report_calendar_url(query_isin, ref) do
+    @pse_detail_base_url <> query_isin <> "?do=download&path=" <> ref
+  end
+
+  defp pse_report_calendar_summary(record, query_isin) do
+    join_non_empty(
+      [
+        "Prague Stock Exchange issuer report calendar document",
+        prefixed("Issuer", string_field(record, "instrumentName")),
+        prefixed("ISIN", query_isin),
+        prefixed("Date", string_field(record, "date")),
+        prefixed("Extension", string_field(record, "extension")),
+        prefixed("Size", string_field(record, "sizeFormatted")),
+        prefixed("File", string_field(record, "ref"))
+      ],
+      " | "
+    )
+  end
+
+  defp parse_pse_report_calendar_date(nil), do: nil
+
+  defp parse_pse_report_calendar_date(value) do
+    with [_, day_text, month_text, year_text] <-
+           Regex.run(~r/^(\d{2})\.(\d{2})\.(\d{4})$/, value),
+         {year, ""} <- Integer.parse(year_text),
+         {month, ""} <- Integer.parse(month_text),
+         {day, ""} <- Integer.parse(day_text),
+         {:ok, datetime} <- build_utc_datetime(year, month, day, 0, 0, 0),
+         true <-
+           DateTime.compare(datetime, DateTime.add(DateTime.utc_now(), 86_400, :second)) != :gt do
+      datetime
+    else
+      _ -> nil
+    end
+  end
 
   defp pse_issuer_news_summary(record, query_isin) do
     join_non_empty(
@@ -3004,6 +3109,7 @@ defmodule DisclosureAutomation.Ingestion do
     "https://www.pse.cz/en/market-data/shares/free-market"
   ]
   @pse_news_url_template "https://www.pse.cz/api/news?lang=en&type=pse&page=1&homepage=0&searchKey=&dateFrom=&dateTo=&isin={isin}"
+  @pse_calendar_url_template "https://www.pse.cz/api/corporation-calendar?isin={isin}&order=date-DESC&lang=en"
 
   def poll_source(source_key, opts \\ []) when is_binary(source_key) do
     trigger_kind = Keyword.get(opts, :trigger_kind, "manual")
@@ -3183,6 +3289,41 @@ defmodule DisclosureAutomation.Ingestion do
     end
   end
 
+  defp maybe_load_live_payload(
+         %SourceRegistry{parser_key: "pse_multi_isin_issuer_report_calendar_json_v1"} = source,
+         true
+       ) do
+    with {:ok, universe_pages} <- fetch_pse_issuer_universe_pages(source),
+         {:ok, universe} <- pse_issuer_universe(universe_pages),
+         selected_universe <- Enum.take(universe, pse_max_issuers_per_poll(source)),
+         {:ok, responses} <- fetch_pse_issuer_calendar_responses(source, selected_universe) do
+      raw_payload =
+        Jason.encode!(%{
+          "strategy" => "pse_multi_isin_report_calendar_v1",
+          "universe" => universe,
+          "selected_isins" => Enum.map(selected_universe, & &1["isin"]),
+          "responses" => responses
+        })
+
+      {:ok,
+       %{
+         raw_payload: raw_payload,
+         http_status: 200,
+         fetch_info: %{
+           "mode" => "live",
+           "loaded" => true,
+           "strategy" => "pse_multi_isin_report_calendar_v1",
+           "url" => source.base_url,
+           "status_code" => 200,
+           "bytes" => byte_size(raw_payload),
+           "universe_count" => length(universe),
+           "selected_issuer_count" => length(selected_universe),
+           "calendar_request_count" => length(responses)
+         }
+       }}
+    end
+  end
+
   defp maybe_load_live_payload(source, true) do
     with {:ok, response} <-
            Http.fetch(source.base_url,
@@ -3346,12 +3487,77 @@ defmodule DisclosureAutomation.Ingestion do
     end)
   end
 
+  defp fetch_pse_issuer_calendar_responses(source, selected_universe) do
+    selected_universe
+    |> Enum.reduce_while({:ok, []}, fn %{"isin" => isin} = universe_entry, {:ok, responses} ->
+      url = pse_issuer_calendar_url(source, isin)
+
+      case Http.fetch(url,
+             timeout: source_live_timeout(source),
+             headers: source_live_headers(source)
+           ) do
+        {:ok, %{status_code: status_code} = response}
+        when status_code in 200..299 ->
+          with true <- json_content_type?(response.headers),
+               {:ok, decoded} <- Jason.decode(response.body),
+               %{"data" => data} when is_list(data) <- Map.get(decoded, "result") do
+            limited_data = Enum.take(data, pse_max_calendar_items_per_issuer(source))
+
+            {:cont,
+             {:ok,
+              responses ++
+                [
+                  %{
+                    "isin" => isin,
+                    "market" => Map.get(universe_entry, "market"),
+                    "url" => url,
+                    "status_code" => status_code,
+                    "bytes" => response.bytes,
+                    "records_seen" => length(data),
+                    "records_kept" => length(limited_data),
+                    "data" => limited_data
+                  }
+                ]}}
+          else
+            false ->
+              {:halt,
+               {:error,
+                {:pse_calendar_unsupported_content_type, isin, content_type(response.headers)}}}
+
+            {:error, reason} ->
+              {:halt, {:error, {:pse_calendar_invalid_json, isin, reason}}}
+
+            _shape ->
+              {:halt, {:error, {:pse_calendar_unexpected_json_shape, isin}}}
+          end
+
+        {:ok, response} ->
+          {:halt, {:error, {:pse_calendar_unexpected_status, isin, response.status_code}}}
+
+        {:error, reason} ->
+          {:halt, {:error, {:pse_calendar_fetch_failed, isin, reason}}}
+      end
+    end)
+  end
+
   defp pse_issuer_news_url(source, isin) do
     source
     |> source_config_value(
       "pse_news_url_template",
       :pse_news_url_template,
       @pse_news_url_template
+    )
+    |> to_string()
+    |> String.replace("{isin}", URI.encode(isin))
+    |> String.replace("<ISIN>", URI.encode(isin))
+  end
+
+  defp pse_issuer_calendar_url(source, isin) do
+    source
+    |> source_config_value(
+      "pse_calendar_url_template",
+      :pse_calendar_url_template,
+      @pse_calendar_url_template
     )
     |> to_string()
     |> String.replace("{isin}", URI.encode(isin))
@@ -3368,6 +3574,15 @@ defmodule DisclosureAutomation.Ingestion do
       "max_news_items_per_issuer",
       :max_news_items_per_issuer,
       5
+    )
+  end
+
+  defp pse_max_calendar_items_per_issuer(source) do
+    source_config_positive_integer(
+      source,
+      "max_calendar_items_per_issuer",
+      :max_calendar_items_per_issuer,
+      8
     )
   end
 

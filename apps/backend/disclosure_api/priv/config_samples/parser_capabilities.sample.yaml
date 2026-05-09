@@ -270,6 +270,48 @@ parsers:
       reject_non_pse_multi_isin_payload: true
       reject_future_timestamps: true
 
+  - parser_key: pse_multi_isin_issuer_report_calendar_json_v1
+    display_name: Prague PSE Multi-ISIN Issuer Report Calendar JSON Parser
+    enabled: true
+    input_types: [json, api, fanout]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: false
+    supports_detail_fetch: false
+    extraction:
+      id_fields:
+        - responses.data.id
+        - responses.data.ref
+      title_fields:
+        - responses.data.name
+      summary_fields:
+        - responses.data.instrumentName
+        - responses.data.instrumentIsin
+        - responses.data.extension
+        - responses.data.sizeFormatted
+        - responses.data.ref
+      url_fields:
+        - generated_issuer_report_download_url
+      published_at_fields:
+        - responses.data.date
+      category_fields:
+        - generated_pse_issuer_report_category
+    normalization:
+      source_shape: pse_multi_isin_report_calendar_fanout_json
+      trim_html: true
+      collapse_whitespace: true
+      timezone_strategy: date_only_utc_midnight
+      generated_url_strategy: official_pse_detail_download_path_url
+      missing_summary_strategy: bounded_metadata_summary
+      row_filter_strategy: require_query_isin_and_attached_report_ref
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_html_payload: true
+      reject_non_pse_multi_isin_payload: true
+      reject_future_timestamps: true
+
   - parser_key: nasdaq_nordic_cns_jsonp_v1
     display_name: Nasdaq Nordic Company News JSONP Parser
     enabled: true

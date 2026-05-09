@@ -926,6 +926,47 @@ sources:
       live_headers:
         accept: application/json, text/html
 
+  - source_key: cz_pse_issuer_report_calendar_multi_isin
+    display_name: Prague PSE Issuer Report Calendar Multi-ISIN
+    source_type: api
+    base_url: https://www.pse.cz/en/market-data/shares/prime-market
+    healthcheck_url: https://www.pse.cz/en/market-data/shares/prime-market
+    parser_key: pse_multi_isin_issuer_report_calendar_json_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.12
+    coverage_tags:
+      - eu
+      - eu_central
+      - czechia
+      - cz
+      - prague
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_report
+      - financial_report
+      - exchange_announcement
+    active: false
+    config:
+      fixture_path: source_payloads/cz_pse_issuer_report_calendar_multi_isin.json
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_prague_pse_multi_isin_source_design.md
+      max_items_per_poll: 25
+      live_fetch_strategy: pse_multi_isin_report_calendar_v1
+      disable_live_fixture_fallback: true
+      max_issuers_per_poll: 10
+      max_calendar_items_per_issuer: 8
+      pse_issuer_universe_urls:
+        - https://www.pse.cz/en/market-data/shares/prime-market
+        - https://www.pse.cz/en/market-data/shares/standard-market
+        - https://www.pse.cz/en/market-data/shares/start-market
+        - https://www.pse.cz/en/market-data/shares/free-market
+      pse_calendar_url_template: https://www.pse.cz/api/corporation-calendar?isin={isin}&order=date-DESC&lang=en
+      live_timeout_ms: 30000
+      live_headers:
+        accept: application/json, text/html
+
   - source_key: de_xetra_frankfurt_newsboard
     display_name: Germany Xetra Frankfurt Newsboard
     source_type: html
