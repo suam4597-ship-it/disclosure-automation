@@ -51,7 +51,10 @@ jobs:
     steps:
       - name: Resolve source
         run: |
-          if [ -n "${REQUESTED_SOURCE_KEY}" ]; then
+          if [ "${REQUESTED_SOURCE_KEY}" = "eu_scheduled_staging_canary" ]; then
+            resolved_source="eu_scheduled_staging_canary"
+            run_mode="eu_canary"
+          elif [ -n "${REQUESTED_SOURCE_KEY}" ]; then
             resolved_source="${REQUESTED_SOURCE_KEY}"
             run_mode="single_source"
           elif [ "${SCHEDULE_EXPR}" = "17 */4 * * 1-5" ]; then
