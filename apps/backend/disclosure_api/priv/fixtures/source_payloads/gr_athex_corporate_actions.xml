@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xml:base="https://athens.euronext.com/en">
+  <channel>
+    <title>Corporate Actions</title>
+    <link>https://athens.euronext.com/en</link>
+    <description>Euronext Athens corporate actions</description>
+    <item>
+      <title>BRIQ PROPERTIES REIC &amp; BLE KEDROS REIC - CASH DISTRIBUTIONS 06 - 05 - 2026</title>
+      <link>https://athens.euronext.com/en/more-options/announcements/briq-properties-reic-ble-kedros-reic-cash-distributions-06-05-2026</link>
+      <description>Corporate action from the official Euronext Athens RSS surface.</description>
+      <pubDate>2026-05-05T13:00:00Z</pubDate>
+      <guid>https://athens.euronext.com/en/more-options/announcements/briq-properties-reic-ble-kedros-reic-cash-distributions-06-05-2026</guid>
+      <category>Corporate Actions</category>
+    </item>
+    <item>
+      <title>PROODEFTIKI TECHNICAL COMPANY S.A. 04 - 05 - 2026</title>
+      <link>https://athens.euronext.com/en/more-options/announcements/proodeftiki-technical-company-sa-04-05-2026</link>
+      <description>Listed-company corporate action from the official Euronext Athens feed.</description>
+      <pubDate>2026-05-04T07:16:00Z</pubDate>
+      <guid>https://athens.euronext.com/en/more-options/announcements/proodeftiki-technical-company-sa-04-05-2026</guid>
+      <category>Corporate Actions</category>
+    </item>
+  </channel>
+</rss>

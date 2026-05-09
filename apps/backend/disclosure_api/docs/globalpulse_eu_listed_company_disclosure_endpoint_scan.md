@@ -10,7 +10,7 @@ This is documentation-only. It does not add runtime code, routes, controllers, m
 primary target: listed-company disclosures and issuer announcements
 preferred authority: official exchange, OAM, regulated-information repository, or issuer-announcement authority
 not first target: ECB, central-bank feeds, macro-statistics feeds, parliament feeds, or broad policy news
-current result: France OAM manual source + parser + staging live smoke complete; Spain CNMV manual RSS sources + parser compatibility fix + staging live smoke + public UI smoke complete; Netherlands AFM CSV manual source + parser + staging live smoke complete; Italy eMarket Storage bounded HTML manual source + parser + staging live smoke + public UI smoke complete; Luxembourg LuxSE OAM GraphQL manual source + parser + staging live smoke + public UI smoke complete; Euronext company press release RSS manual source + bounded parser + staging live smoke + public UI smoke complete; Belgium FSMA STORI API manual source + bounded parser + staging live smoke + public UI smoke complete; UK FCA NSM API manual source + bounded parser + staging live smoke complete; Switzerland SIX SER official notices RSS manual source + staging live smoke + public UI smoke complete; Nasdaq Nordic Company News JSONP manual source + staging live smoke + public UI smoke complete; Austria Wiener Boerse announcements bounded HTML manual source + staging live poll complete with public latest UI visibility pending; Germany Xetra Frankfurt Newsboard bounded HTML manual source + staging live smoke complete with public latest UI visibility pending; remaining Europe candidates need endpoint/parser confirmation
+current result: France OAM manual source + parser + staging live smoke complete; Spain CNMV manual RSS sources + parser compatibility fix + staging live smoke + public UI smoke complete; Netherlands AFM CSV manual source + parser + staging live smoke complete; Italy eMarket Storage bounded HTML manual source + parser + staging live smoke + public UI smoke complete; Luxembourg LuxSE OAM GraphQL manual source + parser + staging live smoke + public UI smoke complete; Euronext company press release RSS manual source + bounded parser + staging live smoke + public UI smoke complete; Belgium FSMA STORI API manual source + bounded parser + staging live smoke + public UI smoke complete; UK FCA NSM API manual source + bounded parser + staging live smoke complete; Switzerland SIX SER official notices RSS manual source + staging live smoke + public UI smoke complete; Nasdaq Nordic Company News JSONP manual source + staging live smoke + public UI smoke complete; Austria Wiener Boerse announcements bounded HTML manual source + staging live poll complete with public latest UI visibility pending; Germany Xetra Frankfurt Newsboard bounded HTML manual source + staging live smoke complete with public latest UI visibility pending; Greece ATHEX issuer announcements and corporate actions RSS manual sources registered pending staging live smoke; remaining Europe candidates need endpoint/parser confirmation
 ```
 
 ## Candidate A: France Info-Financiere OAM API
@@ -301,6 +301,36 @@ Public latest UI visibility remains pending because the source inserted 2026-05-
 Scheduled polling remains disabled until the broader Europe source batch is intentionally promoted.
 ```
 
+## Candidate C8: Greece Euronext Athens / ATHEX RSS Feeds
+
+```text
+owner: Euronext Athens / ATHEX
+authority class: official exchange RSS surfaces for issuer announcements and corporate actions
+candidate URL 1: https://athens.euronext.com/en/rss/issuer-announcements
+candidate URL 2: https://athens.euronext.com/en/rss/corporate-actions
+observed HTTP: both feeds 200
+observed content-type: application/rss+xml; charset=utf-8
+observed shape: RSS 2.0 feeds with item title, link, description, pubDate, guid, and category
+status: MANUAL_SOURCES_REGISTERED_STAGING_LIVE_SMOKE_PENDING_SCHEDULED_POLLING_DISABLED
+```
+
+Why this fits the product:
+
+```text
+The Euronext Athens RSS page explicitly lists Issuer Announcements and Corporate Actions feeds.
+The selected feeds are exchange/issuer disclosure surfaces rather than central-bank, ECB, macro, or broad policy feeds.
+The first integration reuses the bounded rss_v1 parser and keeps the sources manual_staging_only until staging live smoke and batch-promotion review are complete.
+```
+
+Current implementation status:
+
+```text
+Manual sources gr_athex_issuer_announcements and gr_athex_corporate_actions exist with active=false and candidate_status=manual_staging_only.
+Fixtures source_payloads/gr_athex_issuer_announcements.xml and source_payloads/gr_athex_corporate_actions.xml capture bounded two-item RSS shapes.
+The generic rss_v1 pubDate parser now accepts ISO 8601 timestamps such as 2026-05-08T21:37:14Z, matching the ATHEX live RSS shape.
+Scheduled polling remains disabled until the broader Europe source batch is intentionally promoted.
+```
+
 ## Candidate D: Borsa Italiana / Italian SDIR and Storage Systems
 
 ```text
@@ -584,8 +614,9 @@ Do not use third-party register APIs as official GlobalPulse disclosure sources 
 6. Keep Luxembourg LuxSE OAM as a proven manual_staging_only GraphQL live candidate.
 7. Keep Austria Wiener Boerse announcements as a proven manual_staging_only exchange-announcement candidate with public latest UI visibility pending.
 8. Keep Germany Xetra Frankfurt Newsboard as a proven manual_staging_only exchange-announcement candidate with public latest UI visibility pending.
-9. Continue endpoint/parser discovery for Germany official register surfaces, OeKB issuerinfo, and other official issuer-announcement surfaces.
-10. Only batch-promote scheduled EU polling after the target list, rollback path, source-specific parser risk, and staging live smoke evidence are documented together.
+9. Keep Greece ATHEX issuer announcements and corporate actions as manual_staging_only RSS candidates pending staging live smoke and public UI smoke.
+10. Continue endpoint/parser discovery for Germany official register surfaces, OeKB issuerinfo, and other official issuer-announcement surfaces.
+11. Only batch-promote scheduled EU polling after the target list, rollback path, source-specific parser risk, and staging live smoke evidence are documented together.
 ```
 
 ## Explicit Non-Goals
