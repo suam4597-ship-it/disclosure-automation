@@ -15,7 +15,8 @@ GERMANY_COMPANY_REGISTER_CURRENT_NEXT_PAYLOAD_MARKER_CHANGED
 GERMANY_COMPANY_REGISTER_ISO_DATE_RANGE_QUERY_CONFIRMED
 GERMANY_COMPANY_REGISTER_PUBLICATION_DETAIL_URL_ROUTE_CONFIRMED
 GERMANY_COMPANY_REGISTER_PAGE_CAPPED_MANUAL_FETCH_CONTRACT_RECORDED
-GERMANY_COMPANY_REGISTER_MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PENDING
+GERMANY_COMPANY_REGISTER_MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS
+GERMANY_COMPANY_REGISTER_DATE_SPECIFIC_DIGEST_VISIBILITY_PASS
 GERMANY_COMPANY_REGISTER_SCHEDULED_POLLING_DISABLED
 ```
 
@@ -50,7 +51,7 @@ local workspace TCP 443: failed from the current Windows workspace
 local curl/Invoke-WebRequest live smoke: not accepted as a source failure or source success because the current workspace could not open TCP 443 to the official host
 Fly staging support page/token/tokenized search: HTTP 200 confirmed from globalpulse-backend-staging
 staging preflight doc: globalpulse_germany_company_register_staging_network_preflight_results.md
-source registration decision: inactive/manual_staging_only source registered for staging smoke only; scheduled polling and batch promotion remain blocked
+source registration decision: inactive/manual_staging_only source registered and staging live smoke passed; scheduled polling and batch promotion remain blocked
 ```
 
 Important ordering constraint:
@@ -227,7 +228,7 @@ ordering is proven newest-first, or a date-specific visibility contract is recor
 stable canonical URL contract is proven without retaining an expired searchToken: /en/publication?payload satisfied on 2026-05-09
 fixture includes tokenized search result with at least two rows: satisfied by source_payloads/de_company_register_capital_market_info.json
 local parser smoke proves records >= 1 and first record has issuer/title/url/published_at: satisfied with 3 fixture records in candidate PR validation
-staging live poll smoke proves records_seen >= 1, records_inserted >= 1, fetch.mode=live, fixture fallback=false, and digest visibility behavior
+staging live poll smoke proves records_seen >= 1, records_inserted >= 1, fetch.mode=live, fixture fallback=false, and digest visibility behavior: satisfied on 2026-05-09 with records_inserted=25 and date-specific digest visibility pass
 ```
 
 ## Registration Decision
@@ -244,8 +245,7 @@ Do not use third-party German register APIs as official GlobalPulse sources with
 ## Next Step
 
 ```text
-Deploy the inactive/manual_staging_only candidate to Fly staging and run live poll smoke.
-Record source health, live fetch metadata, records_seen, records_inserted, canonical item count, fixture fallback=false, and digest visibility.
+Keep the inactive/manual_staging_only candidate in staging and record follow-up evidence in globalpulse_germany_company_register_staging_live_poll_smoke_results.md.
 Keep over-cap pagination, duplicate handling, rate/captcha behavior, and rollback as blockers for any scheduled-poll promotion.
 Keep EU scheduled polling disabled.
 ```
