@@ -490,6 +490,36 @@ sources:
       live_headers:
         accept: text/html
 
+  - source_key: hu_bse_issuers_news
+    display_name: Hungary Budapest Stock Exchange Issuers News
+    source_type: html
+    base_url: https://www.bse.hu/issuers_news
+    healthcheck_url: https://www.bse.hu/issuers_news
+    parser_key: bse_issuers_news_html_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.14
+    coverage_tags:
+      - eu
+      - eu_central
+      - hungary
+      - hu
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - exchange_announcement
+      - issuer_news
+    active: false
+    config:
+      fixture_path: source_payloads/hu_bse_issuers_news.html
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      max_items_per_poll: 25
+      live_timeout_ms: 30000
+      live_headers:
+        accept: text/html
+
   - source_key: eu_austria_wiener_borse_announcements
     display_name: Austria Wiener Boerse Announcements
     source_type: html

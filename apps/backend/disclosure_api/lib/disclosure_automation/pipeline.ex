@@ -116,6 +116,7 @@ defmodule DisclosureAutomation.Parser do
   @xetra_newsboard_url "https://www.xetra.com/xetra-en/newsroom/xetra-newsboard/"
   @oslo_newsweb_message_url "https://newsweb.oslobors.no/message/"
   @gpw_espi_ebi_report_base_url "https://www.gpw.pl/"
+  @bse_issuers_news_url "https://www.bse.hu/issuers_news"
 
   def parse(parser_key, raw_payload, opts \\ [])
       when is_binary(parser_key) and is_binary(raw_payload) do
@@ -159,6 +160,9 @@ defmodule DisclosureAutomation.Parser do
 
   defp parse_by_key("gpw_espi_ebi_html_v1", raw_payload),
     do: parse_gpw_espi_ebi(raw_payload)
+
+  defp parse_by_key("bse_issuers_news_html_v1", raw_payload),
+    do: parse_bse_issuers_news(raw_payload)
 
   defp parse_by_key("wiener_borse_announcements_html_v1", raw_payload),
     do: parse_wiener_borse_announcements(raw_payload)
@@ -1137,6 +1141,119 @@ defmodule DisclosureAutomation.Parser do
     do: DateTime.add(datetime, -7_200, :second)
 
   defp gpw_apply_warsaw_zone(datetime), do: DateTime.add(datetime, -3_600, :second)
+
+  defp parse_bse_issuers_news(raw_payload) do
+    items =
+      Regex.scan(
+        ~r/<a href="([^"]*\/site\/newkib\/[^"]+)">(.*?)<\/a>/s,
+        raw_payload
+      )
+      |> Enum.map(&parse_bse_issuers_news_row/1)
+      |> Enum.filter(&(&1.url && &1.title))
+
+    {:ok, items}
+  end
+
+  defp parse_bse_issuers_news_row([_row, href, row_html]) do
+    issuer = regex_capture(row_html, ~r/<h2 class="issuer">\s*(.*?)\s*<\/h2>/s)
+    title = regex_capture(row_html, ~r/<div class="title">\s*(.*?)\s*<\/div>/s)
+
+    published_at_text =
+      regex_capture(row_html, ~r/<span class="list-date list-attribute">\s*(.*?)\s*<\/span>/s)
+
+    url = bse_issuers_news_url(href)
+
+    %{
+      external_id: bse_issuers_news_external_id(url),
+      title: bse_issuers_news_title(issuer, title),
+      url: url,
+      summary:
+        join_non_empty(
+          [
+            "Budapest Stock Exchange issuer news",
+            prefixed("Issuer", issuer)
+          ],
+          " | "
+        ),
+      published_at: parse_bse_issuers_news_datetime(published_at_text),
+      category: "Issuer news"
+    }
+  end
+
+  defp parse_bse_issuers_news_row(_row), do: empty_bse_issuers_news_record()
+
+  defp empty_bse_issuers_news_record do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: DateTime.utc_now(),
+      category: nil
+    }
+  end
+
+  defp bse_issuers_news_title(nil, nil), do: nil
+  defp bse_issuers_news_title(issuer, nil), do: issuer
+  defp bse_issuers_news_title(nil, title), do: title
+
+  defp bse_issuers_news_title(issuer, title) do
+    normalized_title = String.downcase(title)
+    normalized_issuer = String.downcase(issuer)
+
+    if normalized_title == normalized_issuer or
+         String.starts_with?(normalized_title, normalized_issuer <> " - ") do
+      title
+    else
+      issuer <> " - " <> title
+    end
+  end
+
+  defp bse_issuers_news_url(nil), do: nil
+
+  defp bse_issuers_news_url(raw_url) do
+    url = decode_html_entities(raw_url)
+
+    cond do
+      String.starts_with?(url, "http") -> url
+      String.starts_with?(url, "/") -> "https://www.bse.hu" <> url
+      true -> @bse_issuers_news_url
+    end
+  end
+
+  defp bse_issuers_news_external_id(nil), do: nil
+
+  defp bse_issuers_news_external_id(url) do
+    url
+    |> String.split("/")
+    |> List.last()
+    |> case do
+      nil -> nil
+      slug -> regex_capture(slug, ~r/_(\d+)$/) || slug
+    end
+  end
+
+  defp parse_bse_issuers_news_datetime(nil), do: DateTime.utc_now()
+
+  defp parse_bse_issuers_news_datetime(value) do
+    with [_, day_text, month_text, year_text, hour_text, minute_text] <-
+           Regex.run(~r/^(\d{2}) ([A-Za-z]+) (\d{4})\. (\d{2}):(\d{2})$/, value),
+         {day, ""} <- Integer.parse(day_text),
+         {:ok, month} <- xetra_month(month_text),
+         {year, ""} <- Integer.parse(year_text),
+         {hour, ""} <- Integer.parse(hour_text),
+         {minute, ""} <- Integer.parse(minute_text),
+         {:ok, datetime} <- build_utc_datetime(year, month, day, hour, minute, 0) do
+      bse_apply_budapest_zone(datetime)
+    else
+      _ -> DateTime.utc_now()
+    end
+  end
+
+  defp bse_apply_budapest_zone(%DateTime{month: month} = datetime) when month in 4..10,
+    do: DateTime.add(datetime, -7_200, :second)
+
+  defp bse_apply_budapest_zone(datetime), do: DateTime.add(datetime, -3_600, :second)
 
   defp parse_wiener_borse_announcements(raw_payload) do
     items =
@@ -2151,6 +2268,21 @@ defmodule DisclosureAutomation.Ingestion do
     end
   end
 
+  defp validate_live_payload(%SourceRegistry{parser_key: "bse_issuers_news_html_v1"}, response) do
+    cond do
+      not html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "bse_issuers_news_html_v1",
+          content_type(response.headers)}}
+
+      not bse_issuers_news_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "bse_issuers_news_html_v1", :unexpected_html}}
+
+      true ->
+        :ok
+    end
+  end
+
   defp validate_live_payload(
          %SourceRegistry{parser_key: "wiener_borse_announcements_html_v1"},
          response
@@ -2357,6 +2489,13 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp gpw_espi_ebi_payload?(_body), do: false
+
+  defp bse_issuers_news_payload?(body) when is_binary(body) do
+    body =~ "Issuers News" and body =~ "bet-newkib-list" and
+      body =~ "/site/newkib/"
+  end
+
+  defp bse_issuers_news_payload?(_body), do: false
 
   defp wiener_borse_announcements_payload?(body) when is_binary(body) do
     body =~ "Announcements Found" and body =~ "filter-announcements" and
