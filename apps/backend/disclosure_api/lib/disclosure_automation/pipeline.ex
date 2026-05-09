@@ -120,6 +120,7 @@ defmodule DisclosureAutomation.Parser do
   @bvb_current_reports_url "https://bvb.ro/FinancialInstruments/SelectedData/CurrentReports"
   @ceri_search_url "https://ceri.nbs.sk/search"
   @ceri_document_base_url "https://ceri.nbs.sk/static/data/"
+  @ee_oam_base_url "https://oam.fi.ee"
 
   def parse(parser_key, raw_payload, opts \\ [])
       when is_binary(parser_key) and is_binary(raw_payload) do
@@ -172,6 +173,9 @@ defmodule DisclosureAutomation.Parser do
 
   defp parse_by_key("ceri_regulated_information_html_v1", raw_payload),
     do: parse_ceri_regulated_information(raw_payload)
+
+  defp parse_by_key("ee_oam_market_announcements_html_v1", raw_payload),
+    do: parse_ee_oam_market_announcements(raw_payload)
 
   defp parse_by_key("wiener_borse_announcements_html_v1", raw_payload),
     do: parse_wiener_borse_announcements(raw_payload)
@@ -1559,6 +1563,114 @@ defmodule DisclosureAutomation.Parser do
 
   defp ceri_apply_slovakia_zone(datetime), do: DateTime.add(datetime, -3_600, :second)
 
+  defp parse_ee_oam_market_announcements(raw_payload) do
+    items =
+      Regex.scan(
+        ~r/<tr class="(?:even|odd)">\s*<td><span class="text-nowrap">(\d{2}\.\d{2}\.\d{4}\s+\d{2}:\d{2}:\d{2})<\/span><\/td>\s*<td>(.*?)<\/td>\s*<td>(.*?)<\/td>\s*<td>(.*?)<\/td>\s*<td>.*?<\/td>\s*<td><a href="([^"]*\/en\/borsiteated\/\d+)">View<\/a><\/td>\s*<\/tr>/s,
+        raw_payload
+      )
+      |> Enum.map(&parse_ee_oam_market_announcement_row/1)
+      |> Enum.filter(&(&1.url && &1.title))
+
+    {:ok, items}
+  end
+
+  defp parse_ee_oam_market_announcement_row([
+         _row,
+         published_at_text,
+         issuer,
+         category,
+         title,
+         href
+       ]) do
+    issuer = clean_html(issuer)
+    category = clean_html(category)
+    title = clean_html(title)
+    url = ee_oam_market_announcement_url(href)
+
+    %{
+      external_id: ee_oam_market_announcement_external_id(url),
+      title: ee_oam_market_announcement_title(issuer, title),
+      url: url,
+      summary:
+        join_non_empty(
+          [
+            "Estonia OAM market announcement",
+            prefixed("Issuer", issuer),
+            prefixed("Document type", category)
+          ],
+          " | "
+        ),
+      published_at: parse_ee_oam_datetime(published_at_text),
+      category: category
+    }
+  end
+
+  defp parse_ee_oam_market_announcement_row(_row), do: empty_ee_oam_market_announcement()
+
+  defp empty_ee_oam_market_announcement do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: DateTime.utc_now(),
+      category: nil
+    }
+  end
+
+  defp ee_oam_market_announcement_title(nil, nil), do: nil
+  defp ee_oam_market_announcement_title(issuer, nil), do: issuer
+  defp ee_oam_market_announcement_title(nil, title), do: title
+  defp ee_oam_market_announcement_title(issuer, title), do: issuer <> " - " <> title
+
+  defp ee_oam_market_announcement_url(nil), do: nil
+
+  defp ee_oam_market_announcement_url(raw_url) do
+    url = decode_html_entities(raw_url)
+
+    cond do
+      String.starts_with?(url, "http") -> url
+      String.starts_with?(url, "/") -> @ee_oam_base_url <> url
+      true -> @ee_oam_base_url <> "/" <> url
+    end
+  end
+
+  defp ee_oam_market_announcement_external_id(nil), do: nil
+
+  defp ee_oam_market_announcement_external_id(url) do
+    url
+    |> URI.parse()
+    |> Map.get(:path)
+    |> case do
+      nil -> nil
+      path -> List.last(String.split(path, "/", trim: true))
+    end
+  end
+
+  defp parse_ee_oam_datetime(nil), do: DateTime.utc_now()
+
+  defp parse_ee_oam_datetime(value) do
+    with [_, day_text, month_text, year_text, hour_text, minute_text, second_text] <-
+           Regex.run(~r/^(\d{2})\.(\d{2})\.(\d{4})\s+(\d{2}):(\d{2}):(\d{2})$/, value),
+         {day, ""} <- Integer.parse(day_text),
+         {month, ""} <- Integer.parse(month_text),
+         {year, ""} <- Integer.parse(year_text),
+         {hour, ""} <- Integer.parse(hour_text),
+         {minute, ""} <- Integer.parse(minute_text),
+         {second, ""} <- Integer.parse(second_text),
+         {:ok, datetime} <- build_utc_datetime(year, month, day, hour, minute, second) do
+      ee_oam_apply_estonia_zone(datetime)
+    else
+      _ -> DateTime.utc_now()
+    end
+  end
+
+  defp ee_oam_apply_estonia_zone(%DateTime{month: month} = datetime) when month in 4..10,
+    do: DateTime.add(datetime, -10_800, :second)
+
+  defp ee_oam_apply_estonia_zone(datetime), do: DateTime.add(datetime, -7_200, :second)
+
   defp parse_wiener_borse_announcements(raw_payload) do
     items =
       Regex.scan(~r/<tr data-key="([^"]+)">(.*?)<\/tr>/s, raw_payload)
@@ -2642,6 +2754,25 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp validate_live_payload(
+         %SourceRegistry{parser_key: "ee_oam_market_announcements_html_v1"},
+         response
+       ) do
+    cond do
+      not html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "ee_oam_market_announcements_html_v1",
+          content_type(response.headers)}}
+
+      not ee_oam_market_announcements_payload?(response.body) ->
+        {:error,
+         {:unsupported_live_payload, "ee_oam_market_announcements_html_v1", :unexpected_html}}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_live_payload(
          %SourceRegistry{parser_key: "wiener_borse_announcements_html_v1"},
          response
        ) do
@@ -2872,6 +3003,15 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp ceri_regulated_information_payload?(_body), do: false
+
+  defp ee_oam_market_announcements_payload?(body) when is_binary(body) do
+    body =~ "Market announcements" and
+      body =~ "/en/borsiteated/" and
+      body =~ "text-nowrap" and
+      body =~ "Category"
+  end
+
+  defp ee_oam_market_announcements_payload?(_body), do: false
 
   defp wiener_borse_announcements_payload?(body) when is_binary(body) do
     body =~ "Announcements Found" and body =~ "filter-announcements" and
