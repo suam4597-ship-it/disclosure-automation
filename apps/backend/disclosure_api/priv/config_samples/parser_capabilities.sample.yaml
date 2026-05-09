@@ -303,6 +303,47 @@ parsers:
       reject_non_bse_issuers_news_payload: true
       reject_future_timestamps: true
 
+  - parser_key: bvb_current_reports_html_v1
+    display_name: Bucharest Stock Exchange Current Reports HTML Parser
+    enabled: true
+    input_types: [html]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: false
+    supports_detail_fetch: true
+    extraction:
+      id_fields:
+        - news_item_slug
+        - report_pdf_href
+      title_fields:
+        - company
+        - description
+      summary_fields:
+        - company
+        - symbol
+        - isin
+        - document_type
+      url_fields:
+        - news_item_href
+        - report_pdf_href
+      published_at_fields:
+        - date
+      category_fields:
+        - document_type
+    normalization:
+      source_shape: bvb_current_reports_table_html
+      trim_html: true
+      decode_entities: true
+      collapse_whitespace: true
+      timezone_strategy: source_bucharest_eet_eest_datetime
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_non_bvb_current_reports_payload: true
+      reject_future_timestamps: true
+
   - parser_key: wiener_borse_announcements_html_v1
     display_name: Vienna Stock Exchange Announcements HTML Parser
     enabled: true

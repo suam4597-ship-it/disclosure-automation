@@ -117,6 +117,7 @@ defmodule DisclosureAutomation.Parser do
   @oslo_newsweb_message_url "https://newsweb.oslobors.no/message/"
   @gpw_espi_ebi_report_base_url "https://www.gpw.pl/"
   @bse_issuers_news_url "https://www.bse.hu/issuers_news"
+  @bvb_current_reports_url "https://bvb.ro/FinancialInstruments/SelectedData/CurrentReports"
 
   def parse(parser_key, raw_payload, opts \\ [])
       when is_binary(parser_key) and is_binary(raw_payload) do
@@ -163,6 +164,9 @@ defmodule DisclosureAutomation.Parser do
 
   defp parse_by_key("bse_issuers_news_html_v1", raw_payload),
     do: parse_bse_issuers_news(raw_payload)
+
+  defp parse_by_key("bvb_current_reports_html_v1", raw_payload),
+    do: parse_bvb_current_reports(raw_payload)
 
   defp parse_by_key("wiener_borse_announcements_html_v1", raw_payload),
     do: parse_wiener_borse_announcements(raw_payload)
@@ -1255,6 +1259,178 @@ defmodule DisclosureAutomation.Parser do
 
   defp bse_apply_budapest_zone(datetime), do: DateTime.add(datetime, -3_600, :second)
 
+  defp parse_bvb_current_reports(raw_payload) do
+    items =
+      Regex.scan(~r/<tr[^>]*>(.*?)<\/tr>/s, raw_payload)
+      |> Enum.map(&parse_bvb_current_report_row/1)
+      |> Enum.filter(&(&1.url && &1.title))
+
+    {:ok, items}
+  end
+
+  defp parse_bvb_current_report_row([_row, row_html]) do
+    cells =
+      Regex.scan(~r/<td[^>]*>(.*?)<\/td>/s, row_html)
+      |> Enum.map(fn [_cell, value] -> value end)
+
+    symbol = bvb_clean(Enum.at(cells, 6)) || bvb_symbol_from_visible_cell(Enum.at(cells, 0))
+    isin = bvb_clean(Enum.at(cells, 7))
+    company = bvb_clean(Enum.at(cells, 1))
+    description = bvb_current_report_description(row_html, Enum.at(cells, 8), Enum.at(cells, 2))
+    published_at_text = bvb_clean(Enum.at(cells, 3))
+    category = bvb_clean(Enum.at(cells, 4))
+    url = bvb_current_report_primary_url(row_html)
+
+    %{
+      external_id: bvb_current_report_external_id(url),
+      title: bvb_current_report_title(company, description),
+      url: url,
+      summary:
+        join_non_empty(
+          [
+            "Bucharest Stock Exchange current report",
+            prefixed("Issuer", company),
+            prefixed("Symbol", symbol),
+            prefixed("ISIN", isin),
+            prefixed("Document type", category)
+          ],
+          " | "
+        ),
+      published_at: parse_bvb_current_report_datetime(published_at_text),
+      category: category
+    }
+  end
+
+  defp parse_bvb_current_report_row(_row), do: empty_bvb_current_report_record()
+
+  defp empty_bvb_current_report_record do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: DateTime.utc_now(),
+      category: nil
+    }
+  end
+
+  defp bvb_clean(nil), do: nil
+  defp bvb_clean(value), do: clean_html(value)
+
+  defp bvb_symbol_from_visible_cell(nil), do: nil
+
+  defp bvb_symbol_from_visible_cell(cell_html) do
+    regex_capture(cell_html, ~r/<b>\s*(.*?)\s*<\/b>/s) || clean_html(cell_html)
+  end
+
+  defp bvb_current_report_description(row_html, hidden_description, visible_description) do
+    row_html
+    |> regex_capture_raw(~r/<input[^>]+value="([^"]+)"/s)
+    |> decode_bvb_attr()
+    |> case do
+      nil -> bvb_clean(hidden_description) || bvb_clean(visible_description)
+      value -> value
+    end
+  end
+
+  defp decode_bvb_attr(nil), do: nil
+
+  defp decode_bvb_attr(value) do
+    value
+    |> decode_html_entities()
+    |> String.replace(~r/\s+/u, " ")
+    |> String.trim()
+    |> case do
+      "" -> nil
+      decoded -> decoded
+    end
+  end
+
+  defp bvb_current_report_title(nil, nil), do: nil
+  defp bvb_current_report_title(company, nil), do: company
+  defp bvb_current_report_title(nil, description), do: description
+
+  defp bvb_current_report_title(company, description) do
+    if String.contains?(String.downcase(description), String.downcase(company)) do
+      description
+    else
+      company <> " - " <> description
+    end
+  end
+
+  defp bvb_current_report_primary_url(row_html) do
+    row_html
+    |> regex_capture_raw(
+      ~r/(https:\/\/bvb\.ro\/FinancialInstruments\/SelectedData\/NewsItem\/[^<;\s]+)/s
+    )
+    |> case do
+      nil ->
+        row_html
+        |> regex_capture_raw(
+          ~r/href=['"]([^'"]*\/FinancialInstruments\/SelectedData\/NewsItem\/[^'"]+)['"]/s
+        )
+        |> bvb_current_report_url()
+
+      url ->
+        bvb_current_report_url(url)
+    end
+    |> case do
+      nil ->
+        row_html
+        |> regex_capture_raw(~r/href=['"]([^'"]*(?:\/infocont\/|\/info\/Raportari\/)[^'"]+)['"]/s)
+        |> bvb_current_report_url()
+
+      url ->
+        url
+    end
+  end
+
+  defp bvb_current_report_url(nil), do: nil
+
+  defp bvb_current_report_url(raw_url) do
+    url = decode_html_entities(raw_url)
+
+    cond do
+      String.starts_with?(url, "http") -> url
+      String.starts_with?(url, "/") -> "https://bvb.ro" <> url
+      true -> @bvb_current_reports_url
+    end
+  end
+
+  defp bvb_current_report_external_id(nil), do: nil
+
+  defp bvb_current_report_external_id(url) do
+    url
+    |> URI.parse()
+    |> Map.get(:path)
+    |> case do
+      nil -> nil
+      path -> List.last(String.split(path, "/", trim: true))
+    end
+  end
+
+  defp parse_bvb_current_report_datetime(nil), do: DateTime.utc_now()
+
+  defp parse_bvb_current_report_datetime(value) do
+    with [_, day_text, month_text, year_text, hour_text, minute_text] <-
+           Regex.run(~r/^(\d{2})\.(\d{2})\.(\d{4}) (\d{2}):(\d{2})$/, value),
+         {day, ""} <- Integer.parse(day_text),
+         {month, ""} <- Integer.parse(month_text),
+         {year, ""} <- Integer.parse(year_text),
+         {hour, ""} <- Integer.parse(hour_text),
+         {minute, ""} <- Integer.parse(minute_text),
+         {:ok, datetime} <- build_utc_datetime(year, month, day, hour, minute, 0) do
+      bvb_apply_bucharest_zone(datetime)
+    else
+      _ -> DateTime.utc_now()
+    end
+  end
+
+  defp bvb_apply_bucharest_zone(%DateTime{month: month} = datetime) when month in 4..10,
+    do: DateTime.add(datetime, -10_800, :second)
+
+  defp bvb_apply_bucharest_zone(datetime), do: DateTime.add(datetime, -7_200, :second)
+
   defp parse_wiener_borse_announcements(raw_payload) do
     items =
       Regex.scan(~r/<tr data-key="([^"]+)">(.*?)<\/tr>/s, raw_payload)
@@ -2283,6 +2459,21 @@ defmodule DisclosureAutomation.Ingestion do
     end
   end
 
+  defp validate_live_payload(%SourceRegistry{parser_key: "bvb_current_reports_html_v1"}, response) do
+    cond do
+      not html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "bvb_current_reports_html_v1",
+          content_type(response.headers)}}
+
+      not bvb_current_reports_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "bvb_current_reports_html_v1", :unexpected_html}}
+
+      true ->
+        :ok
+    end
+  end
+
   defp validate_live_payload(
          %SourceRegistry{parser_key: "wiener_borse_announcements_html_v1"},
          response
@@ -2496,6 +2687,14 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp bse_issuers_news_payload?(_body), do: false
+
+  defp bvb_current_reports_payload?(body) when is_binary(body) do
+    body =~ "BVB - Rapoarte si informari" and
+      body =~ "CurrentReports" and
+      body =~ "FinancialInstruments/SelectedData/NewsItem"
+  end
+
+  defp bvb_current_reports_payload?(_body), do: false
 
   defp wiener_borse_announcements_payload?(body) when is_binary(body) do
     body =~ "Announcements Found" and body =~ "filter-announcements" and
