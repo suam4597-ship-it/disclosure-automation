@@ -10,7 +10,7 @@ This is documentation-only. It does not add runtime code, routes, controllers, m
 primary target: listed-company disclosures and issuer announcements
 preferred authority: official exchange, OAM, regulated-information repository, or issuer-announcement authority
 not first target: ECB, central-bank feeds, macro-statistics feeds, parliament feeds, or broad policy news
-current result: France OAM manual source + parser + staging live smoke complete; Spain CNMV manual RSS sources + parser compatibility fix + staging live smoke + public UI smoke complete; Netherlands AFM CSV manual source + parser + staging live smoke complete; Italy eMarket Storage bounded HTML manual source + parser + staging live smoke + public UI smoke complete; Luxembourg LuxSE OAM GraphQL manual source + parser + staging live smoke + public UI smoke complete; Euronext company press release RSS manual source + bounded parser + staging live smoke + public UI smoke complete; Belgium FSMA STORI API manual source + bounded parser + staging live smoke + public UI smoke complete; UK FCA NSM API manual source + bounded parser + staging live smoke complete; Switzerland SIX SER official notices RSS manual source + staging live smoke + public UI smoke complete; Nasdaq Nordic Company News JSONP manual source + staging live smoke + public UI smoke complete; Austria Wiener Boerse announcements bounded HTML manual source + staging live poll complete with public latest UI visibility pending; Germany Xetra Frankfurt Newsboard bounded HTML manual source + staging live smoke complete with public latest UI visibility pending; Greece ATHEX issuer announcements and corporate actions RSS manual sources staging live smoke complete with public latest UI visibility pending; Poland GPW ESPI/EBI bounded HTML manual source + staging live smoke complete with public latest UI visibility pending; Slovakia CERI bounded HTML manual source + staging live smoke complete with public latest UI visibility pending; Estonia OAM bounded HTML manual source + staging live smoke complete with public latest UI visibility pending; Lithuania OAM bounded HTML manual source + staging live smoke complete with public latest UI visibility pending; Latvia CSRI bounded HTML manual source + staging live smoke complete with digest top-n visibility pending; remaining Europe candidates need endpoint/parser confirmation
+current result: France OAM manual source + parser + staging live smoke complete; Spain CNMV manual RSS sources + parser compatibility fix + staging live smoke + public UI smoke complete; Netherlands AFM CSV manual source + parser + staging live smoke complete; Italy eMarket Storage bounded HTML manual source + parser + staging live smoke + public UI smoke complete; Luxembourg LuxSE OAM GraphQL manual source + parser + staging live smoke + public UI smoke complete; Euronext company press release RSS manual source + bounded parser + staging live smoke + public UI smoke complete; Belgium FSMA STORI API manual source + bounded parser + staging live smoke + public UI smoke complete; UK FCA NSM API manual source + bounded parser + staging live smoke complete; Switzerland SIX SER official notices RSS manual source + staging live smoke + public UI smoke complete; Nasdaq Nordic Company News JSONP manual source + staging live smoke + public UI smoke complete; Austria Wiener Boerse announcements bounded HTML manual source + staging live poll complete with public latest UI visibility pending; Germany Xetra Frankfurt Newsboard bounded HTML manual source + staging live smoke complete with public latest UI visibility pending; Greece ATHEX issuer announcements and corporate actions RSS manual sources staging live smoke complete with public latest UI visibility pending; Poland GPW ESPI/EBI bounded HTML manual source + staging live smoke complete with public latest UI visibility pending; Slovakia CERI bounded HTML manual source + staging live smoke complete with public latest UI visibility pending; Estonia OAM bounded HTML manual source + staging live smoke complete with public latest UI visibility pending; Lithuania OAM bounded HTML manual source + staging live smoke complete with public latest UI visibility pending; Latvia CSRI bounded HTML manual source + staging live smoke complete with digest top-n visibility pending; Portugal CMVM portal InfoPrivi JSON manual source + local live parser smoke complete with staging smoke pending; remaining Europe candidates need endpoint/parser confirmation
 ```
 
 ## Candidate A: France Info-Financiere OAM API
@@ -952,6 +952,40 @@ Current digest top-n windows did not include Latvia CSRI rows because existing h
 Scheduled polling remains disabled until the broader EU source batch is intentionally promoted.
 ```
 
+## Candidate W: Portugal CMVM Portal InfoPrivi JSON
+
+```text
+owner: CMVM Portugal
+authority class: official national securities regulator / issuer information disclosure portal
+supporting URL: https://www.cmvm.pt/PInstitucional/PortalInstitucional?Input_language=en-US
+machine-readable URL: https://www.cmvm.pt/PInstitucional/screenservices/PInstitucional/MainFlow/PortalInstitucional/DataActionFetchSectionsInfo
+observed HTTP: 200
+observed content-type: application/json; charset=utf-8
+observed shape: OutSystems JSON data.InfoPrivi.List latest issuer-disclosure rows with Id, Table, Date, Time, Desc, Tipo, and language flag
+status: MANUAL_SOURCE_REGISTERED_LOCAL_LIVE_PARSER_SMOKE_PASS_STAGING_LIVE_POLL_PENDING_SCHEDULED_POLLING_DISABLED
+```
+
+Why this fits the product:
+
+```text
+The CMVM public institutional portal renders an "Inside information and other information" section sourced from the official CMVM disclosure system.
+The bounded JSON action returns issuer-company disclosure rows such as management transactions, board-member changes, and material information.
+This endpoint is not a central-bank, macro, parliament, or policy-news feed.
+The source uses an exact POST JSON endpoint and a JSON parser, not the CMVM HTML root as rss_v1.
+```
+
+Implementation status:
+
+```text
+Manual source pt_cmvm_portal_info_privi exists with active=false and candidate_status=manual_staging_only.
+The source uses parser_key=cmvm_portal_info_privi_json_v1 against the official CMVM portal InfoPrivi latest-disclosure JSON shape.
+Fixture source_payloads/pt_cmvm_portal_info_privi.json captures the bounded InfoPrivi.List row shape.
+Local parser smoke returned fixture_records=3, live HTTP 200, live_records=3, and first live record with issuer/title/url/published_at/category populated.
+The endpoint returns a homepage/latest window, not the full CMVM archive; direct document viewer links are generated by a separate encrypted portal action, so canonical record URLs point to the official portal with stable record fragments.
+Fly staging deploy and staging live poll smoke remain pending until this candidate PR is merged.
+Scheduled polling remains disabled until the broader EU source batch is intentionally promoted.
+```
+
 ## Recommended EU v1 Path
 
 ```text
@@ -974,8 +1008,9 @@ Scheduled polling remains disabled until the broader EU source batch is intentio
 17. Keep Estonia OAM market announcements as a proven manual_staging_only official OAM-style HTML parser candidate with date-specific digest visibility passing and public latest UI visibility pending.
 18. Keep Lithuania OAM regulated information as a proven manual_staging_only official OAM-style HTML parser candidate with date-specific digest visibility passing and public latest UI visibility pending.
 19. Keep Latvia CSRI / ORICGS regulated information as a proven manual_staging_only official OAM-style HTML parser candidate with digest top-n/public latest UI visibility pending.
-20. Continue endpoint/parser discovery for Germany official register surfaces, OeKB issuerinfo, Portugal, Prague, and other official issuer-announcement surfaces.
-21. Only batch-promote scheduled EU polling after the target list, rollback path, source-specific parser risk, and staging live smoke evidence are documented together.
+20. Keep Portugal CMVM portal InfoPrivi as a manual_staging_only bounded latest-disclosure API candidate until staging live poll evidence is recorded.
+21. Continue endpoint/parser discovery for Germany official register surfaces, OeKB issuerinfo, Prague, and other official issuer-announcement surfaces.
+22. Only batch-promote scheduled EU polling after the target list, rollback path, source-specific parser risk, and staging live smoke evidence are documented together.
 ```
 
 ## Explicit Non-Goals

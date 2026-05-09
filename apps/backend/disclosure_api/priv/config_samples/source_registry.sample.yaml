@@ -201,6 +201,66 @@ sources:
       live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
       max_items_per_poll: 25
 
+  - source_key: pt_cmvm_portal_info_privi
+    display_name: Portugal CMVM Inside Information and Other Issuer Information
+    source_type: api
+    base_url: https://www.cmvm.pt/PInstitucional/screenservices/PInstitucional/MainFlow/PortalInstitucional/DataActionFetchSectionsInfo
+    healthcheck_url: https://www.cmvm.pt/PInstitucional/PortalInstitucional?Input_language=en-US
+    parser_key: cmvm_portal_info_privi_json_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.16
+    coverage_tags:
+      - eu
+      - eu_south
+      - portugal
+      - pt
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - inside_information
+      - other_relevant_information
+    active: false
+    config:
+      fixture_path: source_payloads/pt_cmvm_portal_info_privi.json
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      max_items_per_poll: 25
+      live_method: post
+      live_content_type: application/json
+      live_timeout_ms: 30000
+      live_headers:
+        accept: application/json
+        origin: https://www.cmvm.pt
+        referer: https://www.cmvm.pt/PInstitucional/PortalInstitucional?Input_language=en-US
+        outsystems-client-env: browser
+        x-csrftoken: T6C+9iB49TLra4jEsMeSckDMNhQ=
+      live_body:
+        versionInfo:
+          moduleVersion: ""
+          apiVersion: NVaOB71xEZJBVAsjZB4E3A
+        viewName: MainFlow.PortalInstitucional
+        screenData:
+          variables:
+            ShowLowerBlocks: false
+            LocalLanguageId: 2
+            Input_language: en-US
+            _input_languageInDataFetchStatus: 1
+            Fetch_Main:
+              Language:
+                PortugueseId: 1
+                EnglishId: 2
+              Portal:
+                InstitutionalId: 1
+                InvestorsId: 0
+              DataFetchStatus: 1
+        clientVariables:
+          HasLocaleChanged: false
+          PortalId: "1"
+          Language: ""
+          Url_list_History: ""
+
   - source_key: eu_netherlands_afm_financial_reporting
     display_name: Netherlands AFM Financial Reporting
     source_type: api

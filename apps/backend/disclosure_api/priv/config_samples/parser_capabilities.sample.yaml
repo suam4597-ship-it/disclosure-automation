@@ -148,6 +148,45 @@ parsers:
       reject_html_payload: true
       reject_future_timestamps: true
 
+  - parser_key: cmvm_portal_info_privi_json_v1
+    display_name: Portugal CMVM Portal InfoPrivi JSON Parser
+    enabled: true
+    input_types: [json, api]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: false
+    supports_detail_fetch: false
+    extraction:
+      id_fields:
+        - data.InfoPrivi.List.Id
+        - data.InfoPrivi.List.Table
+      title_fields:
+        - data.InfoPrivi.List.Desc
+      summary_fields:
+        - data.InfoPrivi.List.Tipo
+        - data.InfoPrivi.List.Table
+      url_fields:
+        - generated_portal_fragment
+      published_at_fields:
+        - data.InfoPrivi.List.Date
+        - data.InfoPrivi.List.Time
+      category_fields:
+        - data.InfoPrivi.List.Tipo
+    normalization:
+      source_shape: cmvm_portal_info_privi_json
+      trim_html: true
+      collapse_whitespace: true
+      timezone_strategy: europe_lisbon_to_utc
+      generated_url_strategy: official_portal_record_fragment
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_html_payload: true
+      reject_non_cmvm_info_privi_payload: true
+      reject_future_timestamps: true
+
   - parser_key: nasdaq_nordic_cns_jsonp_v1
     display_name: Nasdaq Nordic Company News JSONP Parser
     enabled: true

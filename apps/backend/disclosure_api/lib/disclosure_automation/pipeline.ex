@@ -123,6 +123,7 @@ defmodule DisclosureAutomation.Parser do
   @ee_oam_base_url "https://oam.fi.ee"
   @lt_oam_base_url "https://www.oam.lt"
   @lv_csri_base_url "https://csri.investinfo.lv"
+  @cmvm_portal_url "https://www.cmvm.pt/PInstitucional/PortalInstitucional?Input_language=en-US"
 
   def parse(parser_key, raw_payload, opts \\ [])
       when is_binary(parser_key) and is_binary(raw_payload) do
@@ -157,6 +158,9 @@ defmodule DisclosureAutomation.Parser do
   defp parse_by_key("fsma_stori_api_v1", raw_payload), do: parse_fsma_stori(raw_payload)
 
   defp parse_by_key("fca_nsm_search_api_v1", raw_payload), do: parse_fca_nsm_search(raw_payload)
+
+  defp parse_by_key("cmvm_portal_info_privi_json_v1", raw_payload),
+    do: parse_cmvm_portal_info_privi(raw_payload)
 
   defp parse_by_key("nasdaq_nordic_cns_jsonp_v1", raw_payload),
     do: parse_nasdaq_nordic_cns(raw_payload)
@@ -795,6 +799,125 @@ defmodule DisclosureAutomation.Parser do
       " | "
     )
   end
+
+  defp parse_cmvm_portal_info_privi(raw_payload) do
+    with {:ok, decoded} <- Jason.decode(raw_payload),
+         records when is_list(records) <- cmvm_portal_info_privi_records(decoded) do
+      items =
+        records
+        |> Enum.map(&parse_cmvm_portal_info_privi_record/1)
+        |> Enum.filter(&(&1.url && &1.title))
+
+      {:ok, items}
+    else
+      {:error, error} -> {:error, {:invalid_json, error}}
+      _ -> {:error, {:invalid_json_shape, "cmvm_portal_info_privi_json_v1"}}
+    end
+  end
+
+  defp cmvm_portal_info_privi_records(%{
+         "data" => %{"InfoPrivi" => %{"List" => records}}
+       })
+       when is_list(records),
+       do: records
+
+  defp cmvm_portal_info_privi_records(_decoded), do: nil
+
+  defp parse_cmvm_portal_info_privi_record(record) when is_map(record) do
+    description = string_field(record, "Desc")
+    {issuer, headline} = cmvm_portal_info_privi_description_parts(description)
+    id = string_field(record, "Id")
+    table = string_field(record, "Table")
+
+    %{
+      external_id: join_non_empty(["cmvm", table, id], ":"),
+      title: cmvm_portal_info_privi_title(issuer, headline, description),
+      url: cmvm_portal_info_privi_url(id, table),
+      summary: cmvm_portal_info_privi_summary(record, issuer, headline),
+      published_at: cmvm_portal_info_privi_datetime(record),
+      category: string_field(record, "Tipo")
+    }
+  end
+
+  defp parse_cmvm_portal_info_privi_record(_record) do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: DateTime.utc_now(),
+      category: nil
+    }
+  end
+
+  defp cmvm_portal_info_privi_description_parts(nil), do: {nil, nil}
+
+  defp cmvm_portal_info_privi_description_parts(description) do
+    case Regex.run(~r/^(.+?)\s+informs on:\s+(.+)$/iu, description, capture: :all_but_first) do
+      [issuer, headline] -> {String.trim(issuer), String.trim(headline)}
+      _ -> {nil, description}
+    end
+  end
+
+  defp cmvm_portal_info_privi_title(nil, nil, fallback), do: fallback
+  defp cmvm_portal_info_privi_title(nil, headline, _fallback), do: headline
+  defp cmvm_portal_info_privi_title(issuer, nil, _fallback), do: issuer
+  defp cmvm_portal_info_privi_title(issuer, headline, _fallback), do: issuer <> " - " <> headline
+
+  defp cmvm_portal_info_privi_url(nil, _table), do: @cmvm_portal_url
+
+  defp cmvm_portal_info_privi_url(id, table) do
+    fragment =
+      ["cmvm-info-privi", table, id]
+      |> Enum.reject(&is_nil/1)
+      |> Enum.join("-")
+      |> String.downcase()
+      |> String.replace(~r/[^a-z0-9_-]+/, "-")
+      |> String.trim("-")
+
+    @cmvm_portal_url <> "#" <> fragment
+  end
+
+  defp cmvm_portal_info_privi_summary(record, issuer, headline) do
+    join_non_empty(
+      [
+        "CMVM inside information and other issuer information",
+        prefixed("Issuer", issuer),
+        prefixed("Disclosure", headline),
+        prefixed("Category", string_field(record, "Tipo")),
+        prefixed("Record table", string_field(record, "Table"))
+      ],
+      " | "
+    )
+  end
+
+  defp cmvm_portal_info_privi_datetime(record) do
+    date = string_field(record, "Date")
+    time = string_field(record, "Time") || "00:00:00"
+
+    with value when is_binary(value) <- date,
+         [_, year_text, month_text, day_text, hour_text, minute_text, second_text] <-
+           Regex.run(
+             ~r/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2}):(\d{2})$/,
+             value <> " " <> time
+           ),
+         {year, ""} <- Integer.parse(year_text),
+         {month, ""} <- Integer.parse(month_text),
+         {day, ""} <- Integer.parse(day_text),
+         {hour, ""} <- Integer.parse(hour_text),
+         {minute, ""} <- Integer.parse(minute_text),
+         {second, ""} <- Integer.parse(second_text),
+         {:ok, datetime} <- build_utc_datetime(year, month, day, hour, minute, second) do
+      cmvm_apply_lisbon_zone(datetime)
+    else
+      _ -> DateTime.utc_now()
+    end
+  end
+
+  defp cmvm_apply_lisbon_zone(%DateTime{month: month} = datetime) when month in 4..10,
+    do: DateTime.add(datetime, -3_600, :second)
+
+  defp cmvm_apply_lisbon_zone(datetime), do: datetime
 
   defp parse_nasdaq_nordic_cns(raw_payload) do
     with {:ok, decoded} <- decode_json_or_jsonp(raw_payload),
@@ -2882,6 +3005,32 @@ defmodule DisclosureAutomation.Ingestion do
     end
   end
 
+  defp validate_live_payload(
+         %SourceRegistry{parser_key: "cmvm_portal_info_privi_json_v1"},
+         response
+       ) do
+    cond do
+      html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "cmvm_portal_info_privi_json_v1",
+          content_type(response.headers)}}
+
+      html_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "cmvm_portal_info_privi_json_v1", :html}}
+
+      not json_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "cmvm_portal_info_privi_json_v1",
+          content_type(response.headers)}}
+
+      not cmvm_portal_info_privi_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "cmvm_portal_info_privi_json_v1", :unexpected_json}}
+
+      true ->
+        :ok
+    end
+  end
+
   defp validate_live_payload(%SourceRegistry{parser_key: "nasdaq_nordic_cns_jsonp_v1"}, response) do
     cond do
       html_content_type?(response.headers) ->
@@ -3232,6 +3381,12 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp fca_nsm_search_payload?(_body), do: false
+
+  defp cmvm_portal_info_privi_payload?(body) when is_binary(body) do
+    body =~ "\"InfoPrivi\"" and body =~ "\"List\"" and body =~ "\"Desc\"" and body =~ "\"Tipo\""
+  end
+
+  defp cmvm_portal_info_privi_payload?(_body), do: false
 
   defp nasdaq_nordic_cns_payload?(body) when is_binary(body) do
     body =~ "handleResponse(" and body =~ "\"results\"" and body =~ "\"item\""
