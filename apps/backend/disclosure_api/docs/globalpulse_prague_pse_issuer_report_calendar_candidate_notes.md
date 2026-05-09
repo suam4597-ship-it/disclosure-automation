@@ -12,7 +12,7 @@ PRAGUE_PSE_ISSUER_REPORT_CALENDAR_DATE_CONTRACT_CONFIRMED
 PRAGUE_PSE_ISSUER_REPORT_CALENDAR_MANUAL_SOURCE_REGISTERED
 PRAGUE_PSE_ISSUER_REPORT_CALENDAR_LOCAL_FIXTURE_SMOKE_PASS
 PRAGUE_PSE_ISSUER_REPORT_CALENDAR_LIVE_AGGREGATE_PARSER_SMOKE_PASS
-PRAGUE_PSE_ISSUER_REPORT_CALENDAR_STAGING_LIVE_POLL_PENDING
+PRAGUE_PSE_ISSUER_REPORT_CALENDAR_STAGING_LIVE_POLL_PASS
 PRAGUE_PSE_ISSUER_REPORT_CALENDAR_SCHEDULED_POLLING_DISABLED
 ```
 
@@ -131,7 +131,7 @@ no central-bank, macro, or policy feed added
 ## Next Step
 
 ```text
-Merge this manual candidate, deploy to Fly staging, and run staging live poll smoke for cz_pse_issuer_report_calendar_multi_isin.
-Record records_seen, records_inserted, fetch.strategy=pse_multi_isin_report_calendar_v1, fixture fallback=false, and digest visibility behavior.
+Staging live poll smoke passed for cz_pse_issuer_report_calendar_multi_isin.
+Keep the source manual-only until an EU source batch promotion design, rollback path, source-risk controls, and scheduled polling decision gate are documented.
 Keep EU scheduled polling disabled.
 ```

@@ -11,7 +11,7 @@ PRAGUE_PSE_OFFICIAL_JSON_SURFACES_CONFIRMED
 PRAGUE_PSE_ISSUER_UNIVERSE_SURFACE_CONFIRMED
 PRAGUE_PSE_MULTI_ISIN_FANOUT_CONTRACT_RECORDED
 PRAGUE_PSE_ISSUER_NEWS_MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS
-PRAGUE_PSE_ISSUER_REPORT_CALENDAR_MANUAL_SOURCE_REGISTERED_LOCAL_SMOKE_PASS
+PRAGUE_PSE_ISSUER_REPORT_CALENDAR_MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS
 PRAGUE_PSE_STATIC_SINGLE_URL_SOURCE_BLOCKED
 PRAGUE_PSE_SCHEDULED_POLLING_DISABLED
 ```
@@ -226,8 +226,8 @@ first report-calendar record has issuer/title/url/published_at
 The issuer-news-only source-specific fetch adapter passed local fixture/live parser smoke and Fly staging live poll smoke.
 Staging live poll inserted 15 canonical PSE issuer-news rows with fetch.mode=live, universe_count=63, selected_issuer_count=10, and fixture fallback disabled.
 Date-specific digest visibility passed for historical PSE rows on 2022-02-25 and 2021-06-01.
-The issuer-report-calendar candidate passed local fixture smoke and live aggregate parser smoke with universe_count=63, selected_count=10, response_records=65, and strict_records=20.
-Merge the report-calendar candidate, deploy to Fly staging, and record staging live poll smoke before treating it as staging-ready.
+The issuer-report-calendar candidate passed local fixture smoke, live aggregate parser smoke with universe_count=63, selected_count=10, response_records=65, strict_records=20, and Fly staging live poll smoke with records_seen=20 and records_inserted=20.
+Keep both PSE candidates manual-only until EU scheduled polling promotion is designed.
 Do not register the HTML root, global PSE news endpoint, or per-issuer endpoints as standalone rss_v1 sources.
 Keep EU scheduled polling disabled.
 ```
