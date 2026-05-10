@@ -1075,8 +1075,8 @@ sources:
   - source_key: me_mnse_corporate_news
     display_name: Montenegro Stock Exchange Corporate News
     source_type: html
-    base_url: https://www.mnse.me/code/navigate.asp?Id=852
-    healthcheck_url: https://www.mnse.me/code/navigate.asp?Id=852
+    base_url: http://www.mnse.me/code/navigate.asp?Id=852
+    healthcheck_url: http://www.mnse.me/code/navigate.asp?Id=852
     parser_key: mnse_corporate_news_html_v1
     poll_cron: "*/30 * * * *"
     ranking_weight: 1.1
