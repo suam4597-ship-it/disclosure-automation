@@ -230,6 +230,49 @@ parsers:
       reject_non_oekb_oam_payload: true
       reject_future_timestamps: true
 
+  - parser_key: cse_oam_listing_versions_json_v1
+    display_name: Cyprus CSE OAM Listing Versions JSON Parser
+    enabled: true
+    input_types: [json, api]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: true
+    supports_detail_fetch: false
+    extraction:
+      id_fields:
+        - content.id
+      title_fields:
+        - content.listedCompanyEnglish
+        - content.nameEnglish
+      summary_fields:
+        - content.infoCategoriesNameEnglish
+        - content.securityCodesCode
+        - content.marketTypesDescription
+        - content.translationVersionContent
+        - content.versionContent
+      url_fields:
+        - generated_public_card_details_url
+      published_at_fields:
+        - content.publicationTimestamp
+        - content.translationRegistryTimestamp
+      category_fields:
+        - content.infoCategoriesNameEnglish
+    normalization:
+      source_shape: cse_oam_public_listing_versions_json
+      trim_html: true
+      decode_entities: true
+      collapse_whitespace: true
+      timezone_strategy: epoch_milliseconds_utc
+      generated_url_strategy: official_public_oam_card_details_url
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_html_payload: true
+      reject_non_cse_oam_payload: true
+      reject_future_timestamps: true
+
   - parser_key: pse_multi_isin_issuer_news_json_v1
     display_name: Prague PSE Multi-ISIN Issuer News JSON Parser
     enabled: true

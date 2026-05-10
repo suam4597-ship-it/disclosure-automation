@@ -885,6 +885,37 @@ sources:
       live_headers:
         accept: application/json
 
+  - source_key: eu_cyprus_cse_oam
+    display_name: Cyprus CSE OAM Regulated Information
+    source_type: api
+    base_url: https://publicoam.cse.com.cy/xak-public-pages-server/api/fetch-listing-versions?page=0&size=25&sort=ID,DESC
+    healthcheck_url: https://publicoam.cse.com.cy/listing-version-details
+    parser_key: cse_oam_listing_versions_json_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.12
+    coverage_tags:
+      - eu
+      - eu_south
+      - cyprus
+      - cy
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - oam
+      - official_storage
+    active: false
+    config:
+      fixture_path: source_payloads/eu_cyprus_cse_oam.json
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      disable_live_fixture_fallback: true
+      max_items_per_poll: 25
+      live_timeout_ms: 30000
+      live_headers:
+        accept: application/json
+
   - source_key: cz_pse_issuer_news_multi_isin
     display_name: Prague PSE Issuer News Multi-ISIN
     source_type: api
