@@ -10,7 +10,7 @@ This is documentation-only. It does not add runtime code, routes, controllers, m
 primary target: listed-company disclosures and issuer announcements
 preferred authority: official exchange, OAM, regulated-information repository, or issuer-announcement authority
 not first target: ECB, central-bank feeds, macro-statistics feeds, parliament feeds, or broad policy news
-current result: France OAM manual source + parser + staging live smoke complete; Spain CNMV manual RSS sources + parser compatibility fix + staging live smoke + public UI smoke complete; Netherlands AFM CSV manual source + parser + staging live smoke complete; Italy eMarket Storage bounded HTML manual source + parser + staging live smoke + public UI smoke complete; Luxembourg LuxSE OAM GraphQL manual source + parser + staging live smoke + public UI smoke complete; Euronext company press release RSS manual source + bounded parser + staging live smoke + public UI smoke complete; Belgium FSMA STORI API manual source + bounded parser + staging live smoke complete; UK FCA NSM API manual source + bounded parser + staging live smoke complete; Switzerland SIX SER official notices RSS manual source + staging live smoke + public UI smoke complete; Nasdaq Nordic Company News JSONP manual source + staging live smoke complete; Austria Wiener Boerse announcements bounded HTML manual source + staging live poll complete with public latest UI visibility pending; Austria OeKB OAM Issuer Info JSON manual source + staging live smoke complete with digest top-n visibility pending; Germany Xetra Frankfurt Newsboard bounded HTML manual source + staging live smoke complete with public latest UI visibility pending; Germany Company Register capital-market information inactive/manual source + parser + fixture + source-specific token preflight fetch adapter staging live smoke complete with date-specific digest visibility passing, public latest UI visibility pending, and pagination/rate/captcha design recorded; Greece ATHEX issuer announcements and corporate actions RSS manual sources staging live smoke complete with public latest UI visibility pending; Poland GPW ESPI/EBI bounded HTML manual source + staging live smoke complete with public latest UI visibility pending; Slovakia CERI bounded HTML manual source + staging live smoke complete with public latest UI visibility pending; Estonia OAM bounded HTML manual source + staging live smoke complete with public latest UI visibility pending; Lithuania OAM bounded HTML manual source + staging live smoke complete with public latest UI visibility pending; Latvia CSRI bounded HTML manual source + staging live smoke complete with digest top-n visibility pending; Portugal CMVM portal InfoPrivi JSON manual source + staging live smoke complete with digest top-n visibility pending; Prague/PSE issuer-news-only multi-ISIN manual source + parser + source-specific fan-out fetch adapter staging live smoke complete with date-specific digest visibility passing and cadence/rate design recorded; Prague/PSE issuer report calendar multi-ISIN manual source + parser + source-specific fan-out fetch adapter staging live smoke complete with date-specific digest visibility passing and cadence/rate design recorded; remaining Europe candidates need endpoint/parser confirmation
+current result: France OAM manual source + parser + staging live smoke complete; Spain CNMV manual RSS sources + parser compatibility fix + staging live smoke + public UI smoke complete; Netherlands AFM CSV manual source + parser + staging live smoke complete; Italy eMarket Storage bounded HTML manual source + parser + staging live smoke + public UI smoke complete; Luxembourg LuxSE OAM GraphQL manual source + parser + staging live smoke + public UI smoke complete; Euronext company press release RSS manual source + bounded parser + staging live smoke + public UI smoke complete; Belgium FSMA STORI API manual source + bounded parser + staging live smoke complete; UK FCA NSM API manual source + bounded parser + staging live smoke complete; Switzerland SIX SER official notices RSS manual source + staging live smoke + public UI smoke complete; Nasdaq Nordic Company News JSONP manual source + staging live smoke complete; Austria Wiener Boerse announcements bounded HTML manual source + staging live poll complete with public latest UI visibility pending; Austria OeKB OAM Issuer Info JSON manual source + staging live smoke complete with digest top-n visibility pending; Germany Xetra Frankfurt Newsboard bounded HTML manual source + staging live smoke complete with public latest UI visibility pending; Germany Company Register capital-market information inactive/manual source + parser + fixture + source-specific token preflight fetch adapter staging live smoke complete with date-specific digest visibility passing, public latest UI visibility pending, and pagination/rate/captcha design recorded; Greece ATHEX issuer announcements and corporate actions RSS manual sources staging live smoke complete with public latest UI visibility pending; Poland GPW ESPI/EBI bounded HTML manual source + staging live smoke complete with public latest UI visibility pending; Slovakia CERI bounded HTML manual source + staging live smoke complete with public latest UI visibility pending; Estonia OAM bounded HTML manual source + staging live smoke complete with public latest UI visibility pending; Lithuania OAM bounded HTML manual source + staging live smoke complete with public latest UI visibility pending; Latvia CSRI bounded HTML manual source + staging live smoke complete with digest top-n visibility pending; Portugal CMVM portal InfoPrivi JSON manual source + staging live smoke complete with digest top-n visibility pending; Prague/PSE issuer-news-only multi-ISIN manual source + parser + source-specific fan-out fetch adapter staging live smoke complete with date-specific digest visibility passing and cadence/rate design recorded; Prague/PSE issuer report calendar multi-ISIN manual source + parser + source-specific fan-out fetch adapter staging live smoke complete with date-specific digest visibility passing and cadence/rate design recorded; Malta MSE announcements manual source + parser + staging live smoke complete with date-specific digest visibility passing; Bulgaria X3News issuer-disclosure manual source + parser + fixture + local live parser smoke complete with staging live smoke pending; remaining Europe candidates need endpoint/parser confirmation
 ```
 
 ## Candidate A: France Info-Financiere OAM API
@@ -1111,7 +1111,7 @@ supporting URL: https://www.borzamalta.com.mt/news-and-articles/announcements
 observed HTTP: 200
 observed content-type: text/html; charset=utf-8
 observed shape: server-rendered announcement cards with PDF links, issuer names, announcement titles, and publication dates
-status: MANUAL_SOURCE_REGISTERED_LOCAL_PARSER_SMOKE_PASS_STAGING_LIVE_POLL_PENDING_SCHEDULED_POLLING_DISABLED
+status: MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS_DATE_SPECIFIC_DIGEST_VISIBILITY_PASS_SCHEDULED_POLLING_DISABLED
 ```
 
 Why this fits the product:
@@ -1130,7 +1130,42 @@ Manual source mt_mse_announcements exists with active=false and candidate_status
 Fixture source_payloads/mt_mse_announcements.html captures the bounded announcement-card HTML shape.
 Local fixture parser smoke returned fixture_records=3 with issuer/title/url/published_at populated.
 Local live parser smoke returned HTTP 200, live_records=9, and first live record Loqus Holding plc - Interim Update.
-Fly staging deploy and live poll smoke remain pending.
+Fly staging deploy and live poll smoke passed with fetch.mode=live, fetch.status_code=200, records_seen=9, and records_inserted=9.
+Date-specific digest visibility passed for Malta rows in 2026-05-07, 2026-05-06, and 2026-05-05 digests.
+Scheduled polling remains disabled until the broader EU source batch is intentionally promoted.
+```
+
+## Candidate Z: Bulgaria X3News Issuer Disclosures
+
+```text
+owner: Financial Market Services / X3News
+authority class: Bulgarian Stock Exchange group issuer-disclosure media surface
+supporting URL: https://fms.capital/en/aboutus
+candidate URL: https://www.x3news.com/?language=en
+observed HTTP: 200
+observed content-type: text/html;charset=UTF-8
+observed shape: server-rendered issuer-disclosure rows with issuer, disclosure headline, date/time, and ExtriID detail identifiers
+status: MANUAL_SOURCE_REGISTERED_LOCAL_PARSER_SMOKE_PASS_STAGING_LIVE_POLL_PENDING_SCHEDULED_POLLING_DISABLED
+```
+
+Why this fits the product:
+
+```text
+FMS states that it is part of the Bulgarian Stock Exchange group.
+FMS states that X3News is a specialized media portal through which issuers of financial instruments fulfill their legal obligations to disclose regulated information to the public.
+The English X3News page exposes listed issuer names, disclosure categories such as inside information and quarterly reports, publication timestamps, and official ShowNews detail identifiers.
+This is a listed-company issuer-disclosure source, not a central-bank, macro, parliament, or policy-news feed.
+```
+
+Implementation status:
+
+```text
+Parser bg_x3news_issuer_disclosures_html_v1 exists.
+Manual source bg_x3news_issuer_disclosures exists with active=false and candidate_status=manual_staging_only.
+Fixture source_payloads/bg_x3news_issuer_disclosures.html captures the bounded latest-news-row HTML shape.
+Local fixture parser smoke returned fixture_records=3 with issuer/title/url/published_at populated.
+Local live parser smoke returned HTTP 200, live_records=11, and first live record Sopharma AD - Inside information under art. 17.
+Fly staging live poll smoke remains pending.
 Scheduled polling remains disabled until the broader EU source batch is intentionally promoted.
 ```
 
@@ -1160,9 +1195,10 @@ Scheduled polling remains disabled until the broader EU source batch is intentio
 21. Keep Portugal CMVM portal InfoPrivi as a proven manual_staging_only bounded latest-disclosure API candidate with digest top-n/public latest UI visibility pending.
 22. Keep Prague/PSE issuer news and issuer report calendar as proven manual_staging_only source-specific fan-out candidates with date-specific digest visibility passing and cadence/rate design recorded; do not promote them to scheduled polling until issuer-window rotation and repeated staging smoke evidence pass under that design.
 23. Keep Germany Company Register capital-market information as a proven inactive/manual_staging_only candidate with date-specific digest visibility passing, public latest UI visibility pending, and pagination/rate/captcha design recorded; do not promote it to scheduled polling until multi-page staging smoke evidence passes under that design.
-24. Keep Malta MSE Announcements as a new manual_staging_only official exchange-announcement candidate with Fly staging live poll pending.
-25. Use globalpulse_eu_source_batch_promotion_design.md, globalpulse_eu_scheduled_staging_canary_runbook.md, and globalpulse_eu_scheduled_staging_canary_configuration_results.md as the decision gates before any EU scheduled staging canary observation window.
-26. Only batch-promote scheduled EU polling after the target list, rollback path, source-specific parser risk, and staging live smoke evidence are documented together.
+24. Keep Malta MSE Announcements as a proven manual_staging_only official exchange-announcement candidate with date-specific digest visibility passing.
+25. Keep Bulgaria X3News Issuer Disclosures as a new manual_staging_only Bulgarian Stock Exchange group issuer-disclosure candidate with local and staging smoke pending.
+26. Use globalpulse_eu_source_batch_promotion_design.md, globalpulse_eu_scheduled_staging_canary_runbook.md, and globalpulse_eu_scheduled_staging_canary_configuration_results.md as the decision gates before any EU scheduled staging canary observation window.
+27. Only batch-promote scheduled EU polling after the target list, rollback path, source-specific parser risk, and staging live smoke evidence are documented together.
 ```
 
 ## Explicit Non-Goals
