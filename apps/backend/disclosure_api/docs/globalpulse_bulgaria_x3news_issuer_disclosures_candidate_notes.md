@@ -26,6 +26,7 @@ candidate URL: https://www.x3news.com/?language=en
 parser_key: bg_x3news_issuer_disclosures_html_v1
 candidate_status: manual_staging_only
 active: false
+disable_live_fixture_fallback: true
 region: eu_central / bulgaria
 ```
 
@@ -61,6 +62,8 @@ timezone: Bulgaria EET/EEST approximation
 
 The parser does not fetch detail bodies, attachments, raw issuer material, private material, cookies, tokens, or session fields.
 
+The source disables live fixture fallback so staging cannot accidentally report a fixture-backed poll as live success.
+
 ## Local Validation
 
 ```text
@@ -88,6 +91,7 @@ Before staging smoke documentation, run:
 ```text
 Fly staging deploy
 manual live poll with use_live_fetch=true
+confirm fetch.mode=live and fixture_fallback=false
 source-health check remains active=false/manual_staging_only
 date-specific digest visibility check if latest top-N does not show Bulgaria
 ```
