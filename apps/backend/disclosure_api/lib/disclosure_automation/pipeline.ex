@@ -133,6 +133,7 @@ defmodule DisclosureAutomation.Parser do
   @de_company_register_strategy "germany_company_register_token_preflight_v1"
   @malta_mse_base_url "https://www.borzamalta.com.mt"
   @x3news_base_url "https://www.x3news.com/"
+  @kap_base_url "https://www.kap.org.tr"
 
   def parse(parser_key, raw_payload, opts \\ [])
       when is_binary(parser_key) and is_binary(raw_payload) do
@@ -221,6 +222,9 @@ defmodule DisclosureAutomation.Parser do
 
   defp parse_by_key("bg_x3news_issuer_disclosures_html_v1", raw_payload),
     do: parse_x3news_issuer_disclosures(raw_payload)
+
+  defp parse_by_key("kap_company_notifications_html_v1", raw_payload),
+    do: parse_kap_company_notifications(raw_payload)
 
   defp parse_by_key(parser_key, _raw_payload), do: {:error, {:unsupported_parser_key, parser_key}}
 
@@ -3082,6 +3086,120 @@ defmodule DisclosureAutomation.Parser do
 
   defp x3news_apply_sofia_zone(datetime), do: DateTime.add(datetime, -7_200, :second)
 
+  defp parse_kap_company_notifications(raw_payload) do
+    with {:ok, data_json} <- kap_company_notifications_data_json(raw_payload),
+         {:ok, rows} <- Jason.decode(data_json) do
+      items =
+        rows
+        |> Enum.map(&parse_kap_company_notification_row/1)
+        |> Enum.filter(&(&1.url && &1.title))
+
+      {:ok, items}
+    else
+      {:error, _reason} = error -> error
+      _ -> {:error, {:invalid_html_shape, "kap_company_notifications_html_v1"}}
+    end
+  end
+
+  defp kap_company_notifications_data_json(raw_payload) do
+    case Regex.run(~r/\\"data\\":(\[.*?\]),\\"SERVER_BASE_URL\\"/s, raw_payload) do
+      [_, escaped_json] ->
+        Jason.decode(<<?", escaped_json::binary, ?">>)
+
+      _ ->
+        {:error, {:invalid_html_shape, "kap_company_notifications_html_v1"}}
+    end
+  end
+
+  defp parse_kap_company_notification_row(%{"disclosureBasic" => basic})
+       when is_map(basic) do
+    external_id =
+      basic
+      |> Map.get("disclosureIndex")
+      |> kap_string()
+
+    issuer = kap_clean_text(Map.get(basic, "companyTitle"))
+    title = kap_clean_text(Map.get(basic, "title"))
+    summary = kap_clean_text(Map.get(basic, "summary"))
+    stock_code = kap_clean_text(Map.get(basic, "stockCode"))
+    disclosure_class = kap_clean_text(Map.get(basic, "disclosureClass"))
+    publish_date = kap_clean_text(Map.get(basic, "publishDate"))
+
+    %{
+      external_id: prefixed("kap", external_id),
+      title: join_non_empty([issuer, title], " - "),
+      url: kap_notification_url(external_id),
+      summary:
+        join_non_empty(
+          [
+            "Turkey KAP company notification",
+            prefixed("Code", stock_code),
+            prefixed("Type", disclosure_class),
+            prefixed("Summary", summary)
+          ],
+          " | "
+        ),
+      published_at: parse_kap_datetime(publish_date),
+      category: disclosure_class || title
+    }
+  end
+
+  defp parse_kap_company_notification_row(_row), do: empty_kap_company_notification()
+
+  defp empty_kap_company_notification do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: DateTime.utc_now(),
+      category: nil
+    }
+  end
+
+  defp kap_string(nil), do: nil
+  defp kap_string(value) when is_binary(value), do: value
+  defp kap_string(value), do: to_string(value)
+
+  defp kap_notification_url(nil), do: nil
+
+  defp kap_notification_url(external_id) do
+    @kap_base_url <> "/en/Bildirim/" <> external_id
+  end
+
+  defp kap_clean_text(nil), do: nil
+
+  defp kap_clean_text(value) do
+    value
+    |> to_string()
+    |> decode_html_entities()
+    |> String.replace(~r/\\n/u, " ")
+    |> String.replace(~r/\s+/u, " ")
+    |> String.trim()
+    |> case do
+      "" -> nil
+      cleaned -> cleaned
+    end
+  end
+
+  defp parse_kap_datetime(nil), do: DateTime.utc_now()
+
+  defp parse_kap_datetime(value) do
+    with [_, day_text, month_text, year_text, hour_text, minute_text, second_text] <-
+           Regex.run(~r/^(\d{2})\.(\d{2})\.(\d{4}) (\d{2}):(\d{2}):(\d{2})$/, value),
+         {day, ""} <- Integer.parse(day_text),
+         {month, ""} <- Integer.parse(month_text),
+         {year, ""} <- Integer.parse(year_text),
+         {hour, ""} <- Integer.parse(hour_text),
+         {minute, ""} <- Integer.parse(minute_text),
+         {second, ""} <- Integer.parse(second_text),
+         {:ok, datetime} <- build_utc_datetime(year, month, day, hour, minute, second) do
+      DateTime.add(datetime, -10_800, :second)
+    else
+      _ -> DateTime.utc_now()
+    end
+  end
+
   defp parse_afm_csv_row(row) do
     row
     |> String.trim()
@@ -4865,6 +4983,25 @@ defmodule DisclosureAutomation.Ingestion do
     end
   end
 
+  defp validate_live_payload(
+         %SourceRegistry{parser_key: "kap_company_notifications_html_v1"},
+         response
+       ) do
+    cond do
+      not html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "kap_company_notifications_html_v1",
+          content_type(response.headers)}}
+
+      not kap_company_notifications_payload?(response.body) ->
+        {:error,
+         {:unsupported_live_payload, "kap_company_notifications_html_v1", :unexpected_html}}
+
+      true ->
+        :ok
+    end
+  end
+
   defp validate_live_payload(_source, _response), do: :ok
 
   defp source_live_headers(%SourceRegistry{config: config}) when is_map(config) do
@@ -5133,6 +5270,15 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp x3news_issuer_disclosures_payload?(_body), do: false
+
+  defp kap_company_notifications_payload?(body) when is_binary(body) do
+    body =~ "kap.org.tr" and
+      body =~ ~s(\\"data\\":[) and
+      body =~ ~s(\\"disclosureBasic\\") and
+      body =~ ~s(\\"SERVER_BASE_URL\\":\\"https://kapsitebackend.mkk.com.tr\\")
+  end
+
+  defp kap_company_notifications_payload?(_body), do: false
 
   defp load_fixture_payload(source) do
     fixture_path =
