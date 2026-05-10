@@ -1357,3 +1357,39 @@ parsers:
       reject_empty_url: true
       reject_non_msi_pubdocs_payload: true
       reject_future_timestamps: true
+
+  - parser_key: dfsa_oam_company_announcements_json_v1
+    display_name: Denmark DFSA OAM Company Announcements JSON Parser
+    enabled: true
+    input_types: [json]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: true
+    supports_detail_fetch: false
+    extraction:
+      id_fields:
+        - id
+      title_fields:
+        - HeadlineColumn
+      summary_fields:
+        - IssuerColumn
+        - CategoryColumn
+        - PublicationDateColumn
+      url_fields:
+        - details_api_url
+      published_at_fields:
+        - PublicationDateColumn
+      category_fields:
+        - CategoryColumn
+    normalization:
+      source_shape: dfsa_oam_extension_search_json
+      trim_html: true
+      collapse_whitespace: true
+      timezone_strategy: source_datetime_utc
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_non_dfsa_oam_payload: true
+      reject_future_timestamps: true

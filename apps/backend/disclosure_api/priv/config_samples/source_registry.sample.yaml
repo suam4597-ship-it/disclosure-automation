@@ -862,6 +862,41 @@ sources:
         referer: https://emitent-msi.market.md/en/
         x-requested-with: XMLHttpRequest
 
+  - source_key: dk_dfsa_oam_company_announcements
+    display_name: Denmark DFSA OAM Company Announcements
+    source_type: api
+    base_url: https://appft.gold.extension.gopublic.dk/api/9217fa13-5d9a-46c6-9921-69ee7e6cfaf6/search
+    healthcheck_url: https://www.dfsa.dk/financial-themes/capital-market/company-announcements
+    parser_key: dfsa_oam_company_announcements_json_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.14
+    coverage_tags:
+      - eu
+      - eu_north
+      - denmark
+      - dk
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - oam
+      - dfsa
+    active: false
+    config:
+      fixture_path: source_payloads/dk_dfsa_oam_company_announcements.json
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      disable_live_fixture_fallback: true
+      max_items_per_poll: 25
+      live_method: post
+      live_content_type: application/json
+      live_body: '{"query":"","filters":[{"type":"dropdown","key":"CategoryFilter","options":["YearlyFinancialReport","ChangeInRightsAttachedToSecurities","HalfYearlyFinancialReport","HomeMemberState","InsideInformation","OwnShares","PaymentsToGovernments","Prospectus","RelatedPartyTransactions","TakeoverBid","TotalVotingRightsAndShareCapital"]}],"page":1,"pageSize":25,"sorting":{"key":"PublicationDateColumn","direction":"descending"}}'
+      live_timeout_ms: 30000
+      live_headers:
+        accept: application/json
+        accept-language: en
+
   - source_key: eu_austria_wiener_borse_announcements
     display_name: Austria Wiener Boerse Announcements
     source_type: html

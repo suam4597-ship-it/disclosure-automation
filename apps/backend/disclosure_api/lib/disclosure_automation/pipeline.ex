@@ -140,6 +140,8 @@ defmodule DisclosureAutomation.Parser do
   @seinet_document_base_url "https://www.seinet.com.mk/en/document/"
   @mnse_base_url "https://www.mnse.me"
   @md_msi_base_url "https://emitent-msi.market.md"
+  @dfsa_oam_module_id "9217fa13-5d9a-46c6-9921-69ee7e6cfaf6"
+  @dfsa_oam_details_base_url "https://appft.gold.extension.gopublic.dk/api/#{@dfsa_oam_module_id}/details/"
   @belex_base_url "https://www.belex.rs"
   @blse_strategy "blse_multi_issuer_news_rss_v1"
   @sase_strategy "sase_multi_issuer_announcements_xml_v1"
@@ -253,6 +255,9 @@ defmodule DisclosureAutomation.Parser do
 
   defp parse_by_key("md_msi_regulated_information_html_v1", raw_payload),
     do: parse_md_msi_regulated_information(raw_payload)
+
+  defp parse_by_key("dfsa_oam_company_announcements_json_v1", raw_payload),
+    do: parse_dfsa_oam_company_announcements(raw_payload)
 
   defp parse_by_key("belex_issuer_news_html_v1", raw_payload),
     do: parse_belex_issuer_news(raw_payload)
@@ -3918,6 +3923,82 @@ defmodule DisclosureAutomation.Parser do
     end
   end
 
+  defp parse_dfsa_oam_company_announcements(raw_payload) do
+    with {:ok, decoded} <- Jason.decode(raw_payload),
+         %{"data" => %{"rows" => rows}} when is_list(rows) <- decoded do
+      items =
+        rows
+        |> Enum.map(&parse_dfsa_oam_company_announcement_row/1)
+        |> Enum.filter(&(&1.url && &1.title && &1.published_at))
+
+      {:ok, items}
+    else
+      {:error, reason} -> {:error, {:invalid_dfsa_oam_company_announcements_json, reason}}
+      _shape -> {:error, :unexpected_dfsa_oam_company_announcements_shape}
+    end
+  end
+
+  defp parse_dfsa_oam_company_announcement_row(%{} = row) do
+    id = string_field(row, "id")
+    title = string_field(row, "HeadlineColumn")
+    issuer = string_field(row, "IssuerColumn")
+    category = string_field(row, "CategoryColumn")
+    published_text = string_field(row, "PublicationDateColumn")
+
+    %{
+      external_id: "dfsa-oam-#{id}",
+      title: title,
+      url: dfsa_oam_details_url(id),
+      summary:
+        join_non_empty(
+          [
+            "Danish FSA OAM company announcement",
+            prefixed("Issuer", issuer),
+            prefixed("Type", category),
+            prefixed("Published", published_text)
+          ],
+          " | "
+        ),
+      published_at: parse_dfsa_oam_datetime(published_text),
+      category: category
+    }
+  end
+
+  defp parse_dfsa_oam_company_announcement_row(_row) do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: nil,
+      category: nil
+    }
+  end
+
+  defp dfsa_oam_details_url(""), do: nil
+  defp dfsa_oam_details_url(nil), do: nil
+  defp dfsa_oam_details_url(id), do: @dfsa_oam_details_base_url <> id
+
+  defp parse_dfsa_oam_datetime(nil), do: DateTime.utc_now()
+
+  defp parse_dfsa_oam_datetime(value) do
+    with [_, day_text, month_text, year_text, hour_text, minute_text, second_text] <-
+           Regex.run(~r/(\d{2})-(\d{2})-(\d{4})\s+(\d{2}):(\d{2}):(\d{2})/, value),
+         {day, ""} <- Integer.parse(day_text),
+         {month, ""} <- Integer.parse(month_text),
+         {year, ""} <- Integer.parse(year_text),
+         {hour, ""} <- Integer.parse(hour_text),
+         {minute, ""} <- Integer.parse(minute_text),
+         {second, ""} <- Integer.parse(second_text),
+         {:ok, datetime} <- build_utc_datetime(year, month, day, hour, minute, second),
+         true <-
+           DateTime.compare(datetime, DateTime.add(DateTime.utc_now(), 86_400, :second)) != :gt do
+      datetime
+    else
+      _ -> DateTime.utc_now()
+    end
+  end
+
   defp parse_belex_issuer_news(raw_payload) do
     table_html = regex_capture_raw(raw_payload, ~r/<table\s+id=["']t5["'][^>]*>(.*?)<\/table>/is)
 
@@ -6452,6 +6533,25 @@ defmodule DisclosureAutomation.Ingestion do
     end
   end
 
+  defp validate_live_payload(
+         %SourceRegistry{parser_key: "dfsa_oam_company_announcements_json_v1"},
+         response
+       ) do
+    cond do
+      not json_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "dfsa_oam_company_announcements_json_v1",
+          content_type(response.headers)}}
+
+      not dfsa_oam_company_announcements_payload?(response.body) ->
+        {:error,
+         {:unsupported_live_payload, "dfsa_oam_company_announcements_json_v1", :unexpected_json}}
+
+      true ->
+        :ok
+    end
+  end
+
   defp validate_live_payload(%SourceRegistry{parser_key: "belex_issuer_news_html_v1"}, response) do
     cond do
       not html_content_type?(response.headers) ->
@@ -6790,6 +6890,27 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp md_msi_regulated_information_payload?(_body), do: false
+
+  defp dfsa_oam_company_announcements_payload?(body) when is_binary(body) do
+    with {:ok, %{"data" => %{"rows" => rows}}} <- Jason.decode(body) do
+      Enum.any?(rows, fn
+        %{
+          "id" => _id,
+          "HeadlineColumn" => _headline,
+          "IssuerColumn" => _issuer,
+          "PublicationDateColumn" => _published_at
+        } ->
+          true
+
+        _row ->
+          false
+      end)
+    else
+      _ -> false
+    end
+  end
+
+  defp dfsa_oam_company_announcements_payload?(_body), do: false
 
   defp belex_issuer_news_payload?(body) when is_binary(body) do
     body =~ "News from Issuers" and
