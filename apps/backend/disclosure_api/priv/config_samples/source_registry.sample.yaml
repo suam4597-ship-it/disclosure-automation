@@ -1031,7 +1031,7 @@ sources:
       source_date_from: "2024-09-30"
       source_date_to: "2024-09-30"
       page_size: 30
-      max_pages_per_poll: 1
+      max_pages_per_poll: 2
       live_timeout_ms: 30000
       live_headers:
         accept: text/html, text/plain, application/json
