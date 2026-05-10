@@ -986,6 +986,44 @@ sources:
       live_headers:
         accept: text/html
 
+  - source_key: mk_seinet_public_documents
+    display_name: North Macedonia SEI-NET Public Documents
+    source_type: api
+    base_url: https://api.seinet.com.mk/public/documents
+    healthcheck_url: https://www.seinet.com.mk/
+    parser_key: seinet_public_documents_json_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.12
+    coverage_tags:
+      - eu
+      - eu_south
+      - north_macedonia
+      - mk
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - exchange_announcement
+      - official_disclosure_platform
+    active: false
+    config:
+      fixture_path: source_payloads/mk_seinet_public_documents.json
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      disable_live_fixture_fallback: true
+      max_items_per_poll: 25
+      live_method: post
+      live_content_type: application/json;charset=UTF-8
+      live_body:
+        languageId: 2
+        channelId: 1
+        page: 1
+        isPushRequest: false
+      live_timeout_ms: 30000
+      live_headers:
+        accept: application/json
+
   - source_key: cz_pse_issuer_news_multi_isin
     display_name: Prague PSE Issuer News Multi-ISIN
     source_type: api
