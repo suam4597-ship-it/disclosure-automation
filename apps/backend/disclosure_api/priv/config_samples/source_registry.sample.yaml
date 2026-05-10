@@ -955,6 +955,37 @@ sources:
       live_headers:
         accept: application/rss+xml, application/xml, text/xml
 
+  - source_key: mk_mse_free_market_announcements
+    display_name: Macedonian Stock Exchange Free Market Announcements
+    source_type: html
+    base_url: https://www.mse.mk/Issuers.aspx
+    healthcheck_url: https://www.mse.mk/Issuers.aspx
+    parser_key: mse_free_market_announcements_html_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.1
+    coverage_tags:
+      - eu
+      - eu_south
+      - north_macedonia
+      - mk
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - exchange_announcement
+      - free_market
+    active: false
+    config:
+      fixture_path: source_payloads/mk_mse_free_market_announcements.html
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      disable_live_fixture_fallback: true
+      max_items_per_poll: 25
+      live_timeout_ms: 30000
+      live_headers:
+        accept: text/html
+
   - source_key: cz_pse_issuer_news_multi_isin
     display_name: Prague PSE Issuer News Multi-ISIN
     source_type: api

@@ -136,6 +136,7 @@ defmodule DisclosureAutomation.Parser do
   @x3news_base_url "https://www.x3news.com/"
   @kap_base_url "https://www.kap.org.tr"
   @cse_oam_base_url "https://publicoam.cse.com.cy"
+  @mse_base_url "https://www.mse.mk"
   @blse_strategy "blse_multi_issuer_news_rss_v1"
 
   def parse(parser_key, raw_payload, opts \\ [])
@@ -234,6 +235,9 @@ defmodule DisclosureAutomation.Parser do
 
   defp parse_by_key("kap_company_notifications_html_v1", raw_payload),
     do: parse_kap_company_notifications(raw_payload)
+
+  defp parse_by_key("mse_free_market_announcements_html_v1", raw_payload),
+    do: parse_mse_free_market_announcements(raw_payload)
 
   defp parse_by_key(parser_key, _raw_payload), do: {:error, {:unsupported_parser_key, parser_key}}
 
@@ -3447,6 +3451,105 @@ defmodule DisclosureAutomation.Parser do
     end
   end
 
+  defp parse_mse_free_market_announcements(raw_payload) do
+    items =
+      Regex.scan(
+        ~r/<div class="container-announcement166b">\s*<a href="([^"]+)">\s*<ul class="flex-container">\s*<li class="flex-item-1x4">\s*<h4>\s*(.*?)\s*<\/h4>\s*<\/li>\s*<li class="flex-item-3x4">\s*<h4>\s*(.*?)\s*<\/h4>/s,
+        raw_payload
+      )
+      |> Enum.map(&parse_mse_free_market_announcement_row/1)
+      |> Enum.filter(&(&1.url && &1.title))
+
+    {:ok, items}
+  end
+
+  defp parse_mse_free_market_announcement_row([_row, href, published_at_text, title_html]) do
+    title = clean_html(title_html)
+    {issuer, category} = mse_free_market_title_parts(title)
+    url = mse_url(href)
+
+    %{
+      external_id: mse_free_market_external_id(url),
+      title: title,
+      url: url,
+      summary:
+        join_non_empty(
+          [
+            "Macedonian Stock Exchange free-market company announcement",
+            prefixed("Issuer", issuer),
+            prefixed("Announcement", category)
+          ],
+          " | "
+        ),
+      published_at: parse_mse_free_market_date(clean_html(published_at_text)),
+      category: category
+    }
+  end
+
+  defp parse_mse_free_market_announcement_row(_row), do: empty_mse_free_market_announcement()
+
+  defp empty_mse_free_market_announcement do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: DateTime.utc_now(),
+      category: nil
+    }
+  end
+
+  defp mse_free_market_title_parts(nil), do: {nil, nil}
+
+  defp mse_free_market_title_parts(title) do
+    case String.split(title, " - ", parts: 2) do
+      [issuer, category] -> {blank_to_nil(issuer), blank_to_nil(category)}
+      [value] -> {nil, blank_to_nil(value)}
+      _parts -> {nil, nil}
+    end
+  end
+
+  defp mse_url(nil), do: nil
+
+  defp mse_url(raw_url) do
+    url = decode_html_entities(raw_url)
+
+    cond do
+      String.starts_with?(url, "http") -> url
+      String.starts_with?(url, "/") -> @mse_base_url <> url
+      true -> @mse_base_url <> "/" <> url
+    end
+  end
+
+  defp mse_free_market_external_id(nil), do: nil
+
+  defp mse_free_market_external_id(url) do
+    url
+    |> URI.parse()
+    |> Map.get(:path)
+    |> case do
+      nil -> nil
+      path -> path |> String.split("/", trim: true) |> Enum.join("-")
+    end
+  end
+
+  defp parse_mse_free_market_date(nil), do: DateTime.utc_now()
+
+  defp parse_mse_free_market_date(value) do
+    with [_, month_text, day_text, year_text] <-
+           Regex.run(~r/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/, value),
+         {year, ""} <- Integer.parse(year_text),
+         {month, ""} <- Integer.parse(month_text),
+         {day, ""} <- Integer.parse(day_text),
+         {:ok, datetime} <- build_utc_datetime(year, month, day, 0, 0, 0),
+         true <-
+           DateTime.compare(datetime, DateTime.add(DateTime.utc_now(), 86_400, :second)) != :gt do
+      datetime
+    else
+      _ -> DateTime.utc_now()
+    end
+  end
+
   defp parse_afm_csv_row(row) do
     row
     |> String.trim()
@@ -3454,6 +3557,18 @@ defmodule DisclosureAutomation.Parser do
     |> String.trim_trailing("\"")
     |> String.split("\";\"")
     |> Enum.map(&String.replace(&1, "\"\"", "\""))
+  end
+
+  defp blank_to_nil(nil), do: nil
+
+  defp blank_to_nil(value) do
+    value
+    |> to_string()
+    |> String.trim()
+    |> case do
+      "" -> nil
+      trimmed -> trimmed
+    end
   end
 
   defp string_field(record, key) do
@@ -5549,6 +5664,25 @@ defmodule DisclosureAutomation.Ingestion do
     end
   end
 
+  defp validate_live_payload(
+         %SourceRegistry{parser_key: "mse_free_market_announcements_html_v1"},
+         response
+       ) do
+    cond do
+      not html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "mse_free_market_announcements_html_v1",
+          content_type(response.headers)}}
+
+      not mse_free_market_announcements_payload?(response.body) ->
+        {:error,
+         {:unsupported_live_payload, "mse_free_market_announcements_html_v1", :unexpected_html}}
+
+      true ->
+        :ok
+    end
+  end
+
   defp validate_live_payload(_source, _response), do: :ok
 
   defp source_live_headers(%SourceRegistry{config: config}) when is_map(config) do
@@ -5840,6 +5974,14 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp kap_company_notifications_payload?(_body), do: false
+
+  defp mse_free_market_announcements_payload?(body) when is_binary(body) do
+    body =~ "Macedonian Stock Exchange" and
+      body =~ "Announcements from companies on the Free Market" and
+      body =~ "container-announcement166b"
+  end
+
+  defp mse_free_market_announcements_payload?(_body), do: false
 
   defp load_fixture_payload(source) do
     fixture_path =
