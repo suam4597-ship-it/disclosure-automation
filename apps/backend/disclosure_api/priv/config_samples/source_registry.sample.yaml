@@ -1153,6 +1153,7 @@ sources:
       fixture_path: source_payloads/bg_x3news_issuer_disclosures.html
       candidate_status: manual_staging_only
       live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      disable_live_fixture_fallback: true
       max_items_per_poll: 25
       live_timeout_ms: 30000
       live_headers:

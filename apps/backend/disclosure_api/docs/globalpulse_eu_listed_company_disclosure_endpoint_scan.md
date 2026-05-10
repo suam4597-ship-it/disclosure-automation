@@ -1163,6 +1163,7 @@ Implementation status:
 Parser bg_x3news_issuer_disclosures_html_v1 exists.
 Manual source bg_x3news_issuer_disclosures exists with active=false and candidate_status=manual_staging_only.
 Fixture source_payloads/bg_x3news_issuer_disclosures.html captures the bounded latest-news-row HTML shape.
+The source has disable_live_fixture_fallback=true so staging must prove live fetch success before any live-poll claim.
 Local fixture parser smoke returned fixture_records=3 with issuer/title/url/published_at populated.
 Local live parser smoke returned HTTP 200, live_records=11, and first live record Sopharma AD - Inside information under art. 17.
 Fly staging live poll smoke remains pending.
