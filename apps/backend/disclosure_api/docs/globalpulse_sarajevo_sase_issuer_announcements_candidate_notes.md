@@ -1,6 +1,6 @@
 # Sarajevo SASE Issuer Announcements Candidate Notes
 
-Status: `MANUAL_SOURCE_REGISTERED_LOCAL_PARSER_SMOKE_PASS_LIVE_ENDPOINT_PROBE_PASS`
+Status: `MANUAL_SOURCE_REGISTERED_LOCAL_PARSER_SMOKE_PASS_LIVE_ENDPOINT_PROBE_PASS_STAGING_LIVE_POLL_PASS`
 
 ## Scope
 
@@ -40,9 +40,9 @@ local fixture parser smoke: PASS
 external endpoint probe: PASS, HandlerChart type=3 issuer universe returns JSON
 external issuer announcement probe: PASS, HandlerChart type=24 returns XML-ish issuer announcements for configured issuer prefixes
 application live fetch smoke
-Fly staging live poll smoke
-date-specific digest visibility smoke
-public latest UI visibility smoke when top-N/date selection includes SASE rows
+Fly staging live poll smoke: PASS, 25 live rows inserted
+date-specific digest visibility smoke: PASS, 2026-04-10 breaking digest includes Bosnalijek d.d. Sarajevo
+public latest UI visibility smoke: PENDING, current latest digest date remains newer than SASE smoke rows
 ```
 
 ## Open Follow-Up
@@ -58,3 +58,15 @@ ALUM
 ```
 
 Do not promote this source to scheduled polling until a cadence/rate design is recorded and repeated staging smoke confirms the handler remains stable.
+
+## Staging Smoke Record
+
+```text
+record: globalpulse_sarajevo_sase_issuer_announcements_staging_live_poll_smoke_results.md
+deploy commit: 5c7359b06435fa063c4350179e783c631f529845
+live poll: PASS
+fixture_fallback: false
+records_seen: 25
+records_inserted: 25
+latest public UI visibility: pending by digest date selection
+```
