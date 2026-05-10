@@ -1047,6 +1047,44 @@ parsers:
       reject_non_mnse_corporate_news_payload: true
       reject_future_timestamps: true
 
+  - parser_key: belex_issuer_news_html_v1
+    display_name: Belgrade Stock Exchange Issuer News HTML Parser
+    enabled: true
+    input_types: [html]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 10
+    supports_pagination: false
+    supports_detail_fetch: false
+    extraction:
+      id_fields:
+        - symbol
+        - date_text
+        - title
+      title_fields:
+        - title
+      summary_fields:
+        - symbol
+        - date_text
+      url_fields:
+        - issuer_news_href
+      published_at_fields:
+        - date_text
+      category_fields:
+        - issuer_news
+    normalization:
+      source_shape: belgrade_stock_exchange_homepage_issuer_news_table
+      trim_html: true
+      decode_entities: true
+      collapse_whitespace: true
+      timezone_strategy: source_naive_utc_ddmmyyyy
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_non_belex_issuer_news_payload: true
+      reject_future_timestamps: true
+
   - parser_key: germany_company_register_capital_market_flight_v1
     display_name: Germany Company Register Capital Market Flight Payload Parser
     enabled: true

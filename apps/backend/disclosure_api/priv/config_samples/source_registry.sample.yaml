@@ -1055,6 +1055,37 @@ sources:
       live_headers:
         accept: text/html
 
+  - source_key: rs_belex_issuer_news
+    display_name: Belgrade Stock Exchange Issuer News
+    source_type: html
+    base_url: https://www.belex.rs/eng/
+    healthcheck_url: https://www.belex.rs/eng/
+    parser_key: belex_issuer_news_html_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.1
+    coverage_tags:
+      - eu
+      - eu_south
+      - serbia
+      - rs
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - exchange_announcement
+      - issuer_news
+    active: false
+    config:
+      fixture_path: source_payloads/rs_belex_issuer_news.html
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      disable_live_fixture_fallback: true
+      max_items_per_poll: 10
+      live_timeout_ms: 30000
+      live_headers:
+        accept: text/html
+
   - source_key: cz_pse_issuer_news_multi_isin
     display_name: Prague PSE Issuer News Multi-ISIN
     source_type: api
