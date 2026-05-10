@@ -1397,6 +1397,38 @@ Application live fetch is blocked because Erlang :httpc closes the TLS connectio
 Scheduled polling remains disabled until the broader Europe source batch is intentionally promoted.
 ```
 
+## Candidate AG: Belgrade Stock Exchange Issuer News
+
+```text
+owner: Belgrade Stock Exchange
+authority class: official exchange issuer-news HTML surface
+candidate URL: https://www.belex.rs/eng/
+observed HTTP: 200
+observed content-type: text/html
+observed shape: homepage News from Issuers table id=t5 with date, issuer symbol, announcement title, and links under /eng/trgovanje/vesti/hartija/
+status: MANUAL_SOURCE_REGISTERED_LOCAL_PARSER_SMOKE_PASS_LIVE_ENDPOINT_PROBE_PASS
+```
+
+Why this fits the product:
+
+```text
+The candidate is an official Belgrade Stock Exchange listed-company issuer announcement surface.
+Rows expose issuer announcements such as annual reports, quarterly reports, and capital-market-law notices.
+The first slice intentionally parses the bounded latest homepage issuer-news table only; symbol rotation and historical pagination are out of scope.
+```
+
+Implementation status:
+
+```text
+Parser belex_issuer_news_html_v1 exists.
+Manual source rs_belex_issuer_news exists with active=false and candidate_status=manual_staging_only.
+Fixture source_payloads/rs_belex_issuer_news.html captures the bounded homepage issuer-news table shape.
+The source has disable_live_fixture_fallback=true so staging must prove live fetch success before any live-poll claim.
+External endpoint probe passed via PowerShell/WinHTTP with HTTP 200 text/html.
+Application live fetch probe passed because Erlang :httpc receives HTTP 200 from https://www.belex.rs/eng/.
+Scheduled polling remains disabled until the broader Europe source batch is intentionally promoted.
+```
+
 ## Recommended EU v1 Path
 
 ```text
@@ -1430,9 +1462,10 @@ Scheduled polling remains disabled until the broader Europe source batch is inte
 28. Keep Banja Luka BLSE Issuer News Multi-Code as a manual_staging_only official exchange issuer-RSS candidate with local parser smoke passing, Fly staging live poll passing, date-specific digest visibility passing, and latest public UI visibility pending.
 29. Keep Macedonian Stock Exchange Free Market Announcements as a manual_staging_only official exchange issuer-announcement candidate with local/live parser smoke passing, Fly staging live poll passing, date-specific digest visibility passing, and latest public UI visibility pending.
 30. Keep North Macedonia SEI-NET Public Documents as a manual_staging_only official public-disclosure-platform API candidate; prove local/live parser smoke and Fly staging live poll before any scheduled promotion.
-31. Keep Montenegro MNSE Corporate News as a manual_staging_only official exchange issuer-announcement candidate; prove local/live parser smoke and Fly staging live poll before any scheduled promotion.
-32. Use globalpulse_eu_source_batch_promotion_design.md, globalpulse_eu_scheduled_staging_canary_runbook.md, and globalpulse_eu_scheduled_staging_canary_configuration_results.md as the decision gates before any EU scheduled staging canary observation window.
-33. Only batch-promote scheduled EU polling after the target list, rollback path, source-specific parser risk, and staging live smoke evidence are documented together.
+31. Keep Montenegro MNSE Corporate News as a manual_staging_only official exchange issuer-announcement candidate; do not claim staging live poll success until the current Erlang :httpc TLS blocker is fixed.
+32. Keep Serbia BELEX Issuer News as a manual_staging_only official exchange issuer-news candidate; prove Fly staging live poll and digest visibility before any scheduled promotion.
+33. Use globalpulse_eu_source_batch_promotion_design.md, globalpulse_eu_scheduled_staging_canary_runbook.md, and globalpulse_eu_scheduled_staging_canary_configuration_results.md as the decision gates before any EU scheduled staging canary observation window.
+34. Only batch-promote scheduled EU polling after the target list, rollback path, source-specific parser risk, and staging live smoke evidence are documented together.
 ```
 
 ## Explicit Non-Goals
@@ -1549,6 +1582,9 @@ MONTENEGRO_MNSE_CORPORATE_NEWS_MANUAL_SOURCE_REGISTERED
 MONTENEGRO_MNSE_CORPORATE_NEWS_LOCAL_PARSER_SMOKE_PASS
 MONTENEGRO_MNSE_CORPORATE_NEWS_EXTERNAL_ENDPOINT_PROBE_PASS
 MONTENEGRO_MNSE_CORPORATE_NEWS_LIVE_FETCH_BLOCKED_HTTP_CLIENT_TLS
+SERBIA_BELEX_ISSUER_NEWS_MANUAL_SOURCE_REGISTERED
+SERBIA_BELEX_ISSUER_NEWS_LOCAL_PARSER_SMOKE_PASS
+SERBIA_BELEX_ISSUER_NEWS_LIVE_ENDPOINT_PROBE_PASS
 EU_BATCH_PROMOTION_DESIGN_RECORDED
 EU_SCHEDULED_STAGING_CANARY_RUNBOOK_RECORDED
 EU_SCHEDULED_STAGING_CANARY_PHASE0_CONFIG_READY

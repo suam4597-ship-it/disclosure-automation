@@ -139,6 +139,7 @@ defmodule DisclosureAutomation.Parser do
   @mse_base_url "https://www.mse.mk"
   @seinet_document_base_url "https://www.seinet.com.mk/en/document/"
   @mnse_base_url "https://www.mnse.me"
+  @belex_base_url "https://www.belex.rs"
   @blse_strategy "blse_multi_issuer_news_rss_v1"
 
   def parse(parser_key, raw_payload, opts \\ [])
@@ -246,6 +247,9 @@ defmodule DisclosureAutomation.Parser do
 
   defp parse_by_key("mnse_corporate_news_html_v1", raw_payload),
     do: parse_mnse_corporate_news(raw_payload)
+
+  defp parse_by_key("belex_issuer_news_html_v1", raw_payload),
+    do: parse_belex_issuer_news(raw_payload)
 
   defp parse_by_key(parser_key, _raw_payload), do: {:error, {:unsupported_parser_key, parser_key}}
 
@@ -3806,6 +3810,116 @@ defmodule DisclosureAutomation.Parser do
     end
   end
 
+  defp parse_belex_issuer_news(raw_payload) do
+    table_html = regex_capture_raw(raw_payload, ~r/<table\s+id=["']t5["'][^>]*>(.*?)<\/table>/is)
+
+    items =
+      (table_html || raw_payload)
+      |> then(
+        &Regex.scan(
+          ~r/<tr[^>]*>\s*<td\s+class=["']date["'][^>]*>\s*(.*?)\s*<\/td>\s*<td\s+class=["']vest["'][^>]*>\s*<a\s+href=["']([^"']+)["'][^>]*>\s*(.*?)\s*<\/a>/is,
+          &1
+        )
+      )
+      |> Enum.map(&parse_belex_issuer_news_row/1)
+      |> Enum.filter(&(&1.url && &1.title && &1.published_at))
+
+    {:ok, items}
+  end
+
+  defp parse_belex_issuer_news_row([_row, date_html, href, title_html]) do
+    date_text = clean_html(date_html)
+    raw_title = clean_html(title_html)
+    {symbol, title} = belex_title_parts(raw_title)
+    url = belex_url(href)
+
+    %{
+      external_id: belex_external_id(symbol, date_text, title),
+      title: title,
+      url: url,
+      summary:
+        join_non_empty(
+          [
+            "Belgrade Stock Exchange issuer news",
+            prefixed("Symbol", symbol),
+            prefixed("Published", date_text)
+          ],
+          " | "
+        ),
+      published_at: parse_belex_date(date_text),
+      category: "issuer_news"
+    }
+  end
+
+  defp parse_belex_issuer_news_row(_row) do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: nil,
+      category: nil
+    }
+  end
+
+  defp belex_title_parts(nil), do: {nil, nil}
+
+  defp belex_title_parts(value) do
+    case Regex.run(~r/^([A-Z0-9]+)\s+-\s+(.+)$/u, value) do
+      [_match, symbol, title] -> {symbol, String.trim(title)}
+      _ -> {nil, value}
+    end
+  end
+
+  defp belex_url(nil), do: nil
+
+  defp belex_url(raw_url) do
+    url = decode_html_entities(raw_url)
+
+    cond do
+      String.starts_with?(url, "http") -> url
+      String.starts_with?(url, "/") -> @belex_base_url <> url
+      true -> @belex_base_url <> "/" <> url
+    end
+  end
+
+  defp belex_external_id(symbol, date_text, title) do
+    [symbol, date_text, title]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.map(&belex_external_id_part/1)
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.join(":")
+    |> case do
+      "" -> nil
+      value -> "belex:" <> value
+    end
+  end
+
+  defp belex_external_id_part(value) do
+    value
+    |> to_string()
+    |> String.downcase()
+    |> String.replace(~r/[^a-z0-9]+/u, "-")
+    |> String.trim("-")
+  end
+
+  defp parse_belex_date(nil), do: DateTime.utc_now()
+
+  defp parse_belex_date(value) do
+    with [_, day_text, month_text, year_text] <-
+           Regex.run(~r/^(\d{2})\.(\d{2})\.(\d{4})\./, value),
+         {day, ""} <- Integer.parse(day_text),
+         {month, ""} <- Integer.parse(month_text),
+         {year, ""} <- Integer.parse(year_text),
+         {:ok, datetime} <- build_utc_datetime(year, month, day, 0, 0, 0),
+         true <-
+           DateTime.compare(datetime, DateTime.add(DateTime.utc_now(), 86_400, :second)) != :gt do
+      datetime
+    else
+      _ -> DateTime.utc_now()
+    end
+  end
+
   defp string_field(record, key) do
     record
     |> Map.get(key)
@@ -5954,6 +6068,21 @@ defmodule DisclosureAutomation.Ingestion do
     end
   end
 
+  defp validate_live_payload(%SourceRegistry{parser_key: "belex_issuer_news_html_v1"}, response) do
+    cond do
+      not html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "belex_issuer_news_html_v1",
+          content_type(response.headers)}}
+
+      not belex_issuer_news_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "belex_issuer_news_html_v1", :unexpected_html}}
+
+      true ->
+        :ok
+    end
+  end
+
   defp validate_live_payload(_source, _response), do: :ok
 
   defp source_live_headers(%SourceRegistry{config: config}) when is_map(config) do
@@ -6271,6 +6400,15 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp mnse_corporate_news_payload?(_body), do: false
+
+  defp belex_issuer_news_payload?(body) when is_binary(body) do
+    body =~ "News from Issuers" and
+      body =~ ~s(id="t5") and
+      body =~ ~s(class="vest") and
+      body =~ "/eng/trgovanje/vesti/hartija/"
+  end
+
+  defp belex_issuer_news_payload?(_body), do: false
 
   defp load_fixture_payload(source) do
     fixture_path =
