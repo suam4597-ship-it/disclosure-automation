@@ -955,6 +955,54 @@ sources:
       live_headers:
         accept: application/rss+xml, application/xml, text/xml
 
+  - source_key: ba_sase_issuer_announcements_multi_code
+    display_name: Sarajevo SASE Issuer Announcements Multi-Code
+    source_type: api
+    base_url: https://www.sase.ba/FeedServices/HandlerChart.ashx
+    healthcheck_url: https://www.sase.ba/v1/en-us/Reports/Companies/Financial-reports
+    parser_key: sase_multi_issuer_announcements_xml_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.1
+    coverage_tags:
+      - europe
+      - eu_south
+      - bosnia_herzegovina
+      - ba
+      - sarajevo
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - exchange_announcement
+      - company_news
+    active: false
+    config:
+      fixture_path: source_payloads/ba_sase_issuer_announcements_multi_code.json
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      live_fetch_strategy: sase_multi_issuer_announcements_xml_v1
+      disable_live_fixture_fallback: true
+      max_items_per_poll: 25
+      max_issuers_per_poll: 5
+      max_items_per_issuer: 5
+      sase_language_id: "1"
+      sase_issuer_codes:
+        - BHTS
+        - JPES
+        - BSNL
+        - ASA
+        - ALUM
+      sase_known_issuers:
+        BHTS: BH Telecom d.d. Sarajevo
+        JPES: JP Elektroprivreda BiH d.d. Sarajevo
+        BSNL: Bosnalijek d.d. Sarajevo
+        ASA: ASA Central Osiguranje d.d. Sarajevo
+        ALUM: Aluminij d.d. Mostar
+      live_timeout_ms: 30000
+      live_headers:
+        accept: application/xml, text/xml, application/json
+
   - source_key: mk_mse_free_market_announcements
     display_name: Macedonian Stock Exchange Free Market Announcements
     source_type: html

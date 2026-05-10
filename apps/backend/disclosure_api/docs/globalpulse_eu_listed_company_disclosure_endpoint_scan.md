@@ -1433,6 +1433,37 @@ Latest public UI visibility remains pending because the current latest digest da
 Scheduled polling remains disabled until the broader Europe source batch is intentionally promoted.
 ```
 
+## Candidate AH: Sarajevo Stock Exchange Issuer Announcements
+
+```text
+owner: Sarajevo Stock Exchange
+authority class: official exchange issuer-announcement handler endpoint
+candidate URL: https://www.sase.ba/FeedServices/HandlerChart.ashx
+observed HTTP: 200
+observed content-type: application/json; charset=utf-8 for both JSON issuer universe and XML-ish announcement payloads
+observed shape: type=3 issuer universe JSON and type=24 issuer-specific ANNOUNCEMENTS XML rows with Subject, CompanyId, AnnouncementDate, DateOfEvent, Link, and AnnouncementTypeId
+status: MANUAL_SOURCE_REGISTERED_LOCAL_PARSER_SMOKE_PASS_LIVE_ENDPOINT_PROBE_PASS
+```
+
+Why this fits the product:
+
+```text
+The candidate is an official Sarajevo Stock Exchange issuer-announcement endpoint for listed companies.
+Rows expose company announcements such as shareholder assembly notices, dividend notices, and financial-report references.
+The first slice intentionally uses a configured issuer-code window only; full symbol rotation and document-download POST handling are out of scope.
+```
+
+Implementation status:
+
+```text
+Parser sase_multi_issuer_announcements_xml_v1 exists.
+Manual source ba_sase_issuer_announcements_multi_code exists with active=false and candidate_status=manual_staging_only.
+Fixture source_payloads/ba_sase_issuer_announcements_multi_code.json captures the bounded multi-code fanout response shape.
+The source has disable_live_fixture_fallback=true so staging must prove live fetch success before any live-poll claim.
+External endpoint probe passed via PowerShell/WinHTTP against HandlerChart type=3 and type=24.
+Scheduled polling remains disabled until the broader Europe source batch is intentionally promoted.
+```
+
 ## Recommended EU v1 Path
 
 ```text
@@ -1468,8 +1499,9 @@ Scheduled polling remains disabled until the broader Europe source batch is inte
 30. Keep North Macedonia SEI-NET Public Documents as a manual_staging_only official public-disclosure-platform API candidate; prove local/live parser smoke and Fly staging live poll before any scheduled promotion.
 31. Keep Montenegro MNSE Corporate News as a manual_staging_only official exchange issuer-announcement candidate; do not claim staging live poll success until the current Erlang :httpc TLS blocker is fixed.
 32. Keep Serbia BELEX Issuer News as a manual_staging_only official exchange issuer-news candidate with Fly staging live poll and date-specific digest visibility passing, and public latest UI visibility pending.
-33. Use globalpulse_eu_source_batch_promotion_design.md, globalpulse_eu_scheduled_staging_canary_runbook.md, and globalpulse_eu_scheduled_staging_canary_configuration_results.md as the decision gates before any EU scheduled staging canary observation window.
-34. Only batch-promote scheduled EU polling after the target list, rollback path, source-specific parser risk, and staging live smoke evidence are documented together.
+33. Keep Sarajevo SASE Issuer Announcements as a manual_staging_only official exchange issuer-announcement fanout candidate; prove app live fetch, Fly staging live poll, and digest visibility before any scheduled promotion.
+34. Use globalpulse_eu_source_batch_promotion_design.md, globalpulse_eu_scheduled_staging_canary_runbook.md, and globalpulse_eu_scheduled_staging_canary_configuration_results.md as the decision gates before any EU scheduled staging canary observation window.
+35. Only batch-promote scheduled EU polling after the target list, rollback path, source-specific parser risk, and staging live smoke evidence are documented together.
 ```
 
 ## Explicit Non-Goals
@@ -1592,6 +1624,9 @@ SERBIA_BELEX_ISSUER_NEWS_LIVE_ENDPOINT_PROBE_PASS
 SERBIA_BELEX_ISSUER_NEWS_STAGING_LIVE_POLL_PASS
 SERBIA_BELEX_ISSUER_NEWS_DATE_SPECIFIC_DIGEST_VISIBILITY_PASS
 SERBIA_BELEX_ISSUER_NEWS_LATEST_PUBLIC_UI_VISIBILITY_PENDING
+SARAJEVO_SASE_ISSUER_ANNOUNCEMENTS_MANUAL_SOURCE_REGISTERED
+SARAJEVO_SASE_ISSUER_ANNOUNCEMENTS_LOCAL_PARSER_SMOKE_PASS
+SARAJEVO_SASE_ISSUER_ANNOUNCEMENTS_LIVE_ENDPOINT_PROBE_PASS
 EU_BATCH_PROMOTION_DESIGN_RECORDED
 EU_SCHEDULED_STAGING_CANARY_RUNBOOK_RECORDED
 EU_SCHEDULED_STAGING_CANARY_PHASE0_CONFIG_READY

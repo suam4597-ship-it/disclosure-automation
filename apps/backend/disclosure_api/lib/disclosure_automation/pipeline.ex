@@ -141,6 +141,8 @@ defmodule DisclosureAutomation.Parser do
   @mnse_base_url "https://www.mnse.me"
   @belex_base_url "https://www.belex.rs"
   @blse_strategy "blse_multi_issuer_news_rss_v1"
+  @sase_strategy "sase_multi_issuer_announcements_xml_v1"
+  @sase_profile_base_url "https://www.sase.ba/v1/en-us/Market/Issuers-Securities/Issuer-profile/symbol/"
 
   def parse(parser_key, raw_payload, opts \\ [])
       when is_binary(parser_key) and is_binary(raw_payload) do
@@ -250,6 +252,9 @@ defmodule DisclosureAutomation.Parser do
 
   defp parse_by_key("belex_issuer_news_html_v1", raw_payload),
     do: parse_belex_issuer_news(raw_payload)
+
+  defp parse_by_key("sase_multi_issuer_announcements_xml_v1", raw_payload),
+    do: parse_sase_multi_issuer_announcements(raw_payload)
 
   defp parse_by_key(parser_key, _raw_payload), do: {:error, {:unsupported_parser_key, parser_key}}
 
@@ -3920,6 +3925,115 @@ defmodule DisclosureAutomation.Parser do
     end
   end
 
+  defp parse_sase_multi_issuer_announcements(raw_payload) do
+    with {:ok, decoded} <- Jason.decode(raw_payload),
+         true <- Map.get(decoded, "strategy") == @sase_strategy,
+         responses when is_list(responses) <- Map.get(decoded, "responses") do
+      items =
+        responses
+        |> Enum.flat_map(&parse_sase_issuer_announcement_response/1)
+        |> Enum.filter(&(&1.url && &1.title && &1.published_at))
+
+      {:ok, items}
+    else
+      {:error, error} -> {:error, {:invalid_json, error}}
+      false -> {:error, {:invalid_json_shape, "sase_multi_issuer_announcements_xml_v1"}}
+      _ -> {:error, {:invalid_json_shape, "sase_multi_issuer_announcements_xml_v1"}}
+    end
+  end
+
+  defp parse_sase_issuer_announcement_response(%{
+         "issuer_code" => issuer_code,
+         "issuer" => issuer,
+         "data" => data
+       })
+       when is_binary(data) do
+    data
+    |> then(&Regex.scan(~r/<ANNOUNCEMENT>(.*?)<\/ANNOUNCEMENT>/s, &1))
+    |> Enum.map(&parse_sase_issuer_announcement(&1, issuer_code, issuer))
+  end
+
+  defp parse_sase_issuer_announcement_response(_response), do: []
+
+  defp parse_sase_issuer_announcement([_row, row], issuer_code, issuer) do
+    id = sase_xml_tag(row, "Id")
+    company_id = sase_xml_tag(row, "CompanyId") || issuer_code
+    subject = sase_xml_tag(row, "Subject")
+    document_link = sase_xml_tag(row, "Link")
+    announcement_type = sase_xml_tag(row, "AnnouncementTypeId")
+    event_date = sase_xml_tag(row, "DateOfEvent")
+
+    %{
+      external_id: join_non_empty(["sase", company_id, id], ":"),
+      title: subject,
+      url: sase_issuer_profile_url(company_id),
+      summary:
+        join_non_empty(
+          [
+            "Sarajevo Stock Exchange issuer announcement",
+            prefixed("Issuer", issuer),
+            prefixed("CompanyId", company_id),
+            prefixed("Document", sase_clean_document_link(document_link)),
+            prefixed("Event date", event_date)
+          ],
+          " | "
+        ),
+      published_at: parse_sase_datetime(sase_xml_tag(row, "AnnouncementDate")),
+      category: announcement_type
+    }
+  end
+
+  defp parse_sase_issuer_announcement(_row, _issuer_code, _issuer) do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: nil,
+      category: nil
+    }
+  end
+
+  defp sase_xml_tag(row, tag) do
+    case Regex.run(~r/<#{tag}>(.*?)<\/#{tag}>/s, row, capture: :all_but_first) do
+      [value] ->
+        value
+        |> decode_html_entities()
+        |> String.trim()
+        |> case do
+          "" -> nil
+          trimmed -> trimmed
+        end
+
+      _ ->
+        nil
+    end
+  end
+
+  defp sase_issuer_profile_url(nil), do: @sase_profile_base_url
+
+  defp sase_issuer_profile_url(company_id) do
+    @sase_profile_base_url <> URI.encode_www_form(company_id)
+  end
+
+  defp sase_clean_document_link(nil), do: nil
+
+  defp sase_clean_document_link(value) do
+    value
+    |> String.replace(";", "")
+    |> String.trim()
+    |> case do
+      "" -> nil
+      cleaned -> cleaned
+    end
+  end
+
+  defp parse_sase_datetime(nil), do: DateTime.utc_now()
+
+  defp parse_sase_datetime(value) do
+    parse_iso8601_datetime(value) || parse_naive_iso8601_datetime(value) || DateTime.utc_now()
+  end
+
   defp string_field(record, key) do
     record
     |> Map.get(key)
@@ -4299,6 +4413,7 @@ defmodule DisclosureAutomation.Ingestion do
   @de_company_register_search_url_template "https://www.unternehmensregister.de/en/search?formType=CAPITAL_MARKET&searchToken={token}&sourceDateFrom={source_date_from}&sourceDateTo={source_date_to}&from={from}"
   @de_company_register_strategy "germany_company_register_token_preflight_v1"
   @blse_strategy "blse_multi_issuer_news_rss_v1"
+  @sase_strategy "sase_multi_issuer_announcements_xml_v1"
   @blse_ticker_url "https://services.blberza.com/blse/ticker.ashx?LangId=3&TickerTypeId=1&filter=all&ct=xml"
   @blse_issuer_news_url_template "https://www.blberza.com/pages/IssuerNewsRss.aspx?Code={code}&LangId=3"
 
@@ -4554,6 +4669,40 @@ defmodule DisclosureAutomation.Ingestion do
            "selected_issuer_window_universe_count" => issuer_window.universe_count,
            "issuer_request_count" => length(responses),
            "records_seen" => blse_response_records_seen(responses),
+           "fixture_fallback" => false
+         }
+       }}
+    end
+  end
+
+  defp maybe_load_live_payload(
+         %SourceRegistry{parser_key: "sase_multi_issuer_announcements_xml_v1"} = source,
+         true
+       ) do
+    selected_codes = sase_selected_issuer_codes(source)
+
+    with {:ok, responses} <- fetch_sase_issuer_announcement_responses(source, selected_codes) do
+      raw_payload =
+        Jason.encode!(%{
+          "strategy" => @sase_strategy,
+          "selected_codes" => selected_codes,
+          "responses" => responses
+        })
+
+      {:ok,
+       %{
+         raw_payload: raw_payload,
+         http_status: 200,
+         fetch_info: %{
+           "mode" => "live",
+           "loaded" => true,
+           "strategy" => @sase_strategy,
+           "url" => source.base_url,
+           "status_code" => 200,
+           "bytes" => byte_size(raw_payload),
+           "selected_issuer_count" => length(selected_codes),
+           "issuer_request_count" => length(responses),
+           "records_seen" => sase_response_records_seen(responses),
            "fixture_fallback" => false
          }
        }}
@@ -5186,6 +5335,119 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp blse_issuer_news_payload?(_body), do: false
+
+  defp sase_selected_issuer_codes(source) do
+    source
+    |> source_config_string_list(
+      "sase_issuer_codes",
+      :sase_issuer_codes,
+      ["BHTS", "JPES", "BSNL", "ASA", "ALUM"]
+    )
+    |> Enum.take(sase_max_issuers_per_poll(source))
+  end
+
+  defp sase_max_issuers_per_poll(source) do
+    source_config_positive_integer(source, "max_issuers_per_poll", :max_issuers_per_poll, 5)
+  end
+
+  defp fetch_sase_issuer_announcement_responses(source, selected_codes) do
+    selected_codes
+    |> Enum.reduce_while({:ok, []}, fn issuer_code, {:ok, responses} ->
+      body = sase_issuer_announcement_body(source, issuer_code)
+
+      case Http.fetch(source.base_url,
+             timeout: source_live_timeout(source),
+             headers: source_live_headers(source),
+             method: :post,
+             body: body,
+             content_type: "application/x-www-form-urlencoded; charset=UTF-8"
+           ) do
+        {:ok, %{status_code: status_code} = response}
+        when status_code in 200..299 ->
+          if sase_issuer_announcements_payload?(response.body) do
+            records_seen = sase_announcement_count(response.body)
+
+            {:cont,
+             {:ok,
+              responses ++
+                [
+                  %{
+                    "issuer_code" => issuer_code,
+                    "issuer" => sase_known_issuer_name(source, issuer_code),
+                    "url" => source.base_url,
+                    "status_code" => status_code,
+                    "bytes" => response.bytes,
+                    "records_seen" => records_seen,
+                    "records_kept" => min(records_seen, sase_max_items_per_issuer(source)),
+                    "data" => response.body
+                  }
+                ]}}
+          else
+            {:halt, {:error, {:sase_issuer_announcements_unexpected_payload, issuer_code}}}
+          end
+
+        {:ok, response} ->
+          {:halt,
+           {:error,
+            {:sase_issuer_announcements_unexpected_status, issuer_code, response.status_code}}}
+
+        {:error, reason} ->
+          {:halt, {:error, {:sase_issuer_announcements_fetch_failed, issuer_code, reason}}}
+      end
+    end)
+  end
+
+  defp sase_issuer_announcement_body(source, issuer_code) do
+    URI.encode_query(%{
+      "id" => "0",
+      "type" => "24",
+      "dateFrom" => "",
+      "dateTo" => "",
+      "cssClass" => "",
+      "symbol" => issuer_code,
+      "Months" => "0",
+      "lng" => sase_language_id(source),
+      "start" => "0",
+      "end" => Integer.to_string(sase_max_items_per_issuer(source))
+    })
+  end
+
+  defp sase_language_id(source),
+    do: source_config_value(source, "sase_language_id", :sase_language_id, "1")
+
+  defp sase_max_items_per_issuer(source) do
+    source_config_positive_integer(source, "max_items_per_issuer", :max_items_per_issuer, 5)
+  end
+
+  defp sase_known_issuer_name(source, issuer_code) do
+    known_issuers =
+      source
+      |> source_config_value("sase_known_issuers", :sase_known_issuers, %{})
+      |> case do
+        value when is_map(value) -> value
+        _ -> %{}
+      end
+
+    Map.get(known_issuers, issuer_code)
+  end
+
+  defp sase_response_records_seen(responses) do
+    Enum.reduce(responses, 0, fn response, count ->
+      count + (Map.get(response, "records_seen") || 0)
+    end)
+  end
+
+  defp sase_announcement_count(body) when is_binary(body) do
+    Regex.scan(~r/<ANNOUNCEMENT>/i, body) |> length()
+  end
+
+  defp sase_announcement_count(_body), do: 0
+
+  defp sase_issuer_announcements_payload?(body) when is_binary(body) do
+    body =~ "<ANNOUNCEMENTS" and (body =~ "<ANNOUNCEMENT>" or body =~ "<ANNOUNCEMENTS />")
+  end
+
+  defp sase_issuer_announcements_payload?(_body), do: false
 
   defp fetch_pse_issuer_universe_pages(source) do
     source
