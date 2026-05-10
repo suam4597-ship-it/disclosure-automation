@@ -11,6 +11,8 @@ BULGARIA_X3NEWS_OFFICIAL_BSE_GROUP_AUTHORITY_CONFIRMED
 BULGARIA_X3NEWS_HTML_LIST_PARSER_ADDED
 BULGARIA_X3NEWS_FIXTURE_PARSER_SMOKE_PASS
 BULGARIA_X3NEWS_LIVE_PARSER_SMOKE_PASS
+BULGARIA_X3NEWS_STAGING_LIVE_POLL_PASS
+BULGARIA_X3NEWS_DATE_SPECIFIC_DIGEST_VISIBILITY_PASS
 BULGARIA_X3NEWS_MANUAL_STAGING_ONLY
 BULGARIA_X3NEWS_SCHEDULED_POLLING_DISABLED
 ```
@@ -85,16 +87,27 @@ first live URL: https://www.x3news.com/?page=ShowNews&ExtriID=198292&output=ajax
 first live published_at: 2026-05-08T10:14:00Z
 ```
 
-## Staging Validation Still Required
+## Fly Staging Validation
 
-Before staging smoke documentation, run:
+Fly staging live smoke passed after the live payload validator was aligned with the official latest-news row marker and live fixture fallback remained disabled.
 
 ```text
-Fly staging deploy
-manual live poll with use_live_fetch=true
-confirm fetch.mode=live and fixture_fallback=false
-source-health check remains active=false/manual_staging_only
-date-specific digest visibility check if latest top-N does not show Bulgaria
+deployed commit: 1742801c51c6a0f007b483df4c8e5d3547594218
+Fly image: registry.fly.io/globalpulse-backend-staging:deployment-01KR8NHK132X30EW1PH0FEPMYE
+health: 200 ok
+source health: healthy
+active: false
+candidate_status: manual_staging_only
+disable_live_fixture_fallback: true
+poll status: 202
+fetch.mode: live
+fetch.status_code: 200
+fetch.bytes: 17558
+records_seen: 11
+records_inserted: 11
+canonical_items: 11
+date-specific digest visibility: PASS for 2026-05-07, 2026-05-06, and 2026-05-05
+public latest UI visibility: PENDING_EXPECTED because the latest digest currently points to newer 2026-05-09 items
 ```
 
 ## Guardrails
