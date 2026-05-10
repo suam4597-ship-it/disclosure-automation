@@ -1467,6 +1467,40 @@ The manual staging source therefore uses the same official handler over HTTP for
 Scheduled polling remains disabled until the broader Europe source batch is intentionally promoted.
 ```
 
+## Candidate AI: Moldova MSI Regulated Information
+
+```text
+owner: Emitent-MSI / Capital Market public storage mechanism
+authority class: official regulated-information storage mechanism surface
+candidate homepage: https://emitent-msi.market.md/en/
+candidate data endpoint: https://emitent-msi.market.md/includes/parts/pubdocs-list.php
+observed HTTP: 200
+observed content-type: text/html
+observed shape: AJAX POST returns an HTML table with Company name, Document type, Date, and /en/displayfile/{id} download links
+status: MANUAL_SOURCE_REGISTERED_LOCAL_AND_LIVE_PARSER_SMOKE_PASS
+```
+
+Why this fits the product:
+
+```text
+The MSI homepage describes the surface as a centralized software application for storing regulated information under Moldova capital-market law and for free end-user access.
+Rows expose company names, issuer document categories, publication dates, and public displayfile links.
+The first slice intentionally parses page 1 of the bounded public search result only; document download/detail fetching is out of scope.
+```
+
+Implementation status:
+
+```text
+Parser md_msi_regulated_information_html_v1 exists.
+Manual source md_msi_regulated_information exists with active=false and candidate_status=manual_staging_only.
+Fixture source_payloads/md_msi_regulated_information.html captures the bounded pubdocs table shape.
+The source has disable_live_fixture_fallback=true so staging must prove live fetch success before any live-poll claim.
+External endpoint probe passed via PowerShell/WinHTTP with HTTP 200 text/html.
+Local fixture parser smoke passed with 5 bounded records.
+Application live parser smoke passed against the AJAX endpoint with HTTP 200, 2,848 bytes, and 10 bounded page-1 records.
+Scheduled polling remains disabled until the broader Europe source batch is intentionally promoted.
+```
+
 ## Recommended EU v1 Path
 
 ```text
@@ -1502,7 +1536,8 @@ Scheduled polling remains disabled until the broader Europe source batch is inte
 30. Keep North Macedonia SEI-NET Public Documents as a manual_staging_only official public-disclosure-platform API candidate; prove local/live parser smoke and Fly staging live poll before any scheduled promotion.
 31. Keep Montenegro MNSE Corporate News as a manual_staging_only official exchange issuer-announcement candidate; do not claim staging live poll success until the current Erlang :httpc TLS blocker is fixed.
 32. Keep Serbia BELEX Issuer News as a manual_staging_only official exchange issuer-news candidate with Fly staging live poll and date-specific digest visibility passing, and public latest UI visibility pending.
-33. Keep Sarajevo SASE Issuer Announcements as a manual_staging_only official exchange issuer-announcement fanout candidate; prove app live fetch, Fly staging live poll, and digest visibility before any scheduled promotion.
+33. Keep Sarajevo SASE Issuer Announcements as a manual_staging_only official exchange issuer-announcement fanout candidate with Fly staging live poll and date-specific digest visibility passing; repeat smoke and cadence design are still required before any scheduled promotion.
+34. Keep Moldova MSI Regulated Information as a manual_staging_only regulated-information storage candidate; prove local parser smoke, app live fetch, Fly staging live poll, and digest visibility before any scheduled promotion.
 34. Use globalpulse_eu_source_batch_promotion_design.md, globalpulse_eu_scheduled_staging_canary_runbook.md, and globalpulse_eu_scheduled_staging_canary_configuration_results.md as the decision gates before any EU scheduled staging canary observation window.
 35. Only batch-promote scheduled EU polling after the target list, rollback path, source-specific parser risk, and staging live smoke evidence are documented together.
 ```
@@ -1634,6 +1669,10 @@ SARAJEVO_SASE_ISSUER_ANNOUNCEMENTS_LIVE_ENDPOINT_PROBE_PASS
 SARAJEVO_SASE_ISSUER_ANNOUNCEMENTS_STAGING_LIVE_POLL_PASS
 SARAJEVO_SASE_ISSUER_ANNOUNCEMENTS_DATE_SPECIFIC_DIGEST_VISIBILITY_PASS
 SARAJEVO_SASE_ISSUER_ANNOUNCEMENTS_LATEST_PUBLIC_UI_VISIBILITY_PENDING
+MOLDOVA_MSI_REGULATED_INFORMATION_MANUAL_SOURCE_REGISTERED
+MOLDOVA_MSI_REGULATED_INFORMATION_EXTERNAL_ENDPOINT_PROBE_PASS
+MOLDOVA_MSI_REGULATED_INFORMATION_LOCAL_PARSER_SMOKE_PASS
+MOLDOVA_MSI_REGULATED_INFORMATION_LIVE_PARSER_SMOKE_PASS
 EU_BATCH_PROMOTION_DESIGN_RECORDED
 EU_SCHEDULED_STAGING_CANARY_RUNBOOK_RECORDED
 EU_SCHEDULED_STAGING_CANARY_PHASE0_CONFIG_READY

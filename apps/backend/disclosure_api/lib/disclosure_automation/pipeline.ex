@@ -139,6 +139,7 @@ defmodule DisclosureAutomation.Parser do
   @mse_base_url "https://www.mse.mk"
   @seinet_document_base_url "https://www.seinet.com.mk/en/document/"
   @mnse_base_url "https://www.mnse.me"
+  @md_msi_base_url "https://emitent-msi.market.md"
   @belex_base_url "https://www.belex.rs"
   @blse_strategy "blse_multi_issuer_news_rss_v1"
   @sase_strategy "sase_multi_issuer_announcements_xml_v1"
@@ -249,6 +250,9 @@ defmodule DisclosureAutomation.Parser do
 
   defp parse_by_key("mnse_corporate_news_html_v1", raw_payload),
     do: parse_mnse_corporate_news(raw_payload)
+
+  defp parse_by_key("md_msi_regulated_information_html_v1", raw_payload),
+    do: parse_md_msi_regulated_information(raw_payload)
 
   defp parse_by_key("belex_issuer_news_html_v1", raw_payload),
     do: parse_belex_issuer_news(raw_payload)
@@ -3815,6 +3819,105 @@ defmodule DisclosureAutomation.Parser do
     end
   end
 
+  defp parse_md_msi_regulated_information(raw_payload) do
+    rows =
+      Regex.scan(
+        ~r/<tr>\s*<td>(.*?)<\/td>\s*<td>(.*?)<\/td>\s*<td>(.*?)<\/td>\s*<td>\s*<a[^>]+href="([^"]+)"[^>]*>/is,
+        raw_payload
+      )
+
+    items =
+      rows
+      |> Enum.map(&parse_md_msi_regulated_information_row/1)
+      |> Enum.filter(&(&1.url && &1.title && &1.published_at))
+
+    {:ok, items}
+  end
+
+  defp parse_md_msi_regulated_information_row([
+         _row,
+         company_html,
+         document_type_html,
+         date_html,
+         href
+       ]) do
+    company = clean_html(company_html)
+    document_type = clean_html(document_type_html)
+    date_text = clean_html(date_html)
+    url = md_msi_url(href)
+
+    %{
+      external_id: md_msi_external_id(url),
+      title: join_non_empty([company, document_type], " - "),
+      url: url,
+      summary:
+        join_non_empty(
+          [
+            "Moldova MSI regulated issuer information",
+            prefixed("Issuer", company),
+            prefixed("Document type", document_type),
+            prefixed("Published", date_text)
+          ],
+          " | "
+        ),
+      published_at: parse_md_msi_date(date_text),
+      category: document_type
+    }
+  end
+
+  defp parse_md_msi_regulated_information_row(_row) do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: nil,
+      category: nil
+    }
+  end
+
+  defp md_msi_url(nil), do: nil
+
+  defp md_msi_url(raw_url) do
+    url = decode_html_entities(raw_url)
+
+    cond do
+      String.starts_with?(url, "http") -> url
+      String.starts_with?(url, "/") -> @md_msi_base_url <> url
+      true -> @md_msi_base_url <> "/" <> url
+    end
+  end
+
+  defp md_msi_external_id(nil), do: nil
+
+  defp md_msi_external_id(url) do
+    url
+    |> URI.parse()
+    |> case do
+      %URI{path: path} when is_binary(path) ->
+        path |> String.split("/", trim: true) |> Enum.join("-")
+
+      _uri ->
+        url
+    end
+  end
+
+  defp parse_md_msi_date(nil), do: DateTime.utc_now()
+
+  defp parse_md_msi_date(value) do
+    with [_, day_text, month_text, year_text] <- Regex.run(~r/(\d{2})\/(\d{2})\/(\d{4})/, value),
+         {day, ""} <- Integer.parse(day_text),
+         {month, ""} <- Integer.parse(month_text),
+         {year, ""} <- Integer.parse(year_text),
+         {:ok, datetime} <- build_utc_datetime(year, month, day, 0, 0, 0),
+         true <-
+           DateTime.compare(datetime, DateTime.add(DateTime.utc_now(), 86_400, :second)) != :gt do
+      datetime
+    else
+      _ -> DateTime.utc_now()
+    end
+  end
+
   defp parse_belex_issuer_news(raw_payload) do
     table_html = regex_capture_raw(raw_payload, ~r/<table\s+id=["']t5["'][^>]*>(.*?)<\/table>/is)
 
@@ -6330,6 +6433,25 @@ defmodule DisclosureAutomation.Ingestion do
     end
   end
 
+  defp validate_live_payload(
+         %SourceRegistry{parser_key: "md_msi_regulated_information_html_v1"},
+         response
+       ) do
+    cond do
+      not html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "md_msi_regulated_information_html_v1",
+          content_type(response.headers)}}
+
+      not md_msi_regulated_information_payload?(response.body) ->
+        {:error,
+         {:unsupported_live_payload, "md_msi_regulated_information_html_v1", :unexpected_html}}
+
+      true ->
+        :ok
+    end
+  end
+
   defp validate_live_payload(%SourceRegistry{parser_key: "belex_issuer_news_html_v1"}, response) do
     cond do
       not html_content_type?(response.headers) ->
@@ -6662,6 +6784,12 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp mnse_corporate_news_payload?(_body), do: false
+
+  defp md_msi_regulated_information_payload?(body) when is_binary(body) do
+    body =~ "Company name" and body =~ "Document type" and body =~ "displayfile"
+  end
+
+  defp md_msi_regulated_information_payload?(_body), do: false
 
   defp belex_issuer_news_payload?(body) when is_binary(body) do
     body =~ "News from Issuers" and

@@ -1320,3 +1320,40 @@ parsers:
       reject_empty_url: true
       reject_html_payload: true
       reject_future_timestamps: true
+
+  - parser_key: md_msi_regulated_information_html_v1
+    display_name: Moldova MSI Regulated Information HTML Parser
+    enabled: true
+    input_types: [html]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: true
+    supports_detail_fetch: false
+    extraction:
+      id_fields:
+        - displayfile_id
+      title_fields:
+        - company_name
+        - document_type
+      summary_fields:
+        - company_name
+        - document_type
+        - publication_date
+      url_fields:
+        - displayfile_url
+      published_at_fields:
+        - publication_date
+      category_fields:
+        - document_type
+    normalization:
+      source_shape: md_msi_pubdocs_table_html
+      trim_html: true
+      collapse_whitespace: true
+      timezone_strategy: source_date_only_utc
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_non_msi_pubdocs_payload: true
+      reject_future_timestamps: true
