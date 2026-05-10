@@ -51,6 +51,7 @@ defmodule DisclosureAutomation.Canonicalizer do
       "eu_south" in tags or "europe_south" in tags -> ["eu_south"]
       "uk" in tags or "united_kingdom" in tags -> ["uk"]
       "ch" in tags or "switzerland" in tags -> ["ch"]
+      "tr" in tags or "turkey" in tags -> ["tr"]
       "eu" in tags or "europe" in tags -> ["eu"]
       "asean" in tags or "southeast_asia" in tags -> ["asean"]
       "india" in tags or "in" in tags -> ["india"]
