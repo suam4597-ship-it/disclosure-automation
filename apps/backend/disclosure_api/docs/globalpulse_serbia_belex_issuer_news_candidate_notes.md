@@ -1,6 +1,6 @@
 # Serbia BELEX Issuer News Candidate Notes
 
-Status: `MANUAL_SOURCE_REGISTERED_LOCAL_PARSER_SMOKE_PASS_LIVE_ENDPOINT_PROBE_PASS`
+Status: `MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS`
 
 ## Scope
 
@@ -36,9 +36,9 @@ local registry/capability smoke
 local fixture parser smoke
 external endpoint probe: PASS, HTTP 200 text/html via PowerShell/WinHTTP
 application live fetch probe: PASS, Erlang :httpc receives HTTP 200 from homepage
-Fly staging live poll smoke
-date-specific digest visibility smoke
-public latest UI visibility smoke when top-N/date selection includes BELEX rows
+Fly staging live poll smoke: PASS, 5 live records inserted
+date-specific digest visibility smoke: PASS, 3 BELEX rows in 2026-04-30 digest
+public latest UI visibility smoke: PENDING, current latest digest is newer than observed BELEX rows
 ```
 
 ## Open Follow-Up
