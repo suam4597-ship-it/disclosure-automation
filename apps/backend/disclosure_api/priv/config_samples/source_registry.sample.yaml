@@ -916,6 +916,45 @@ sources:
       live_headers:
         accept: application/json
 
+  - source_key: ba_blse_issuer_news_multi_code
+    display_name: Banja Luka Stock Exchange Issuer News Multi-Code
+    source_type: rss
+    base_url: https://services.blberza.com/blse/ticker.ashx?LangId=3&TickerTypeId=1&filter=all&ct=xml
+    healthcheck_url: https://www3.blberza.com/Pages/docview.aspx?page=sp99
+    parser_key: blse_multi_issuer_news_rss_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.1
+    coverage_tags:
+      - europe
+      - eu_south
+      - bosnia_herzegovina
+      - ba
+      - banja_luka
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - exchange_announcement
+      - company_news
+    active: false
+    config:
+      fixture_path: source_payloads/ba_blse_issuer_news_multi_code.json
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      live_fetch_strategy: blse_multi_issuer_news_rss_v1
+      disable_live_fixture_fallback: true
+      max_items_per_poll: 25
+      max_issuers_per_poll: 5
+      blse_issuer_window_strategy: static_offset
+      blse_issuer_window_offset: 0
+      max_news_items_per_issuer: 5
+      blse_ticker_url: https://services.blberza.com/blse/ticker.ashx?LangId=3&TickerTypeId=1&filter=all&ct=xml
+      blse_issuer_news_url_template: https://www.blberza.com/pages/IssuerNewsRss.aspx?Code={code}&LangId=3
+      live_timeout_ms: 30000
+      live_headers:
+        accept: application/rss+xml, application/xml, text/xml
+
   - source_key: cz_pse_issuer_news_multi_isin
     display_name: Prague PSE Issuer News Multi-ISIN
     source_type: api

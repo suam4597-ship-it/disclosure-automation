@@ -136,6 +136,7 @@ defmodule DisclosureAutomation.Parser do
   @x3news_base_url "https://www.x3news.com/"
   @kap_base_url "https://www.kap.org.tr"
   @cse_oam_base_url "https://publicoam.cse.com.cy"
+  @blse_strategy "blse_multi_issuer_news_rss_v1"
 
   def parse(parser_key, raw_payload, opts \\ [])
       when is_binary(parser_key) and is_binary(raw_payload) do
@@ -179,6 +180,9 @@ defmodule DisclosureAutomation.Parser do
 
   defp parse_by_key("cse_oam_listing_versions_json_v1", raw_payload),
     do: parse_cse_oam_listing_versions(raw_payload)
+
+  defp parse_by_key("blse_multi_issuer_news_rss_v1", raw_payload),
+    do: parse_blse_multi_issuer_news(raw_payload)
 
   defp parse_by_key("pse_multi_isin_issuer_news_json_v1", raw_payload),
     do: parse_pse_multi_isin_issuer_news(raw_payload)
@@ -1341,6 +1345,106 @@ defmodule DisclosureAutomation.Parser do
       datetime
     else
       _ -> nil
+    end
+  end
+
+  defp parse_blse_multi_issuer_news(raw_payload) do
+    with {:ok, decoded} <- Jason.decode(raw_payload),
+         true <- Map.get(decoded, "strategy") == @blse_strategy,
+         records when is_list(records) <- blse_multi_issuer_news_records(decoded) do
+      items =
+        records
+        |> Enum.flat_map(&parse_blse_issuer_news_response/1)
+        |> Enum.filter(&(&1.url && &1.title))
+
+      {:ok, items}
+    else
+      {:error, error} -> {:error, {:invalid_json, error}}
+      false -> {:error, {:invalid_json_shape, "blse_multi_issuer_news_rss_v1"}}
+      _ -> {:error, {:invalid_json_shape, "blse_multi_issuer_news_rss_v1"}}
+    end
+  end
+
+  defp blse_multi_issuer_news_records(%{"responses" => records}) when is_list(records),
+    do: records
+
+  defp blse_multi_issuer_news_records(_decoded), do: nil
+
+  defp parse_blse_issuer_news_response(
+         %{"code" => code, "issuer" => issuer, "data" => rss} = response
+       )
+       when is_binary(rss) do
+    case parse_rss(rss) do
+      {:ok, records} ->
+        records
+        |> blse_take_kept_records(Map.get(response, "records_kept"))
+        |> Enum.map(&parse_blse_issuer_news_record(&1, code, issuer))
+
+      _error ->
+        []
+    end
+  end
+
+  defp parse_blse_issuer_news_response(_response), do: []
+
+  defp blse_take_kept_records(records, limit) when is_integer(limit) and limit > 0,
+    do: Enum.take(records, limit)
+
+  defp blse_take_kept_records(records, _limit), do: records
+
+  defp parse_blse_issuer_news_record(record, code, issuer) do
+    url = Map.get(record, :url)
+
+    %{
+      record
+      | external_id: join_non_empty(["blse", code, blse_document_id(url)], ":"),
+        summary: blse_issuer_news_summary(record, code, issuer),
+        category: "issuer_news"
+    }
+  end
+
+  defp blse_document_id(url) when is_binary(url) do
+    case Regex.run(~r/[?&]id=(\d+)/i, url, capture: :all_but_first) do
+      [id] -> id
+      _ -> url
+    end
+  end
+
+  defp blse_document_id(_url), do: nil
+
+  defp blse_issuer_news_summary(record, code, issuer) do
+    description =
+      record
+      |> Map.get(:summary)
+      |> blse_clean_summary()
+
+    join_non_empty(
+      [
+        description || "BLSE issuer announcement.",
+        prefixed("Issuer", issuer),
+        prefixed("Code", code)
+      ],
+      " | "
+    )
+  end
+
+  defp blse_clean_summary(nil), do: nil
+
+  defp blse_clean_summary(value) do
+    value
+    |> decode_html_entities()
+    |> String.replace("&rsquo;", "'")
+    |> String.replace("&ldquo;", "\"")
+    |> String.replace("&rdquo;", "\"")
+    |> String.replace("&scaron;", "s")
+    |> String.replace("&Scaron;", "S")
+    |> String.replace(~r/<[^>]+>/, " ")
+    |> String.replace(~r/\s+/u, " ")
+    |> String.trim()
+    |> String.slice(0, 320)
+    |> case do
+      "" -> nil
+      cleaned -> cleaned
     end
   end
 
@@ -3730,6 +3834,9 @@ defmodule DisclosureAutomation.Ingestion do
   @de_company_register_token_url "https://www.unternehmensregister.de/api/search-token"
   @de_company_register_search_url_template "https://www.unternehmensregister.de/en/search?formType=CAPITAL_MARKET&searchToken={token}&sourceDateFrom={source_date_from}&sourceDateTo={source_date_to}&from={from}"
   @de_company_register_strategy "germany_company_register_token_preflight_v1"
+  @blse_strategy "blse_multi_issuer_news_rss_v1"
+  @blse_ticker_url "https://services.blberza.com/blse/ticker.ashx?LangId=3&TickerTypeId=1&filter=all&ct=xml"
+  @blse_issuer_news_url_template "https://www.blberza.com/pages/IssuerNewsRss.aspx?Code={code}&LangId=3"
 
   def poll_source(source_key, opts \\ []) when is_binary(source_key) do
     trigger_kind = Keyword.get(opts, :trigger_kind, "manual")
@@ -3940,6 +4047,49 @@ defmodule DisclosureAutomation.Ingestion do
                page_responses,
                de_company_register_max_pages_per_poll(source)
              ),
+           "fixture_fallback" => false
+         }
+       }}
+    end
+  end
+
+  defp maybe_load_live_payload(
+         %SourceRegistry{parser_key: "blse_multi_issuer_news_rss_v1"} = source,
+         true
+       ) do
+    with {:ok, ticker_response, universe} <- fetch_blse_issuer_universe(source),
+         issuer_window <- blse_issuer_window(source, universe),
+         selected_universe <- issuer_window.selected_universe,
+         {:ok, responses} <- fetch_blse_issuer_news_responses(source, selected_universe) do
+      raw_payload =
+        Jason.encode!(%{
+          "strategy" => @blse_strategy,
+          "universe" => universe,
+          "issuer_window" => blse_issuer_window_payload(issuer_window),
+          "selected_codes" => Enum.map(selected_universe, & &1["code"]),
+          "responses" => responses
+        })
+
+      {:ok,
+       %{
+         raw_payload: raw_payload,
+         http_status: 200,
+         fetch_info: %{
+           "mode" => "live",
+           "loaded" => true,
+           "strategy" => @blse_strategy,
+           "url" => source.base_url,
+           "ticker_status_code" => ticker_response.status_code,
+           "status_code" => 200,
+           "bytes" => byte_size(raw_payload),
+           "universe_count" => length(universe),
+           "selected_issuer_count" => length(selected_universe),
+           "selected_issuer_window_strategy" => issuer_window.strategy,
+           "selected_issuer_window_offset" => issuer_window.offset,
+           "selected_issuer_window_size" => issuer_window.size,
+           "selected_issuer_window_universe_count" => issuer_window.universe_count,
+           "issuer_request_count" => length(responses),
+           "records_seen" => blse_response_records_seen(responses),
            "fixture_fallback" => false
          }
        }}
@@ -4345,6 +4495,233 @@ defmodule DisclosureAutomation.Ingestion do
     |> Enum.reject(fn {key, _value} -> String.downcase(to_string(key)) == "cookie" end)
     |> Kernel.++([{~c"cookie", String.to_charlist(cookie)}])
   end
+
+  defp fetch_blse_issuer_universe(source) do
+    url =
+      source
+      |> source_config_value("blse_ticker_url", :blse_ticker_url, @blse_ticker_url)
+      |> to_string()
+
+    case Http.fetch(url,
+           timeout: source_live_timeout(source),
+           headers: source_live_headers(source)
+         ) do
+      {:ok, %{status_code: status_code} = response} when status_code in 200..299 ->
+        cond do
+          not xml_content_type?(response.headers) ->
+            {:error, {:blse_ticker_unsupported_content_type, content_type(response.headers)}}
+
+          true ->
+            case blse_issuer_universe(response.body) do
+              [] -> {:error, :blse_empty_issuer_universe}
+              universe -> {:ok, response, universe}
+            end
+        end
+
+      {:ok, response} ->
+        {:error, {:blse_ticker_unexpected_status, response.status_code}}
+
+      {:error, reason} ->
+        {:error, {:blse_ticker_fetch_failed, reason}}
+    end
+  end
+
+  defp blse_issuer_universe(body) when is_binary(body) do
+    ~r/<TickerItem>(.*?)<\/TickerItem>/s
+    |> Regex.scan(body, capture: :all_but_first)
+    |> Enum.map(fn [row] ->
+      code = blse_xml_tag(row, "Code")
+      issuer = blse_xml_tag(row, "Issuer")
+      url = blse_xml_tag(row, "Url")
+
+      %{
+        "code" => blse_security_code(code, url),
+        "issuer" => issuer,
+        "ticker_url" => url
+      }
+    end)
+    |> Enum.filter(&blse_listed_equity_universe_entry?/1)
+    |> Enum.uniq_by(& &1["code"])
+  end
+
+  defp blse_issuer_universe(_body), do: []
+
+  defp blse_xml_tag(row, tag) do
+    case Regex.run(~r/<#{tag}>(.*?)<\/#{tag}>/s, row, capture: :all_but_first) do
+      [value] ->
+        value
+        |> String.replace("&amp;", "&")
+        |> String.trim()
+
+      _ ->
+        nil
+    end
+  end
+
+  defp blse_security_code(code, url) do
+    cond do
+      is_binary(url) ->
+        case Regex.run(~r/[?&]code=([^&]+)/i, url, capture: :all_but_first) do
+          [url_code] -> URI.decode_www_form(url_code)
+          _ -> code
+        end
+
+      true ->
+        code
+    end
+  end
+
+  defp blse_listed_equity_universe_entry?(%{"code" => code, "issuer" => issuer})
+       when is_binary(code) and is_binary(issuer) do
+    String.ends_with?(code, "-R-A")
+  end
+
+  defp blse_listed_equity_universe_entry?(_entry), do: false
+
+  defp blse_issuer_window(source, universe) do
+    universe_count = length(universe)
+    window_size = min(blse_max_issuers_per_poll(source), universe_count)
+    offset = blse_issuer_window_offset(source, universe_count)
+
+    %{
+      strategy: blse_issuer_window_strategy(source),
+      offset: offset,
+      size: window_size,
+      universe_count: universe_count,
+      selected_universe: blse_take_issuer_window(universe, offset, window_size)
+    }
+  end
+
+  defp blse_issuer_window_payload(issuer_window) do
+    %{
+      "strategy" => issuer_window.strategy,
+      "offset" => issuer_window.offset,
+      "size" => issuer_window.size,
+      "universe_count" => issuer_window.universe_count
+    }
+  end
+
+  defp blse_issuer_window_strategy(source) do
+    source_config_value(
+      source,
+      "blse_issuer_window_strategy",
+      :blse_issuer_window_strategy,
+      "static_offset"
+    )
+  end
+
+  defp blse_issuer_window_offset(_source, 0), do: 0
+
+  defp blse_issuer_window_offset(source, universe_count) do
+    source
+    |> source_config_non_negative_integer(
+      "blse_issuer_window_offset",
+      :blse_issuer_window_offset,
+      0
+    )
+    |> rem(universe_count)
+  end
+
+  defp blse_take_issuer_window(_universe, _offset, 0), do: []
+
+  defp blse_take_issuer_window(universe, offset, window_size) do
+    universe
+    |> Enum.drop(offset)
+    |> Kernel.++(Enum.take(universe, offset))
+    |> Enum.take(window_size)
+  end
+
+  defp blse_max_issuers_per_poll(source) do
+    source_config_positive_integer(source, "max_issuers_per_poll", :max_issuers_per_poll, 5)
+  end
+
+  defp fetch_blse_issuer_news_responses(source, selected_universe) do
+    selected_universe
+    |> Enum.reduce_while({:ok, []}, fn %{"code" => code} = universe_entry, {:ok, responses} ->
+      url = blse_issuer_news_url(source, code)
+
+      case Http.fetch(url,
+             timeout: source_live_timeout(source),
+             headers: source_live_headers(source)
+           ) do
+        {:ok, %{status_code: status_code} = response}
+        when status_code in 200..299 ->
+          cond do
+            not xml_content_type?(response.headers) ->
+              {:halt,
+               {:error,
+                {:blse_issuer_news_unsupported_content_type, code, content_type(response.headers)}}}
+
+            not blse_issuer_news_payload?(response.body) ->
+              {:halt, {:error, {:blse_issuer_news_unexpected_payload, code}}}
+
+            true ->
+              records_seen = blse_rss_item_count(response.body)
+
+              {:cont,
+               {:ok,
+                responses ++
+                  [
+                    %{
+                      "code" => code,
+                      "issuer" => Map.get(universe_entry, "issuer"),
+                      "url" => url,
+                      "status_code" => status_code,
+                      "bytes" => response.bytes,
+                      "records_seen" => records_seen,
+                      "records_kept" => min(records_seen, blse_max_news_items_per_issuer(source)),
+                      "data" => response.body
+                    }
+                  ]}}
+          end
+
+        {:ok, response} ->
+          {:halt, {:error, {:blse_issuer_news_unexpected_status, code, response.status_code}}}
+
+        {:error, reason} ->
+          {:halt, {:error, {:blse_issuer_news_fetch_failed, code, reason}}}
+      end
+    end)
+  end
+
+  defp blse_issuer_news_url(source, code) do
+    source
+    |> source_config_value(
+      "blse_issuer_news_url_template",
+      :blse_issuer_news_url_template,
+      @blse_issuer_news_url_template
+    )
+    |> to_string()
+    |> String.replace("{code}", URI.encode_www_form(code))
+    |> String.replace("<CODE>", URI.encode_www_form(code))
+  end
+
+  defp blse_max_news_items_per_issuer(source) do
+    source_config_positive_integer(
+      source,
+      "max_news_items_per_issuer",
+      :max_news_items_per_issuer,
+      5
+    )
+  end
+
+  defp blse_response_records_seen(responses) do
+    Enum.reduce(responses, 0, fn response, count ->
+      count + (Map.get(response, "records_seen") || 0)
+    end)
+  end
+
+  defp blse_rss_item_count(body) when is_binary(body) do
+    Regex.scan(~r/<item>/i, body) |> length()
+  end
+
+  defp blse_rss_item_count(_body), do: 0
+
+  defp blse_issuer_news_payload?(body) when is_binary(body) do
+    body =~ "<rss" and body =~ "<channel>"
+  end
+
+  defp blse_issuer_news_payload?(_body), do: false
 
   defp fetch_pse_issuer_universe_pages(source) do
     source
@@ -5259,6 +5636,13 @@ defmodule DisclosureAutomation.Ingestion do
     |> content_type()
     |> String.downcase()
     |> String.contains?("text/html")
+  end
+
+  defp xml_content_type?(headers) do
+    headers
+    |> content_type()
+    |> String.downcase()
+    |> String.contains?("xml")
   end
 
   defp content_type(headers) do
