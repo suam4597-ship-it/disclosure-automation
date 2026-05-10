@@ -135,6 +135,7 @@ defmodule DisclosureAutomation.Parser do
   @malta_mse_base_url "https://www.borzamalta.com.mt"
   @x3news_base_url "https://www.x3news.com/"
   @kap_base_url "https://www.kap.org.tr"
+  @cse_oam_base_url "https://publicoam.cse.com.cy"
 
   def parse(parser_key, raw_payload, opts \\ [])
       when is_binary(parser_key) and is_binary(raw_payload) do
@@ -175,6 +176,9 @@ defmodule DisclosureAutomation.Parser do
 
   defp parse_by_key("oekb_oam_issuer_info_json_v1", raw_payload),
     do: parse_oekb_oam_issuer_info(raw_payload)
+
+  defp parse_by_key("cse_oam_listing_versions_json_v1", raw_payload),
+    do: parse_cse_oam_listing_versions(raw_payload)
 
   defp parse_by_key("pse_multi_isin_issuer_news_json_v1", raw_payload),
     do: parse_pse_multi_isin_issuer_news(raw_payload)
@@ -1069,6 +1073,144 @@ defmodule DisclosureAutomation.Parser do
   end
 
   defp oekb_oam_string_list(_values), do: []
+
+  defp parse_cse_oam_listing_versions(raw_payload) do
+    with {:ok, decoded} <- Jason.decode(raw_payload),
+         records when is_list(records) <- cse_oam_listing_version_records(decoded) do
+      items =
+        records
+        |> Enum.filter(&cse_oam_listed_record?/1)
+        |> Enum.map(&parse_cse_oam_listing_version_record/1)
+        |> Enum.filter(&(&1.url && &1.title && &1.published_at))
+
+      {:ok, items}
+    else
+      {:error, error} -> {:error, {:invalid_json, error}}
+      _ -> {:error, {:invalid_json_shape, "cse_oam_listing_versions_json_v1"}}
+    end
+  end
+
+  defp cse_oam_listing_version_records(%{"content" => records}) when is_list(records),
+    do: records
+
+  defp cse_oam_listing_version_records(_decoded), do: nil
+
+  defp cse_oam_listed_record?(record) when is_map(record) do
+    Map.get(record, "isListed") == true or Map.get(record, "listed") == true or
+      Map.get(record, "listedComplete") == true
+  end
+
+  defp cse_oam_listed_record?(_record), do: false
+
+  defp parse_cse_oam_listing_version_record(record) when is_map(record) do
+    issuer = string_field(record, "listedCompanyEnglish") || string_field(record, "companyNameEn")
+    headline = string_field(record, "nameEnglish") || string_field(record, "name")
+    category = string_field(record, "infoCategoriesNameEnglish")
+
+    %{
+      external_id: join_non_empty(["cse-oam", string_field(record, "id")], ":"),
+      title: join_non_empty([issuer, headline], " - "),
+      url: cse_oam_listing_version_url(record),
+      summary: cse_oam_listing_version_summary(record, category),
+      published_at: cse_oam_listing_version_datetime(record),
+      category: category
+    }
+  end
+
+  defp parse_cse_oam_listing_version_record(_record) do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: DateTime.utc_now(),
+      category: nil
+    }
+  end
+
+  defp cse_oam_listing_version_url(record) do
+    id = string_field(record, "id")
+
+    if id do
+      @cse_oam_base_url <>
+        "/card-details/" <> id <> "/" <> cse_oam_translation_segment(record, id)
+    end
+  end
+
+  defp cse_oam_translation_segment(record, id) do
+    case string_field(record, "translationId") do
+      nil -> id <> "tr"
+      "0" -> id <> "tr"
+      translation_id -> translation_id <> "tr"
+    end
+  end
+
+  defp cse_oam_listing_version_summary(record, category) do
+    body =
+      (string_field(record, "translationVersionContent") || string_field(record, "versionContent"))
+      |> cse_oam_body_excerpt()
+
+    join_non_empty(
+      [
+        "CSE OAM",
+        prefixed("Category", category),
+        prefixed("Security", string_field(record, "securityCodesCode")),
+        prefixed("Market", string_field(record, "marketTypesDescription")),
+        body
+      ],
+      " | "
+    )
+  end
+
+  defp cse_oam_body_excerpt(nil), do: nil
+
+  defp cse_oam_body_excerpt(value) do
+    value
+    |> clean_html()
+    |> case do
+      nil -> nil
+      cleaned -> cleaned |> String.slice(0, 360) |> String.trim()
+    end
+  end
+
+  defp cse_oam_listing_version_datetime(record) do
+    cse_oam_epoch_millis(record, "publicationTimestamp") ||
+      cse_oam_epoch_millis(record, "translationRegistryTimestamp") ||
+      DateTime.utc_now()
+  end
+
+  defp cse_oam_epoch_millis(record, key) do
+    record
+    |> Map.get(key)
+    |> case do
+      value when is_integer(value) -> value
+      value when is_binary(value) -> parse_epoch_millis(value)
+      _ -> nil
+    end
+    |> case do
+      value when is_integer(value) ->
+        case DateTime.from_unix(value, :millisecond) do
+          {:ok, datetime} ->
+            if DateTime.compare(datetime, DateTime.add(DateTime.utc_now(), 86_400, :second)) ==
+                 :gt,
+               do: nil,
+               else: datetime
+
+          _ ->
+            nil
+        end
+
+      _ ->
+        nil
+    end
+  end
+
+  defp parse_epoch_millis(value) do
+    case Integer.parse(value) do
+      {parsed, ""} -> parsed
+      _ -> nil
+    end
+  end
 
   defp parse_de_company_register_capital_market(raw_payload) do
     with {:ok, decoded} <- Jason.decode(raw_payload),
@@ -4749,6 +4891,33 @@ defmodule DisclosureAutomation.Ingestion do
     end
   end
 
+  defp validate_live_payload(
+         %SourceRegistry{parser_key: "cse_oam_listing_versions_json_v1"},
+         response
+       ) do
+    cond do
+      html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "cse_oam_listing_versions_json_v1",
+          content_type(response.headers)}}
+
+      html_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "cse_oam_listing_versions_json_v1", :html}}
+
+      not json_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "cse_oam_listing_versions_json_v1",
+          content_type(response.headers)}}
+
+      not cse_oam_listing_versions_payload?(response.body) ->
+        {:error,
+         {:unsupported_live_payload, "cse_oam_listing_versions_json_v1", :unexpected_json}}
+
+      true ->
+        :ok
+    end
+  end
+
   defp validate_live_payload(%SourceRegistry{parser_key: "nasdaq_nordic_cns_jsonp_v1"}, response) do
     cond do
       html_content_type?(response.headers) ->
@@ -5168,6 +5337,13 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp oekb_oam_issuer_info_payload?(_body), do: false
+
+  defp cse_oam_listing_versions_payload?(body) when is_binary(body) do
+    body =~ "\"content\"" and body =~ "\"listedCompanyEnglish\"" and
+      body =~ "\"publicationTimestamp\"" and body =~ "\"infoCategoriesNameEnglish\""
+  end
+
+  defp cse_oam_listing_versions_payload?(_body), do: false
 
   defp nasdaq_nordic_cns_payload?(body) when is_binary(body) do
     body =~ "handleResponse(" and body =~ "\"results\"" and body =~ "\"item\""
