@@ -1406,7 +1406,7 @@ candidate URL: https://www.belex.rs/eng/
 observed HTTP: 200
 observed content-type: text/html
 observed shape: homepage News from Issuers table id=t5 with date, issuer symbol, announcement title, and links under /eng/trgovanje/vesti/hartija/
-status: MANUAL_SOURCE_REGISTERED_LOCAL_PARSER_SMOKE_PASS_LIVE_ENDPOINT_PROBE_PASS
+status: MANUAL_SOURCE_REGISTERED_STAGING_LIVE_POLL_PASS
 ```
 
 Why this fits the product:
@@ -1426,6 +1426,10 @@ Fixture source_payloads/rs_belex_issuer_news.html captures the bounded homepage 
 The source has disable_live_fixture_fallback=true so staging must prove live fetch success before any live-poll claim.
 External endpoint probe passed via PowerShell/WinHTTP with HTTP 200 text/html.
 Application live fetch probe passed because Erlang :httpc receives HTTP 200 from https://www.belex.rs/eng/.
+Fly staging live poll smoke passed on 2026-05-10 against phase0-foundation commit 0d52e814c3830eeb22183813af34645e5f3873ea.
+The staging poll returned 202, fetch.mode=live, status_code=200, 30,034 bytes, records_seen=5, records_inserted=5, and canonical_items_count=5.
+Date-specific digest visibility passed for 2026-04-30 with 3 BELEX rows and metadata.fallback_to_fixture=false.
+Latest public UI visibility remains pending because the current latest digest date is 2026-05-09.
 Scheduled polling remains disabled until the broader Europe source batch is intentionally promoted.
 ```
 
@@ -1463,7 +1467,7 @@ Scheduled polling remains disabled until the broader Europe source batch is inte
 29. Keep Macedonian Stock Exchange Free Market Announcements as a manual_staging_only official exchange issuer-announcement candidate with local/live parser smoke passing, Fly staging live poll passing, date-specific digest visibility passing, and latest public UI visibility pending.
 30. Keep North Macedonia SEI-NET Public Documents as a manual_staging_only official public-disclosure-platform API candidate; prove local/live parser smoke and Fly staging live poll before any scheduled promotion.
 31. Keep Montenegro MNSE Corporate News as a manual_staging_only official exchange issuer-announcement candidate; do not claim staging live poll success until the current Erlang :httpc TLS blocker is fixed.
-32. Keep Serbia BELEX Issuer News as a manual_staging_only official exchange issuer-news candidate; prove Fly staging live poll and digest visibility before any scheduled promotion.
+32. Keep Serbia BELEX Issuer News as a manual_staging_only official exchange issuer-news candidate with Fly staging live poll and date-specific digest visibility passing, and public latest UI visibility pending.
 33. Use globalpulse_eu_source_batch_promotion_design.md, globalpulse_eu_scheduled_staging_canary_runbook.md, and globalpulse_eu_scheduled_staging_canary_configuration_results.md as the decision gates before any EU scheduled staging canary observation window.
 34. Only batch-promote scheduled EU polling after the target list, rollback path, source-specific parser risk, and staging live smoke evidence are documented together.
 ```
@@ -1585,6 +1589,9 @@ MONTENEGRO_MNSE_CORPORATE_NEWS_LIVE_FETCH_BLOCKED_HTTP_CLIENT_TLS
 SERBIA_BELEX_ISSUER_NEWS_MANUAL_SOURCE_REGISTERED
 SERBIA_BELEX_ISSUER_NEWS_LOCAL_PARSER_SMOKE_PASS
 SERBIA_BELEX_ISSUER_NEWS_LIVE_ENDPOINT_PROBE_PASS
+SERBIA_BELEX_ISSUER_NEWS_STAGING_LIVE_POLL_PASS
+SERBIA_BELEX_ISSUER_NEWS_DATE_SPECIFIC_DIGEST_VISIBILITY_PASS
+SERBIA_BELEX_ISSUER_NEWS_LATEST_PUBLIC_UI_VISIBILITY_PENDING
 EU_BATCH_PROMOTION_DESIGN_RECORDED
 EU_SCHEDULED_STAGING_CANARY_RUNBOOK_RECORDED
 EU_SCHEDULED_STAGING_CANARY_PHASE0_CONFIG_READY
