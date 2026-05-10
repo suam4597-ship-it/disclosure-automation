@@ -1,6 +1,6 @@
 # North Macedonia SEI-NET Public Documents Candidate Notes
 
-Status: `MANUAL_SOURCE_REGISTERED_LOCAL_AND_LIVE_PARSER_SMOKE_PASS_STAGING_LIVE_POLL_PENDING`
+Status: `MANUAL_SOURCE_REGISTERED_LOCAL_AND_LIVE_PARSER_SMOKE_PASS_STAGING_LIVE_POLL_PASS_DIGEST_TOP_N_VISIBILITY_PENDING`
 
 ## Scope
 
@@ -39,7 +39,7 @@ The live API response includes user/action-log material that is not needed for G
 local registry/capability smoke: PASS
 local fixture parser smoke: PASS, 3 bounded records
 live parser smoke against the public documents API: PASS, HTTP 200, application/json, 50,183 bytes, 10 bounded records
-Fly staging live poll smoke: PENDING
-date-specific digest visibility smoke: PENDING
+Fly staging live poll smoke: PASS, HTTP 202, fetch.mode=live, status_code=200, 50,183 bytes, 10 records seen, 10 records inserted
+date-specific digest top-N visibility smoke: PENDING, canonical rows exist but default 2026-05-08 digest top-N did not include SEI-NET rows
 public latest UI visibility smoke when top-N/date selection includes SEI-NET rows: PENDING
 ```
