@@ -7,7 +7,9 @@ Status: `MANUAL_SOURCE_REGISTERED_LOCAL_PARSER_SMOKE_PASS_LIVE_ENDPOINT_PROBE_PA
 `ba_sase_issuer_announcements_multi_code` is an inactive/manual staging-only candidate for listed-company issuer announcements published through Sarajevo Stock Exchange's official handler endpoint.
 
 ```text
-candidate URL: https://www.sase.ba/FeedServices/HandlerChart.ashx
+candidate URL: http://www.sase.ba/FeedServices/HandlerChart.ashx
+HTTPS handler probe: local PowerShell/WinHTTP returns 200, but Fly staging app fetch closed the TLS connection during the first staging smoke.
+HTTP handler probe: local PowerShell/WinHTTP returns 200 for the same bounded POST body and is used as the manual staging candidate fetch URL.
 surface label: Reports > Companies > Financial reports / issuer announcements
 source owner: Sarajevo Stock Exchange
 ```

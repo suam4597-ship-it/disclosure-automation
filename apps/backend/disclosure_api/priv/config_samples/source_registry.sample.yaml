@@ -958,7 +958,7 @@ sources:
   - source_key: ba_sase_issuer_announcements_multi_code
     display_name: Sarajevo SASE Issuer Announcements Multi-Code
     source_type: api
-    base_url: https://www.sase.ba/FeedServices/HandlerChart.ashx
+    base_url: http://www.sase.ba/FeedServices/HandlerChart.ashx
     healthcheck_url: https://www.sase.ba/v1/en-us/Reports/Companies/Financial-reports
     parser_key: sase_multi_issuer_announcements_xml_v1
     poll_cron: "*/30 * * * *"
