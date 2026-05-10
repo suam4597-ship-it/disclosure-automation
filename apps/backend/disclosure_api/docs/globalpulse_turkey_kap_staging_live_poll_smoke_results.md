@@ -85,11 +85,13 @@ item_count: 12
 metadata.fallback_to_fixture: false
 Turkey KAP items visible in latest backend digest: yes
 top Turkey KAP headline: FONET ... - Representation Letter (Consolidated)
-region bucket from current backend canonicalizer: eu
+region bucket from first staging smoke backend canonicalizer: eu
 coverage tags include: europe, turkey, tr, disclosure, listed_companies, public_disclosure_platform, kap
 ```
 
 The public Pages UI consumes this latest digest endpoint through the configured Fly backend, so the Turkey KAP items are backend-visible for the public shell. A separate browser visual smoke remains pending before claiming a full public browser UI pass.
+
+Follow-up PR #467 separated Turkey KAP into canonical region `tr`; see `globalpulse_turkey_kap_region_label_smoke_results.md` for the post-follow-up region-label smoke.
 
 ## Guardrails
 
