@@ -53,6 +53,7 @@ The first parser is intentionally bounded to the latest list rows:
 ```text
 row selector: div.news-row
 id field: javascript showNews ExtriID
+live payload markers: x3news_logo, news-row, newsHeaderLink, javascript:showNews
 issuer field: first row company bold text
 headline field: newsHeaderLink show-date-on-right
 date field: right-aligned DD-MM-YYYY HH:mm text

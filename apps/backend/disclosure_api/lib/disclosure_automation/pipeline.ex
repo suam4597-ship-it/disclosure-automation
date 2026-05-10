@@ -5129,7 +5129,7 @@ defmodule DisclosureAutomation.Ingestion do
     body =~ "x3news_logo" and
       body =~ "class=\"news-row\"" and
       body =~ "newsHeaderLink show-date-on-right" and
-      body =~ "page=ShowNews&ExtriID="
+      body =~ "javascript:showNews"
   end
 
   defp x3news_issuer_disclosures_payload?(_body), do: false
