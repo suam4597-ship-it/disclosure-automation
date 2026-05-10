@@ -314,6 +314,47 @@ parsers:
       reject_non_blse_multi_issuer_payload: true
       reject_future_timestamps: true
 
+  - parser_key: sase_multi_issuer_announcements_xml_v1
+    display_name: Sarajevo SASE Multi-Issuer Announcements XML Parser
+    enabled: true
+    input_types: [json, xml, api, fanout]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: false
+    supports_detail_fetch: false
+    extraction:
+      id_fields:
+        - responses.data.Id
+      title_fields:
+        - responses.data.Subject
+      summary_fields:
+        - responses.issuer
+        - responses.issuer_code
+        - responses.data.Link
+        - responses.data.DateOfEvent
+      url_fields:
+        - generated_issuer_profile_url
+      published_at_fields:
+        - responses.data.AnnouncementDate
+      category_fields:
+        - responses.data.AnnouncementTypeId
+    normalization:
+      source_shape: sase_multi_issuer_announcements_xml_fanout_json
+      trim_html: true
+      decode_entities: true
+      collapse_whitespace: true
+      timezone_strategy: xml_iso8601_offset_to_utc
+      generated_url_strategy: official_sase_issuer_profile_url
+      missing_summary_strategy: bounded_metadata_summary
+      row_filter_strategy: configured_issuer_codes_only
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_html_payload: true
+      reject_non_sase_multi_issuer_payload: true
+      reject_future_timestamps: true
+
   - parser_key: pse_multi_isin_issuer_news_json_v1
     display_name: Prague PSE Multi-ISIN Issuer News JSON Parser
     enabled: true
