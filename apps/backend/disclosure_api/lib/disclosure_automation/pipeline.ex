@@ -131,6 +131,7 @@ defmodule DisclosureAutomation.Parser do
   @pse_detail_base_url "https://www.pse.cz/en/detail/"
   @de_company_register_publication_url "https://www.unternehmensregister.de/en/publication?payload="
   @de_company_register_strategy "germany_company_register_token_preflight_v1"
+  @malta_mse_base_url "https://www.borzamalta.com.mt"
 
   def parse(parser_key, raw_payload, opts \\ [])
       when is_binary(parser_key) and is_binary(raw_payload) do
@@ -213,6 +214,9 @@ defmodule DisclosureAutomation.Parser do
 
   defp parse_by_key("xetra_newsboard_html_v1", raw_payload),
     do: parse_xetra_newsboard(raw_payload)
+
+  defp parse_by_key("malta_mse_announcements_html_v1", raw_payload),
+    do: parse_malta_mse_announcements(raw_payload)
 
   defp parse_by_key(parser_key, _raw_payload), do: {:error, {:unsupported_parser_key, parser_key}}
 
@@ -2864,6 +2868,88 @@ defmodule DisclosureAutomation.Parser do
   defp xetra_apply_zone(datetime, "CET"), do: DateTime.add(datetime, -3_600, :second)
   defp xetra_apply_zone(datetime, _zone), do: datetime
 
+  defp parse_malta_mse_announcements(raw_payload) do
+    items =
+      Regex.scan(~r/<a\s+href="([^"]+)"[^>]*class="box event-box"[^>]*>(.*?)<\/a>/s, raw_payload)
+      |> Enum.map(&parse_malta_mse_announcement_row/1)
+      |> Enum.filter(&(&1.url && &1.title))
+
+    {:ok, items}
+  end
+
+  defp parse_malta_mse_announcement_row([_row, href, row_html]) do
+    issuer = regex_capture(row_html, ~r/<h3[^>]*>\s*(.*?)\s*<\/h3>/s)
+    headline = regex_capture(row_html, ~r/<p[^>]*>\s*(.*?)\s*<\/p>/s)
+    date_text = regex_capture(row_html, ~r/<date[^>]*>\s*(.*?)\s*<\/date>/s)
+    url = malta_mse_url(href)
+
+    %{
+      external_id: malta_mse_external_id(url),
+      title: join_non_empty([issuer, headline], " - "),
+      url: url,
+      summary:
+        join_non_empty(
+          [
+            "Malta Stock Exchange announcement",
+            prefixed("Issuer", issuer),
+            prefixed("Announcement", headline)
+          ],
+          " | "
+        ),
+      published_at: parse_malta_mse_date(date_text),
+      category: headline
+    }
+  end
+
+  defp parse_malta_mse_announcement_row(_row), do: empty_malta_mse_announcement()
+
+  defp empty_malta_mse_announcement do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: DateTime.utc_now(),
+      category: nil
+    }
+  end
+
+  defp malta_mse_external_id(nil), do: nil
+
+  defp malta_mse_external_id(url) do
+    url
+    |> String.split("/")
+    |> List.last()
+  end
+
+  defp malta_mse_url(nil), do: nil
+
+  defp malta_mse_url(raw_url) do
+    url = decode_html_entities(raw_url)
+
+    cond do
+      String.starts_with?(url, "http") -> url
+      String.starts_with?(url, "/") -> @malta_mse_base_url <> url
+      true -> @malta_mse_base_url <> "/news-and-articles/announcements"
+    end
+  end
+
+  defp parse_malta_mse_date(nil), do: DateTime.utc_now()
+
+  defp parse_malta_mse_date(value) do
+    with [_, day_text, month_text, year_text] <- Regex.run(~r/^(\d{2})-(\d{2})-(\d{4})$/, value),
+         {year, ""} <- Integer.parse(year_text),
+         {month, ""} <- Integer.parse(month_text),
+         {day, ""} <- Integer.parse(day_text),
+         {:ok, datetime} <- build_utc_datetime(year, month, day, 0, 0, 0),
+         true <-
+           DateTime.compare(datetime, DateTime.add(DateTime.utc_now(), 86_400, :second)) != :gt do
+      datetime
+    else
+      _ -> DateTime.utc_now()
+    end
+  end
+
   defp parse_afm_csv_row(row) do
     row
     |> String.trim()
@@ -4610,6 +4696,24 @@ defmodule DisclosureAutomation.Ingestion do
     end
   end
 
+  defp validate_live_payload(
+         %SourceRegistry{parser_key: "malta_mse_announcements_html_v1"},
+         response
+       ) do
+    cond do
+      not html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "malta_mse_announcements_html_v1",
+          content_type(response.headers)}}
+
+      not malta_mse_announcements_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "malta_mse_announcements_html_v1", :unexpected_html}}
+
+      true ->
+        :ok
+    end
+  end
+
   defp validate_live_payload(_source, _response), do: :ok
 
   defp source_live_headers(%SourceRegistry{config: config}) when is_map(config) do
@@ -4861,6 +4965,14 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp xetra_newsboard_payload?(_body), do: false
+
+  defp malta_mse_announcements_payload?(body) when is_binary(body) do
+    body =~ "Announcements - Malta Stock Exchange" and
+      body =~ "box event-box" and
+      body =~ "cdn.borzamalta.com.mt/download/announcements/"
+  end
+
+  defp malta_mse_announcements_payload?(_body), do: false
 
   defp load_fixture_payload(source) do
     fixture_path =
