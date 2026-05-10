@@ -1,6 +1,6 @@
 # Denmark DFSA OAM Company Announcements Candidate Notes
 
-Status: `MANUAL_SOURCE_REGISTERED_LOCAL_AND_LIVE_PARSER_SMOKE_FLY_STAGING_LIVE_POLL_PASS`
+Status: `MANUAL_SOURCE_REGISTERED_LOCAL_AND_LIVE_PARSER_SMOKE_FLY_STAGING_LIVE_POLL_PASS_CADENCE_RATE_PAGINATION_DESIGN_RECORDED`
 
 ## Scope
 
@@ -153,3 +153,5 @@ latest digest: 200, latest digest date 2026-05-09, Denmark row visibility pendin
 ## Open Follow-Up
 
 Do not promote this source to scheduled polling until cadence, rate-limit, pagination, and category-selection behavior are documented and repeated staging smoke confirms the endpoint remains stable.
+
+The cadence/rate/pagination gate is recorded in `globalpulse_denmark_dfsa_oam_cadence_rate_pagination_design.md`. It keeps the source manual-only, preserves the page-1 canary, and requires repeated staging smoke before any scheduled staging canary consideration.
