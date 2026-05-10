@@ -1438,7 +1438,7 @@ Scheduled polling remains disabled until the broader Europe source batch is inte
 ```text
 owner: Sarajevo Stock Exchange
 authority class: official exchange issuer-announcement handler endpoint
-candidate URL: https://www.sase.ba/FeedServices/HandlerChart.ashx
+candidate URL: http://www.sase.ba/FeedServices/HandlerChart.ashx
 observed HTTP: 200
 observed content-type: application/json; charset=utf-8 for both JSON issuer universe and XML-ish announcement payloads
 observed shape: type=3 issuer universe JSON and type=24 issuer-specific ANNOUNCEMENTS XML rows with Subject, CompanyId, AnnouncementDate, DateOfEvent, Link, and AnnouncementTypeId
@@ -1461,6 +1461,8 @@ Manual source ba_sase_issuer_announcements_multi_code exists with active=false a
 Fixture source_payloads/ba_sase_issuer_announcements_multi_code.json captures the bounded multi-code fanout response shape.
 The source has disable_live_fixture_fallback=true so staging must prove live fetch success before any live-poll claim.
 External endpoint probe passed via PowerShell/WinHTTP against HandlerChart type=3 and type=24.
+Initial Fly staging HTTPS handler poll failed with a closed TLS connection to www.sase.ba:443, while local HTTPS and HTTP probes returned 200.
+The manual staging source therefore uses the same official handler over HTTP for the bounded type=24 POST fanout.
 Scheduled polling remains disabled until the broader Europe source batch is intentionally promoted.
 ```
 
