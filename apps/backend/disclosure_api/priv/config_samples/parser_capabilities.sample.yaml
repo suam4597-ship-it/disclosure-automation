@@ -809,6 +809,45 @@ parsers:
       reject_non_x3news_payload: true
       reject_future_timestamps: true
 
+  - parser_key: kap_company_notifications_html_v1
+    display_name: Turkey KAP Company Notifications HTML Parser
+    enabled: true
+    input_types: [html]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: false
+    supports_detail_fetch: false
+    extraction:
+      id_fields:
+        - disclosureBasic.disclosureIndex
+      title_fields:
+        - disclosureBasic.companyTitle
+        - disclosureBasic.title
+      summary_fields:
+        - disclosureBasic.stockCode
+        - disclosureBasic.disclosureClass
+        - disclosureBasic.summary
+      url_fields:
+        - generated_kap_notification_url
+      published_at_fields:
+        - disclosureBasic.publishDate
+      category_fields:
+        - disclosureBasic.disclosureClass
+    normalization:
+      source_shape: kap_next_rsc_disclosure_basic_data
+      trim_html: true
+      decode_entities: true
+      collapse_whitespace: true
+      timezone_strategy: turkey_fixed_utc_plus_3
+      generated_url_strategy: official_kap_bildirim_url
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_non_kap_payload: true
+      reject_future_timestamps: true
+
   - parser_key: germany_company_register_capital_market_flight_v1
     display_name: Germany Company Register Capital Market Flight Payload Parser
     enabled: true
