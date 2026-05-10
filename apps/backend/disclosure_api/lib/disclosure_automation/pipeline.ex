@@ -132,6 +132,7 @@ defmodule DisclosureAutomation.Parser do
   @de_company_register_publication_url "https://www.unternehmensregister.de/en/publication?payload="
   @de_company_register_strategy "germany_company_register_token_preflight_v1"
   @malta_mse_base_url "https://www.borzamalta.com.mt"
+  @x3news_base_url "https://www.x3news.com/"
 
   def parse(parser_key, raw_payload, opts \\ [])
       when is_binary(parser_key) and is_binary(raw_payload) do
@@ -217,6 +218,9 @@ defmodule DisclosureAutomation.Parser do
 
   defp parse_by_key("malta_mse_announcements_html_v1", raw_payload),
     do: parse_malta_mse_announcements(raw_payload)
+
+  defp parse_by_key("bg_x3news_issuer_disclosures_html_v1", raw_payload),
+    do: parse_x3news_issuer_disclosures(raw_payload)
 
   defp parse_by_key(parser_key, _raw_payload), do: {:error, {:unsupported_parser_key, parser_key}}
 
@@ -2950,6 +2954,134 @@ defmodule DisclosureAutomation.Parser do
     end
   end
 
+  defp parse_x3news_issuer_disclosures(raw_payload) do
+    items =
+      Regex.scan(
+        ~r/<div class="news-row">\s*(.*?)<div id="newsContainer_\d+"[^>]*><\/div>\s*<\/div>/s,
+        raw_payload
+      )
+      |> Enum.map(&parse_x3news_issuer_disclosure_row/1)
+      |> Enum.filter(&(&1.url && &1.title))
+
+    {:ok, items}
+  end
+
+  defp parse_x3news_issuer_disclosure_row([_row, row_html]) do
+    external_id = regex_capture_raw(row_html, ~r/showNews\('\d+',\s*(\d+)\);/)
+    issuer = x3news_text(regex_capture_raw(row_html, ~r/<div><b>\s*(.*?)\s*<\/b><\/div>/s))
+
+    headline =
+      x3news_text(
+        regex_capture_raw(
+          row_html,
+          ~r/<div class="newsHeaderLink show-date-on-right">\s*(.*?)\s*<\/div>/s
+        )
+      )
+
+    date_text =
+      x3news_text(
+        regex_capture_raw(row_html, ~r/<span\s+style="float:right;">\s*(.*?)\s*<\/span>/s)
+      )
+
+    url = x3news_url(external_id)
+
+    %{
+      external_id: prefixed("x3news", external_id),
+      title: x3news_title(issuer, headline),
+      url: url,
+      summary:
+        join_non_empty(
+          [
+            "Bulgaria X3News issuer disclosure",
+            prefixed("Issuer", issuer),
+            prefixed("Disclosure", headline)
+          ],
+          " | "
+        ),
+      published_at: parse_x3news_datetime(date_text),
+      category: headline
+    }
+  end
+
+  defp parse_x3news_issuer_disclosure_row(_row), do: empty_x3news_issuer_disclosure()
+
+  defp empty_x3news_issuer_disclosure do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: DateTime.utc_now(),
+      category: nil
+    }
+  end
+
+  defp x3news_title(nil, nil), do: nil
+  defp x3news_title(issuer, nil), do: issuer
+  defp x3news_title(nil, headline), do: headline
+
+  defp x3news_title(issuer, headline) do
+    normalized_issuer = String.downcase(issuer)
+    normalized_headline = String.downcase(headline)
+
+    if String.starts_with?(normalized_headline, normalized_issuer) do
+      headline
+    else
+      issuer <> " - " <> headline
+    end
+  end
+
+  defp x3news_url(nil), do: nil
+
+  defp x3news_url(external_id) do
+    @x3news_base_url <> "?page=ShowNews&ExtriID=" <> external_id <> "&output=ajax"
+  end
+
+  defp x3news_text(nil), do: nil
+
+  defp x3news_text(value) do
+    value
+    |> x3news_utf8()
+    |> String.replace(~r/<[^>]+>/, " ")
+    |> decode_html_entities()
+    |> String.replace(~r/\s+/u, " ")
+    |> String.trim()
+    |> case do
+      "" -> nil
+      cleaned -> cleaned
+    end
+  end
+
+  defp x3news_utf8(value) do
+    if String.valid?(value) do
+      value
+    else
+      :unicode.characters_to_binary(value, :latin1, :utf8)
+    end
+  end
+
+  defp parse_x3news_datetime(nil), do: DateTime.utc_now()
+
+  defp parse_x3news_datetime(value) do
+    with [_, day_text, month_text, year_text, hour_text, minute_text] <-
+           Regex.run(~r/^(\d{2})-(\d{2})-(\d{4}) (\d{2}):(\d{2})$/, value),
+         {day, ""} <- Integer.parse(day_text),
+         {month, ""} <- Integer.parse(month_text),
+         {year, ""} <- Integer.parse(year_text),
+         {hour, ""} <- Integer.parse(hour_text),
+         {minute, ""} <- Integer.parse(minute_text),
+         {:ok, datetime} <- build_utc_datetime(year, month, day, hour, minute, 0) do
+      x3news_apply_sofia_zone(datetime)
+    else
+      _ -> DateTime.utc_now()
+    end
+  end
+
+  defp x3news_apply_sofia_zone(%DateTime{month: month} = datetime) when month in 4..10,
+    do: DateTime.add(datetime, -10_800, :second)
+
+  defp x3news_apply_sofia_zone(datetime), do: DateTime.add(datetime, -7_200, :second)
+
   defp parse_afm_csv_row(row) do
     row
     |> String.trim()
@@ -4714,6 +4846,25 @@ defmodule DisclosureAutomation.Ingestion do
     end
   end
 
+  defp validate_live_payload(
+         %SourceRegistry{parser_key: "bg_x3news_issuer_disclosures_html_v1"},
+         response
+       ) do
+    cond do
+      not html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "bg_x3news_issuer_disclosures_html_v1",
+          content_type(response.headers)}}
+
+      not x3news_issuer_disclosures_payload?(response.body) ->
+        {:error,
+         {:unsupported_live_payload, "bg_x3news_issuer_disclosures_html_v1", :unexpected_html}}
+
+      true ->
+        :ok
+    end
+  end
+
   defp validate_live_payload(_source, _response), do: :ok
 
   defp source_live_headers(%SourceRegistry{config: config}) when is_map(config) do
@@ -4973,6 +5124,15 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp malta_mse_announcements_payload?(_body), do: false
+
+  defp x3news_issuer_disclosures_payload?(body) when is_binary(body) do
+    body =~ "x3news_logo" and
+      body =~ "class=\"news-row\"" and
+      body =~ "newsHeaderLink show-date-on-right" and
+      body =~ "page=ShowNews&ExtriID="
+  end
+
+  defp x3news_issuer_disclosures_payload?(_body), do: false
 
   defp load_fixture_payload(source) do
     fixture_path =
