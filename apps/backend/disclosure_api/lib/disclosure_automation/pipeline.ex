@@ -138,6 +138,7 @@ defmodule DisclosureAutomation.Parser do
   @cse_oam_base_url "https://publicoam.cse.com.cy"
   @mse_base_url "https://www.mse.mk"
   @seinet_document_base_url "https://www.seinet.com.mk/en/document/"
+  @mnse_base_url "https://www.mnse.me"
   @blse_strategy "blse_multi_issuer_news_rss_v1"
 
   def parse(parser_key, raw_payload, opts \\ [])
@@ -242,6 +243,9 @@ defmodule DisclosureAutomation.Parser do
 
   defp parse_by_key("seinet_public_documents_json_v1", raw_payload),
     do: parse_seinet_public_documents(raw_payload)
+
+  defp parse_by_key("mnse_corporate_news_html_v1", raw_payload),
+    do: parse_mnse_corporate_news(raw_payload)
 
   defp parse_by_key(parser_key, _raw_payload), do: {:error, {:unsupported_parser_key, parser_key}}
 
@@ -3700,6 +3704,108 @@ defmodule DisclosureAutomation.Parser do
   defp seinet_clean_content(nil), do: nil
   defp seinet_clean_content(value), do: value |> clean_html() |> seinet_excerpt()
 
+  defp parse_mnse_corporate_news(raw_payload) do
+    items =
+      Regex.scan(
+        ~r/<td class="td_color1_01 novosti"[^>]*>\s*<span class="novostiDate">\s*(.*?)\s*<\/span>\s*<br\s*\/?>\s*<a href="([^"]+)"[^>]*>\s*(.*?)\s*<\/a>/is,
+        raw_payload
+      )
+      |> Enum.map(&parse_mnse_corporate_news_row/1)
+      |> Enum.filter(&(&1.url && &1.title && &1.published_at))
+
+    {:ok, items}
+  end
+
+  defp parse_mnse_corporate_news_row([_row, date_issuer_html, href, title_html]) do
+    date_issuer = clean_html(date_issuer_html)
+    {date_text, issuer} = mnse_date_issuer_parts(date_issuer)
+    title = clean_html(title_html)
+    url = mnse_url(href)
+
+    %{
+      external_id: mnse_external_id(url),
+      title: title,
+      url: url,
+      summary:
+        join_non_empty(
+          [
+            "Montenegro Stock Exchange corporate issuer announcement",
+            prefixed("Issuer", issuer),
+            prefixed("Published", date_text)
+          ],
+          " | "
+        ),
+      published_at: parse_mnse_datetime(date_text),
+      category: "corporate_news"
+    }
+  end
+
+  defp parse_mnse_corporate_news_row(_row) do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: nil,
+      category: nil
+    }
+  end
+
+  defp mnse_date_issuer_parts(nil), do: {nil, nil}
+
+  defp mnse_date_issuer_parts(value) do
+    case String.split(value, "|", parts: 2) do
+      [date_text, issuer] -> {String.trim(date_text), blank_to_nil(issuer)}
+      [date_text] -> {String.trim(date_text), nil}
+      _parts -> {nil, nil}
+    end
+  end
+
+  defp mnse_url(nil), do: nil
+
+  defp mnse_url(raw_url) do
+    url = decode_html_entities(raw_url)
+
+    cond do
+      String.starts_with?(url, "http") -> url
+      String.starts_with?(url, "/") -> @mnse_base_url <> url
+      true -> @mnse_base_url <> "/" <> url
+    end
+  end
+
+  defp mnse_external_id(nil), do: nil
+
+  defp mnse_external_id(url) do
+    url
+    |> URI.parse()
+    |> case do
+      %URI{path: path, query: query} when is_binary(path) ->
+        join_non_empty([path |> String.split("/", trim: true) |> Enum.join("-"), query], "?")
+
+      _uri ->
+        url
+    end
+  end
+
+  defp parse_mnse_datetime(nil), do: DateTime.utc_now()
+
+  defp parse_mnse_datetime(value) do
+    with [_, day_text, month_text, year_text, hour_text, minute_text] <-
+           Regex.run(~r/(\d{2})\/(\d{2})\/(\d{2})\s+(\d{2}):(\d{2})/, value),
+         {day, ""} <- Integer.parse(day_text),
+         {month, ""} <- Integer.parse(month_text),
+         {year, ""} <- Integer.parse("20" <> year_text),
+         {hour, ""} <- Integer.parse(hour_text),
+         {minute, ""} <- Integer.parse(minute_text),
+         {:ok, datetime} <- build_utc_datetime(year, month, day, hour, minute, 0),
+         true <-
+           DateTime.compare(datetime, DateTime.add(DateTime.utc_now(), 86_400, :second)) != :gt do
+      datetime
+    else
+      _ -> DateTime.utc_now()
+    end
+  end
+
   defp string_field(record, key) do
     record
     |> Map.get(key)
@@ -5830,6 +5936,24 @@ defmodule DisclosureAutomation.Ingestion do
     end
   end
 
+  defp validate_live_payload(
+         %SourceRegistry{parser_key: "mnse_corporate_news_html_v1"},
+         response
+       ) do
+    cond do
+      not html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "mnse_corporate_news_html_v1",
+          content_type(response.headers)}}
+
+      not mnse_corporate_news_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "mnse_corporate_news_html_v1", :unexpected_html}}
+
+      true ->
+        :ok
+    end
+  end
+
   defp validate_live_payload(_source, _response), do: :ok
 
   defp source_live_headers(%SourceRegistry{config: config}) when is_map(config) do
@@ -6139,6 +6263,14 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp seinet_public_documents_payload?(_body), do: false
+
+  defp mnse_corporate_news_payload?(body) when is_binary(body) do
+    body =~ "Korporativne novosti" and
+      body =~ "novostiDate" and
+      body =~ "/upload/documents/issuer/"
+  end
+
+  defp mnse_corporate_news_payload?(_body), do: false
 
   defp load_fixture_payload(source) do
     fixture_path =
