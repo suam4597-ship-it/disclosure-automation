@@ -1,6 +1,6 @@
 # Moldova MSI Regulated Information Candidate Notes
 
-Status: `MANUAL_SOURCE_REGISTERED_LOCAL_AND_LIVE_PARSER_SMOKE_PASS`
+Status: `MANUAL_SOURCE_REGISTERED_AND_STAGING_LIVE_POLL_PASS`
 
 ## Scope
 
@@ -66,9 +66,10 @@ backend digest JSON response shape unchanged
 local registry/capability smoke: PASS
 local fixture parser smoke: PASS, 5 bounded records
 application live fetch smoke: PASS, HTTP 200, 10 bounded records from page 1
-Fly staging live poll smoke
-date-specific digest visibility smoke
-public latest UI visibility smoke when top-N/date selection includes Moldova MSI rows
+Fly staging live poll smoke: PASS
+canonical insert smoke: PASS
+date-specific digest top-N visibility smoke: PENDING
+public latest UI visibility smoke: PENDING
 ```
 
 ## Local Smoke Evidence
@@ -84,6 +85,24 @@ live_count: 10
 live_first_title: Moldova Agroindbank - Information about events that affect financial and economic activities of the issuer
 live_first_url: https://emitent-msi.market.md/en/displayfile/4933
 live_first_published_at: 2026-05-08T00:00:00.000000Z
+```
+
+## Fly Staging Smoke Evidence
+
+```text
+backend: https://globalpulse-backend-staging.fly.dev
+candidate merge commit: f29027e39840d874ac4074abb6d0ec312e02810e
+source_health_before: registered, active=false, candidate_status=manual_staging_only, disable_live_fixture_fallback=true
+poll: POST /api/admin/sources/md_msi_regulated_information/poll?use_live_fetch=true&edition=breaking
+fetch.mode: live
+fetch.status_code: 200
+fetch.bytes: 2848
+records_seen: 10
+records_inserted: 10
+health_status_after: healthy
+last_seen_published_at: 2026-05-08T00:00:00.000000Z
+date_specific_digest: 200, fallback_to_fixture=false, Moldova top-N visibility pending
+latest_digest: 200, current latest date 2026-05-09, Moldova latest UI visibility pending
 ```
 
 ## Open Follow-Up
