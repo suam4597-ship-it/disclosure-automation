@@ -1368,7 +1368,7 @@ Scheduled polling remains disabled until the broader Europe source batch is inte
 ```text
 owner: Montenegro Stock Exchange
 authority class: official exchange corporate issuer-news HTML surface
-candidate URL: https://www.mnse.me/code/navigate.asp?Id=852
+candidate URL: http://www.mnse.me/code/navigate.asp?Id=852
 observed HTTP: 200
 observed content-type: text/html
 observed shape: Korporativne novosti page contains bounded rows with novostiDate, issuer, announcement URL under /upload/documents/issuer/, and title
@@ -1393,7 +1393,8 @@ The source has disable_live_fixture_fallback=true so staging must prove live fet
 Local registry/capability smoke passed.
 Local fixture parser smoke passed with 3 bounded records.
 External endpoint probe passed via PowerShell/WinHTTP with HTTP 200 text/html.
-Application live fetch is blocked because Erlang :httpc closes the TLS connection to mnse.me/www.mnse.me.
+Initial application live fetch over HTTPS was blocked because Erlang :httpc closed the TLS connection to mnse.me/www.mnse.me.
+The same official corporate-news page returns HTTP 200 with the required HTML markers over HTTP, so the manual staging source now uses the HTTP URL for live fetch retry.
 Scheduled polling remains disabled until the broader Europe source batch is intentionally promoted.
 ```
 
