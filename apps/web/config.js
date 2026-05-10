@@ -26,7 +26,8 @@ window.addEventListener("load", () => {
     eu_central: "Central Europe",
     eu_south: "Southern Europe",
     uk: "United Kingdom",
-    ch: "Switzerland"
+    ch: "Switzerland",
+    tr: "Turkey"
   };
 
   const normalize = value => {
@@ -38,6 +39,7 @@ window.addEventListener("load", () => {
     if (raw === "usa") return "us";
     if (raw === "united_kingdom" || raw === "gb" || raw === "great_britain") return "uk";
     if (raw === "switzerland") return "ch";
+    if (raw === "turkey" || raw === "turkiye" || raw === "türkiye") return "tr";
     if (raw === "europe") return "eu";
     if (raw === "korea") return "kr";
     if (raw === "japan") return "jp";
