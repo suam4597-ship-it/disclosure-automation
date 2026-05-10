@@ -1102,6 +1102,38 @@ Request budget, source separation, and issuer-window rotation are designed, but 
 Alternatively, continue Czech official OAM discovery if a stable machine-readable all-issuer regulated-information endpoint is found.
 ```
 
+## Candidate Y: Malta Stock Exchange Announcements
+
+```text
+owner: Malta Stock Exchange
+authority class: official exchange issuer/company announcement surface
+supporting URL: https://www.borzamalta.com.mt/news-and-articles/announcements
+observed HTTP: 200
+observed content-type: text/html; charset=utf-8
+observed shape: server-rendered announcement cards with PDF links, issuer names, announcement titles, and publication dates
+status: MANUAL_SOURCE_REGISTERED_LOCAL_PARSER_SMOKE_PASS_STAGING_LIVE_POLL_PENDING_SCHEDULED_POLLING_DISABLED
+```
+
+Why this fits the product:
+
+```text
+The Malta Stock Exchange announcements page is an official exchange surface for issuer/company announcements.
+The server-rendered cards expose bounded issuer names, announcement titles, publication dates, and official PDF links.
+This is a listed-company announcement source, not a central-bank, macro, parliament, or policy-news feed.
+```
+
+Implementation status:
+
+```text
+Parser malta_mse_announcements_html_v1 exists.
+Manual source mt_mse_announcements exists with active=false and candidate_status=manual_staging_only.
+Fixture source_payloads/mt_mse_announcements.html captures the bounded announcement-card HTML shape.
+Local fixture parser smoke returned fixture_records=3 with issuer/title/url/published_at populated.
+Local live parser smoke returned HTTP 200, live_records=9, and first live record Loqus Holding plc - Interim Update.
+Fly staging deploy and live poll smoke remain pending.
+Scheduled polling remains disabled until the broader EU source batch is intentionally promoted.
+```
+
 ## Recommended EU v1 Path
 
 ```text
@@ -1128,8 +1160,9 @@ Alternatively, continue Czech official OAM discovery if a stable machine-readabl
 21. Keep Portugal CMVM portal InfoPrivi as a proven manual_staging_only bounded latest-disclosure API candidate with digest top-n/public latest UI visibility pending.
 22. Keep Prague/PSE issuer news and issuer report calendar as proven manual_staging_only source-specific fan-out candidates with date-specific digest visibility passing and cadence/rate design recorded; do not promote them to scheduled polling until issuer-window rotation and repeated staging smoke evidence pass under that design.
 23. Keep Germany Company Register capital-market information as a proven inactive/manual_staging_only candidate with date-specific digest visibility passing, public latest UI visibility pending, and pagination/rate/captcha design recorded; do not promote it to scheduled polling until multi-page staging smoke evidence passes under that design.
-24. Use globalpulse_eu_source_batch_promotion_design.md, globalpulse_eu_scheduled_staging_canary_runbook.md, and globalpulse_eu_scheduled_staging_canary_configuration_results.md as the decision gates before any EU scheduled staging canary observation window.
-25. Only batch-promote scheduled EU polling after the target list, rollback path, source-specific parser risk, and staging live smoke evidence are documented together.
+24. Keep Malta MSE Announcements as a new manual_staging_only official exchange-announcement candidate with Fly staging live poll pending.
+25. Use globalpulse_eu_source_batch_promotion_design.md, globalpulse_eu_scheduled_staging_canary_runbook.md, and globalpulse_eu_scheduled_staging_canary_configuration_results.md as the decision gates before any EU scheduled staging canary observation window.
+26. Only batch-promote scheduled EU polling after the target list, rollback path, source-specific parser risk, and staging live smoke evidence are documented together.
 ```
 
 ## Explicit Non-Goals
@@ -1204,6 +1237,8 @@ GERMANY_COMPANY_REGISTER_ISO_DATE_RANGE_AND_PUBLICATION_DETAIL_ROUTE_CONFIRMED
 GERMANY_COMPANY_REGISTER_DATE_SPECIFIC_DIGEST_VISIBILITY_PASS
 GERMANY_COMPANY_REGISTER_PUBLIC_LATEST_UI_VISIBILITY_PENDING
 GERMANY_COMPANY_REGISTER_PAGINATION_RATE_CAPTCHA_DESIGN_RECORDED
+MALTA_MSE_ANNOUNCEMENTS_MANUAL_SOURCE_REGISTERED_LOCAL_PARSER_SMOKE_PASS
+MALTA_MSE_ANNOUNCEMENTS_STAGING_LIVE_POLL_PENDING
 EU_BATCH_PROMOTION_DESIGN_RECORDED
 EU_SCHEDULED_STAGING_CANARY_RUNBOOK_RECORDED
 EU_SCHEDULED_STAGING_CANARY_PHASE0_CONFIG_READY

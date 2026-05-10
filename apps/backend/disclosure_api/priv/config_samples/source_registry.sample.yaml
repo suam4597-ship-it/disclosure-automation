@@ -1099,6 +1099,35 @@ sources:
       live_headers:
         accept: application/rss+xml, application/xml, text/xml
 
+  - source_key: mt_mse_announcements
+    display_name: Malta Stock Exchange Announcements
+    source_type: html
+    base_url: https://www.borzamalta.com.mt/news-and-articles/announcements
+    healthcheck_url: https://www.borzamalta.com.mt/news-and-articles/announcements
+    parser_key: malta_mse_announcements_html_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.11
+    coverage_tags:
+      - eu
+      - eu_south
+      - malta
+      - mt
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - exchange_announcement
+    active: false
+    config:
+      fixture_path: source_payloads/mt_mse_announcements.html
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      max_items_per_poll: 25
+      live_timeout_ms: 30000
+      live_headers:
+        accept: text/html
+
   - source_key: greater_china_market_news
     display_name: Greater China Market News
     source_type: rss
