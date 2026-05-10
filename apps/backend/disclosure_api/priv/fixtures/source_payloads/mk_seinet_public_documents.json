@@ -1,0 +1,91 @@
+{
+  "totalSize": 16783,
+  "isSuccess": true,
+  "data": [
+    {
+      "documentId": 77096,
+      "publicId": "DOC_12304-77096/2026",
+      "content": "<p>Zito Luks AD Skopje publishes the audited financial statements and annual report for 2025.</p>",
+      "publishedDate": "2026-05-08T15:46:39.587",
+      "requestPublishDate": "2026-05-08T15:45:00",
+      "layout": {
+        "layoutId": 13570,
+        "languageId": 2,
+        "channelId": 1,
+        "layoutCode": "DOC_12304",
+        "description": "Audited financial statements"
+      },
+      "issuer": {
+        "issuerId": 22,
+        "code": "ZIL",
+        "localizedTerms": [
+          {
+            "displayName": "Zito Luks AD Skopje",
+            "languageId": 2
+          },
+          {
+            "displayName": "Zito Luks AD Skopje",
+            "languageId": 1
+          }
+        ]
+      },
+      "attachments": [
+        {
+          "attachmentId": 82903,
+          "documentId": 77096,
+          "fileName": "audited-financial-statements-2025.pdf"
+        }
+      ]
+    },
+    {
+      "documentId": 77095,
+      "publicId": "DOC_10686-77095/2026",
+      "content": "<p>The issuer announces a change in shareholder structure.</p>",
+      "publishedDate": "2026-05-08T14:12:20.12",
+      "requestPublishDate": "2026-05-08T14:10:00",
+      "layout": {
+        "layoutId": 13420,
+        "languageId": 2,
+        "channelId": 1,
+        "layoutCode": "DOC_10686",
+        "description": "Other price sensitive information"
+      },
+      "issuer": {
+        "issuerId": 305,
+        "code": "INV",
+        "localizedTerms": [
+          {
+            "displayName": "Inovo Status AD Skopje",
+            "languageId": 2
+          }
+        ]
+      },
+      "attachments": []
+    },
+    {
+      "documentId": 77082,
+      "publicId": "DOC_10677-77082/2026",
+      "content": "<p>The issuer publishes a notice from the shareholders assembly.</p>",
+      "publishedDate": "2026-05-06T10:05:12.45",
+      "requestPublishDate": "2026-05-06T10:00:00",
+      "layout": {
+        "layoutId": 13380,
+        "languageId": 2,
+        "channelId": 1,
+        "layoutCode": "DOC_10677",
+        "description": "Shareholders assembly"
+      },
+      "issuer": {
+        "issuerId": 144,
+        "code": "ALK",
+        "localizedTerms": [
+          {
+            "displayName": "Alkaloid AD Skopje",
+            "languageId": 2
+          }
+        ]
+      },
+      "attachments": []
+    }
+  ]
+}

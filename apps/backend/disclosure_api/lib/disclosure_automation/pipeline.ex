@@ -137,6 +137,7 @@ defmodule DisclosureAutomation.Parser do
   @kap_base_url "https://www.kap.org.tr"
   @cse_oam_base_url "https://publicoam.cse.com.cy"
   @mse_base_url "https://www.mse.mk"
+  @seinet_document_base_url "https://www.seinet.com.mk/en/document/"
   @blse_strategy "blse_multi_issuer_news_rss_v1"
 
   def parse(parser_key, raw_payload, opts \\ [])
@@ -238,6 +239,9 @@ defmodule DisclosureAutomation.Parser do
 
   defp parse_by_key("mse_free_market_announcements_html_v1", raw_payload),
     do: parse_mse_free_market_announcements(raw_payload)
+
+  defp parse_by_key("seinet_public_documents_json_v1", raw_payload),
+    do: parse_seinet_public_documents(raw_payload)
 
   defp parse_by_key(parser_key, _raw_payload), do: {:error, {:unsupported_parser_key, parser_key}}
 
@@ -3571,6 +3575,131 @@ defmodule DisclosureAutomation.Parser do
     end
   end
 
+  defp parse_seinet_public_documents(raw_payload) do
+    with {:ok, decoded} <- Jason.decode(raw_payload),
+         true <- Map.get(decoded, "isSuccess") == true,
+         records when is_list(records) <- Map.get(decoded, "data") do
+      items =
+        records
+        |> Enum.map(&parse_seinet_public_document/1)
+        |> Enum.filter(&(&1.url && &1.title && &1.published_at))
+
+      {:ok, items}
+    else
+      {:error, error} -> {:error, {:invalid_json, error}}
+      false -> {:error, {:invalid_json_shape, "seinet_public_documents_json_v1"}}
+      _ -> {:error, {:invalid_json_shape, "seinet_public_documents_json_v1"}}
+    end
+  end
+
+  defp parse_seinet_public_document(record) when is_map(record) do
+    document_id = string_field(record, "documentId")
+    issuer = seinet_issuer_name(record)
+    layout = seinet_layout_description(record)
+    content = record |> string_field("content") |> seinet_clean_content()
+
+    %{
+      external_id:
+        join_non_empty(["seinet", string_field(record, "publicId") || document_id], ":"),
+      title: join_non_empty([issuer, layout], " - "),
+      url: seinet_document_url(document_id),
+      summary:
+        join_non_empty(
+          [
+            "SEI-NET listed-company disclosure",
+            prefixed("Issuer", issuer),
+            prefixed("Layout", layout),
+            prefixed("Published", string_field(record, "publishedDate")),
+            content
+          ],
+          " | "
+        ),
+      published_at: seinet_document_datetime(record),
+      category: layout
+    }
+  end
+
+  defp parse_seinet_public_document(_record) do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: nil,
+      category: nil
+    }
+  end
+
+  defp seinet_issuer_name(record) do
+    record
+    |> Map.get("issuer")
+    |> case do
+      issuer when is_map(issuer) ->
+        localized_term_field(issuer, "displayName", 2) ||
+          localized_term_field(issuer, "displayName", 1) ||
+          string_field(issuer, "code")
+
+      _issuer ->
+        nil
+    end
+  end
+
+  defp seinet_layout_description(record) do
+    record
+    |> Map.get("layout")
+    |> case do
+      layout when is_map(layout) ->
+        string_field(layout, "description") ||
+          localized_term_field(layout, "description", 2) ||
+          localized_term_field(layout, "description", 1)
+
+      _layout ->
+        nil
+    end
+  end
+
+  defp localized_term_field(entity, key, language_id) when is_map(entity) do
+    entity
+    |> Map.get("localizedTerms", [])
+    |> Enum.find_value(fn
+      %{"languageId" => ^language_id} = term -> string_field(term, key)
+      _term -> nil
+    end)
+  end
+
+  defp localized_term_field(_entity, _key, _language_id), do: nil
+
+  defp seinet_document_url(nil), do: nil
+  defp seinet_document_url(document_id), do: @seinet_document_base_url <> URI.encode(document_id)
+
+  defp seinet_document_datetime(record) do
+    ["publishedDate", "requestPublishDate"]
+    |> Enum.find_value(fn key ->
+      record
+      |> string_field(key)
+      |> then(&(parse_iso8601_datetime(&1) || parse_naive_iso8601_datetime(&1)))
+    end)
+    |> case do
+      nil -> DateTime.utc_now()
+      datetime -> datetime
+    end
+  end
+
+  defp seinet_excerpt(nil), do: nil
+
+  defp seinet_excerpt(value) do
+    value
+    |> String.slice(0, 320)
+    |> String.trim()
+    |> case do
+      "" -> nil
+      excerpt -> excerpt
+    end
+  end
+
+  defp seinet_clean_content(nil), do: nil
+  defp seinet_clean_content(value), do: value |> clean_html() |> seinet_excerpt()
+
   defp string_field(record, key) do
     record
     |> Map.get(key)
@@ -5683,6 +5812,24 @@ defmodule DisclosureAutomation.Ingestion do
     end
   end
 
+  defp validate_live_payload(
+         %SourceRegistry{parser_key: "seinet_public_documents_json_v1"},
+         response
+       ) do
+    cond do
+      not json_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "seinet_public_documents_json_v1",
+          content_type(response.headers)}}
+
+      not seinet_public_documents_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "seinet_public_documents_json_v1", :unexpected_json}}
+
+      true ->
+        :ok
+    end
+  end
+
   defp validate_live_payload(_source, _response), do: :ok
 
   defp source_live_headers(%SourceRegistry{config: config}) when is_map(config) do
@@ -5982,6 +6129,16 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp mse_free_market_announcements_payload?(_body), do: false
+
+  defp seinet_public_documents_payload?(body) when is_binary(body) do
+    body =~ "\"isSuccess\":true" and
+      body =~ "\"data\":[" and
+      body =~ "\"documentId\"" and
+      body =~ "\"publishedDate\"" and
+      body =~ "\"issuer\""
+  end
+
+  defp seinet_public_documents_payload?(_body), do: false
 
   defp load_fixture_payload(source) do
     fixture_path =

@@ -969,6 +969,48 @@ parsers:
       reject_non_mse_free_market_payload: true
       reject_future_timestamps: true
 
+  - parser_key: seinet_public_documents_json_v1
+    display_name: North Macedonia SEI-NET Public Documents JSON Parser
+    enabled: true
+    input_types: [json, api]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: true
+    supports_detail_fetch: false
+    extraction:
+      id_fields:
+        - documentId
+        - publicId
+      title_fields:
+        - issuer.localizedTerms.displayName
+        - layout.description
+      summary_fields:
+        - issuer.localizedTerms.displayName
+        - layout.description
+        - content
+      url_fields:
+        - generated_seinet_document_url
+      published_at_fields:
+        - publishedDate
+        - requestPublishDate
+      category_fields:
+        - layout.description
+    normalization:
+      source_shape: seinet_public_documents_response
+      trim_html: true
+      decode_entities: true
+      collapse_whitespace: true
+      timezone_strategy: source_naive_utc
+      generated_url_strategy: official_seinet_document_url
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_html_payload: true
+      reject_non_seinet_public_documents_payload: true
+      reject_future_timestamps: true
+
   - parser_key: germany_company_register_capital_market_flight_v1
     display_name: Germany Company Register Capital Market Flight Payload Parser
     enabled: true
