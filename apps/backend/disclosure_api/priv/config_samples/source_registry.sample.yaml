@@ -826,6 +826,42 @@ sources:
       live_headers:
         accept: text/html
 
+  - source_key: md_msi_regulated_information
+    display_name: Moldova MSI Regulated Information
+    source_type: html
+    base_url: https://emitent-msi.market.md/includes/parts/pubdocs-list.php
+    healthcheck_url: https://emitent-msi.market.md/en/
+    parser_key: md_msi_regulated_information_html_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.08
+    coverage_tags:
+      - eu
+      - eu_central
+      - moldova
+      - md
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - official_disclosure_platform
+      - oam
+    active: false
+    config:
+      fixture_path: source_payloads/md_msi_regulated_information.html
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      disable_live_fixture_fallback: true
+      max_items_per_poll: 25
+      live_method: post
+      live_content_type: application/x-www-form-urlencoded; charset=UTF-8
+      live_body: page=1&lan=en&f1=0&f2=0&f3=01/01/2025&f4=31/12/2026
+      live_timeout_ms: 30000
+      live_headers:
+        accept: text/html
+        referer: https://emitent-msi.market.md/en/
+        x-requested-with: XMLHttpRequest
+
   - source_key: eu_austria_wiener_borse_announcements
     display_name: Austria Wiener Boerse Announcements
     source_type: html
