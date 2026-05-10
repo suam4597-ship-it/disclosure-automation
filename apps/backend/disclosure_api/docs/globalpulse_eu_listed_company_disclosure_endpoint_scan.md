@@ -1537,7 +1537,7 @@ Scheduled polling remains disabled until the broader Europe source batch is inte
 31. Keep Montenegro MNSE Corporate News as a manual_staging_only official exchange issuer-announcement candidate; do not claim staging live poll success until the current Erlang :httpc TLS blocker is fixed.
 32. Keep Serbia BELEX Issuer News as a manual_staging_only official exchange issuer-news candidate with Fly staging live poll and date-specific digest visibility passing, and public latest UI visibility pending.
 33. Keep Sarajevo SASE Issuer Announcements as a manual_staging_only official exchange issuer-announcement fanout candidate with Fly staging live poll and date-specific digest visibility passing; repeat smoke and cadence design are still required before any scheduled promotion.
-34. Keep Moldova MSI Regulated Information as a manual_staging_only regulated-information storage candidate; prove local parser smoke, app live fetch, Fly staging live poll, and digest visibility before any scheduled promotion.
+34. Keep Moldova MSI Regulated Information as a manual_staging_only regulated-information storage candidate with local parser smoke, app live fetch, Fly staging live poll, and canonical insert passing; date-specific/top-N public visibility remains pending until selection includes Moldova rows.
 34. Use globalpulse_eu_source_batch_promotion_design.md, globalpulse_eu_scheduled_staging_canary_runbook.md, and globalpulse_eu_scheduled_staging_canary_configuration_results.md as the decision gates before any EU scheduled staging canary observation window.
 35. Only batch-promote scheduled EU polling after the target list, rollback path, source-specific parser risk, and staging live smoke evidence are documented together.
 ```
@@ -1673,6 +1673,11 @@ MOLDOVA_MSI_REGULATED_INFORMATION_MANUAL_SOURCE_REGISTERED
 MOLDOVA_MSI_REGULATED_INFORMATION_EXTERNAL_ENDPOINT_PROBE_PASS
 MOLDOVA_MSI_REGULATED_INFORMATION_LOCAL_PARSER_SMOKE_PASS
 MOLDOVA_MSI_REGULATED_INFORMATION_LIVE_PARSER_SMOKE_PASS
+MOLDOVA_MSI_REGULATED_INFORMATION_STAGING_LIVE_POLL_PASS
+MOLDOVA_MSI_REGULATED_INFORMATION_SOURCE_HEALTH_PASS
+MOLDOVA_MSI_REGULATED_INFORMATION_CANONICAL_INSERT_PASS
+MOLDOVA_MSI_REGULATED_INFORMATION_DATE_SPECIFIC_PUBLIC_DIGEST_TOP_N_PENDING
+MOLDOVA_MSI_REGULATED_INFORMATION_LATEST_PUBLIC_UI_VISIBILITY_PENDING
 EU_BATCH_PROMOTION_DESIGN_RECORDED
 EU_SCHEDULED_STAGING_CANARY_RUNBOOK_RECORDED
 EU_SCHEDULED_STAGING_CANARY_PHASE0_CONFIG_READY
