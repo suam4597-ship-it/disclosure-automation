@@ -932,6 +932,43 @@ parsers:
       reject_non_kap_payload: true
       reject_future_timestamps: true
 
+  - parser_key: mse_free_market_announcements_html_v1
+    display_name: Macedonian Stock Exchange Free Market Announcements HTML Parser
+    enabled: true
+    input_types: [html]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: false
+    supports_detail_fetch: false
+    extraction:
+      id_fields:
+        - announcement_url_path
+      title_fields:
+        - issuer
+        - announcement_type
+      summary_fields:
+        - issuer
+        - announcement_type
+      url_fields:
+        - announcement_href
+      published_at_fields:
+        - announcement_date
+      category_fields:
+        - announcement_type
+    normalization:
+      source_shape: mse_issuers_free_market_announcement_html
+      trim_html: true
+      decode_entities: true
+      collapse_whitespace: true
+      timezone_strategy: date_only_utc_midnight
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_non_mse_free_market_payload: true
+      reject_future_timestamps: true
+
   - parser_key: germany_company_register_capital_market_flight_v1
     display_name: Germany Company Register Capital Market Flight Payload Parser
     enabled: true
