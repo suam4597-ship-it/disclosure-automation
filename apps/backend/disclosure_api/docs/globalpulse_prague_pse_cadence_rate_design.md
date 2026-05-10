@@ -253,4 +253,5 @@ Keep both current PSE candidates manual-only.
 Do not add PSE to the first EU scheduled staging canary.
 After the first EU canary observation window, consider a separate staging-only implementation PR for issuer-window override or deterministic date-slot rotation.
 Only after repeated single-source rotation smokes pass should a new runbook consider PSE for a scheduled staging canary.
+The staging-only static-offset implementation is recorded in globalpulse_prague_pse_issuer_window_rotation_implementation.md.
 ```
