@@ -224,4 +224,5 @@ Keep the current source manual-only.
 Do not add Germany Company Register to the first EU scheduled staging canary.
 After the first EU canary observation window, consider a separate staging-only implementation PR for max_pages_per_poll=2 manual/dispatch smoke.
 Only after repeated multi-page staging smokes pass should a new runbook consider this source for a scheduled staging canary.
+The staging-only two-page manual probe is recorded in globalpulse_germany_company_register_multipage_staging_probe.md.
 ```
