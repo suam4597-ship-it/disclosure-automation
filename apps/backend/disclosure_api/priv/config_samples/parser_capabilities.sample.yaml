@@ -273,6 +273,47 @@ parsers:
       reject_non_cse_oam_payload: true
       reject_future_timestamps: true
 
+  - parser_key: blse_multi_issuer_news_rss_v1
+    display_name: Banja Luka Stock Exchange Multi-Issuer News RSS Parser
+    enabled: true
+    input_types: [json, rss, fanout]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: false
+    supports_detail_fetch: false
+    extraction:
+      id_fields:
+        - responses.code
+        - responses.data.link
+      title_fields:
+        - responses.data.title
+      summary_fields:
+        - responses.issuer
+        - responses.code
+        - responses.data.description
+      url_fields:
+        - responses.data.link
+      published_at_fields:
+        - responses.data.pubDate
+      category_fields:
+        - issuer_news
+    normalization:
+      source_shape: blse_multi_issuer_news_rss_fanout_json
+      trim_html: true
+      decode_entities: true
+      collapse_whitespace: true
+      timezone_strategy: rss_pub_date_to_utc
+      generated_url_strategy: official_blse_docview_link
+      missing_summary_strategy: bounded_metadata_summary
+      row_filter_strategy: listed_equity_codes_only
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_html_payload: true
+      reject_non_blse_multi_issuer_payload: true
+      reject_future_timestamps: true
+
   - parser_key: pse_multi_isin_issuer_news_json_v1
     display_name: Prague PSE Multi-ISIN Issuer News JSON Parser
     enabled: true
