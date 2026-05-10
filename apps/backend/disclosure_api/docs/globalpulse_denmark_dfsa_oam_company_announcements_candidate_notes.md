@@ -1,6 +1,6 @@
 # Denmark DFSA OAM Company Announcements Candidate Notes
 
-Status: `MANUAL_SOURCE_REGISTERED_LOCAL_AND_LIVE_PARSER_SMOKE_PASS`
+Status: `MANUAL_SOURCE_REGISTERED_LOCAL_AND_LIVE_PARSER_SMOKE_FLY_STAGING_LIVE_POLL_PASS`
 
 ## Scope
 
@@ -110,9 +110,9 @@ backend digest JSON response shape unchanged
 local registry/capability smoke: PASS
 local fixture parser smoke: PASS, 5 bounded records
 application live fetch smoke: PASS, HTTP 200, 10 bounded records
-Fly staging live poll smoke
-date-specific digest visibility smoke
-public latest UI visibility smoke when top-N/date selection includes Denmark DFSA OAM rows
+Fly staging live poll smoke: PASS, HTTP 200, 25 records seen/inserted
+date-specific digest visibility smoke: PENDING, top-N does not yet include Denmark DFSA OAM rows
+public latest UI visibility smoke: PENDING, latest digest date is newer than Denmark DFSA OAM rows
 ```
 
 ## Local Smoke Evidence
@@ -129,6 +129,25 @@ live_first_title: Danske Bank A/S, transactions by persons discharging manageria
 live_first_url: https://appft.gold.extension.gopublic.dk/api/9217fa13-5d9a-46c6-9921-69ee7e6cfaf6/details/300008701
 live_first_published_at: 2026-05-08T14:13:40.000000Z
 live_first_category: Issuer
+```
+
+## Fly Staging Smoke Evidence
+
+```text
+Fly deploy: success
+release_command: success
+GET /api/health: 200
+source health before poll: registered, active=false, candidate_status=manual_staging_only
+poll URL: POST /api/admin/sources/dk_dfsa_oam_company_announcements/poll?use_live_fetch=true&edition=breaking
+fetch.mode: live
+fetch.status_code: 200
+fetch.bytes: 7141
+records_seen: 25
+records_inserted: 25
+post-poll health_status: healthy
+last_seen_published_at: 2026-05-08T14:13:40.000000Z
+date-specific digest: 200, fallback_to_fixture=false, top_n=12, Denmark row visibility pending
+latest digest: 200, latest digest date 2026-05-09, Denmark row visibility pending
 ```
 
 ## Open Follow-Up
