@@ -3473,12 +3473,14 @@ defmodule DisclosureAutomation.Ingestion do
        ) do
     with {:ok, universe_pages} <- fetch_pse_issuer_universe_pages(source),
          {:ok, universe} <- pse_issuer_universe(universe_pages),
-         selected_universe <- Enum.take(universe, pse_max_issuers_per_poll(source)),
+         issuer_window <- pse_issuer_window(source, universe),
+         selected_universe <- issuer_window.selected_universe,
          {:ok, responses} <- fetch_pse_issuer_news_responses(source, selected_universe) do
       raw_payload =
         Jason.encode!(%{
           "strategy" => "pse_multi_isin_news_v1",
           "universe" => universe,
+          "issuer_window" => pse_issuer_window_payload(issuer_window),
           "selected_isins" => Enum.map(selected_universe, & &1["isin"]),
           "responses" => responses
         })
@@ -3496,6 +3498,10 @@ defmodule DisclosureAutomation.Ingestion do
            "bytes" => byte_size(raw_payload),
            "universe_count" => length(universe),
            "selected_issuer_count" => length(selected_universe),
+           "selected_issuer_window_strategy" => issuer_window.strategy,
+           "selected_issuer_window_offset" => issuer_window.offset,
+           "selected_issuer_window_size" => issuer_window.size,
+           "selected_issuer_window_universe_count" => issuer_window.universe_count,
            "issuer_request_count" => length(responses)
          }
        }}
@@ -3508,12 +3514,14 @@ defmodule DisclosureAutomation.Ingestion do
        ) do
     with {:ok, universe_pages} <- fetch_pse_issuer_universe_pages(source),
          {:ok, universe} <- pse_issuer_universe(universe_pages),
-         selected_universe <- Enum.take(universe, pse_max_issuers_per_poll(source)),
+         issuer_window <- pse_issuer_window(source, universe),
+         selected_universe <- issuer_window.selected_universe,
          {:ok, responses} <- fetch_pse_issuer_calendar_responses(source, selected_universe) do
       raw_payload =
         Jason.encode!(%{
           "strategy" => "pse_multi_isin_report_calendar_v1",
           "universe" => universe,
+          "issuer_window" => pse_issuer_window_payload(issuer_window),
           "selected_isins" => Enum.map(selected_universe, & &1["isin"]),
           "responses" => responses
         })
@@ -3531,6 +3539,10 @@ defmodule DisclosureAutomation.Ingestion do
            "bytes" => byte_size(raw_payload),
            "universe_count" => length(universe),
            "selected_issuer_count" => length(selected_universe),
+           "selected_issuer_window_strategy" => issuer_window.strategy,
+           "selected_issuer_window_offset" => issuer_window.offset,
+           "selected_issuer_window_size" => issuer_window.size,
+           "selected_issuer_window_universe_count" => issuer_window.universe_count,
            "calendar_request_count" => length(responses)
          }
        }}
@@ -4068,6 +4080,59 @@ defmodule DisclosureAutomation.Ingestion do
     source_config_positive_integer(source, "max_issuers_per_poll", :max_issuers_per_poll, 10)
   end
 
+  defp pse_issuer_window(source, universe) do
+    universe_count = length(universe)
+    window_size = min(pse_max_issuers_per_poll(source), universe_count)
+    offset = pse_issuer_window_offset(source, universe_count)
+
+    %{
+      strategy: pse_issuer_window_strategy(source),
+      offset: offset,
+      size: window_size,
+      universe_count: universe_count,
+      selected_universe: pse_take_issuer_window(universe, offset, window_size)
+    }
+  end
+
+  defp pse_issuer_window_payload(issuer_window) do
+    %{
+      "strategy" => issuer_window.strategy,
+      "offset" => issuer_window.offset,
+      "size" => issuer_window.size,
+      "universe_count" => issuer_window.universe_count
+    }
+  end
+
+  defp pse_issuer_window_strategy(source) do
+    source_config_value(
+      source,
+      "pse_issuer_window_strategy",
+      :pse_issuer_window_strategy,
+      "static_offset"
+    )
+  end
+
+  defp pse_issuer_window_offset(_source, 0), do: 0
+
+  defp pse_issuer_window_offset(source, universe_count) do
+    source
+    |> source_config_non_negative_integer(
+      "pse_issuer_window_offset",
+      :pse_issuer_window_offset,
+      0
+    )
+    |> rem(universe_count)
+  end
+
+  defp pse_take_issuer_window(_universe, _offset, 0), do: []
+
+  defp pse_take_issuer_window(universe, offset, window_size) do
+    universe
+    |> Enum.drop(offset)
+    |> Kernel.++(Enum.take(universe, offset))
+    |> Enum.take(window_size)
+  end
+
   defp pse_max_news_items_per_issuer(source) do
     source_config_positive_integer(
       source,
@@ -4130,9 +4195,26 @@ defmodule DisclosureAutomation.Ingestion do
     end
   end
 
+  defp source_config_non_negative_integer(source, string_key, atom_key, default) do
+    source
+    |> source_config_value(string_key, atom_key, default)
+    |> case do
+      value when is_integer(value) and value >= 0 -> value
+      value when is_binary(value) -> parse_non_negative_integer(value, default)
+      _value -> default
+    end
+  end
+
   defp parse_positive_integer(value, default) do
     case Integer.parse(value) do
       {parsed, ""} when parsed > 0 -> parsed
+      _ -> default
+    end
+  end
+
+  defp parse_non_negative_integer(value, default) do
+    case Integer.parse(value) do
+      {parsed, ""} when parsed >= 0 -> parsed
       _ -> default
     end
   end
