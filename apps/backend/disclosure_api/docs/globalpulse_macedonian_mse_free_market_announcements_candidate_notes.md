@@ -7,7 +7,9 @@ MSE_FREE_MARKET_ANNOUNCEMENTS_MANUAL_SOURCE_REGISTERED
 MSE_FREE_MARKET_ANNOUNCEMENTS_LOCAL_FIXTURE_PARSER_SMOKE_PASS
 MSE_FREE_MARKET_ANNOUNCEMENTS_LIVE_PARSER_SMOKE_PASS
 MSE_FREE_MARKET_ANNOUNCEMENTS_LIVE_ENDPOINT_PROBE_PASS
-MSE_FREE_MARKET_ANNOUNCEMENTS_STAGING_LIVE_POLL_PENDING
+MSE_FREE_MARKET_ANNOUNCEMENTS_STAGING_LIVE_POLL_PASS
+MSE_FREE_MARKET_ANNOUNCEMENTS_DATE_SPECIFIC_DIGEST_VISIBILITY_PASS
+MSE_FREE_MARKET_ANNOUNCEMENTS_LATEST_PUBLIC_UI_VISIBILITY_PENDING
 MSE_FREE_MARKET_ANNOUNCEMENTS_SCHEDULED_POLLING_DISABLED
 ```
 
@@ -67,10 +69,27 @@ first live row published_at: 2026-05-08T00:00:00Z
 ## Next Verification
 
 ```text
-1. Deploy to Fly staging after merge.
-2. Poll manually with use_live_fetch=true and edition=breaking.
-3. Verify source health remains bounded and active=false.
-4. Check date-specific digest visibility under eu_south.
+1. Keep source active=false.
+2. Keep scheduled polling disabled.
+3. Re-check latest public UI visibility when the public digest date/top-N selection includes MSE rows.
+4. Consider this source only inside the broader Europe batch-promotion gate.
+```
+
+## Staging Smoke
+
+```text
+Fly staging live poll: PASS
+deploy commit: 009aa66a5cb366a47905f87d71b348f1e1822133
+poll endpoint: POST /api/admin/sources/mk_mse_free_market_announcements/poll?use_live_fetch=true&edition=breaking
+fetch.mode: live
+fetch.status_code: 200
+fetch.bytes: 134203
+records_seen: 25
+records_inserted: 25
+source health: healthy
+active: false
+date-specific digest visibility: PASS for 2026-05-06 and 2026-05-05 under eu_south
+latest public UI visibility: pending because latest public digest currently renders 2026-05-09 while the latest MSE row is 2026-05-08
 ```
 
 ## Guardrails
