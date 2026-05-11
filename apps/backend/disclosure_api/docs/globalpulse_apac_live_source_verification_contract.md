@@ -19,7 +19,7 @@ Current APAC live-source status:
 ```text
 India NSE official RSS: staging-live verified, bounded, duplicate-handling hardened, conservative staging schedule configured
 India NSE first automated scheduled run: pending first matching GitHub Actions cron slot
-ASEAN official endpoint: scan started, SGX browser JSON access path confirmed but blocked by policy/runtime review
+ASEAN official endpoint: scan started, SGX browser JSON access path confirmed but blocked by policy/runtime review; Bursa browser JSON access path confirmed but blocked by Cloudflare/runtime fetch
 ANZ official endpoint: scan started, exact machine-readable endpoint not accepted yet
 JP live source: blocked by issue #339 source-authority decision
 ```
@@ -158,7 +158,7 @@ Observed ASEAN exact-endpoint scan:
 ```text
 scan record: globalpulse_asean_live_endpoint_verification_scan.md
 SGX company announcements: official browser JSON access path confirmed; source registration blocked by SGX policy/permission review and backend runtime fetch compatibility
-Bursa Malaysia company announcements: official surface found; executor direct probes returned 403
+Bursa Malaysia company announcements: official browser JSON access path confirmed; source registration blocked by Cloudflare/runtime fetch compatibility
 SET Thailand company news: official HTML surface found; guessed JSON endpoint returned 403
 IDX announcements: official surface to verify; executor direct probes returned 403
 decision: no ASEAN source registration yet
@@ -258,9 +258,11 @@ REJECT: enabling JP live polling before issue #339 source-authority decision is 
 1. Record first automated India NSE scheduled staging poll after the GitHub Actions cron fires.
 2. Record SGX policy/permission decision or runtime compatibility probe if SGX access is allowed to continue.
 3. Add a bounded SGX adapter only if policy/permission, runtime fetch, and response-shape gates pass.
-4. Continue ASX/NZX access-path review for ANZ.
-5. Add a bounded ASX/NZX adapter only if official access terms and response shape are accepted.
-6. Keep JP blocked until issue #339 source authority is resolved.
+4. Retry SET Thailand official company-news access-path review.
+5. Retry IDX Indonesia official announcement access-path review.
+6. Continue ASX/NZX access-path review for ANZ.
+7. Add a bounded ASX/NZX adapter only if official access terms and response shape are accepted.
+8. Keep JP blocked until issue #339 source authority is resolved.
 ```
 
 ## Current Conclusion
@@ -274,6 +276,8 @@ INDIA_NSE_FIRST_AUTOMATED_SCHEDULED_RUN_PENDING
 ASEAN_LIVE_ENDPOINT_SCAN_STARTED
 SGX_BROWSER_JSON_ACCESS_PATH_CONFIRMED
 SGX_SOURCE_REGISTRATION_BLOCKED_BY_POLICY_REVIEW
+BURSA_MALAYSIA_BROWSER_JSON_ACCESS_PATH_CONFIRMED
+BURSA_MALAYSIA_SOURCE_REGISTRATION_BLOCKED_BY_RUNTIME_FETCH
 ASEAN_MACHINE_READABLE_ENDPOINT_NOT_ACCEPTED_YET_FOR_SOURCE_REGISTRATION
 ANZ_LIVE_ENDPOINT_SCAN_STARTED
 ANZ_MACHINE_READABLE_ENDPOINT_NOT_ACCEPTED_YET
