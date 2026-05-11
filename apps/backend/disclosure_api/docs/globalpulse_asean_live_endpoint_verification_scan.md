@@ -22,6 +22,9 @@ VIETNAM_HNX_ISSUER_DISCLOSURE_RSS_CONFIRMED
 VIETNAM_HNX_ISSUER_DISCLOSURE_SOURCE_REGISTERED_INACTIVE
 VIETNAM_HNX_MANUAL_STAGING_SMOKE_PASS
 VIETNAM_HNX_DIGEST_VISIBLE_LIVE
+VIETNAM_HSX_LISTED_COMPANY_NEWS_RSS_CONFIRMED
+VIETNAM_HSX_LISTED_COMPANY_NEWS_SOURCE_REGISTERED_INACTIVE
+VIETNAM_HSX_MANUAL_STAGING_SMOKE_PENDING
 IDX_INDONESIA_OFFICIAL_JSON_ACCESS_PATH_CONFIRMED
 IDX_INDONESIA_FLY_ELIXIR_RUNTIME_PROBE_RECORDED
 IDX_INDONESIA_SOURCE_REGISTRATION_STILL_BLOCKED_BY_CHALLENGE_COOKIE_DEPENDENCY
@@ -46,6 +49,7 @@ Bursa Malaysia focused follow-up: globalpulse_bursa_malaysia_company_announcemen
 SET Thailand focused follow-up: globalpulse_set_thailand_company_news_access_path_review.md
 IDX Indonesia focused follow-up: globalpulse_idx_indonesia_announcements_access_path_review.md
 Vietnam HNX focused candidate: globalpulse_vietnam_hnx_issuer_rss_candidate_notes.md
+Vietnam HSX focused candidate: globalpulse_vietnam_hsx_listed_company_news_candidate_notes.md
 ```
 
 ## Latest SGX Access-Path Addendum
@@ -92,6 +96,19 @@ Existing rss_v1 parser accepted the bounded fixture sample.
 Bounded inactive source candidate added with disable_live_fixture_fallback=true.
 Manual Fly staging smoke passed with fetch.mode=live and metadata.fallback_to_fixture=false.
 Digest verification showed 6 HNX live items in the 12-item latest breaking digest.
+Source activation and scheduling remain blocked.
+```
+
+## Latest Vietnam HSX Access-Path Addendum
+
+```text
+Vietnam HSX listed-company-news RSS path confirmed.
+Official RSS index returned 200 application/rss+xml from api.hsx.vn.
+Category feed 21 returned 200 application/rss+xml with channel title Tin To chuc niem yet.
+Bounded direct RSS request observed 10 items with escaped HTML span titles and a10:updated timestamps.
+rss_v1 parser behavior was aligned with the existing capability contract for HTML trimming and updated timestamp extraction.
+Bounded inactive source candidate added with disable_live_fixture_fallback=true.
+Manual Fly staging smoke is pending.
 Source activation and scheduling remain blocked.
 ```
 

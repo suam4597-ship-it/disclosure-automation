@@ -4338,6 +4338,8 @@ defmodule DisclosureAutomation.Parser do
     end
   end
 
+  defp clean_html(nil), do: nil
+
   defp clean_html(value) do
     value
     |> String.replace(~r/<[^>]+>/, " ")
@@ -4504,13 +4506,27 @@ defmodule DisclosureAutomation.Parser do
 
   defp parse_item(item) do
     link = xpath_string_any(item, [~c"string(link)", ~c"string(Link)"])
+    title = xpath_string_any(item, [~c"string(title)", ~c"string(Title)"])
+    summary = xpath_string_any(item, [~c"string(description)", ~c"string(Description)"])
 
     %{
       external_id: xpath_string_any(item, [~c"string(guid)", ~c"string(Guid)"]) || link,
-      title: xpath_string_any(item, [~c"string(title)", ~c"string(Title)"]),
+      title: clean_html(title),
       url: link,
-      summary: xpath_string_any(item, [~c"string(description)", ~c"string(Description)"]),
-      published_at: xpath_pub_date_any(item, [~c"string(pubDate)", ~c"string(PubDate)"]),
+      summary: clean_html(summary),
+      published_at:
+        xpath_pub_date_any(item, [
+          ~c"string(pubDate)",
+          ~c"string(PubDate)",
+          ~c"string(a10:updated)",
+          ~c"string(a10:published)",
+          ~c"string(updated)",
+          ~c"string(Updated)",
+          ~c"string(published)",
+          ~c"string(Published)",
+          ~c"string(*[local-name()='updated'])",
+          ~c"string(*[local-name()='published'])"
+        ]),
       category: xpath_string_any(item, [~c"string(category)", ~c"string(Category)"])
     }
   end

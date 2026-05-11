@@ -19,7 +19,7 @@ Current APAC live-source status:
 ```text
 India NSE official RSS: staging-live verified, bounded, duplicate-handling hardened, conservative staging schedule configured
 India NSE first automated scheduled run: pending first matching GitHub Actions cron slot
-ASEAN official endpoint: scan started, SGX browser JSON access path confirmed but blocked by policy/runtime review; Bursa browser JSON access path confirmed but blocked by Cloudflare/runtime fetch; SET official JSON access path and repeated Fly staging smoke passed while inactive; HNX Vietnam official RSS inactive candidate added and first manual staging smoke passed; IDX official JSON access path confirmed but blocked by challenge-cookie dependency
+ASEAN official endpoint: scan started, SGX browser JSON access path confirmed but blocked by policy/runtime review; Bursa browser JSON access path confirmed but blocked by Cloudflare/runtime fetch; SET official JSON access path and repeated Fly staging smoke passed while inactive; HNX Vietnam official RSS inactive candidate added and first manual staging smoke passed; HSX Vietnam official listed-company RSS inactive candidate added pending Fly staging smoke; IDX official JSON access path confirmed but blocked by challenge-cookie dependency
 ANZ official endpoint: ASX official JSON access path confirmed, but access-policy decision blocks source registration until written authority or approved ASX Information Services path exists
 JP live source: blocked by issue #339 source-authority decision
 ```
@@ -175,6 +175,7 @@ SET Thailand company news: official JSON access path confirmed; source registrat
 SET Thailand Fly/Elixir runtime probe: passed through DisclosureAutomation.Http.fetch/2 from globalpulse-backend-staging
 SET Thailand manual staging smoke: passed twice with fetch.mode=live and metadata.fallback_to_fixture=false; still inactive and unscheduled
 Vietnam HNX issuer disclosures: official RSS path confirmed; inactive rss_v1 source candidate added with fixture fallback disabled; first manual staging smoke passed with digest visibility
+Vietnam HSX listed-company news: official RSS path confirmed; inactive rss_v1 source candidate added with fixture fallback disabled; manual staging smoke pending
 IDX announcements: official JSON access path confirmed; Fly/Elixir runtime probe recorded direct API/page bootstrap Cloudflare 403 and cookie-mediated API 200 JSON; source registration blocked by challenge-cookie dependency, bounded adapter, and query-shape policy
 decision: no active or scheduled ASEAN source yet; inactive ASEAN candidates remain manual-staging-only
 ```
@@ -278,11 +279,12 @@ REJECT: enabling JP live polling before issue #339 source-authority decision is 
 4. Add a bounded inactive SET adapter/source candidate.
 5. Add SET manual Fly staging live poll smoke only after parser/source candidate deployment.
 6. Repeat SET Thailand manual staging smoke in another observation window.
-7. Keep IDX blocked unless a clean backend runtime or approved data-access path is documented.
-8. Revisit ASX only after written authority or approved ASX Information Services path exists.
-9. Add a bounded inactive ASX adapter/source candidate only if authority, response shape, runtime fetch, and staging-smoke gates pass.
-10. Keep JP blocked until issue #339 source authority is resolved.
-11. Keep KR deferred until the dedicated KR backend/source authority path exists.
+7. Deploy the inactive Vietnam HSX listed-company RSS candidate to Fly staging and run manual staging smoke.
+8. Keep IDX blocked unless a clean backend runtime or approved data-access path is documented.
+9. Revisit ASX only after written authority or approved ASX Information Services path exists.
+10. Add a bounded inactive ASX adapter/source candidate only if authority, response shape, runtime fetch, and staging-smoke gates pass.
+11. Keep JP blocked until issue #339 source authority is resolved.
+12. Keep KR deferred until the dedicated KR backend/source authority path exists.
 ```
 
 ## Current Conclusion
@@ -307,6 +309,9 @@ VIETNAM_HNX_ISSUER_DISCLOSURE_RSS_CONFIRMED
 VIETNAM_HNX_ISSUER_DISCLOSURE_SOURCE_REGISTERED_INACTIVE
 VIETNAM_HNX_MANUAL_STAGING_SMOKE_PASS
 VIETNAM_HNX_DIGEST_VISIBLE_LIVE
+VIETNAM_HSX_LISTED_COMPANY_NEWS_RSS_CONFIRMED
+VIETNAM_HSX_LISTED_COMPANY_NEWS_SOURCE_REGISTERED_INACTIVE
+VIETNAM_HSX_MANUAL_STAGING_SMOKE_PENDING
 IDX_INDONESIA_JSON_ACCESS_PATH_CONFIRMED
 IDX_INDONESIA_FLY_ELIXIR_RUNTIME_PROBE_RECORDED
 IDX_INDONESIA_SOURCE_REGISTRATION_STILL_BLOCKED_BY_CHALLENGE_COOKIE_DEPENDENCY
