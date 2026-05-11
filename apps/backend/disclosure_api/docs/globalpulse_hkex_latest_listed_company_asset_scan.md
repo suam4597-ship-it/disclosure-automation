@@ -19,7 +19,9 @@ HKEX_LATEST_LISTED_COMPANY_PARSER_CONTRACT_RECORDED
 HKEX_FLY_RUNTIME_HOMECAT0_JSON_FETCH_PASS
 HKEX_INACTIVE_SOURCE_CANDIDATE_ADDED
 HKEX_SOURCE_ACTIVE_FALSE
-HKEX_MANUAL_STAGING_SMOKE_PENDING
+HKEX_MANUAL_STAGING_LIVE_POLL_PASS
+HKEX_DIGEST_VISIBLE_LIVE
+HKEX_CADENCE_NOT_APPROVED
 NO_CNTW_SCHEDULED_LIVE_POLLING_ENABLED
 KR_LIVE_SOURCE_TRACK_DEFERRED
 JP_LIVE_POLLING_STILL_BLOCKED_BY_ISSUE_339
@@ -292,7 +294,7 @@ rollback plan that disables the source without affecting SEC, NSE, SET, HNX, HSX
 ## Guardrails
 
 ```text
-source registration not added
+source registration added only as active=false/manual_staging_only
 active=true not set
 production scheduled polling not enabled
 workflow schedule unchanged
@@ -310,7 +312,8 @@ JP remains blocked until issue #339 is resolved
 ## Next Allowed Steps
 
 ```text
-1. Deploy the bounded inactive HKEX JSON parser/source candidate to Fly staging.
-2. Run manual staging live-poll smoke with metadata.fallback_to_fixture=false.
-3. Keep CN/TW production scheduled polling disabled.
+1. Run at least one additional manual HKEX observation window.
+2. Confirm digest diversity with HKEX present beside other regional sources.
+3. Design staging-only cadence before any schedule change.
+4. Keep CN/TW production scheduled polling disabled.
 ```
