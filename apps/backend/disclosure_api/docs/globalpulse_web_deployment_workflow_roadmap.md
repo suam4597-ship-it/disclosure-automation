@@ -138,6 +138,14 @@ Safe next PR:
 Design GlobalPulse frontend runtime config promotion
 ```
 
+Status:
+
+```text
+design doc: globalpulse_frontend_runtime_config_promotion_design.md
+production backend URL: pending
+production config implementation: pending
+```
+
 This should decide:
 
 ```text

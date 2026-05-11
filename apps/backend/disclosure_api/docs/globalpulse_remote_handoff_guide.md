@@ -18,6 +18,12 @@ Public website deployment roadmap:
 globalpulse_web_deployment_workflow_roadmap.md
 ```
 
+Frontend runtime config promotion design:
+
+```text
+globalpulse_frontend_runtime_config_promotion_design.md
+```
+
 ## Current Repository Anchor
 
 ```text
@@ -199,6 +205,7 @@ JP live polling: blocked by issue #339 until source authority decision
 6. Continue scheduled observation summaries for Europe and India when enough runs accumulate.
 7. Revisit Taiwan/SET/Vietnam cadence only through staging-only design PRs.
 8. Activate and run public Pages + Fly staging web smoke workflow before any production deployment decision.
+9. Add bounded frontend config version marker after the runtime config promotion design.
 
 ## HKEX Next-Step Contract
 
