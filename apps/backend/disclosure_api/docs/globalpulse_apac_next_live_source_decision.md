@@ -46,7 +46,10 @@ HKEX_LATEST_LISTED_COMPANY_PARSER_CONTRACT_RECORDED
 HKEX_FLY_RUNTIME_HOMECAT0_JSON_FETCH_PASS
 HKEX_INACTIVE_SOURCE_CANDIDATE_ADDED
 HKEX_SOURCE_ACTIVE_FALSE
-HKEX_MANUAL_STAGING_SMOKE_PENDING
+HKEX_MANUAL_STAGING_LIVE_POLL_PASS
+HKEX_DIGEST_VISIBLE_LIVE
+HKEX_SOURCE_HEALTH_HEALTHY
+HKEX_CADENCE_NOT_APPROVED
 IDX_IS_SECOND_ASEAN_RUNTIME_PROBE_CANDIDATE
 IDX_FLY_ELIXIR_RUNTIME_PROBE_RECORDED
 IDX_SOURCE_REGISTRATION_STILL_BLOCKED_BY_CHALLENGE_COOKIE_DEPENDENCY
@@ -70,7 +73,7 @@ Vietnam HNX: official issuer-disclosure RSS returned 200 application/rss+xml; bo
 Vietnam HSX: official listed-company RSS returned 200 application/rss+xml; bounded inactive rss_v1 source candidate added with fixture fallback disabled; repeated manual Fly staging smoke passed with digest visibility
 Taiwan MOPS: official daily material-information JSON endpoint returned 200 application/json; bounded inactive date-aware parser/source candidate added with fixture fallback disabled; repeated manual Fly staging smoke passed with digest visibility
 HKEXnews: official listed-company title-search HTML surface returned bounded issuer rows, and official Latest Listed Company Information JSON assets were confirmed
-HKEX local/Fly runtime probes and inactive candidate: bounded title-search URL returned 200 text/html through local Erlang :httpc with total_records=877; homecat0_e.json returned 200 application/json through local Erlang :httpc and Fly staging release eval; bounded homecat0_e.json parser/source contract recorded; inactive/manual staging-only source candidate added
+HKEX local/Fly runtime probes and inactive candidate: bounded title-search URL returned 200 text/html through local Erlang :httpc with total_records=877; homecat0_e.json returned 200 application/json through local Erlang :httpc and Fly staging release eval; bounded homecat0_e.json parser/source contract recorded; inactive/manual staging-only source candidate added; manual Fly staging live poll passed with digest visibility while active=false
 IDX Indonesia: official JSON path confirmed; Fly/Elixir direct API/page bootstrap returned Cloudflare 403, cookie-mediated API returned 200 JSON; access decision blocks source registration until a clean backend runtime or approved data-access path exists
 Philippines PSE EDGE: official disclosure surface confirmed; official CAF/ITCH data-access products found; public-site access is not enough for backend polling without approved data-access path
 ASX: official MarkitDigital JSON path confirmed, direct Node/PowerShell fetch passed, blocked by access-policy decision until written authority or approved ASX Information Services path exists
@@ -87,7 +90,7 @@ JP: remains blocked by source-authority issue #339
 3. Keep SET inactive; if cadence is considered later, design staging-only schedule first
 4. Keep IDX blocked unless a clean backend runtime or approved data-access path is documented
 5. Continue APAC official-source scanning within official exchange/OAM surfaces
-6. Revisit HKEX by deploying the inactive candidate to Fly staging and running manual live-poll smoke
+6. Revisit HKEX through an additional manual observation window and staging-only cadence design before any schedule change
 7. Revisit Taiwan MOPS only through another explicit staging-only cadence design or manual observation
 8. Revisit ASX only after written authority or approved ASX Information Services path exists
 9. Revisit SGX only after policy/permission and runtime compatibility are explicitly accepted
@@ -159,7 +162,7 @@ SEBI media and notifications are official, but they are regulator media/policy r
 NSE already has a working official RSS source with staging schedule evidence
 ```
 
-HKEX remains blocked from source registration because:
+HKEX remains blocked from cadence or production scheduling because:
 
 ```text
 official HKEXnews listed-company HTML rows were confirmed
@@ -169,6 +172,9 @@ local Erlang :httpc returned 200 application/json for homecat0_e.json
 homecat0_e.json parser/source contract is recorded in globalpulse_hkex_latest_listed_company_parser_contract.md
 Fly runtime compatibility is recorded in globalpulse_hkex_fly_runtime_probe_results.md
 inactive source candidate is recorded in globalpulse_hkex_inactive_source_candidate_notes.md
+manual staging live poll is recorded in globalpulse_hkex_manual_staging_smoke_results.md
+source remains active=false and candidate_status=manual_staging_only
+no staging-only cadence proposal has been approved yet
 attachment/detail/PDF fetch must remain excluded from the first candidate
 ```
 
@@ -196,7 +202,7 @@ Do not start JP live polling until issue #339 is resolved.
 3. Keep SET inactive; if cadence is considered later, design staging-only schedule first
 4. Keep IDX blocked unless a clean backend runtime or approved data-access path is documented
 5. Continue APAC official-source scanning within official exchange/OAM surfaces
-6. Revisit HKEX by deploying the inactive candidate to Fly staging and running manual live-poll smoke
+6. Revisit HKEX through an additional manual observation window and staging-only cadence design before any schedule change
 7. Revisit Taiwan MOPS only through another explicit staging-only cadence design or manual observation
 8. Revisit ASX only after written authority or approved ASX Information Services path exists
 9. Revisit PSE only after approved PSE data-product or written permission path exists

@@ -16,8 +16,11 @@ HKEX_SOURCE_ACTIVE_FALSE
 HKEX_CANDIDATE_STATUS_MANUAL_STAGING_ONLY
 HKEX_LIVE_FIXTURE_FALLBACK_DISABLED
 HKEX_ATTACHMENT_BODY_FETCH_DISABLED
-HKEX_MANUAL_STAGING_SMOKE_PENDING
+HKEX_MANUAL_STAGING_LIVE_POLL_PASS
+HKEX_DIGEST_VISIBLE_LIVE
+HKEX_SOURCE_HEALTH_HEALTHY
 NO_CNTW_SCHEDULED_LIVE_POLLING_ENABLED
+HKEX_CADENCE_NOT_APPROVED
 KR_LIVE_SOURCE_TRACK_DEFERRED
 JP_LIVE_POLLING_STILL_BLOCKED_BY_ISSUE_339
 ```
@@ -105,13 +108,24 @@ includes ext=NaN / HTM-link row
 
 The fixture is for parser/contract validation only. It cannot be used to claim live success.
 
-## Pending Validation
+## Completed Staging Validation
 
 ```text
-manual Fly staging live poll
-metadata.fallback_to_fixture=false
-public digest visibility smoke
-rollback confirmation that disabling HKEX does not affect SEC, NSE, SET, HNX, HSX, Taiwan MOPS, or Europe canaries
+manual Fly staging live poll: pass
+fetch.mode=live: pass
+fetch.status_code=200: pass
+records_seen=5: pass
+records_inserted=5: pass
+public digest visibility smoke: pass
+source health after poll: healthy
+source active=false after poll: confirmed
+fixture fallback disabled: confirmed
+```
+
+Staging result record:
+
+```text
+apps/backend/disclosure_api/docs/globalpulse_hkex_manual_staging_smoke_results.md
 ```
 
 ## Guardrails
@@ -135,10 +149,9 @@ JP remains blocked until issue #339 is resolved
 ## Next Allowed Steps
 
 ```text
-1. Validate compile/config loading locally.
-2. Deploy to Fly staging.
-3. Run manual live poll for hkex_latest_listed_company_information with use_live_fetch=true.
-4. Confirm fetch.mode=live and metadata.fallback_to_fixture=false.
-5. Confirm digest visibility in public Pages after manual staging poll.
-6. Record manual staging smoke before considering any cadence.
+1. Run at least one additional manual observation window.
+2. Confirm digest diversity after HKEX appears alongside other regional sources.
+3. Record rollback behavior if HKEX is disabled or unavailable.
+4. Design a staging-only cadence proposal before any schedule change.
+5. Keep production scheduled polling disabled until a separate approval gate.
 ```
