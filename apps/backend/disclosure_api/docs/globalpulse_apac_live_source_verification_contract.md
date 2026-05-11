@@ -276,8 +276,8 @@ REJECT: enabling JP live polling before issue #339 source-authority decision is 
 3. Add a bounded SGX adapter only if policy/permission, runtime fetch, and response-shape gates pass.
 4. Add a bounded inactive SET adapter/source candidate.
 5. Add SET manual Fly staging live poll smoke only after parser/source candidate deployment.
-6. Record an IDX access decision before any IDX parser/source candidate.
-7. Repeat SET Thailand manual staging smoke in another observation window.
+6. Repeat SET Thailand manual staging smoke in another observation window.
+7. Keep IDX blocked unless a clean backend runtime or approved data-access path is documented.
 8. Revisit ASX only after written authority or approved ASX Information Services path exists.
 9. Add a bounded inactive ASX adapter/source candidate only if authority, response shape, runtime fetch, and staging-smoke gates pass.
 10. Keep JP blocked until issue #339 source authority is resolved.
@@ -305,6 +305,7 @@ SET_THAILAND_REPEATED_OBSERVATION_WINDOW_PENDING
 IDX_INDONESIA_JSON_ACCESS_PATH_CONFIRMED
 IDX_INDONESIA_FLY_ELIXIR_RUNTIME_PROBE_RECORDED
 IDX_INDONESIA_SOURCE_REGISTRATION_STILL_BLOCKED_BY_CHALLENGE_COOKIE_DEPENDENCY
+IDX_CHALLENGE_COOKIE_ACCESS_DECISION_RECORDED
 ASEAN_MACHINE_READABLE_ENDPOINTS_CONFIRMED_BUT_NOT_ACCEPTED_FOR_SOURCE_REGISTRATION
 ANZ_LIVE_ENDPOINT_SCAN_STARTED
 ASX_JSON_ACCESS_PATH_CONFIRMED
