@@ -138,6 +138,7 @@ pipeline format CI recovery: pass, merge commit 34c7d06e0503bcf83f64d35a7c4b59b5
 post-recovery docs CI: pass, head 62922a389913b63aa832799a8cade1bc6270fd00
 scheduled workflow observation cookbook: added
 EU canary follow-up scheduled observation: pass, run 25680178601
+Denmark DFSA OAM follow-up scheduled observation: pass, run 25680895829
 ```
 
 Current public surfaces:
