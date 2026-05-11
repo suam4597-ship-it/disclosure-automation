@@ -129,6 +129,8 @@ workflow id: 274668919
 first workflow_dispatch result: pass, run 25676030410
 daily schedule: 17 0 * * *
 Node.js action runtime opt-in: FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true
+daily main maintenance verification: pass, run 25677329262
+Node.js forced-runtime warning: still present, non-blocking
 ```
 
 ### 3. Split Staging And Production Runtime Configuration
@@ -285,13 +287,12 @@ Do not add alerting noise until the checks and owners are clear.
 
 ```text
 1. Record HKEX first automated scheduled staging run.
-2. Add public web smoke workflow for Pages + Fly staging.
-3. Record public web smoke workflow result.
-4. Design frontend runtime config promotion.
-5. Design production backend deployment.
-6. Add production deployment runbook.
-7. Continue source observation windows.
-8. Only then decide production backend + production frontend URL.
+2. Continue public web smoke daily observation.
+3. Design frontend runtime config promotion.
+4. Design production backend deployment.
+5. Add production deployment runbook.
+6. Continue source observation windows.
+7. Only then decide production backend + production frontend URL.
 ```
 
 ## What Not To Do Yet

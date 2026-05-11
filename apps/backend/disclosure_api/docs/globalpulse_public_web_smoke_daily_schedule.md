@@ -58,3 +58,14 @@ Do not add public Source Health UI.
 ## Next Gate
 
 After this schedule is active on `main`, run one manual dispatch to verify the Node.js 24 opt-in does not break artifact upload, then record the result if needed.
+
+Status:
+
+```text
+manual maintenance verification after main activation: pass
+run id: 25677329262
+result doc: globalpulse_public_web_smoke_daily_maintenance_verification.md
+artifact upload: pass
+Node.js 24 opt-in: present
+Node.js 20 forced-runtime warning: still present, non-blocking
+```

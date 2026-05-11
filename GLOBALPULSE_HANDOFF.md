@@ -32,6 +32,12 @@ For the public web smoke daily schedule, read:
 apps/backend/disclosure_api/docs/globalpulse_public_web_smoke_daily_schedule.md
 ```
 
+For the public web smoke daily maintenance verification on `main`, read:
+
+```text
+apps/backend/disclosure_api/docs/globalpulse_public_web_smoke_daily_maintenance_verification.md
+```
+
 For frontend runtime config promotion rules, read:
 
 ```text
@@ -75,6 +81,7 @@ phase0 public web smoke workflow PR: #544 merged
 main public web smoke activation PR: #545 merged
 workflow id: 274668919
 first workflow_dispatch result: pass, run 25676030410
+daily workflow main maintenance verification: pass, run 25677329262
 HKEX first automated scheduled staging run: pending after 2026-05-11T14:22Z window
 next HKEX check window: 2026-05-11T16:22Z / 2026-05-12 01:22 KST
 next web deployment gate: decide production backend app/database/frontend URL
