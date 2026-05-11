@@ -19,7 +19,7 @@ Current APAC live-source status:
 ```text
 India NSE official RSS: staging-live verified, bounded, duplicate-handling hardened, conservative staging schedule configured
 India NSE first automated scheduled run: pending first matching GitHub Actions cron slot
-ASEAN official endpoint: scan started, SGX browser JSON access path confirmed but blocked by policy/runtime review; Bursa browser JSON access path confirmed but blocked by Cloudflare/runtime fetch; SET official JSON access path confirmed but pending adapter/runtime probe
+ASEAN official endpoint: scan started, SGX browser JSON access path confirmed but blocked by policy/runtime review; Bursa browser JSON access path confirmed but blocked by Cloudflare/runtime fetch; SET and IDX official JSON access paths confirmed but pending adapter/runtime probes
 ANZ official endpoint: scan started, exact machine-readable endpoint not accepted yet
 JP live source: blocked by issue #339 source-authority decision
 ```
@@ -160,7 +160,7 @@ scan record: globalpulse_asean_live_endpoint_verification_scan.md
 SGX company announcements: official browser JSON access path confirmed; source registration blocked by SGX policy/permission review and backend runtime fetch compatibility
 Bursa Malaysia company announcements: official browser JSON access path confirmed; source registration blocked by Cloudflare/runtime fetch compatibility
 SET Thailand company news: official JSON access path confirmed; source registration blocked pending bounded adapter and Fly/Elixir runtime probe
-IDX announcements: official surface to verify; executor direct probes returned 403
+IDX announcements: official JSON access path confirmed; source registration blocked pending bounded adapter, query-shape policy, and Fly/Elixir runtime probe
 decision: no ASEAN source registration yet
 ```
 
@@ -260,10 +260,11 @@ REJECT: enabling JP live polling before issue #339 source-authority decision is 
 3. Add a bounded SGX adapter only if policy/permission, runtime fetch, and response-shape gates pass.
 4. Add a SET Thailand runtime compatibility probe if the bootstrap path is accepted.
 5. Add a bounded inactive SET adapter/source candidate only if runtime fetch, parser, rate/cadence, and staging-smoke gates pass.
-6. Retry IDX Indonesia official announcement access-path review.
-7. Continue ASX/NZX access-path review for ANZ.
-8. Add a bounded ASX/NZX adapter only if official access terms and response shape are accepted.
-9. Keep JP blocked until issue #339 source authority is resolved.
+6. Add an IDX Indonesia runtime compatibility probe if the bounded date-window query shape is accepted.
+7. Decide whether SET or IDX should be the first ASEAN adapter candidate.
+8. Continue ASX/NZX access-path review for ANZ.
+9. Add a bounded ASX/NZX adapter only if official access terms and response shape are accepted.
+10. Keep JP blocked until issue #339 source authority is resolved.
 ```
 
 ## Current Conclusion
@@ -281,7 +282,9 @@ BURSA_MALAYSIA_BROWSER_JSON_ACCESS_PATH_CONFIRMED
 BURSA_MALAYSIA_SOURCE_REGISTRATION_BLOCKED_BY_RUNTIME_FETCH
 SET_THAILAND_JSON_ACCESS_PATH_CONFIRMED
 SET_THAILAND_SOURCE_REGISTRATION_PENDING_RUNTIME_PROBE_AND_ADAPTER
-ASEAN_MACHINE_READABLE_ENDPOINT_NOT_ACCEPTED_YET_FOR_SOURCE_REGISTRATION
+IDX_INDONESIA_JSON_ACCESS_PATH_CONFIRMED
+IDX_INDONESIA_SOURCE_REGISTRATION_PENDING_RUNTIME_PROBE_AND_ADAPTER
+ASEAN_MACHINE_READABLE_ENDPOINTS_CONFIRMED_BUT_NOT_ACCEPTED_FOR_SOURCE_REGISTRATION
 ANZ_LIVE_ENDPOINT_SCAN_STARTED
 ANZ_MACHINE_READABLE_ENDPOINT_NOT_ACCEPTED_YET
 PRODUCTION_APAC_SCHEDULED_LIVE_POLLING_NOT_ENABLED
