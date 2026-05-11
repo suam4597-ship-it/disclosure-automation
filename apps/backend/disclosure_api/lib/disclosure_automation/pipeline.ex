@@ -7116,8 +7116,7 @@ defmodule DisclosureAutomation.Ingestion do
 
       not hkex_latest_listed_company_info_payload?(response.body) ->
         {:error,
-         {:unsupported_live_payload, "hkex_latest_listed_company_info_json_v1",
-          :unexpected_json}}
+         {:unsupported_live_payload, "hkex_latest_listed_company_info_json_v1", :unexpected_json}}
 
       true ->
         :ok
