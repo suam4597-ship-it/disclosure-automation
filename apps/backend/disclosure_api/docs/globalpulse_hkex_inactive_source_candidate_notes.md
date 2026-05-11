@@ -19,6 +19,7 @@ HKEX_ATTACHMENT_BODY_FETCH_DISABLED
 HKEX_MANUAL_STAGING_LIVE_POLL_PASS
 HKEX_DIGEST_VISIBLE_LIVE
 HKEX_SOURCE_HEALTH_HEALTHY
+HKEX_SECOND_MANUAL_OBSERVATION_PASS
 NO_CNTW_SCHEDULED_LIVE_POLLING_ENABLED
 HKEX_CADENCE_NOT_APPROVED
 KR_LIVE_SOURCE_TRACK_DEFERRED
@@ -112,11 +113,13 @@ The fixture is for parser/contract validation only. It cannot be used to claim l
 
 ```text
 manual Fly staging live poll: pass
+second manual staging live poll: pass
 fetch.mode=live: pass
 fetch.status_code=200: pass
 records_seen=5: pass
 records_inserted=5: pass
 public digest visibility smoke: pass
+public Pages browser visibility smoke: pass
 source health after poll: healthy
 source active=false after poll: confirmed
 fixture fallback disabled: confirmed
@@ -126,6 +129,8 @@ Staging result record:
 
 ```text
 apps/backend/disclosure_api/docs/globalpulse_hkex_manual_staging_smoke_results.md
+apps/backend/disclosure_api/docs/globalpulse_hkex_second_manual_observation_results.md
+apps/backend/disclosure_api/docs/globalpulse_hkex_public_pages_browser_smoke_results.md
 ```
 
 ## Guardrails
@@ -149,9 +154,8 @@ JP remains blocked until issue #339 is resolved
 ## Next Allowed Steps
 
 ```text
-1. Run at least one additional manual observation window.
+1. Design a staging-only cadence proposal before any schedule change.
 2. Confirm digest diversity after HKEX appears alongside other regional sources.
 3. Record rollback behavior if HKEX is disabled or unavailable.
-4. Design a staging-only cadence proposal before any schedule change.
-5. Keep production scheduled polling disabled until a separate approval gate.
+4. Keep production scheduled polling disabled until a separate approval gate.
 ```
