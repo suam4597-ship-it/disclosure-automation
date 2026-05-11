@@ -14,6 +14,12 @@ For the public website deployment roadmap, read:
 apps/backend/disclosure_api/docs/globalpulse_web_deployment_workflow_roadmap.md
 ```
 
+For the public Pages + Fly staging smoke workflow contract, read:
+
+```text
+apps/backend/disclosure_api/docs/globalpulse_public_web_smoke_workflow.md
+```
+
 Current public surfaces:
 
 ```text

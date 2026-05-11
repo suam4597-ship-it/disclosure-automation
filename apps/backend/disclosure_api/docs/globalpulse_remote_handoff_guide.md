@@ -196,7 +196,7 @@ JP live polling: blocked by issue #339 until source authority decision
 5. Record HKEX first automated scheduled staging run after the cron fires.
 6. Continue scheduled observation summaries for Europe and India when enough runs accumulate.
 7. Revisit Taiwan/SET/Vietnam cadence only through staging-only design PRs.
-8. Add public Pages + Fly staging web smoke workflow before any production deployment decision.
+8. Activate and run public Pages + Fly staging web smoke workflow before any production deployment decision.
 
 ## HKEX Next-Step Contract
 
@@ -266,6 +266,7 @@ Denmark DFSA OAM first automated scheduled run: 25668194957
 HKEX scheduled staging cron: 22 */2 * * 1-5
 HKEX main activation PR: #541
 HKEX main activation commit: 423ca7fa710b04de56a74b0a1ee092b43597b8a1
+Public web smoke workflow: globalpulse-public-web-smoke.yml on phase0-foundation
 ```
 
 Useful branch checks:
