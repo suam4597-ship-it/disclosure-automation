@@ -13,6 +13,8 @@ SGX_OFFICIAL_BROWSER_ACCESS_PATH_CONFIRMED
 SGX_SOURCE_REGISTRATION_BLOCKED_BY_POLICY_REVIEW
 BURSA_MALAYSIA_OFFICIAL_BROWSER_ACCESS_PATH_CONFIRMED
 BURSA_MALAYSIA_SOURCE_REGISTRATION_BLOCKED_BY_CLOUDFLARE_RUNTIME_FETCH
+SET_THAILAND_OFFICIAL_JSON_ACCESS_PATH_CONFIRMED
+SET_THAILAND_SOURCE_REGISTRATION_PENDING_RUNTIME_PROBE_AND_ADAPTER
 ASEAN_MACHINE_READABLE_ENDPOINT_NOT_ACCEPTED_YET
 ASEAN_SOURCE_REGISTRATION_NOT_READY
 ASEAN_SCHEDULED_LIVE_POLLING_BLOCKED
@@ -30,6 +32,7 @@ current branch: phase0-foundation
 scan date: 2026-05-08 UTC / 2026-05-09 KST
 SGX focused follow-up: globalpulse_sgx_company_announcements_access_path_review.md
 Bursa Malaysia focused follow-up: globalpulse_bursa_malaysia_company_announcements_access_path_review.md
+SET Thailand focused follow-up: globalpulse_set_thailand_company_news_access_path_review.md
 ```
 
 ## Latest SGX Access-Path Addendum
@@ -51,6 +54,17 @@ Bounded first-page JSON response observed with 20 table rows.
 The JSON response contains table-cell HTML fragments rather than typed announcement objects.
 Direct non-browser/API-context probes returned Cloudflare challenge or 403 responses.
 Source registration remains blocked by runtime fetch compatibility.
+```
+
+## Latest SET Thailand Access-Path Addendum
+
+```text
+SET Thailand company-news browser access path confirmed.
+Official JSON endpoint observed as /api/cms/v1/news/set with sourceId=company and securityTypeIds=S.
+Bounded first-page JSON response observed with newsGroups/newsInfoList metadata.
+Fresh direct API probes returned 403 Incapsula challenge HTML.
+Normal page bootstrap plus SET browser headers returned 200 JSON in a local PowerShell session.
+Source registration remains blocked pending a bounded adapter and Fly/Elixir runtime probe.
 ```
 
 ## Candidate Surfaces Checked
@@ -127,24 +141,28 @@ Add a source only after a Fly/Elixir runtime fetch probe returns 2xx JSON withou
 authority: official Stock Exchange of Thailand surface
 candidate URL: https://www.set.or.th/en/market/news-and-alert/news?newsType=company
 category: ASEAN company news/announcements
-quick result: 200 text/html
-decision: official surface, but not rss_v1-ready
+quick result: page 200 text/html; browser/session JSON 200 application/json
+decision: official JSON access path observed, but source registration blocked pending adapter/runtime probe
 ```
 
 Observed:
 
 ```text
-The official SET company news page returned HTML.
-A guessed JSON endpoint, https://www.set.or.th/api/set/news/search?newsType=company, returned 403 in this executor.
-No accepted machine-readable endpoint was verified in this pass.
+The official SET company news page returned HTML and rendered company-news results.
+The page called /api/cms/v1/news/set with sourceId=company, securityTypeIds=S, a bounded date range, orderBy=date, and lang=en.
+The browser XHR returned HTTP 200 JSON with newsGroups and newsInfoList metadata.
+Fresh direct API probes returned 403 Incapsula challenge HTML.
+A normal page bootstrap followed by the API request with X-Channel=WEB_SET and X-Client-Uuid returned 200 JSON in a local PowerShell session.
+No Fly/Elixir runtime probe or bounded adapter has been added yet.
 ```
 
 Decision:
 
 ```text
 Do not register SET as an rss_v1 source.
-Investigate whether SET provides a public documented JSON/feed endpoint or requires a specific browser/session flow.
-If accepted, implement a bounded adapter rather than changing the public digest response shape.
+Do not treat the HTML page as live source input.
+Do not claim SET live readiness from browser-only success or fresh API 403 challenge responses.
+Add a source only after a Fly/Elixir bootstrap probe, bounded JSON adapter, rate/cadence policy, and staging smoke pass.
 ```
 
 ### IDX Indonesia Announcements
@@ -217,4 +235,4 @@ The safest next ASEAN task is a focused SGX access-path review:
 - decide whether a dedicated SGX JSON adapter is appropriate
 ```
 
-If SGX access is not acceptable, retry Bursa/SET/IDX with the same exact-endpoint gate rather than widening scope or using third-party aggregators by default.
+If SGX or SET access is not acceptable, retry IDX with the same exact-endpoint gate rather than widening scope or using third-party aggregators by default.
