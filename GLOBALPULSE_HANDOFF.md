@@ -68,6 +68,12 @@ For the source-observation production readiness matrix, read:
 apps/backend/disclosure_api/docs/globalpulse_source_observation_production_readiness_matrix.md
 ```
 
+For the first monitoring and incident-response plan, read:
+
+```text
+apps/backend/disclosure_api/docs/globalpulse_basic_monitoring_incident_plan.md
+```
+
 For production backend deployment rules, read:
 
 ```text
@@ -99,6 +105,7 @@ next HKEX check window: 2026-05-11T16:22Z / 2026-05-12 01:22 KST
 next web deployment gate: decide production backend app/database/frontend URL
 production decision record: added, production infra not created
 source observation matrix: added, production source promotion not approved
+basic monitoring incident plan: added, no alerting runtime enabled
 ```
 
 Current public surfaces:
