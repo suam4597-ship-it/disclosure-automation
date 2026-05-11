@@ -38,6 +38,12 @@ The decision-record companion document tracks the open approvals:
 globalpulse_production_deployment_decision_record.md
 ```
 
+Fly.io command templates for after approval are recorded in:
+
+```text
+globalpulse_production_fly_command_templates.md
+```
+
 Secret values must not be pasted into this document, PR descriptions, issue comments, terminal logs, or screenshots.
 
 ## Preflight Checklist

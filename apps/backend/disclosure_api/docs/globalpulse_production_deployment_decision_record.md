@@ -189,6 +189,12 @@ Only after the decisions above are approved:
 12. Record production frontend/backend smoke.
 ```
 
+Command templates for the Fly.io path are recorded in:
+
+```text
+globalpulse_production_fly_command_templates.md
+```
+
 ## Values To Bring From The Operator
 
 The operator should provide these values without secrets:
