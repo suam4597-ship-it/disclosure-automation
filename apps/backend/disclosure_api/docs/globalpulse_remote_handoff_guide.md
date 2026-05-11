@@ -167,7 +167,8 @@ HKEX:
   public Pages browser visibility: pass
   source health after poll: healthy
   staging cadence design: recorded
-  next gate: conservative staging workflow implementation
+  conservative staging workflow: configured
+  next gate: first automated scheduled staging run
 ```
 
 ### Korea / Japan
@@ -183,7 +184,7 @@ JP live polling: blocked by issue #339 until source authority decision
 2. Record EU scheduled staging canary observation summary after enough scheduled runs accumulate.
 3. Record scheduled-canary digest diversity and public Pages visibility smoke.
 4. Continue India NSE 7-day staging observation.
-5. Add HKEX to conservative staging workflow only after reviewing cadence design.
+5. Record HKEX first automated scheduled staging run after the cron fires.
 6. Continue scheduled observation summaries for Europe and India when enough runs accumulate.
 7. Revisit Taiwan/SET/Vietnam cadence only through staging-only design PRs.
 
@@ -208,6 +209,7 @@ manual staging smoke: globalpulse_hkex_manual_staging_smoke_results.md
 second manual observation: globalpulse_hkex_second_manual_observation_results.md
 public Pages browser smoke: globalpulse_hkex_public_pages_browser_smoke_results.md
 staging cadence design: globalpulse_hkex_staging_cadence_design.md
+staging workflow implementation: globalpulse_hkex_staging_workflow_implementation.md
 ```
 
 Completed before manual staging verification:
@@ -233,7 +235,8 @@ source remains active=false
 candidate_status remains manual_staging_only
 cadence: not approved
 staging cadence design: recorded
-next: add HKEX to staging workflow only, keep source active=false
+staging workflow: configured
+next: record first scheduled run, keep source active=false
 ```
 
 ## GitHub Actions Checks To Review
@@ -250,6 +253,7 @@ Important runs to know:
 EU canary payload review run: 25650523685
 India NSE first scheduled run: 25650796284
 Denmark DFSA OAM first automated scheduled run: 25668194957
+HKEX scheduled staging cron: 22 */2 * * 1-5
 ```
 
 Useful branch checks:
