@@ -24,6 +24,12 @@ Frontend runtime config promotion design:
 globalpulse_frontend_runtime_config_promotion_design.md
 ```
 
+Frontend staging config marker:
+
+```text
+globalpulse_frontend_config_version_marker.md
+```
+
 Production backend deployment design:
 
 ```text

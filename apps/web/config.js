@@ -7,8 +7,15 @@
 // - set window.DISCLOSURE_API_BASE_URL before this file is loaded, or
 // - use ?apiBase=<backend-url> in the page URL for one-off smoke tests.
 
+window.GLOBALPULSE_RUNTIME_CONFIG = Object.freeze({
+  environment: "staging",
+  apiBaseUrl: "https://globalpulse-backend-staging.fly.dev",
+  configVersion: "staging-20260511-1",
+  allowQueryParamOverride: true
+});
+
 window.DISCLOSURE_API_BASE_URL =
-  window.DISCLOSURE_API_BASE_URL || "https://globalpulse-backend-staging.fly.dev";
+  window.DISCLOSURE_API_BASE_URL || window.GLOBALPULSE_RUNTIME_CONFIG.apiBaseUrl;
 
 // UI adapter for backend region codes that were added after the original
 // single-file GlobalPulse shell. This keeps the large index.html stable while

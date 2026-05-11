@@ -74,6 +74,10 @@ jobs:
           from pathlib import Path
           text = Path("config.js").read_text(encoding="utf-8", errors="replace")
           required = [
+              "window.GLOBALPULSE_RUNTIME_CONFIG",
+              'environment: "staging"',
+              'configVersion: "staging-20260511-1"',
+              "allowQueryParamOverride: true",
               "window.DISCLOSURE_API_BASE_URL",
               "https://globalpulse-backend-staging.fly.dev",
               "greater_china",
