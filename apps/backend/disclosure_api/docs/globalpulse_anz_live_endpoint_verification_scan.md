@@ -9,7 +9,10 @@ This is documentation-only. It does not add runtime code, routes, controllers, t
 ```text
 ANZ_LIVE_SOURCE_SCAN_STARTED
 ANZ_OFFICIAL_SURFACES_FOUND
-ANZ_MACHINE_READABLE_ENDPOINT_NOT_ACCEPTED_YET
+ASX_OFFICIAL_JSON_ACCESS_PATH_CONFIRMED
+ASX_SOURCE_REGISTRATION_PENDING_ACCESS_POLICY_AND_ADAPTER
+NZX_OFFICIAL_CONTINGENCY_HTML_SURFACE_CONFIRMED
+NZX_MACHINE_READABLE_ENDPOINT_NOT_ACCEPTED_YET
 ANZ_SOURCE_REGISTRATION_NOT_READY
 ANZ_SCHEDULED_LIVE_POLLING_BLOCKED
 JP_LIVE_POLLING_STILL_BLOCKED_BY_ISSUE_339
@@ -23,6 +26,18 @@ APAC fixture smoke PR: #349 Record APAC regional public UI smoke
 APAC live contract: globalpulse_apac_live_source_verification_contract.md
 ASEAN scan record: globalpulse_asean_live_endpoint_verification_scan.md
 scan date: 2026-05-08 UTC / 2026-05-09 KST
+ASX focused follow-up: globalpulse_asx_market_announcements_access_path_review.md
+```
+
+## Latest ASX/NZX Access-Path Addendum
+
+```text
+ASX modern market-announcements page confirmed.
+Official ASX/MarkitDigital JSON endpoint observed as https://asx.api.markitdigital.com/asx-research/1.0/markets/announcements.
+Direct PowerShell and Node probes returned 200 application/json for a bounded page-0 query.
+ASX legacy /asx/1/company/{code}/announcements endpoint returned 404 uri-not-found and should not be used.
+NZX contingency announcements page confirmed as official HTML, but no machine-readable endpoint was observed.
+ANZ source registration remains blocked pending ASX access-policy decision and bounded adapter.
 ```
 
 ## Candidate Surfaces Checked
@@ -33,19 +48,23 @@ scan date: 2026-05-08 UTC / 2026-05-09 KST
 authority: official Australian Securities Exchange surface
 candidate URLs:
   - https://www.asx.com.au/asx/v2/statistics/announcements.do
-  - https://www2.asx.com.au/markets/trade-our-cash-market/todays-announcements
-  - https://www.asx.com.au/markets/trade-our-cash-market/todays-announcements.dub
+  - https://www.asx.com.au/markets/trade-our-cash-market/todays-announcements
+  - https://www.asx.com.au/markets/trade-our-cash-market/announcements
+  - https://asx.api.markitdigital.com/asx-research/1.0/markets/announcements
 category: ANZ listed-company announcements
-quick result: 200 text/html
-decision: official surface, but not rss_v1-ready
+quick result: official page 200 HTML; MarkitDigital JSON endpoint 200 application/json from PowerShell/Node
+decision: official JSON access path confirmed, but source registration blocked pending access-policy decision and bounded adapter
 ```
 
 Observed:
 
 ```text
 ASX exposes official market-announcement pages for recent, historical, and today's announcements.
-The checked public endpoints returned HTML in this executor.
-No accepted RSS, Atom, XML, JSON, or known API endpoint was verified in this pass.
+The modern ASX announcements page loads a MarkitDigital announcements app.
+The app calls /asx-research/1.0/markets/announcements with page, itemsPerPage, summaryCountsDate, and includeFacets query params.
+The JSON response contains data.items, data.count, data.facets, and data.summaryCounts.
+Direct PowerShell and Node probes returned 200 application/json for the bounded page-0 query.
+The old /asx/1/company/{code}/announcements endpoint returned 404 uri-not-found.
 Third-party ASX RSS or announcement mirrors exist, but they were not accepted as GlobalPulse source authority in this pass.
 ```
 
@@ -55,7 +74,8 @@ Decision:
 Do not register ASX as an rss_v1 source.
 Do not treat the HTML search or today's-announcements page as live source input.
 Do not use third-party ASX announcement RSS mirrors without explicit policy acceptance.
-ASX remains a strong ANZ candidate, but it likely needs an official documented feed/API path or a bounded adapter around an accepted official endpoint.
+Do not fetch announcement documents/PDFs in the initial candidate.
+Record ASX access-policy decision before adding a bounded inactive ASX JSON adapter/source candidate.
 ```
 
 ### NZX Public Announcements
@@ -74,8 +94,9 @@ Observed:
 
 ```text
 NZX public announcement pages returned HTML.
-The main NZX site displays recent NZSX announcement data, but no accepted RSS/Atom/JSON endpoint was verified.
-A direct probe to a guessed public announcement API resource returned 403 in this executor.
+The official announcements.nzx.com contingency page states that it is operated by NZX Limited as alternative access to market announcements.
+The contingency page rendered the most recent 200 announcements and a last-updated timestamp.
+No RSS, Atom, JSON, or XML endpoint was observed in the browser network pass.
 ```
 
 Decision:
@@ -83,7 +104,7 @@ Decision:
 ```text
 Do not register NZX as an rss_v1 source from the HTML pages.
 Do not infer machine-readability from the public announcements UI alone.
-Continue with official documentation or a browser/network inspection before adding a source.
+Do not treat the contingency HTML table as live source input unless a dedicated HTML adapter is explicitly accepted later.
 ```
 
 ### NZX Data Products
@@ -147,12 +168,11 @@ response_shape: public digest JSON response shape unchanged
 ## Next Step
 
 ```text
-ANZ source registration remains blocked.
-The safest next ANZ task is an ASX official access-path review:
-- confirm whether ASX exposes an official machine-readable announcements endpoint
-- confirm whether terms allow backend polling
-- capture a bounded sample response shape if access is accepted
-- decide whether a dedicated ASX adapter is appropriate
+ANZ source registration remains blocked, but ASX is now the strongest first ANZ adapter candidate.
+The safest next ANZ task is an ASX access-policy decision PR:
+- confirm whether ASX/MarkitDigital market-announcements JSON may be polled by the staging backend
+- record terms/copyright/rate-limit constraints
+- decide whether a dedicated bounded ASX JSON adapter is appropriate
 ```
 
 If ASX access is not acceptable, continue NZX exact-endpoint verification with the same access and response-shape gate rather than using third-party aggregators by default.
