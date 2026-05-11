@@ -17,6 +17,7 @@ SET_THAILAND_OFFICIAL_JSON_ACCESS_PATH_CONFIRMED
 SET_THAILAND_FLY_ELIXIR_RUNTIME_PROBE_PASS
 SET_THAILAND_BOUNDED_INACTIVE_SOURCE_CANDIDATE_ADDED
 SET_THAILAND_MANUAL_STAGING_SMOKE_PASS
+SET_THAILAND_REPEATED_MANUAL_STAGING_POLL_PASS
 VIETNAM_HNX_ISSUER_DISCLOSURE_RSS_CONFIRMED
 VIETNAM_HNX_ISSUER_DISCLOSURE_SOURCE_REGISTERED_INACTIVE
 VIETNAM_HNX_MANUAL_STAGING_SMOKE_PASS
@@ -77,8 +78,8 @@ Bounded first-page JSON response observed with newsGroups/newsInfoList metadata.
 Fresh direct API probes returned 403 Incapsula challenge HTML.
 Normal page bootstrap plus SET browser headers returned 200 JSON in a local PowerShell session.
 Fly/Elixir runtime probe from globalpulse-backend-staging returned 200 application/json through DisclosureAutomation.Http.fetch/2.
-Bounded inactive source candidate added and first manual staging smoke passed.
-Source activation and scheduling remain blocked pending repeated observation-window evidence.
+Bounded inactive source candidate added and repeated manual staging smoke passed.
+Source activation and production scheduling remain blocked.
 ```
 
 ## Latest Vietnam HNX Access-Path Addendum

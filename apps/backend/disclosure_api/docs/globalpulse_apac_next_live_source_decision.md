@@ -17,6 +17,7 @@ SET_IS_FIRST_ASEAN_RUNTIME_PROBE_CANDIDATE
 SET_FLY_ELIXIR_RUNTIME_PROBE_PASS
 SET_BOUNDED_INACTIVE_ADAPTER_SOURCE_CANDIDATE_ADDED
 SET_MANUAL_STAGING_SMOKE_PASS
+SET_REPEATED_MANUAL_STAGING_POLL_PASS
 VIETNAM_HNX_ISSUER_DISCLOSURE_RSS_CONFIRMED
 VIETNAM_HNX_ISSUER_DISCLOSURE_SOURCE_REGISTERED_INACTIVE
 VIETNAM_HNX_MANUAL_STAGING_SMOKE_PASS
@@ -38,7 +39,7 @@ PRODUCTION_APAC_SCHEDULED_LIVE_POLLING_NOT_ENABLED
 India NSE official RSS: staging-live verified and conservative staging schedule configured
 SGX: official browser JSON path confirmed, blocked by policy/runtime review
 Bursa Malaysia: official browser JSON path confirmed, blocked by Cloudflare/runtime fetch
-SET Thailand: bounded inactive source candidate added and first manual staging smoke passed; still blocked pending repeated observation-window evidence before activation/scheduling
+SET Thailand: bounded inactive source candidate added and repeated manual staging smoke passed; still inactive and production scheduling remains disabled
 Vietnam HNX: official issuer-disclosure RSS returned 200 application/rss+xml; bounded inactive rss_v1 source candidate added with fixture fallback disabled; first manual Fly staging smoke passed with digest visibility
 IDX Indonesia: official JSON path confirmed; Fly/Elixir direct API/page bootstrap returned Cloudflare 403, cookie-mediated API returned 200 JSON; access decision blocks source registration until a clean backend runtime or approved data-access path exists
 Philippines PSE EDGE: official disclosure surface confirmed; official CAF/ITCH data-access products found; public-site access is not enough for backend polling without approved data-access path
@@ -51,7 +52,7 @@ JP: remains blocked by source-authority issue #339
 ## Recommended Order
 
 ```text
-1. Repeat SET manual Fly staging live poll smoke in another observation window
+1. Keep SET inactive; if cadence is considered later, design staging-only schedule first
 2. Repeat Vietnam HNX manual Fly staging live poll smoke in another observation window
 3. Keep IDX blocked unless a clean backend runtime or approved data-access path is documented
 4. Continue APAC official-source scanning within official exchange/OAM surfaces
@@ -101,8 +102,8 @@ SET remains bounded because:
 the API is not a simple standalone endpoint
 some fresh direct API probes previously returned Incapsula challenge HTML
 bounded parser/source candidate remains active=false
-only one manual staging smoke has passed
-repeated observation-window evidence is still required before any activation or schedule decision
+repeated manual staging smoke has passed
+any cadence discussion must start as a staging-only schedule design before activation or production scheduling
 ```
 
 IDX is behind SET because:
@@ -136,7 +137,7 @@ Do not start JP live polling until issue #339 is resolved.
 ## Next PR Candidates
 
 ```text
-1. Repeat SET manual Fly staging live poll smoke in another observation window
+1. Keep SET inactive; if cadence is considered later, design staging-only schedule first
 2. Repeat Vietnam HNX manual Fly staging live poll smoke in another observation window
 3. Keep IDX blocked unless a clean backend runtime or approved data-access path is documented
 4. Continue APAC official-source scanning within official exchange/OAM surfaces

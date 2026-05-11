@@ -15,6 +15,7 @@ SET_THAILAND_DIRECT_API_FETCH_BLOCKED_WITHOUT_SESSION_BOOTSTRAP
 SET_THAILAND_FLY_ELIXIR_RUNTIME_PROBE_PASS
 SET_THAILAND_BOUNDED_INACTIVE_SOURCE_CANDIDATE_ADDED
 SET_THAILAND_MANUAL_STAGING_SMOKE_PASS
+SET_THAILAND_REPEATED_MANUAL_STAGING_POLL_PASS
 ASEAN_SCHEDULED_LIVE_POLLING_NOT_ENABLED
 PUBLIC_UI_AND_BACKEND_DIGEST_SHAPE_UNCHANGED
 ```
@@ -102,7 +103,7 @@ The accepted path appears to require a bounded session bootstrap from the offici
 The Fly/Elixir runtime probe is now recorded in globalpulse_set_thailand_fly_elixir_runtime_probe_results.md and returned 2xx JSON from Fly staging without challenge HTML.
 ```
 
-SET is still not active-source-ready because it has one manual staging live-poll pass and still needs repeated observation-window evidence before activation or scheduling.
+SET now has repeated manual Fly staging live-poll evidence, but it remains inactive and production scheduling is still disabled.
 
 ## Source Registration Decision
 
@@ -173,7 +174,7 @@ Do not use third-party SET mirrors or aggregators by default.
 ## Allowed Next PRs
 
 ```text
-1. Repeat SET manual Fly staging live poll smoke in another observation window.
-2. If repeated SET staging smoke fails, record the bounded failure and fix the smallest parser/live-fetch issue.
-3. If SET repeated smoke is delayed, continue to IDX Fly/Elixir runtime compatibility probe.
+1. Keep SET inactive after the repeated manual Fly staging live-poll pass.
+2. Do not enable ASEAN or APAC production scheduled polling.
+3. If cadence is considered later, start with a staging-only schedule design.
 ```

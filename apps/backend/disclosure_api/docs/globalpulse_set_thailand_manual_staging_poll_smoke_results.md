@@ -128,6 +128,12 @@ JP live polling: still blocked until source authority issue is resolved
 
 SET has now passed the first manual staging live smoke. The safer next step is one more repeated manual smoke in a different observation window before any discussion of activation or scheduling.
 
+The repeated observation-window smoke passed and is recorded in:
+
+```text
+globalpulse_set_thailand_repeated_manual_staging_poll_smoke_results.md
+```
+
 Allowed next work:
 
 ```text
