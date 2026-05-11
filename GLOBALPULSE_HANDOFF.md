@@ -92,6 +92,12 @@ For the production deployment decision values that still require operator approv
 apps/backend/disclosure_api/docs/globalpulse_production_deployment_decision_record.md
 ```
 
+For future Fly.io production command templates, read:
+
+```text
+apps/backend/disclosure_api/docs/globalpulse_production_fly_command_templates.md
+```
+
 Current remote continuation status:
 
 ```text
@@ -107,6 +113,7 @@ production decision record: added, production infra not created
 source observation matrix: added, production source promotion not approved
 basic monitoring incident plan: added, no alerting runtime enabled
 production approval issue: https://github.com/suam4597-ship-it/disclosure-automation/issues/561
+production Fly command templates: added, commands not executed
 ```
 
 Current public surfaces:
