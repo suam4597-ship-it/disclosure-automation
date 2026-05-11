@@ -14,6 +14,8 @@ VIETNAM_HNX_ISSUER_DISCLOSURE_SOURCE_REGISTERED_INACTIVE
 VIETNAM_HNX_FIXTURE_PARSER_SAMPLE_ADDED
 VIETNAM_HNX_LIVE_FIXTURE_FALLBACK_DISABLED
 VIETNAM_HNX_DETAIL_FETCH_DISABLED
+VIETNAM_HNX_MANUAL_STAGING_POLL_PASS
+VIETNAM_HNX_DIGEST_VISIBLE_LIVE
 ASEAN_SCHEDULED_LIVE_POLLING_NOT_ENABLED
 PRODUCTION_APAC_SCHEDULED_LIVE_POLLING_NOT_ENABLED
 ```
@@ -118,6 +120,12 @@ digest remains valid
 public digest JSON shape remains unchanged
 ```
 
+The first manual Fly staging smoke passed and is recorded in:
+
+```text
+globalpulse_vietnam_hnx_manual_staging_poll_smoke_results.md
+```
+
 ## Guardrails
 
 ```text
@@ -137,9 +145,7 @@ Keep JP blocked until issue #339 source authority is resolved.
 ## Allowed Next PRs
 
 ```text
-1. Deploy the inactive HNX candidate to Fly staging.
-2. Run manual HNX staging live poll smoke.
-3. Record HNX manual staging poll results.
-4. Repeat SET Thailand manual staging smoke in another observation window.
-5. Continue APAC official-source scanning within official exchange/OAM surfaces.
+1. Repeat HNX manual staging live poll smoke in another observation window.
+2. Repeat SET Thailand manual staging smoke in another observation window.
+3. Continue APAC official-source scanning within official exchange/OAM surfaces.
 ```

@@ -19,7 +19,8 @@ SET_BOUNDED_INACTIVE_ADAPTER_SOURCE_CANDIDATE_ADDED
 SET_MANUAL_STAGING_SMOKE_PASS
 VIETNAM_HNX_ISSUER_DISCLOSURE_RSS_CONFIRMED
 VIETNAM_HNX_ISSUER_DISCLOSURE_SOURCE_REGISTERED_INACTIVE
-VIETNAM_HNX_MANUAL_STAGING_SMOKE_PENDING
+VIETNAM_HNX_MANUAL_STAGING_SMOKE_PASS
+VIETNAM_HNX_DIGEST_VISIBLE_LIVE
 IDX_IS_SECOND_ASEAN_RUNTIME_PROBE_CANDIDATE
 IDX_FLY_ELIXIR_RUNTIME_PROBE_RECORDED
 IDX_SOURCE_REGISTRATION_STILL_BLOCKED_BY_CHALLENGE_COOKIE_DEPENDENCY
@@ -38,7 +39,7 @@ India NSE official RSS: staging-live verified and conservative staging schedule 
 SGX: official browser JSON path confirmed, blocked by policy/runtime review
 Bursa Malaysia: official browser JSON path confirmed, blocked by Cloudflare/runtime fetch
 SET Thailand: bounded inactive source candidate added and first manual staging smoke passed; still blocked pending repeated observation-window evidence before activation/scheduling
-Vietnam HNX: official issuer-disclosure RSS returned 200 application/rss+xml; bounded inactive rss_v1 source candidate added with fixture fallback disabled; manual Fly staging smoke still pending
+Vietnam HNX: official issuer-disclosure RSS returned 200 application/rss+xml; bounded inactive rss_v1 source candidate added with fixture fallback disabled; first manual Fly staging smoke passed with digest visibility
 IDX Indonesia: official JSON path confirmed; Fly/Elixir direct API/page bootstrap returned Cloudflare 403, cookie-mediated API returned 200 JSON; access decision blocks source registration until a clean backend runtime or approved data-access path exists
 Philippines PSE EDGE: official disclosure surface confirmed; official CAF/ITCH data-access products found; public-site access is not enough for backend polling without approved data-access path
 ASX: official MarkitDigital JSON path confirmed, direct Node/PowerShell fetch passed, blocked by access-policy decision until written authority or approved ASX Information Services path exists
@@ -51,7 +52,7 @@ JP: remains blocked by source-authority issue #339
 
 ```text
 1. Repeat SET manual Fly staging live poll smoke in another observation window
-2. Deploy and manually smoke Vietnam HNX issuer-disclosure RSS candidate on Fly staging
+2. Repeat Vietnam HNX manual Fly staging live poll smoke in another observation window
 3. Keep IDX blocked unless a clean backend runtime or approved data-access path is documented
 4. Continue APAC official-source scanning within official exchange/OAM surfaces
 5. Revisit ASX only after written authority or approved ASX Information Services path exists
@@ -136,7 +137,7 @@ Do not start JP live polling until issue #339 is resolved.
 
 ```text
 1. Repeat SET manual Fly staging live poll smoke in another observation window
-2. Deploy and manually smoke Vietnam HNX issuer-disclosure RSS candidate on Fly staging
+2. Repeat Vietnam HNX manual Fly staging live poll smoke in another observation window
 3. Keep IDX blocked unless a clean backend runtime or approved data-access path is documented
 4. Continue APAC official-source scanning within official exchange/OAM surfaces
 5. Revisit ASX only after written authority or approved ASX Information Services path exists

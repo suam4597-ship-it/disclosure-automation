@@ -19,7 +19,8 @@ SET_THAILAND_BOUNDED_INACTIVE_SOURCE_CANDIDATE_ADDED
 SET_THAILAND_MANUAL_STAGING_SMOKE_PASS
 VIETNAM_HNX_ISSUER_DISCLOSURE_RSS_CONFIRMED
 VIETNAM_HNX_ISSUER_DISCLOSURE_SOURCE_REGISTERED_INACTIVE
-VIETNAM_HNX_MANUAL_STAGING_SMOKE_PENDING
+VIETNAM_HNX_MANUAL_STAGING_SMOKE_PASS
+VIETNAM_HNX_DIGEST_VISIBLE_LIVE
 IDX_INDONESIA_OFFICIAL_JSON_ACCESS_PATH_CONFIRMED
 IDX_INDONESIA_FLY_ELIXIR_RUNTIME_PROBE_RECORDED
 IDX_INDONESIA_SOURCE_REGISTRATION_STILL_BLOCKED_BY_CHALLENGE_COOKIE_DEPENDENCY
@@ -88,7 +89,8 @@ Official RSS index listed the issuer-disclosure channel.
 Bounded direct RSS request returned 200 application/rss+xml from www.hnx.vn.
 Existing rss_v1 parser accepted the bounded fixture sample.
 Bounded inactive source candidate added with disable_live_fixture_fallback=true.
-Manual Fly staging smoke remains pending.
+Manual Fly staging smoke passed with fetch.mode=live and metadata.fallback_to_fixture=false.
+Digest verification showed 6 HNX live items in the 12-item latest breaking digest.
 Source activation and scheduling remain blocked.
 ```
 
@@ -244,7 +246,7 @@ authority: official Hanoi Stock Exchange surface
 candidate URL: https://www.hnx.vn/3/vi_vn/thong-tin-cong-bo-tu-to-chuc-phat-hanh.rss
 category: ASEAN/Vietnam issuer disclosures
 quick result: 200 application/rss+xml
-decision: inactive rss_v1 source candidate added; manual staging live poll still pending
+decision: inactive rss_v1 source candidate added; first manual staging live poll passed
 ```
 
 Observed:
@@ -255,6 +257,7 @@ The HNX RSS index lists the issuer-disclosure RSS channel.
 The issuer-disclosure RSS endpoint returned RSS 2.0 XML with bounded issuer-disclosure item metadata.
 The existing rss_v1 parser accepts the fixture sample.
 The candidate remains active=false and fixture fallback is disabled for live smoke.
+The first manual Fly staging smoke inserted 25 live records and the latest digest showed 6 HNX live items.
 ```
 
 Decision:
@@ -263,7 +266,7 @@ Decision:
 Do not activate the HNX Vietnam source yet.
 Do not enable ASEAN scheduled live polling.
 Do not fetch HNX detail pages or attachments in the initial candidate.
-Run manual Fly staging smoke before claiming Vietnam live-source readiness.
+Prefer one more observation-window smoke before any activation or schedule discussion.
 ```
 
 ## Rejected For This Pass
