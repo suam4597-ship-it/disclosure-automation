@@ -20,7 +20,7 @@ Current APAC live-source status:
 India NSE official RSS: staging-live verified, bounded, duplicate-handling hardened, conservative staging schedule configured
 India NSE first automated scheduled run: pending first matching GitHub Actions cron slot
 ASEAN official endpoint: scan started, SGX browser JSON access path confirmed but blocked by policy/runtime review; Bursa browser JSON access path confirmed but blocked by Cloudflare/runtime fetch; SET and IDX official JSON access paths confirmed but pending adapter/runtime probes
-ANZ official endpoint: ASX official JSON access path confirmed, but source registration pending access-policy decision and bounded adapter
+ANZ official endpoint: ASX official JSON access path confirmed, but access-policy decision blocks source registration until written authority or approved ASX Information Services path exists
 JP live source: blocked by issue #339 source-authority decision
 ```
 
@@ -61,8 +61,9 @@ Current next-source decision:
 
 ```text
 decision record: globalpulse_apac_next_live_source_decision.md
-next technical candidate: ASX MarkitDigital market-announcements JSON
-blocking gate: ASX access-policy decision
+ASX access-policy record: globalpulse_asx_markitdigital_access_policy_decision.md
+next technical candidate: SET Thailand runtime compatibility probe
+ASX status: technical JSON path confirmed, policy-blocked
 ASEAN fallback order: SET runtime probe, then IDX runtime probe
 KR live-source track: deferred until dedicated backend/source authority path exists
 JP live polling: blocked until issue #339 is resolved
@@ -216,6 +217,7 @@ Observed ANZ exact-endpoint scan:
 scan record: globalpulse_anz_live_endpoint_verification_scan.md
 ASX recent/historical/today's announcements: official HTML surfaces found; no accepted RSS/Atom/JSON endpoint verified
 ASX MarkitDigital announcements JSON: official page access path confirmed; direct Node/PowerShell fetch returned 200 JSON
+ASX access-policy decision: public-site access is not enough authority for GlobalPulse backend polling; source registration blocked until written authority or approved ASX Information Services path exists
 NZX public announcements: official contingency HTML surface confirmed; no RSS/Atom/JSON endpoint observed
 NZX data products: official access-policy surface found; not accepted as unauthenticated live source
 decision: no ANZ source registration yet
@@ -270,12 +272,12 @@ REJECT: enabling JP live polling before issue #339 source-authority decision is 
 1. Record first automated India NSE scheduled staging poll after the GitHub Actions cron fires.
 2. Record SGX policy/permission decision or runtime compatibility probe if SGX access is allowed to continue.
 3. Add a bounded SGX adapter only if policy/permission, runtime fetch, and response-shape gates pass.
-4. Add a SET Thailand runtime compatibility probe if the bootstrap path is accepted.
+4. Add a SET Thailand runtime compatibility probe.
 5. Add a bounded inactive SET adapter/source candidate only if runtime fetch, parser, rate/cadence, and staging-smoke gates pass.
 6. Add an IDX Indonesia runtime compatibility probe if the bounded date-window query shape is accepted.
 7. Decide whether SET or IDX should be the first ASEAN adapter candidate.
-8. Record ASX access-policy decision for MarkitDigital announcements JSON usage.
-9. Add a bounded inactive ASX adapter/source candidate only if official access terms, response shape, runtime fetch, and staging-smoke gates pass.
+8. Revisit ASX only after written authority or approved ASX Information Services path exists.
+9. Add a bounded inactive ASX adapter/source candidate only if authority, response shape, runtime fetch, and staging-smoke gates pass.
 10. Keep JP blocked until issue #339 source authority is resolved.
 11. Keep KR deferred until the dedicated KR backend/source authority path exists.
 ```
@@ -300,7 +302,8 @@ IDX_INDONESIA_SOURCE_REGISTRATION_PENDING_RUNTIME_PROBE_AND_ADAPTER
 ASEAN_MACHINE_READABLE_ENDPOINTS_CONFIRMED_BUT_NOT_ACCEPTED_FOR_SOURCE_REGISTRATION
 ANZ_LIVE_ENDPOINT_SCAN_STARTED
 ASX_JSON_ACCESS_PATH_CONFIRMED
-ASX_SOURCE_REGISTRATION_PENDING_ACCESS_POLICY_AND_ADAPTER
+ASX_ACCESS_POLICY_DECISION_RECORDED
+ASX_SOURCE_REGISTRATION_BLOCKED_UNTIL_WRITTEN_AUTHORITY_OR_APPROVED_INFORMATION_SERVICE_PATH
 NZX_MACHINE_READABLE_ENDPOINT_NOT_ACCEPTED_YET
 APAC_NEXT_LIVE_SOURCE_DECISION_RECORDED
 KR_LIVE_SOURCE_TRACK_DEFERRED_UNTIL_DEDICATED_BACKEND_EXISTS

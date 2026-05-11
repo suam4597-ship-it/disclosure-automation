@@ -11,7 +11,8 @@ This is documentation-only. It does not add runtime code, routes, controllers, t
 ```text
 APAC_NEXT_LIVE_SOURCE_DECISION_RECORDED
 ASX_IS_STRONGEST_NEXT_TECHNICAL_ADAPTER_CANDIDATE
-ASX_ADAPTER_BLOCKED_UNTIL_ACCESS_POLICY_DECISION
+ASX_ACCESS_POLICY_DECISION_RECORDED
+ASX_ADAPTER_BLOCKED_UNTIL_WRITTEN_AUTHORITY_OR_APPROVED_INFORMATION_SERVICE_PATH
 SET_IS_FIRST_ASEAN_RUNTIME_PROBE_CANDIDATE
 IDX_IS_SECOND_ASEAN_RUNTIME_PROBE_CANDIDATE
 KR_LIVE_SOURCE_TRACK_DEFERRED_UNTIL_DEDICATED_BACKEND_EXISTS
@@ -27,7 +28,7 @@ SGX: official browser JSON path confirmed, blocked by policy/runtime review
 Bursa Malaysia: official browser JSON path confirmed, blocked by Cloudflare/runtime fetch
 SET Thailand: official JSON path confirmed, blocked pending bounded adapter and Fly/Elixir runtime probe
 IDX Indonesia: official JSON path confirmed, blocked pending bounded adapter, query-shape policy, and Fly/Elixir runtime probe
-ASX: official MarkitDigital JSON path confirmed, direct Node/PowerShell fetch passed, blocked pending access-policy decision
+ASX: official MarkitDigital JSON path confirmed, direct Node/PowerShell fetch passed, blocked by access-policy decision until written authority or approved ASX Information Services path exists
 NZX: official contingency HTML surface confirmed, no machine-readable endpoint accepted
 KR: explicitly deferred by product direction because the dedicated backend is not ready
 JP: remains blocked by source-authority issue #339
@@ -36,14 +37,13 @@ JP: remains blocked by source-authority issue #339
 ## Recommended Order
 
 ```text
-1. ASX access-policy decision
-2. If ASX policy is accepted: bounded inactive ASX JSON parser/source candidate
-3. If ASX policy is not accepted or delayed: SET Fly/Elixir runtime compatibility probe
-4. If SET runtime probe passes: bounded inactive SET JSON parser/source candidate
-5. If SET is blocked: IDX Fly/Elixir runtime compatibility probe using YYYYMMDD date-window query
-6. Revisit SGX only after policy/permission and runtime compatibility are explicitly accepted
-7. Revisit Bursa only if a non-bypass backend runtime fetch path is accepted
-8. Keep KR last until its dedicated backend/source authority path exists
+1. SET Fly/Elixir runtime compatibility probe
+2. If SET runtime probe passes: bounded inactive SET JSON parser/source candidate
+3. If SET is blocked: IDX Fly/Elixir runtime compatibility probe using YYYYMMDD date-window query
+4. Revisit ASX only after written authority or approved ASX Information Services path exists
+5. Revisit SGX only after policy/permission and runtime compatibility are explicitly accepted
+6. Revisit Bursa only if a non-bypass backend runtime fetch path is accepted
+7. Keep KR last until its dedicated backend/source authority path exists
 ```
 
 ## Rationale
@@ -63,7 +63,9 @@ ASX is still blocked from source registration because:
 ```text
 ASX market-announcement access is subject to ASX terms of use
 market-data copyright restrictions are disclosed on the ASX announcement surface
-GlobalPulse has not recorded an explicit access-policy decision for backend polling
+GlobalPulse recorded an access-policy decision that public-site access is not enough for backend polling
+ASX terms describe Market Announcements as private/personal-use only unless ASX gives express written authority
+ASX Company News/Information Services is the appropriate authority path for reuse or redistribution
 no bounded ASX parser/source candidate exists yet
 no Fly staging live-poll smoke exists yet
 ```
@@ -112,9 +114,8 @@ Do not start JP live polling until issue #339 is resolved.
 ## Next PR Candidates
 
 ```text
-1. Record ASX MarkitDigital announcements access-policy decision
-2. Add bounded inactive ASX market-announcements parser/source candidate
-3. Add ASX manual staging live poll smoke
-4. Add SET Fly/Elixir runtime compatibility probe
-5. Add IDX Fly/Elixir runtime compatibility probe
+1. Add SET Fly/Elixir runtime compatibility probe
+2. Add bounded inactive SET JSON parser/source candidate if the runtime probe passes
+3. Add IDX Fly/Elixir runtime compatibility probe if SET remains blocked
+4. Revisit ASX only after written authority or approved ASX Information Services path exists
 ```
