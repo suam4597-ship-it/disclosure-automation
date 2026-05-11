@@ -91,6 +91,13 @@ smoke record: globalpulse_taiwan_mops_manual_staging_poll_smoke_results.md
 result: TAIWAN_MOPS_MANUAL_STAGING_LIVE_POLL_PASS
 ```
 
+A repeated manual Fly staging smoke also passed and is recorded in:
+
+```text
+smoke record: globalpulse_taiwan_mops_repeated_manual_staging_poll_smoke_results.md
+result: TAIWAN_MOPS_REPEATED_MANUAL_STAGING_LIVE_POLL_PASS
+```
+
 The smoke path:
 
 ```text
@@ -115,5 +122,5 @@ digest includes Taiwan MOPS material-information items when fresh records are pr
 ## Next Allowed PR
 
 ```text
-Repeat Taiwan MOPS manual staging smoke in another observation window.
+Continue APAC official-source scanning within official exchange/OAM surfaces.
 ```
