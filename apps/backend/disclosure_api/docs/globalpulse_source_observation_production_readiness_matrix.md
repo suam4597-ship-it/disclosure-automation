@@ -49,6 +49,12 @@ eu_south
 
 This confirms public staging visibility. It does not by itself approve production source schedules.
 
+Production source-promotion approvals are tracked in:
+
+```text
+https://github.com/suam4597-ship-it/disclosure-automation/issues/565
+```
+
 ## Readiness Matrix
 
 | Track | Current status | Evidence | Production gate |
@@ -117,6 +123,8 @@ Germany Company Register and Prague/PSE remain design/staging-only paths
 5. Decide production backend app/database/frontend URL.
 6. Only after production infrastructure smoke, decide source-by-source production schedules.
 ```
+
+Use issue #565 to collect those source-by-source approvals. Do not treat matrix visibility as approval.
 
 ## Guardrails
 

@@ -279,6 +279,12 @@ rollback smoke
 explicit source-by-source approval
 ```
 
+Approval tracker:
+
+```text
+https://github.com/suam4597-ship-it/disclosure-automation/issues/565
+```
+
 ### 7. Add Basic Monitoring
 
 Before production launch, add a monitoring plan:
