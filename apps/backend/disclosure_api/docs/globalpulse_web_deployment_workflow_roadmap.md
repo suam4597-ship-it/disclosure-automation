@@ -127,6 +127,8 @@ default-branch activation: complete via PR #545
 default-branch activation commit: 8a2a4b5279f578c1ab62622768acf6d0adbbb2ab
 workflow id: 274668919
 first workflow_dispatch result: pass, run 25676030410
+daily schedule: 17 0 * * *
+Node.js action runtime opt-in: FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true
 ```
 
 ### 3. Split Staging And Production Runtime Configuration

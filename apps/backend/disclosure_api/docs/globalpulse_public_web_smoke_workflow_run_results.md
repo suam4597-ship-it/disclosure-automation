@@ -111,7 +111,7 @@ The run emitted the GitHub-hosted Actions deprecation warning for `actions/uploa
 Node.js 20 actions are deprecated.
 ```
 
-This did not fail the smoke run. A follow-up workflow maintenance PR can opt into Node.js 24 or update the action/runtime behavior when appropriate.
+This did not fail the smoke run. The follow-up workflow maintenance path is to opt JavaScript actions into Node.js 24.
 
 ## Guardrails
 

@@ -42,6 +42,12 @@ HKEX scheduled staging pending status:
 globalpulse_hkex_scheduled_staging_pending_status.md
 ```
 
+Public web smoke daily schedule:
+
+```text
+globalpulse_public_web_smoke_daily_schedule.md
+```
+
 Production backend deployment design:
 
 ```text
