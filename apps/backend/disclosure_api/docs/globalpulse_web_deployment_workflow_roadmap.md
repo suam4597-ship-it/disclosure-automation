@@ -184,6 +184,15 @@ Recommended next PR:
 Design GlobalPulse production backend deployment
 ```
 
+Status:
+
+```text
+design doc: globalpulse_production_backend_deployment_design.md
+production Fly app: pending
+production database: pending
+production secrets: pending
+```
+
 Do not create or promote production secrets until this design is reviewed.
 
 ### 5. Add Deployment Runbook And Rollback Checklist

@@ -24,6 +24,12 @@ Frontend runtime config promotion design:
 globalpulse_frontend_runtime_config_promotion_design.md
 ```
 
+Production backend deployment design:
+
+```text
+globalpulse_production_backend_deployment_design.md
+```
+
 ## Current Repository Anchor
 
 ```text
@@ -206,6 +212,7 @@ JP live polling: blocked by issue #339 until source authority decision
 7. Revisit Taiwan/SET/Vietnam cadence only through staging-only design PRs.
 8. Activate and run public Pages + Fly staging web smoke workflow before any production deployment decision.
 9. Add bounded frontend config version marker after the runtime config promotion design.
+10. Add production deployment runbook after the production backend deployment design.
 
 ## HKEX Next-Step Contract
 
