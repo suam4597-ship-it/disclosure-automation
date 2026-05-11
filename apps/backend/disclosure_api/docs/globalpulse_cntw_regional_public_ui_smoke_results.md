@@ -22,6 +22,7 @@ screenshot path on local machine: C:/Users/suam4/AppData/Local/Temp/globalpulse-
 ```text
 PR #346 Add GlobalPulse CN/TW regional fixtures
 HKEX official listed-company endpoint scan: globalpulse_hkex_listed_company_endpoint_scan.md
+HKEX local Elixir runtime probe: globalpulse_hkex_local_elixir_runtime_probe_results.md
 ```
 
 ## CI Status for PR #346 Merge Commit
@@ -141,6 +142,8 @@ raw provider/auth/session/request material in public responses
 The CN/TW fixture layer is now visible in the public GlobalPulse UI.
 
 An HKEXnews official listed-company publication surface has now been scanned. It is relevant, but source registration remains blocked until a backend-compatible query contract and parser shape are accepted.
+
+A local Erlang/Elixir `:httpc` probe also returned 200 HTML for the bounded HKEX title-search URL. This does not replace the required Fly staging runtime probe.
 
 Recommended next options:
 

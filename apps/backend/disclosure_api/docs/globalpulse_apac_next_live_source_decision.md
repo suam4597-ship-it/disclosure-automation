@@ -39,6 +39,7 @@ TAIWAN_MOPS_MANUAL_STAGING_LIVE_POLL_PASS
 TAIWAN_MOPS_REPEATED_MANUAL_STAGING_LIVE_POLL_PASS
 TAIWAN_MOPS_DAILY_MATERIAL_INFO_DIGEST_VISIBLE_LIVE
 HKEX_LISTED_COMPANY_ENDPOINT_SCAN_RECORDED
+HKEX_LOCAL_ELIXIR_RUNTIME_PROBE_PASS
 HKEX_SOURCE_REGISTRATION_BLOCKED_PENDING_BACKEND_COMPATIBLE_QUERY_CONTRACT
 IDX_IS_SECOND_ASEAN_RUNTIME_PROBE_CANDIDATE
 IDX_FLY_ELIXIR_RUNTIME_PROBE_RECORDED
@@ -63,6 +64,7 @@ Vietnam HNX: official issuer-disclosure RSS returned 200 application/rss+xml; bo
 Vietnam HSX: official listed-company RSS returned 200 application/rss+xml; bounded inactive rss_v1 source candidate added with fixture fallback disabled; repeated manual Fly staging smoke passed with digest visibility
 Taiwan MOPS: official daily material-information JSON endpoint returned 200 application/json; bounded inactive date-aware parser/source candidate added with fixture fallback disabled; repeated manual Fly staging smoke passed with digest visibility
 HKEXnews: official listed-company title-search HTML surface returned bounded issuer rows, but machine-readable feed and backend-compatible query contract are not accepted yet
+HKEX local Elixir runtime probe: bounded title-search URL returned 200 text/html through Erlang :httpc with total_records=877; Fly staging runtime probe remains pending
 IDX Indonesia: official JSON path confirmed; Fly/Elixir direct API/page bootstrap returned Cloudflare 403, cookie-mediated API returned 200 JSON; access decision blocks source registration until a clean backend runtime or approved data-access path exists
 Philippines PSE EDGE: official disclosure surface confirmed; official CAF/ITCH data-access products found; public-site access is not enough for backend polling without approved data-access path
 ASX: official MarkitDigital JSON path confirmed, direct Node/PowerShell fetch passed, blocked by access-policy decision until written authority or approved ASX Information Services path exists
@@ -155,9 +157,10 @@ HKEX remains a scan-only candidate because:
 
 ```text
 official HKEXnews listed-company HTML rows were confirmed
+local Erlang :httpc returned 200 HTML for the bounded title-search URL
 no JSON or RSS feed contract has been accepted
 the reviewed all-market title-search URL returned no rows without a concrete query/search state
-curl HEAD returned 503 on reviewed HKEXnews URLs, so backend/runtime compatibility still needs a dedicated probe
+curl HEAD returned 503 on reviewed HKEXnews URLs, and Fly runtime compatibility still needs a dedicated probe
 ```
 
 ## Guardrails
