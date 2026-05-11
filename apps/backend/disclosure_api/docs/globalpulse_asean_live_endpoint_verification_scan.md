@@ -11,6 +11,8 @@ ASEAN_LIVE_SOURCE_SCAN_STARTED
 ASEAN_OFFICIAL_SURFACES_FOUND
 SGX_OFFICIAL_BROWSER_ACCESS_PATH_CONFIRMED
 SGX_SOURCE_REGISTRATION_BLOCKED_BY_POLICY_REVIEW
+BURSA_MALAYSIA_OFFICIAL_BROWSER_ACCESS_PATH_CONFIRMED
+BURSA_MALAYSIA_SOURCE_REGISTRATION_BLOCKED_BY_CLOUDFLARE_RUNTIME_FETCH
 ASEAN_MACHINE_READABLE_ENDPOINT_NOT_ACCEPTED_YET
 ASEAN_SOURCE_REGISTRATION_NOT_READY
 ASEAN_SCHEDULED_LIVE_POLLING_BLOCKED
@@ -27,6 +29,7 @@ India NSE staging schedule activation PR: #366 Activate India NSE staging schedu
 current branch: phase0-foundation
 scan date: 2026-05-08 UTC / 2026-05-09 KST
 SGX focused follow-up: globalpulse_sgx_company_announcements_access_path_review.md
+Bursa Malaysia focused follow-up: globalpulse_bursa_malaysia_company_announcements_access_path_review.md
 ```
 
 ## Latest SGX Access-Path Addendum
@@ -37,6 +40,17 @@ ANNOUNCEMENTS_API_URL observed as https://api.sgx.com/announcements/v1.1/.
 Bounded first-page JSON response observed with 20 rows and links.sgx.com detail URLs.
 The raw authorization token is not recorded.
 Source registration remains blocked by SGX policy/permission review and backend runtime fetch compatibility.
+```
+
+## Latest Bursa Malaysia Access-Path Addendum
+
+```text
+Bursa Malaysia company-announcements browser access path confirmed.
+XHR endpoint observed as https://www.bursamalaysia.com/api/v1/announcements/search?ann_type=company&per_page=20&page=1.
+Bounded first-page JSON response observed with 20 table rows.
+The JSON response contains table-cell HTML fragments rather than typed announcement objects.
+Direct non-browser/API-context probes returned Cloudflare challenge or 403 responses.
+Source registration remains blocked by runtime fetch compatibility.
 ```
 
 ## Candidate Surfaces Checked
@@ -83,15 +97,18 @@ candidate URL: https://www.bursamalaysia.com/market_information/announcements/co
 disclaimer URL: https://www.bursamalaysia.com/disclaimer_company_announcement
 category: ASEAN listed-company announcements
 quick result: executor returned 403 for direct page/API probes
-decision: official surface, exact machine endpoint still pending
+decision: official browser JSON endpoint observed, but source registration blocked by runtime fetch
 ```
 
 Observed:
 
 ```text
 Search-visible Bursa pages confirm official company-announcement surfaces and disclaimer language.
-Direct executor probes to the company-announcement page and guessed API endpoints returned 403.
-No accepted RSS/Atom/JSON endpoint was verified in this pass.
+The browser-rendered page uses /api/v1/announcements/search with ann_type=company, per_page=20, and page=1.
+The browser XHR returned HTTP 200 JSON with 20 table rows and recordsTotal/recordsFiltered metadata.
+The response rows contain bounded HTML fragments for date, company profile link, and announcement detail link.
+Direct non-browser/API-context probes returned 403 or Cloudflare challenge HTML.
+No backend-runtime-compatible endpoint was accepted in this pass.
 ```
 
 Decision:
@@ -99,7 +116,9 @@ Decision:
 ```text
 Do not register Bursa as an rss_v1 source.
 Do not use third-party Bursa mirrors or listed-company investor-relations mirrors as GlobalPulse source authority without explicit acceptance.
-Retry with browser/manual network inspection or official Bursa API documentation before adding a source.
+Do not claim Bursa live source readiness from browser-only XHR success.
+Do not bypass Cloudflare or other anti-automation controls.
+Add a source only after a Fly/Elixir runtime fetch probe returns 2xx JSON without challenge HTML.
 ```
 
 ### SET Thailand Company News
