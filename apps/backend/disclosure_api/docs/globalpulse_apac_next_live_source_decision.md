@@ -196,3 +196,5 @@ Do not start JP live polling until issue #339 is resolved.
 8. Revisit ASX only after written authority or approved ASX Information Services path exists
 9. Revisit PSE only after approved PSE data-product or written permission path exists
 ```
+
+For cross-machine continuation, use `globalpulse_remote_handoff_guide.md` as the current remote handoff entrypoint before starting new implementation work.
