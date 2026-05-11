@@ -8,6 +8,12 @@ For the full current state, next work queue, verification commands, and guardrai
 apps/backend/disclosure_api/docs/globalpulse_remote_handoff_guide.md
 ```
 
+For the public website deployment roadmap, read:
+
+```text
+apps/backend/disclosure_api/docs/globalpulse_web_deployment_workflow_roadmap.md
+```
+
 Current public surfaces:
 
 ```text

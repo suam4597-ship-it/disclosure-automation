@@ -12,6 +12,12 @@ Repo-root quick entrypoint:
 GLOBALPULSE_HANDOFF.md
 ```
 
+Public website deployment roadmap:
+
+```text
+globalpulse_web_deployment_workflow_roadmap.md
+```
+
 ## Current Repository Anchor
 
 ```text
@@ -190,6 +196,7 @@ JP live polling: blocked by issue #339 until source authority decision
 5. Record HKEX first automated scheduled staging run after the cron fires.
 6. Continue scheduled observation summaries for Europe and India when enough runs accumulate.
 7. Revisit Taiwan/SET/Vietnam cadence only through staging-only design PRs.
+8. Add public Pages + Fly staging web smoke workflow before any production deployment decision.
 
 ## HKEX Next-Step Contract
 
