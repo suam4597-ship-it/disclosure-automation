@@ -10,7 +10,7 @@ This is documentation-only. It does not enable production scheduled polling, doe
 EU_CANARY_FIRST_AUTOMATED_CRON_OBSERVED
 EU_CANARY_FIRST_AUTOMATED_CRON_RUN_SUCCESS
 EU_CANARY_ARTIFACT_METADATA_RECORDED
-EU_CANARY_ARTIFACT_PAYLOAD_REVIEW_NOT_AVAILABLE_FROM_LOCAL_UNAUTHENTICATED_API
+EU_CANARY_SUBSEQUENT_CRON_PAYLOAD_REVIEW_RECORDED
 EU_PRODUCTION_SCHEDULED_POLLING_NOT_ENABLED
 ```
 
@@ -59,11 +59,33 @@ expires_at: 2026-08-06T16:19:59Z
 artifact URL: https://github.com/suam4597-ship-it/disclosure-automation/actions/runs/25566582421/artifacts/6883667700
 ```
 
-## Local Review Limitation
+## Local Review Limitation For This First Run
 
 The GitHub REST metadata endpoints were readable from the local Codex environment, but the artifact zip download returned `401 Unauthorized` without a GitHub Actions artifact download token.
 
 Therefore this document records the automatic cron run and artifact metadata, but does not duplicate the per-source `poll-<source>.json` payloads. The earlier manual-dispatch smoke remains the detailed per-source payload baseline until an authenticated artifact review is performed.
+
+## Subsequent Payload Review
+
+A later automatic EU cron run was reviewed through the GitHub connector and recorded in:
+
+```text
+globalpulse_eu_scheduled_staging_canary_cron_payload_review.md
+```
+
+That follow-up run confirmed:
+
+```text
+run id: 25650523685
+event: schedule
+cron: 17 */4 * * 1-5
+resolved source_key: eu_scheduled_staging_canary
+run_mode: eu_canary
+health: success
+all source poll steps: success
+digest: success
+metadata.fallback_to_fixture: false
+```
 
 ## Existing Per-Source Baseline
 
@@ -102,4 +124,4 @@ JP live polling: still blocked pending issue #339 source-authority decision
 
 ## Next Step
 
-Record an authenticated artifact payload review for a subsequent EU cron run, or continue the multi-day observation window until at least 5 successful scheduled runs per included source are recorded before any production-scheduled-polling decision.
+Continue the multi-day observation window until at least 5 successful scheduled runs per included source are recorded before any production-scheduled-polling decision.

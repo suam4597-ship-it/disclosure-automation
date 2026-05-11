@@ -12,7 +12,7 @@ This is documentation-only. It does not add runtime code, routes, controllers, m
 GLOBALPULSE_EUROPE_CANDIDATE_EXPANSION_CHECKPOINT_REACHED
 EUROPE_NEW_SOURCE_DISCOVERY_PAUSED_EXCEPT_BLOCKER_FOLLOWUP
 DENMARK_DFSA_OAM_STAGING_CANARY_OBSERVATION_CONTINUES
-EU_FIRST_CANARY_OBSERVATION_REMAINS_REQUIRED
+EU_FIRST_CANARY_CRON_PAYLOAD_REVIEW_RECORDED
 EU_PRODUCTION_SCHEDULED_POLLING_NOT_APPROVED
 KOREA_BACKEND_TRACK_DEFERRED
 NEXT_PHASE_IS_STAGING_OBSERVABILITY_AND_PROMOTION_GATES
@@ -28,6 +28,8 @@ latest Denmark default-branch activation PR: #498 Record Denmark DFSA OAM defaul
 Denmark default-branch workflow activation: complete
 Denmark main manual dispatch run: success
 Denmark first automated scheduled run: pending first matching cron slot
+EU first automated cron observation: recorded
+EU subsequent cron payload review: recorded
 EU production scheduled polling: disabled
 new Europe sources default: active=false
 candidate status default: manual_staging_only or scheduled_staging_canary only where explicitly documented
@@ -125,7 +127,7 @@ Run the next phase in this order:
 
 ```text
 1. Record Denmark DFSA OAM first automated scheduled staging canary result after the cron fires.
-2. Continue EU first-canary observation and record source-by-source success/failure counts.
+2. Continue EU first-canary observation and record source-by-source success/failure counts after the observation window matures.
 3. Record a digest diversity and public Pages visibility checkpoint for scheduled staging canary output.
 4. Prepare a production-promotion readiness gate only after the observation window passes.
 5. Move non-Europe discovery to the next highest-value track while keeping Korea deferred.
@@ -181,8 +183,8 @@ Do not start Korea live-source implementation before the backend integration tra
 ## Allowed Next PRs
 
 ```text
-1. Record Denmark DFSA OAM first automated scheduled staging canary observation.
-2. Record EU scheduled staging canary observation summary.
+1. Record Denmark DFSA OAM first automated scheduled staging canary observation when the cron produces an eligible run.
+2. Record EU scheduled staging canary observation summary after enough scheduled runs accumulate.
 3. Record scheduled canary digest diversity and public Pages visibility smoke.
 4. Add or update a production-promotion readiness gate after the observation window passes.
 5. Start the next non-Europe endpoint scan track, excluding Korea until the backend path is ready.
