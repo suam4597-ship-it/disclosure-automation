@@ -166,7 +166,8 @@ HKEX:
   latest digest visibility: pass
   public Pages browser visibility: pass
   source health after poll: healthy
-  next gate: staging-only cadence design
+  staging cadence design: recorded
+  next gate: conservative staging workflow implementation
 ```
 
 ### Korea / Japan
@@ -182,7 +183,7 @@ JP live polling: blocked by issue #339 until source authority decision
 2. Record EU scheduled staging canary observation summary after enough scheduled runs accumulate.
 3. Record scheduled-canary digest diversity and public Pages visibility smoke.
 4. Continue India NSE 7-day staging observation.
-5. Design HKEX staging-only cadence before any schedule change.
+5. Add HKEX to conservative staging workflow only after reviewing cadence design.
 6. Continue scheduled observation summaries for Europe and India when enough runs accumulate.
 7. Revisit Taiwan/SET/Vietnam cadence only through staging-only design PRs.
 
@@ -206,6 +207,7 @@ candidate note: globalpulse_hkex_inactive_source_candidate_notes.md
 manual staging smoke: globalpulse_hkex_manual_staging_smoke_results.md
 second manual observation: globalpulse_hkex_second_manual_observation_results.md
 public Pages browser smoke: globalpulse_hkex_public_pages_browser_smoke_results.md
+staging cadence design: globalpulse_hkex_staging_cadence_design.md
 ```
 
 Completed before manual staging verification:
@@ -230,7 +232,8 @@ source health: healthy
 source remains active=false
 candidate_status remains manual_staging_only
 cadence: not approved
-next: staging-only cadence design if still healthy
+staging cadence design: recorded
+next: add HKEX to staging workflow only, keep source active=false
 ```
 
 ## GitHub Actions Checks To Review

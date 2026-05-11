@@ -17,7 +17,7 @@ HKEX_SOURCE_ACTIVE_FALSE
 HKEX_CANDIDATE_STATUS_MANUAL_STAGING_ONLY
 HKEX_LIVE_FIXTURE_FALLBACK_DISABLED
 HKEX_ATTACHMENT_BODY_FETCH_DISABLED
-HKEX_CADENCE_DESIGN_READY_FOR_STAGING_ONLY_PROPOSAL
+HKEX_STAGING_CADENCE_DESIGN_RECORDED
 NO_CNTW_SCHEDULED_LIVE_POLLING_ENABLED
 KR_LIVE_SOURCE_TRACK_DEFERRED
 JP_LIVE_POLLING_STILL_BLOCKED_BY_ISSUE_339
@@ -115,10 +115,16 @@ JP remains blocked until issue #339 is resolved
 
 HKEX now has two manual staging live-poll observations plus public Pages browser visibility.
 
-The next safe step is a documentation-only staging cadence design. That design should keep HKEX inactive until a separate implementation PR explicitly wires a staging-only schedule.
+The staging-only cadence design is now recorded in:
+
+```text
+globalpulse_hkex_staging_cadence_design.md
+```
+
+The next safe step is a separate implementation PR that adds HKEX only to a conservative staging workflow while keeping the source inactive.
 
 Suggested next PR:
 
 ```text
-Design HKEX staging-only cadence
+Add HKEX conservative staging workflow
 ```

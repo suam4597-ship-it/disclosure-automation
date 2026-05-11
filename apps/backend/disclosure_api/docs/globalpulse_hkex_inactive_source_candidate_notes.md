@@ -20,8 +20,9 @@ HKEX_MANUAL_STAGING_LIVE_POLL_PASS
 HKEX_DIGEST_VISIBLE_LIVE
 HKEX_SOURCE_HEALTH_HEALTHY
 HKEX_SECOND_MANUAL_OBSERVATION_PASS
+HKEX_STAGING_CADENCE_DESIGN_RECORDED
 NO_CNTW_SCHEDULED_LIVE_POLLING_ENABLED
-HKEX_CADENCE_NOT_APPROVED
+HKEX_PRODUCTION_SCHEDULED_POLLING_NOT_APPROVED
 KR_LIVE_SOURCE_TRACK_DEFERRED
 JP_LIVE_POLLING_STILL_BLOCKED_BY_ISSUE_339
 ```
@@ -131,6 +132,7 @@ Staging result record:
 apps/backend/disclosure_api/docs/globalpulse_hkex_manual_staging_smoke_results.md
 apps/backend/disclosure_api/docs/globalpulse_hkex_second_manual_observation_results.md
 apps/backend/disclosure_api/docs/globalpulse_hkex_public_pages_browser_smoke_results.md
+apps/backend/disclosure_api/docs/globalpulse_hkex_staging_cadence_design.md
 ```
 
 ## Guardrails
@@ -154,8 +156,9 @@ JP remains blocked until issue #339 is resolved
 ## Next Allowed Steps
 
 ```text
-1. Design a staging-only cadence proposal before any schedule change.
-2. Confirm digest diversity after HKEX appears alongside other regional sources.
-3. Record rollback behavior if HKEX is disabled or unavailable.
-4. Keep production scheduled polling disabled until a separate approval gate.
+1. Review the staging-only cadence design before any workflow change.
+2. Add HKEX only to the conservative staging workflow if approved.
+3. Confirm digest diversity after HKEX appears alongside other regional sources.
+4. Record rollback behavior if HKEX is disabled or unavailable.
+5. Keep production scheduled polling disabled until a separate approval gate.
 ```
