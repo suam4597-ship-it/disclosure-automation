@@ -17,9 +17,9 @@ HKEX_LOCAL_ERLANG_HTTPC_LLCI_JSON_FETCH_PASS
 HKEX_MACHINE_READABLE_LATEST_ASSET_CANDIDATE_CONFIRMED
 HKEX_LATEST_LISTED_COMPANY_PARSER_CONTRACT_RECORDED
 HKEX_FLY_RUNTIME_HOMECAT0_JSON_FETCH_PASS
-HKEX_SOURCE_REGISTRATION_READY_FOR_INACTIVE_CANDIDATE_PR
-HKEX_SOURCE_REGISTRATION_STILL_BLOCKED
-NO_HKEX_SOURCE_REGISTERED
+HKEX_INACTIVE_SOURCE_CANDIDATE_ADDED
+HKEX_SOURCE_ACTIVE_FALSE
+HKEX_MANUAL_STAGING_SMOKE_PENDING
 NO_CNTW_SCHEDULED_LIVE_POLLING_ENABLED
 KR_LIVE_SOURCE_TRACK_DEFERRED
 JP_LIVE_POLLING_STILL_BLOCKED_BY_ISSUE_339
@@ -265,7 +265,7 @@ This is positive local runtime evidence. It is not a Fly staging release-eval pa
 ## Source Registration Decision
 
 ```text
-Do not register an HKEX source from this docs-only scan.
+HKEX source registration is allowed only as active=false/manual staging-only.
 Do not enable production scheduled polling.
 Do not fetch HKEX PDFs, HTM attachments, detail pages, or document bodies in the first candidate.
 Do not claim Fly staging live-poll success from local PowerShell or local Erlang success.
@@ -310,6 +310,7 @@ JP remains blocked until issue #339 is resolved
 ## Next Allowed Steps
 
 ```text
-1. Add a bounded inactive HKEX JSON parser/source candidate using the recorded parser contract and Fly runtime probe.
-2. Keep CN/TW production scheduled polling disabled.
+1. Deploy the bounded inactive HKEX JSON parser/source candidate to Fly staging.
+2. Run manual staging live-poll smoke with metadata.fallback_to_fixture=false.
+3. Keep CN/TW production scheduled polling disabled.
 ```

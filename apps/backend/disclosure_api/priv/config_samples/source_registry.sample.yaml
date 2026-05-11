@@ -1612,6 +1612,40 @@ sources:
     config:
       fixture_path: source_payloads/hk_market_news.xml
 
+  - source_key: hkex_latest_listed_company_information
+    display_name: HKEX Latest Listed Company Information
+    source_type: api
+    base_url: https://www.hkexnews.hk/ncms/script/eds/homecat0_e.json
+    healthcheck_url: https://www.hkexnews.hk/homeLLCI.html
+    parser_key: hkex_latest_listed_company_info_json_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.18
+    coverage_tags:
+      - apac
+      - greater_china
+      - hong_kong
+      - hk
+      - disclosure
+      - exchange
+      - listed_companies
+      - issuer_announcement
+      - latest_submissions
+      - markets
+    active: false
+    config:
+      fixture_path: source_payloads/hkex_latest_listed_company_information.json
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_hkex_latest_listed_company_parser_contract.md
+      live_runtime_probe: globalpulse_hkex_fly_runtime_probe_results.md
+      disable_live_fixture_fallback: true
+      max_items_per_poll: 25
+      live_timeout_ms: 30000
+      live_headers:
+        accept: "application/json, text/plain, */*"
+        accept-language: "en-US,en;q=0.9"
+        referer: https://www.hkexnews.hk/homeLLCI.html
+        user-agent: Mozilla/5.0 GlobalPulse HKEX latest listed company probe
+
   - source_key: apac_policy_news
     display_name: APAC Policy News
     source_type: rss

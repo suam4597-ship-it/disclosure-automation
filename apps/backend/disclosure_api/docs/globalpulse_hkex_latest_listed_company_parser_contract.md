@@ -16,8 +16,8 @@ HKEX_ATTACHMENT_DETAIL_FETCH_OUT_OF_SCOPE
 HKEX_PDF_BODY_FETCH_FORBIDDEN_FOR_FIRST_CANDIDATE
 HKEX_FLY_RUNTIME_HOMECAT0_JSON_FETCH_PASS
 HKEX_STOCK_LIST_SHAPE_RECORDED
-HKEX_SOURCE_REGISTRATION_READY_FOR_INACTIVE_CANDIDATE_PR
-NO_HKEX_SOURCE_REGISTERED
+HKEX_INACTIVE_SOURCE_CANDIDATE_ADDED
+HKEX_SOURCE_ACTIVE_FALSE
 NO_CNTW_SCHEDULED_LIVE_POLLING_ENABLED
 KR_LIVE_SOURCE_TRACK_DEFERRED
 JP_LIVE_POLLING_STILL_BLOCKED_BY_ISSUE_339
@@ -233,9 +233,7 @@ Do not start KR live-source implementation before the dedicated backend/source p
 ## Next Allowed Steps
 
 ```text
-1. Run a Fly/application-runtime GET probe against https://www.hkexnews.hk/ncms/script/eds/homecat0_e.json.
-2. Add an inactive/manual staging-only HKEX parser/source candidate using this contract.
-3. Validate with a representative fixture and focused parser/source tests.
-4. Deploy to Fly staging and run a manual live poll only after runtime GET compatibility is recorded.
-5. Record public digest visibility smoke before discussing any cadence.
+1. Deploy the inactive/manual staging-only HKEX parser/source candidate to Fly staging.
+2. Run a manual live poll with metadata.fallback_to_fixture=false.
+3. Record public digest visibility smoke before discussing any cadence.
 ```

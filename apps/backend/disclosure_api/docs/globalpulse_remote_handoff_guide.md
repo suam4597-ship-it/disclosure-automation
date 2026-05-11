@@ -11,8 +11,8 @@ If a local environment changes, start here before writing code.
 ```text
 repo: suam4597-ship-it/disclosure-automation
 primary working branch: phase0-foundation
-current anchor commit: 03f8803c8f1e99856b5f454970fef067caac5d8d
-latest anchor PR: #533 Record HKEX latest listed company parser contract
+current anchor commit: 43fc55bbd52600a335bf4e3a9e86f67230e1112a
+latest anchor PR: #534 Record HKEX Fly runtime probe
 backend staging: https://globalpulse-backend-staging.fly.dev
 public Pages UI: https://suam4597-ship-it.github.io/disclosure-automation/
 ```
@@ -35,7 +35,7 @@ Expected:
 
 ```text
 git status --short: empty
-HEAD: 03f8803c8f1e99856b5f454970fef067caac5d8d or a newer origin/phase0-foundation commit
+HEAD: 43fc55bbd52600a335bf4e3a9e86f67230e1112a or a newer origin/phase0-foundation commit
 ```
 
 If the local checkout has unrelated uncommitted work, do not overwrite it. Either use a fresh clone or create a new branch and inspect the diff first.
@@ -152,8 +152,9 @@ HKEX:
   latest listed-company JSON asset scan: recorded
   bounded parser/source contract: recorded
   Fly/application-runtime homecat0_e.json probe: pass
-  source registration: ready for inactive/manual staging-only candidate PR
-  next likely implementation: homecat0_e.json parser/source candidate, active=false/manual staging-only
+  source registration: inactive/manual staging-only candidate added
+  source status: active=false
+  next likely implementation: deploy to Fly staging, then manual live-poll smoke
 ```
 
 ### Korea / Japan
@@ -169,7 +170,7 @@ JP live polling: blocked by issue #339 until source authority decision
 2. Record EU scheduled staging canary observation summary after enough scheduled runs accumulate.
 3. Record scheduled-canary digest diversity and public Pages visibility smoke.
 4. Continue India NSE 7-day staging observation.
-5. Add inactive/manual staging-only HKEX parser/source candidate using the recorded parser contract and Fly runtime probe.
+5. Deploy inactive/manual staging-only HKEX parser/source candidate to Fly staging.
 6. Run manual staging smoke for HKEX before considering any cadence.
 7. Continue scheduled observation summaries for Europe and India when enough runs accumulate.
 8. Revisit Taiwan/SET/Vietnam cadence only through staging-only design PRs.
@@ -190,6 +191,7 @@ source status: active=false
 candidate_status: manual_staging_only
 disable_live_fixture_fallback: true
 runtime GET verification: globalpulse_hkex_fly_runtime_probe_results.md
+candidate note: globalpulse_hkex_inactive_source_candidate_notes.md
 ```
 
 Required before source registration:

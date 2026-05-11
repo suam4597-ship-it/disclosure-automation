@@ -267,6 +267,9 @@ defmodule DisclosureAutomation.Parser do
   defp parse_by_key("tw_mops_daily_material_info_json_v1", raw_payload),
     do: parse_tw_mops_daily_material_info(raw_payload)
 
+  defp parse_by_key("hkex_latest_listed_company_info_json_v1", raw_payload),
+    do: parse_hkex_latest_listed_company_info(raw_payload)
+
   defp parse_by_key("belex_issuer_news_html_v1", raw_payload),
     do: parse_belex_issuer_news(raw_payload)
 
@@ -4214,6 +4217,171 @@ defmodule DisclosureAutomation.Parser do
     end
   end
 
+  defp parse_hkex_latest_listed_company_info(raw_payload) do
+    with {:ok, %{"newsInfo" => records}} <- Jason.decode(raw_payload),
+         true <- is_list(records) do
+      items =
+        records
+        |> Enum.filter(&is_map/1)
+        |> Enum.map(&parse_hkex_latest_listed_company_record/1)
+        |> Enum.filter(&(&1.external_id && &1.url && &1.title && &1.published_at))
+
+      {:ok, items}
+    else
+      {:error, reason} -> {:error, {:invalid_hkex_latest_listed_company_json, reason}}
+      _shape -> {:error, :unexpected_hkex_latest_listed_company_shape}
+    end
+  end
+
+  defp parse_hkex_latest_listed_company_record(%{} = record) do
+    url = hkex_latest_listed_company_url(record)
+    stock = hkex_latest_listed_company_stock(record)
+    issuer_code = hkex_latest_listed_company_issuer_code(stock)
+    issuer_name = hkex_latest_listed_company_issuer_name(stock)
+    title = clean_html(string_field(record, "title"))
+    summary = clean_html(string_field(record, "sTxt"))
+    document_type = hkex_latest_listed_company_document_type(record)
+    size = hkex_latest_listed_company_clean_metadata(record, "size")
+    published_text = hkex_latest_listed_company_published_text(record)
+
+    %{
+      external_id: hkex_latest_listed_company_external_id(record, url),
+      title: join_non_empty([issuer_code, issuer_name, title || summary], " - "),
+      url: url,
+      summary:
+        join_non_empty(
+          [
+            "HKEX Latest Listed Company Information",
+            prefixed("Issuer", join_non_empty([issuer_code, issuer_name], " ")),
+            prefixed("Category", summary),
+            prefixed("Document", document_type),
+            prefixed("Size", size),
+            prefixed("Published", published_text)
+          ],
+          " | "
+        ),
+      published_at: parse_hkex_latest_listed_company_datetime(record),
+      category: "latest_submissions"
+    }
+  end
+
+  defp hkex_latest_listed_company_url(record) do
+    record
+    |> string_field("webPath")
+    |> case do
+      "https://www1.hkexnews.hk/listedco/listconews/" <> _path = url -> url
+      _url -> nil
+    end
+  end
+
+  defp hkex_latest_listed_company_external_id(record, url) do
+    cond do
+      document_id = hkex_latest_listed_company_document_id(url) ->
+        "hkex-llci:" <> document_id
+
+      news_id = string_field(record, "newsId") ->
+        "hkex-llci:news-" <> news_id
+
+      true ->
+        nil
+    end
+  end
+
+  defp hkex_latest_listed_company_document_id(nil), do: nil
+
+  defp hkex_latest_listed_company_document_id(url) do
+    case Regex.run(~r/\/(\d+)\.(?:pdf|htm|html)$/i, url) do
+      [_, document_id] -> document_id
+      _ -> nil
+    end
+  end
+
+  defp hkex_latest_listed_company_stock(%{"stock" => [%{} = stock | _rest]}), do: stock
+  defp hkex_latest_listed_company_stock(%{"stock" => stock}) when is_binary(stock), do: stock
+  defp hkex_latest_listed_company_stock(_record), do: nil
+
+  defp hkex_latest_listed_company_issuer_code(%{} = stock), do: string_field(stock, "sc")
+
+  defp hkex_latest_listed_company_issuer_code(stock) when is_binary(stock) do
+    case Regex.run(~r/^(\d{4,5})\b/, String.trim(stock)) do
+      [_, code] -> code
+      _ -> nil
+    end
+  end
+
+  defp hkex_latest_listed_company_issuer_code(_stock), do: nil
+
+  defp hkex_latest_listed_company_issuer_name(%{} = stock), do: string_field(stock, "sn")
+
+  defp hkex_latest_listed_company_issuer_name(stock) when is_binary(stock) do
+    stock
+    |> String.replace(~r/^\d{4,5}\s*/, "")
+    |> to_clean_string()
+  end
+
+  defp hkex_latest_listed_company_issuer_name(_stock), do: nil
+
+  defp hkex_latest_listed_company_document_type(record) do
+    record
+    |> hkex_latest_listed_company_clean_metadata("ext")
+    |> case do
+      nil -> nil
+      value -> String.downcase(value)
+    end
+  end
+
+  defp hkex_latest_listed_company_clean_metadata(record, key) do
+    record
+    |> string_field(key)
+    |> case do
+      nil -> nil
+      value when value in ["NaN", "nan", "N/A", "n/a"] -> nil
+      value -> value
+    end
+  end
+
+  defp hkex_latest_listed_company_published_text(record) do
+    join_non_empty(
+      [
+        string_field(record, "relY"),
+        string_field(record, "relM"),
+        string_field(record, "relD"),
+        string_field(record, "relTime")
+      ],
+      "-"
+    )
+  end
+
+  defp parse_hkex_latest_listed_company_datetime(record) do
+    with {year, ""} <- parse_hkex_integer_field(record, "relY"),
+         {month, ""} <- parse_hkex_integer_field(record, "relM"),
+         {day, ""} <- parse_hkex_integer_field(record, "relD"),
+         {hour, minute} <- parse_hkex_hour_minute(string_field(record, "relTime")),
+         {:ok, hong_kong_local_as_utc} <- build_utc_datetime(year, month, day, hour, minute, 0) do
+      DateTime.add(hong_kong_local_as_utc, -8 * 60 * 60, :second)
+    else
+      _ -> DateTime.utc_now()
+    end
+  end
+
+  defp parse_hkex_integer_field(record, key) do
+    case string_field(record, key) do
+      value when is_binary(value) -> Integer.parse(value)
+      _value -> :error
+    end
+  end
+
+  defp parse_hkex_hour_minute(value) do
+    with value when is_binary(value) <- value,
+         [_, hour_text, minute_text] <- Regex.run(~r/^(\d{1,2}):(\d{2})$/, value),
+         {hour, ""} <- Integer.parse(hour_text),
+         {minute, ""} <- Integer.parse(minute_text) do
+      {hour, minute}
+    else
+      _ -> nil
+    end
+  end
+
   defp parse_hms(value) do
     value = to_clean_string(value)
 
@@ -6936,6 +7104,26 @@ defmodule DisclosureAutomation.Ingestion do
     end
   end
 
+  defp validate_live_payload(
+         %SourceRegistry{parser_key: "hkex_latest_listed_company_info_json_v1"},
+         response
+       ) do
+    cond do
+      not json_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "hkex_latest_listed_company_info_json_v1",
+          content_type(response.headers)}}
+
+      not hkex_latest_listed_company_info_payload?(response.body) ->
+        {:error,
+         {:unsupported_live_payload, "hkex_latest_listed_company_info_json_v1",
+          :unexpected_json}}
+
+      true ->
+        :ok
+    end
+  end
+
   defp validate_live_payload(%SourceRegistry{parser_key: "belex_issuer_news_html_v1"}, response) do
     cond do
       not html_content_type?(response.headers) ->
@@ -7334,6 +7522,30 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp tw_mops_daily_material_info_payload?(_body), do: false
+
+  defp hkex_latest_listed_company_info_payload?(body) when is_binary(body) do
+    with {:ok, %{"newsInfo" => records}} when is_list(records) <- Jason.decode(body) do
+      Enum.any?(records, fn
+        %{
+          "relY" => _year,
+          "relM" => _month,
+          "relD" => _day,
+          "relTime" => _time,
+          "title" => _title,
+          "sTxt" => _summary,
+          "webPath" => _web_path
+        } ->
+          true
+
+        _record ->
+          false
+      end)
+    else
+      _ -> false
+    end
+  end
+
+  defp hkex_latest_listed_company_info_payload?(_body), do: false
 
   defp trim_utf8_bom(<<0xEF, 0xBB, 0xBF, rest::binary>>), do: rest
   defp trim_utf8_bom(value), do: value

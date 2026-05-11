@@ -14,8 +14,8 @@ HKEX_FLY_RUNTIME_HOMECAT0_JSON_FETCH_PASS
 HKEX_FLY_RUNTIME_DISCLOSURE_AUTOMATION_HTTP_FETCH_PASS
 HKEX_HOMECAT0_NEWSINFO_SHAPE_RECONFIRMED
 HKEX_STOCK_LIST_SHAPE_RECORDED
-HKEX_SOURCE_REGISTRATION_READY_FOR_INACTIVE_CANDIDATE_PR
-NO_HKEX_SOURCE_REGISTERED
+HKEX_INACTIVE_SOURCE_CANDIDATE_ADDED
+HKEX_SOURCE_ACTIVE_FALSE
 NO_CNTW_SCHEDULED_LIVE_POLLING_ENABLED
 KR_LIVE_SOURCE_TRACK_DEFERRED
 JP_LIVE_POLLING_STILL_BLOCKED_BY_ISSUE_339
@@ -154,9 +154,7 @@ JP remains blocked until issue #339 is resolved
 ## Next Allowed Steps
 
 ```text
-1. Add a bounded inactive/manual staging-only HKEX parser/source candidate for homecat0_e.json.
-2. Include focused parser tests for newsInfo, stock list shape, ext=NaN, timestamp parsing, and no document-body fetch.
-3. Deploy to Fly staging after the candidate merges.
-4. Run manual staging live poll with metadata.fallback_to_fixture=false.
-5. Record public digest visibility smoke before considering any cadence.
+1. Deploy the inactive/manual staging-only HKEX parser/source candidate to Fly staging.
+2. Run manual staging live poll with metadata.fallback_to_fixture=false.
+3. Record public digest visibility smoke before considering any cadence.
 ```

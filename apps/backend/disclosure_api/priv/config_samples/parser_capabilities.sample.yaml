@@ -1477,3 +1477,50 @@ parsers:
       reject_non_tw_mops_daily_material_info_payload: true
       reject_future_timestamps: true
       detail_fetch_disabled: true
+
+  - parser_key: hkex_latest_listed_company_info_json_v1
+    display_name: HKEX Latest Listed Company Information JSON Parser
+    enabled: true
+    input_types: [json, api]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: false
+    supports_detail_fetch: false
+    extraction:
+      id_fields:
+        - newsInfo[].webPath
+        - newsInfo[].newsId
+      title_fields:
+        - newsInfo[].stock[].sc
+        - newsInfo[].stock[].sn
+        - newsInfo[].title
+      summary_fields:
+        - newsInfo[].sTxt
+        - newsInfo[].ext
+        - newsInfo[].size
+      url_fields:
+        - newsInfo[].webPath
+      published_at_fields:
+        - newsInfo[].relY
+        - newsInfo[].relM
+        - newsInfo[].relD
+        - newsInfo[].relTime
+      category_fields:
+        - latest_submissions
+    normalization:
+      source_shape: hkex_homecat0_newsinfo_json
+      trim_html: true
+      decode_entities: true
+      collapse_whitespace: true
+      timezone_strategy: asia_hong_kong_to_utc
+      document_id_strategy: webPath_document_id
+      stock_shape_strategy: first_stock_sc_sn_with_string_fallback
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_non_hkex_latest_listed_company_payload: true
+      reject_future_timestamps: true
+      detail_fetch_disabled: true
+      attachment_body_fetch_disabled: true
