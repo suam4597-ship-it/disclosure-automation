@@ -206,6 +206,7 @@ Status:
 ```text
 design doc: globalpulse_production_backend_deployment_design.md
 decision record: globalpulse_production_deployment_decision_record.md
+approval issue: https://github.com/suam4597-ship-it/disclosure-automation/issues/561
 production Fly app: pending
 production database: pending
 production secrets: pending
