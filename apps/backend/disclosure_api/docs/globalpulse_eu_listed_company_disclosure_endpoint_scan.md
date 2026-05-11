@@ -13,6 +13,13 @@ not first target: ECB, central-bank feeds, macro-statistics feeds, parliament fe
 current result: France OAM manual source + parser + staging live smoke complete; Spain CNMV manual RSS sources + parser compatibility fix + staging live smoke + public UI smoke complete; Netherlands AFM CSV manual source + parser + staging live smoke complete; Italy eMarket Storage bounded HTML manual source + parser + staging live smoke + public UI smoke complete; Luxembourg LuxSE OAM GraphQL manual source + parser + staging live smoke + public UI smoke complete; Euronext company press release RSS manual source + bounded parser + staging live smoke + public UI smoke complete; Belgium FSMA STORI API manual source + bounded parser + staging live smoke complete; UK FCA NSM API manual source + bounded parser + staging live smoke complete; Switzerland SIX SER official notices RSS manual source + staging live smoke + public UI smoke complete; Nasdaq Nordic Company News JSONP manual source + staging live smoke complete; Austria Wiener Boerse announcements bounded HTML manual source + staging live poll complete with public latest UI visibility pending; Austria OeKB OAM Issuer Info JSON manual source + staging live smoke complete with digest top-n visibility pending; Germany Xetra Frankfurt Newsboard bounded HTML manual source + staging live smoke complete with public latest UI visibility pending; Germany Company Register capital-market information inactive/manual source + parser + fixture + source-specific token preflight fetch adapter staging live smoke complete with date-specific digest visibility passing, public latest UI visibility pending, and pagination/rate/captcha design recorded; Greece ATHEX issuer announcements and corporate actions RSS manual sources staging live smoke complete with public latest UI visibility pending; Poland GPW ESPI/EBI bounded HTML manual source + staging live smoke complete with public latest UI visibility pending; Slovakia CERI bounded HTML manual source + staging live smoke complete with public latest UI visibility pending; Estonia OAM bounded HTML manual source + staging live smoke complete with public latest UI visibility pending; Lithuania OAM bounded HTML manual source + staging live smoke complete with public latest UI visibility pending; Latvia CSRI bounded HTML manual source + staging live smoke complete with digest top-n visibility pending; Portugal CMVM portal InfoPrivi JSON manual source + staging live smoke complete with digest top-n visibility pending; Prague/PSE issuer-news-only multi-ISIN manual source + parser + source-specific fan-out fetch adapter staging live smoke complete with date-specific digest visibility passing and cadence/rate design recorded; Prague/PSE issuer report calendar multi-ISIN manual source + parser + source-specific fan-out fetch adapter staging live smoke complete with date-specific digest visibility passing and cadence/rate design recorded; Malta MSE announcements manual source + parser + staging live smoke complete with date-specific digest visibility passing; Bulgaria X3News issuer-disclosure manual source + parser + fixture + staging live smoke complete with date-specific digest visibility passing and public latest UI visibility pending; Turkey KAP company-notification manual source + parser + fixture + staging live smoke complete with latest backend digest visibility passing and Turkey region label smoke passing; Cyprus CSE OAM public listing-version JSON manual source + parser + fixture local/live parser smoke passing, Fly staging live poll passing, date-specific digest visibility passing, and latest public UI visibility pending; Banja Luka BLSE issuer news official ticker/RSS multi-code manual source + parser + fixture local parser smoke passing, Fly staging live poll passing, date-specific digest visibility passing, and latest public UI visibility pending; Macedonian Stock Exchange Free Market Announcements manual source + parser + fixture local/live parser smoke passing, Fly staging live poll passing, date-specific digest visibility passing, and latest public UI visibility pending; North Macedonia SEI-NET Public Documents manual source + parser + fixture local/live parser smoke passing, Fly staging live poll passing, and digest top-N visibility pending; Montenegro MNSE Corporate News manual source + parser + fixture local parser smoke passing with application live fetch blocked on Erlang :httpc TLS connection; Moldova MSI regulated information manual source + local/live parser smoke + Fly staging live poll + canonical insert passing with public top-N visibility pending; Denmark DFSA OAM company-announcement manual source + parser + fixture + Fly staging live poll + canonical insert passing with public top-N visibility pending and cadence/rate/pagination design recorded; Ireland Euronext Dublin CAO/OAM authority surface confirmed with source registration blocked until a Dublin-only machine-readable filter is proven; remaining Europe candidates need endpoint/parser confirmation
 ```
 
+## Latest Residual Scan Addendum
+
+```text
+Ireland Euronext Dublin browser AJAX filter capture completed; the Dublin filter request was captured but returned no positive Dublin issuer rows, so source registration remains blocked.
+Albania ALSE issuer-news WordPress API endpoint candidate found; source registration remains pending until category/filter/parser contract is accepted and fixture/parser smoke passes.
+```
+
 ## Candidate A: France Info-Financiere OAM API
 
 ```text
@@ -289,6 +296,7 @@ Why this is not registered yet:
 The public company-news page exposes a Trading location filter with Dublin id 426.
 Simple GET and RSS query attempts using field_trading_location_target_id=426 still returned the global company-news result set.
 The Drupal Views AJAX probe using company_press_releases_view/page_3 and field_trading_location_target_id[426]=426 also returned the global result count and first global rows.
+A real browser capture later produced a Drupal Views AJAX GET with field_trading_location_target_id[426]=426, but that response returned `NO RESULTS MATCH YOUR SEARCH CRITERIA`, not positive Dublin issuer rows.
 Registering a source from the unfiltered global RSS would duplicate eu_euronext_company_press_releases and overclaim Ireland-specific coverage.
 ```
 
@@ -1568,6 +1576,39 @@ Application live parser smoke passed against the AJAX endpoint with HTTP 200, 2,
 Scheduled polling remains disabled until the broader Europe source batch is intentionally promoted.
 ```
 
+## Candidate AJ: Albania ALSE Issuer News
+
+```text
+owner: Albanian Securities Exchange / ALSE
+authority class: official exchange issuer-news surface candidate
+candidate homepage: https://alse.al/
+candidate API URL: https://alse.al/wp-json/wp/v2/posts?categories=42&per_page=25
+secondary surface checked: https://www.tse.com.al/
+observed HTTP: 200
+observed content-type: WordPress REST JSON
+observed shape: posts with id, date, link, title.rendered, content/excerpt, categories, and PDF/document links in content
+status: ENDPOINT_CANDIDATE_NEEDS_CONTRACT
+```
+
+Why this may fit the product:
+
+```text
+ALSE exposes a WordPress category named Lajme nga Emetuesit / issuer news.
+Observed category 42 rows include issuer-specific disclosure-style posts such as audited financial statements, merger notices, and privileged-information notices for NOA sh.a. / ABI Bank sh.a.
+This is plausibly listed-company or issuer disclosure material, not central-bank, macro, or policy material.
+```
+
+Why this is not registered yet:
+
+```text
+Parser/source contract has not been added.
+Category 42 needs to be accepted as the authoritative source boundary.
+The English News from Issuers category is sparse/stale and must not be blindly merged without duplicate/language handling.
+Broad ALSE latest/all-news categories include market-data and exchange operational posts, so they are out of scope for a disclosure source.
+Tirana Stock Exchange WordPress posts were checked and are not a current listed-company disclosure source.
+Scheduled polling remains disabled until a fixture parser, local parser smoke, and Fly staging live poll pass.
+```
+
 ## Recommended EU v1 Path
 
 ```text
@@ -1606,9 +1647,10 @@ Scheduled polling remains disabled until the broader Europe source batch is inte
 33. Keep Sarajevo SASE Issuer Announcements as a manual_staging_only official exchange issuer-announcement fanout candidate with Fly staging live poll and date-specific digest visibility passing; repeat smoke and cadence design are still required before any scheduled promotion.
 34. Keep Moldova MSI Regulated Information as a manual_staging_only regulated-information storage candidate with local parser smoke, app live fetch, Fly staging live poll, and canonical insert passing; date-specific/top-N public visibility remains pending until selection includes Moldova rows.
 35. Keep Denmark DFSA OAM Company Announcements as a manual_staging_only official OAM candidate with local/live parser smoke, Fly staging live poll, and cadence/rate/pagination design recorded; use the bounded page-1 JSON search API with issuer/prospectus categories, exclude ShortSelling, and require repeated staging evidence before any scheduled promotion.
-36. Keep Ireland Euronext Dublin CAO/OAM as an authority-confirmed but source-registration-blocked candidate until a Dublin-only machine-readable endpoint or AJAX/query contract is proven.
-37. Use globalpulse_eu_source_batch_promotion_design.md, globalpulse_eu_scheduled_staging_canary_runbook.md, and globalpulse_eu_scheduled_staging_canary_configuration_results.md as the decision gates before any EU scheduled staging canary observation window.
-38. Only batch-promote scheduled EU polling after the target list, rollback path, source-specific parser risk, and staging live smoke evidence are documented together.
+36. Keep Ireland Euronext Dublin CAO/OAM as an authority-confirmed but source-registration-blocked candidate; browser AJAX capture found the Dublin filter request but returned no positive Dublin issuer rows.
+37. Keep Albania ALSE Issuer News as an endpoint_candidate_needs_contract candidate; do not register it until category 42 is accepted as the source boundary and a bounded WordPress JSON parser/fixture smoke passes.
+38. Use globalpulse_eu_source_batch_promotion_design.md, globalpulse_eu_scheduled_staging_canary_runbook.md, and globalpulse_eu_scheduled_staging_canary_configuration_results.md as the decision gates before any EU scheduled staging canary observation window.
+39. Only batch-promote scheduled EU polling after the target list, rollback path, source-specific parser risk, and staging live smoke evidence are documented together.
 ```
 
 ## Explicit Non-Goals
@@ -1760,9 +1802,17 @@ DENMARK_DFSA_OAM_CADENCE_RATE_PAGINATION_DESIGN_RECORDED
 DENMARK_DFSA_OAM_SCHEDULED_POLLING_STILL_BLOCKED
 IRELAND_EURONEXT_DUBLIN_CAO_AUTHORITY_SURFACE_CONFIRMED
 IRELAND_EURONEXT_DUBLIN_COMPANY_NEWS_UI_FILTER_OBSERVED
+IRELAND_EURONEXT_DUBLIN_BROWSER_AJAX_FILTER_CAPTURED
+IRELAND_EURONEXT_DUBLIN_AJAX_FILTER_RETURNED_NO_RESULTS
 IRELAND_EURONEXT_DUBLIN_MACHINE_FILTER_NOT_PROVEN
 IRELAND_EURONEXT_DUBLIN_SOURCE_REGISTRATION_BLOCKED
 IRELAND_EURONEXT_DUBLIN_NO_LIVE_SOURCE_ENABLED
+ALBANIA_ALSE_OFFICIAL_EXCHANGE_SURFACE_CONFIRMED
+ALBANIA_ALSE_WORDPRESS_API_CONFIRMED
+ALBANIA_ALSE_ISSUER_NEWS_CATEGORY_OBSERVED
+ALBANIA_TSE_WORDPRESS_NEWS_NOT_A_DISCLOSURE_SOURCE
+ALBANIA_ALSE_SOURCE_REGISTRATION_PENDING_CONTRACT
+ALBANIA_ALSE_NO_LIVE_SOURCE_ENABLED
 EU_BATCH_PROMOTION_DESIGN_RECORDED
 EU_SCHEDULED_STAGING_CANARY_RUNBOOK_RECORDED
 EU_SCHEDULED_STAGING_CANARY_PHASE0_CONFIG_READY
