@@ -36,10 +36,17 @@ edition: breaking
 Trigger:
 
 ```text
-workflow_dispatch only
+workflow_dispatch
+daily schedule: 17 0 * * *
 ```
 
-The workflow is intentionally manual first. A daily schedule can be considered after the first dispatch run is recorded.
+The workflow was manual-first until the first dispatch run passed. The daily schedule is intentionally lightweight and validates only public Pages + Fly staging readonly endpoints.
+
+The workflow also opts JavaScript actions into Node.js 24 with:
+
+```text
+FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true
+```
 
 ## Checks
 

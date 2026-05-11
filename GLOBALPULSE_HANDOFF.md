@@ -26,6 +26,12 @@ For the first successful public web smoke workflow run, read:
 apps/backend/disclosure_api/docs/globalpulse_public_web_smoke_workflow_run_results.md
 ```
 
+For the public web smoke daily schedule, read:
+
+```text
+apps/backend/disclosure_api/docs/globalpulse_public_web_smoke_daily_schedule.md
+```
+
 For frontend runtime config promotion rules, read:
 
 ```text
