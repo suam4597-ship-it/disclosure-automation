@@ -1,6 +1,8 @@
 name: GlobalPulse public web smoke
 
 on:
+  schedule:
+    - cron: "17 0 * * *"
   workflow_dispatch:
     inputs:
       pages_url:
@@ -30,6 +32,7 @@ jobs:
       PAGES_URL: ${{ github.event.inputs.pages_url || 'https://suam4597-ship-it.github.io/disclosure-automation/' }}
       BACKEND_URL: ${{ github.event.inputs.backend_url || 'https://globalpulse-backend-staging.fly.dev' }}
       EDITION: ${{ github.event.inputs.edition || 'breaking' }}
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
       - name: Show target
