@@ -15,7 +15,9 @@ BURSA_MALAYSIA_OFFICIAL_BROWSER_ACCESS_PATH_CONFIRMED
 BURSA_MALAYSIA_SOURCE_REGISTRATION_BLOCKED_BY_CLOUDFLARE_RUNTIME_FETCH
 SET_THAILAND_OFFICIAL_JSON_ACCESS_PATH_CONFIRMED
 SET_THAILAND_SOURCE_REGISTRATION_PENDING_RUNTIME_PROBE_AND_ADAPTER
-ASEAN_MACHINE_READABLE_ENDPOINT_NOT_ACCEPTED_YET
+IDX_INDONESIA_OFFICIAL_JSON_ACCESS_PATH_CONFIRMED
+IDX_INDONESIA_SOURCE_REGISTRATION_PENDING_RUNTIME_PROBE_AND_ADAPTER
+ASEAN_MACHINE_READABLE_ENDPOINTS_CONFIRMED_BUT_NOT_ACCEPTED_FOR_SOURCE_REGISTRATION
 ASEAN_SOURCE_REGISTRATION_NOT_READY
 ASEAN_SCHEDULED_LIVE_POLLING_BLOCKED
 JP_LIVE_POLLING_STILL_BLOCKED_BY_ISSUE_339
@@ -33,6 +35,7 @@ scan date: 2026-05-08 UTC / 2026-05-09 KST
 SGX focused follow-up: globalpulse_sgx_company_announcements_access_path_review.md
 Bursa Malaysia focused follow-up: globalpulse_bursa_malaysia_company_announcements_access_path_review.md
 SET Thailand focused follow-up: globalpulse_set_thailand_company_news_access_path_review.md
+IDX Indonesia focused follow-up: globalpulse_idx_indonesia_announcements_access_path_review.md
 ```
 
 ## Latest SGX Access-Path Addendum
@@ -65,6 +68,17 @@ Bounded first-page JSON response observed with newsGroups/newsInfoList metadata.
 Fresh direct API probes returned 403 Incapsula challenge HTML.
 Normal page bootstrap plus SET browser headers returned 200 JSON in a local PowerShell session.
 Source registration remains blocked pending a bounded adapter and Fly/Elixir runtime probe.
+```
+
+## Latest IDX Indonesia Access-Path Addendum
+
+```text
+IDX Indonesia announcement browser access path confirmed.
+Official JSON endpoint observed as /primary/NewsAnnouncement/GetAllAnnouncement.
+Bounded JSON response observed with Items, ItemCount, PageSize, PageNumber, and PageCount.
+dateFrom/dateTo in YYYYMMDD format returned 200 JSON for a bounded date window.
+Direct Node and PowerShell probes returned Cloudflare/403, while Playwright Chromium API returned 200 for accepted query shapes.
+Source registration remains blocked pending Fly/Elixir runtime probe, bounded adapter, and query-shape policy.
 ```
 
 ## Candidate Surfaces Checked
@@ -168,27 +182,31 @@ Add a source only after a Fly/Elixir bootstrap probe, bounded JSON adapter, rate
 ### IDX Indonesia Announcements
 
 ```text
-authority: official Indonesia Stock Exchange surface to verify
+authority: official Indonesia Stock Exchange surface
 candidate URL: https://www.idx.co.id/en/news/announcement/
+alternate URL: https://www.idx.id/en/news/announcement/
 category: ASEAN/Indonesia announcements
-quick result: executor returned 403 for direct probes
-decision: exact endpoint pending
+quick result: browser page 200; bounded Playwright Chromium API request 200 JSON; direct Node/PowerShell 403
+decision: official JSON access path observed, but source registration blocked pending runtime probe/adapter
 ```
 
 Observed:
 
 ```text
-Search-visible official references point to IDX announcement surfaces.
-Direct executor probes to the public announcement page and a guessed Umbraco endpoint returned 403.
-No accepted RSS/Atom/JSON endpoint was verified in this pass.
+Official IDX announcement pages rendered announcement lists.
+The Nuxt announcement component uses /primary/NewsAnnouncement/GetAllAnnouncement.
+The endpoint returned JSON with Items, ItemCount, PageSize, PageNumber, and PageCount for accepted bounded query shapes.
+dateFrom/dateTo in YYYYMMDD format returned 200 JSON for a bounded date-window request.
+Direct Node and PowerShell probes returned Cloudflare 403, so backend runtime compatibility is still unproven.
 ```
 
 Decision:
 
 ```text
 Do not register IDX as an rss_v1 source.
-Do not infer machine-readability from the public page alone.
-Retry with official documentation or browser inspection before adding a source.
+Do not treat the HTML page or Nuxt inline state as live source input.
+Do not fetch attachment PDFs in the initial candidate.
+Add a source only after a Fly/Elixir runtime probe, bounded JSON adapter, query-shape policy, rate/cadence policy, and staging smoke pass.
 ```
 
 ## Rejected For This Pass
@@ -235,4 +253,4 @@ The safest next ASEAN task is a focused SGX access-path review:
 - decide whether a dedicated SGX JSON adapter is appropriate
 ```
 
-If SGX or SET access is not acceptable, retry IDX with the same exact-endpoint gate rather than widening scope or using third-party aggregators by default.
+If SGX, SET, or IDX access is not acceptable, continue ANZ access-path review rather than widening scope or using third-party aggregators by default.
