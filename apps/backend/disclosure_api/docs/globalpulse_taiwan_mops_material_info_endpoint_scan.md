@@ -12,7 +12,8 @@ This scan record does not enable activation, production scheduled polling, route
 TAIWAN_MOPS_OFFICIAL_DISCLOSURE_SURFACE_CONFIRMED
 TAIWAN_MOPS_DAILY_MATERIAL_INFO_JSON_CONFIRMED
 TAIWAN_MOPS_BOUNDED_INACTIVE_SOURCE_CANDIDATE_ADDED
-TAIWAN_MOPS_MANUAL_STAGING_SMOKE_PENDING
+TAIWAN_MOPS_MANUAL_STAGING_LIVE_POLL_PASS
+TAIWAN_MOPS_DAILY_MATERIAL_INFO_DIGEST_VISIBLE_LIVE
 TAIWAN_MOPS_DETAIL_FETCH_NOT_PROBED
 TAIWAN_MOPS_ATTACHMENT_FETCH_NOT_PROBED
 TAIWAN_MOPS_ACTIVE_SOURCE_NOT_REGISTERED
@@ -106,7 +107,7 @@ parser_key: tw_mops_daily_material_info_json_v1
 candidate notes: globalpulse_taiwan_mops_daily_material_information_candidate_notes.md
 ```
 
-The source remains manual-staging-only. It is not ready for activation or production scheduled polling until a Fly staging smoke confirms live fetch mode and fixture fallback remains disabled.
+The source remains manual-staging-only. The first Fly staging smoke confirmed live fetch mode and disabled fixture fallback, but the source is not ready for activation or production scheduled polling from a single observation window.
 
 The adapter includes:
 
@@ -119,6 +120,17 @@ detail fetch disabled by default
 attachment fetch disabled by default
 disable_live_fixture_fallback=true
 manual Fly staging smoke before any schedule
+```
+
+First manual smoke result:
+
+```text
+record: globalpulse_taiwan_mops_manual_staging_poll_smoke_results.md
+fetch.mode: live
+metadata.fallback_to_fixture: false
+records_seen: 12
+source remains active: false
+candidate_status: manual_staging_only
 ```
 
 ## Decision
@@ -134,7 +146,7 @@ Do not add public poll UI, audit UI, or public Source Health UI.
 ## Allowed Next PR
 
 ```text
-Record Taiwan MOPS manual staging poll smoke after Fly staging deployment.
+Repeat Taiwan MOPS manual staging smoke in another observation window.
 ```
 
 The next PR may record smoke evidence only if it proves:

@@ -84,7 +84,14 @@ backend digest JSON response shape unchanged
 
 ## Manual Staging Plan
 
-After this PR is merged and deployed to Fly staging, run a bounded manual source poll:
+After this PR was merged and deployed to Fly staging, a bounded manual source poll was recorded:
+
+```text
+smoke record: globalpulse_taiwan_mops_manual_staging_poll_smoke_results.md
+result: TAIWAN_MOPS_MANUAL_STAGING_LIVE_POLL_PASS
+```
+
+The smoke path:
 
 ```text
 GET /api/health
@@ -108,5 +115,5 @@ digest includes Taiwan MOPS material-information items when fresh records are pr
 ## Next Allowed PR
 
 ```text
-Record Taiwan MOPS manual staging poll smoke.
+Repeat Taiwan MOPS manual staging smoke in another observation window.
 ```
