@@ -74,6 +74,12 @@ For the future production deployment operator checklist, read:
 apps/backend/disclosure_api/docs/globalpulse_production_deployment_runbook.md
 ```
 
+For the production deployment decision values that still require operator approval, read:
+
+```text
+apps/backend/disclosure_api/docs/globalpulse_production_deployment_decision_record.md
+```
+
 Current remote continuation status:
 
 ```text
@@ -85,6 +91,7 @@ daily workflow main maintenance verification: pass, run 25677329262
 HKEX first automated scheduled staging run: pending after 2026-05-11T14:22Z window
 next HKEX check window: 2026-05-11T16:22Z / 2026-05-12 01:22 KST
 next web deployment gate: decide production backend app/database/frontend URL
+production decision record: added, production infra not created
 ```
 
 Current public surfaces:

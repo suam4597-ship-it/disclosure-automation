@@ -203,6 +203,7 @@ Status:
 
 ```text
 design doc: globalpulse_production_backend_deployment_design.md
+decision record: globalpulse_production_deployment_decision_record.md
 production Fly app: pending
 production database: pending
 production secrets: pending

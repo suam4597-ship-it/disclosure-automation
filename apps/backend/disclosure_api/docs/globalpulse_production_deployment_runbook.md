@@ -32,6 +32,12 @@ rollback frontend config commit
 operator recording the deployment
 ```
 
+The decision-record companion document tracks the open approvals:
+
+```text
+globalpulse_production_deployment_decision_record.md
+```
+
 Secret values must not be pasted into this document, PR descriptions, issue comments, terminal logs, or screenshots.
 
 ## Preflight Checklist
