@@ -11,8 +11,8 @@ If a local environment changes, start here before writing code.
 ```text
 repo: suam4597-ship-it/disclosure-automation
 primary working branch: phase0-foundation
-current anchor commit: 361371dc4af1efd5de9d8de1d7d710ba31f13630
-latest anchor PR: #531 Record Denmark DFSA first scheduled run
+current anchor commit: e642755b2e1b98045e115763140f8d49e3d6a5bd
+latest anchor PR: #532 Add GlobalPulse remote handoff guide
 backend staging: https://globalpulse-backend-staging.fly.dev
 public Pages UI: https://suam4597-ship-it.github.io/disclosure-automation/
 ```
@@ -35,7 +35,7 @@ Expected:
 
 ```text
 git status --short: empty
-HEAD: 361371dc4af1efd5de9d8de1d7d710ba31f13630 or a newer origin/phase0-foundation commit
+HEAD: e642755b2e1b98045e115763140f8d49e3d6a5bd or a newer origin/phase0-foundation commit
 ```
 
 If the local checkout has unrelated uncommitted work, do not overwrite it. Either use a fresh clone or create a new branch and inspect the diff first.
@@ -150,8 +150,9 @@ HKEX:
   listed-company endpoint scan: recorded
   local Elixir runtime probe: pass
   latest listed-company JSON asset scan: recorded
-  source registration: still blocked pending bounded parser/source contract
-  next likely implementation: homecat0_e.json parser/source candidate, active=false/manual staging-only
+  bounded parser/source contract: recorded
+  source registration: still blocked pending inactive/manual staging-only candidate PR
+  next likely implementation: Fly/application-runtime probe, then homecat0_e.json parser/source candidate, active=false/manual staging-only
 ```
 
 ### Korea / Japan
@@ -167,9 +168,9 @@ JP live polling: blocked by issue #339 until source authority decision
 2. Record EU scheduled staging canary observation summary after enough scheduled runs accumulate.
 3. Record scheduled-canary digest diversity and public Pages visibility smoke.
 4. Continue India NSE 7-day staging observation.
-5. Draft HKEX homecat0_e.json bounded parser/source contract.
-6. Add inactive/manual staging-only HKEX parser/source candidate only after the contract is accepted.
-7. Run Fly/application-runtime probe and manual staging smoke for HKEX.
+5. Run Fly/application-runtime GET verification for HKEX homecat0_e.json.
+6. Add inactive/manual staging-only HKEX parser/source candidate using the recorded parser contract.
+7. Run manual staging smoke for HKEX before considering any cadence.
 8. Revisit Taiwan/SET/Vietnam cadence only through staging-only design PRs.
 
 ## HKEX Next-Step Contract
@@ -192,7 +193,7 @@ disable_live_fixture_fallback: true
 Required before source registration:
 
 ```text
-bounded parser contract document
+bounded parser contract document: globalpulse_hkex_latest_listed_company_parser_contract.md
 fixture with representative homecat0_e.json payload
 local parser smoke
 application or Fly runtime GET verification

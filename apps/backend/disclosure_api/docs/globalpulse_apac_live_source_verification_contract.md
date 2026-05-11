@@ -23,7 +23,7 @@ India secondary endpoints: BSE corporate-announcement surface is relevant but ba
 ASEAN official endpoint: scan started, SGX browser JSON access path confirmed but blocked by policy/runtime review; Bursa browser JSON access path confirmed but blocked by Cloudflare/runtime fetch; SET official JSON access path and repeated Fly staging smoke passed while inactive; HNX Vietnam official RSS inactive candidate added and repeated manual staging smoke passed; HSX Vietnam official listed-company RSS inactive candidate added and repeated manual staging smoke passed; Taiwan MOPS official JSON inactive candidate added and repeated manual staging smoke passed; IDX official JSON access path confirmed but blocked by challenge-cookie dependency
 ANZ official endpoint: ASX official JSON access path confirmed, but access-policy decision blocks source registration until written authority or approved ASX Information Services path exists
 Hong Kong official endpoint: HKEXnews listed-company title-search HTML surface confirmed, and latest listed-company JSON assets were confirmed through the official LLCI surface
-Hong Kong local runtime probe: HKEXnews bounded title-search URL returned 200 HTML through local Erlang :httpc; HKEX homecat0_e.json returned 200 application/json through local Erlang :httpc; Fly staging runtime probe still pending
+Hong Kong local runtime probe: HKEXnews bounded title-search URL returned 200 HTML through local Erlang :httpc; HKEX homecat0_e.json returned 200 application/json through local Erlang :httpc; bounded parser/source contract recorded; Fly staging runtime probe still pending
 Taiwan official endpoint: MOPS daily material-information JSON endpoint confirmed; bounded inactive date-aware POST adapter/parser source candidate added; repeated manual staging smoke passed while inactive
 JP live source: blocked by issue #339 source-authority decision
 ```
@@ -40,7 +40,8 @@ HKEXnews LLCI: official latest-listed-company JSON assets returned 200 applicati
 homecat0_e.json: 5 latest submissions with timestamp, stock, title/category text, file type, and webPath fields
 local Elixir runtime for LLCI JSON: Erlang :httpc returned 200 application/json
 backend compatibility: Fly/application-runtime verification still pending
-decision: no HKEX source registration yet; homecat0_e.json is the preferred bounded parser/source-contract candidate
+parser contract: globalpulse_hkex_latest_listed_company_parser_contract.md
+decision: no HKEX source registration yet; homecat0_e.json is the preferred bounded inactive/manual staging-only source candidate
 ```
 
 Current APAC fixture-backed source buckets:
@@ -312,10 +313,12 @@ REJECT: enabling JP live polling before issue #339 source-authority decision is 
 7. Continue APAC official-source scanning within official exchange/OAM surfaces.
 8. Keep observing India NSE scheduled staging runs until the 7-day window matures.
 9. Keep IDX blocked unless a clean backend runtime or approved data-access path is documented.
-10. Revisit ASX only after written authority or approved ASX Information Services path exists.
-11. Add a bounded inactive ASX adapter/source candidate only if authority, response shape, runtime fetch, and staging-smoke gates pass.
-12. Keep JP blocked until issue #339 source authority is resolved.
-13. Keep KR deferred until the dedicated KR backend/source authority path exists.
+10. Run HKEX Fly/application-runtime GET verification for homecat0_e.json.
+11. Add a bounded inactive HKEX parser/source candidate only after runtime compatibility is recorded.
+12. Revisit ASX only after written authority or approved ASX Information Services path exists.
+13. Add a bounded inactive ASX adapter/source candidate only if authority, response shape, runtime fetch, and staging-smoke gates pass.
+14. Keep JP blocked until issue #339 source authority is resolved.
+15. Keep KR deferred until the dedicated KR backend/source authority path exists.
 ```
 
 ## Current Conclusion
@@ -371,7 +374,8 @@ HKEX_LISTED_COMPANY_ENDPOINT_SCAN_RECORDED
 HKEX_LOCAL_ELIXIR_RUNTIME_PROBE_PASS
 HKEX_LATEST_LISTED_COMPANY_ASSET_SCAN_RECORDED
 HKEX_LATEST_LISTED_COMPANY_JSON_ASSET_CONFIRMED
-HKEX_SOURCE_REGISTRATION_BLOCKED_PENDING_BOUNDED_SOURCE_CONTRACT
+HKEX_LATEST_LISTED_COMPANY_PARSER_CONTRACT_RECORDED
+HKEX_SOURCE_REGISTRATION_BLOCKED_PENDING_INACTIVE_CANDIDATE_PR
 APAC_NEXT_LIVE_SOURCE_DECISION_RECORDED
 KR_LIVE_SOURCE_TRACK_DEFERRED_UNTIL_DEDICATED_BACKEND_EXISTS
 PRODUCTION_APAC_SCHEDULED_LIVE_POLLING_NOT_ENABLED
