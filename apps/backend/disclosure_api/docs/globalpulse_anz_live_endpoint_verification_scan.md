@@ -37,7 +37,7 @@ Official ASX/MarkitDigital JSON endpoint observed as https://asx.api.markitdigit
 Direct PowerShell and Node probes returned 200 application/json for a bounded page-0 query.
 ASX legacy /asx/1/company/{code}/announcements endpoint returned 404 uri-not-found and should not be used.
 NZX contingency announcements page confirmed as official HTML, but no machine-readable endpoint was observed.
-ANZ source registration remains blocked pending ASX access-policy decision and bounded adapter.
+ANZ source registration remains blocked because the ASX access-policy decision does not accept public-site JSON access as authority for GlobalPulse backend polling.
 ```
 
 ## Candidate Surfaces Checked
@@ -53,7 +53,7 @@ candidate URLs:
   - https://asx.api.markitdigital.com/asx-research/1.0/markets/announcements
 category: ANZ listed-company announcements
 quick result: official page 200 HTML; MarkitDigital JSON endpoint 200 application/json from PowerShell/Node
-decision: official JSON access path confirmed, but source registration blocked pending access-policy decision and bounded adapter
+decision: official JSON access path confirmed, but source registration blocked until written ASX authority or an approved ASX Information Services path exists
 ```
 
 Observed:
@@ -75,7 +75,7 @@ Do not register ASX as an rss_v1 source.
 Do not treat the HTML search or today's-announcements page as live source input.
 Do not use third-party ASX announcement RSS mirrors without explicit policy acceptance.
 Do not fetch announcement documents/PDFs in the initial candidate.
-Record ASX access-policy decision before adding a bounded inactive ASX JSON adapter/source candidate.
+Do not add a bounded inactive ASX JSON adapter/source candidate until written authority or an approved ASX Information Services path exists.
 ```
 
 ### NZX Public Announcements
@@ -168,11 +168,9 @@ response_shape: public digest JSON response shape unchanged
 ## Next Step
 
 ```text
-ANZ source registration remains blocked, but ASX is now the strongest first ANZ adapter candidate.
-The safest next ANZ task is an ASX access-policy decision PR:
-- confirm whether ASX/MarkitDigital market-announcements JSON may be polled by the staging backend
-- record terms/copyright/rate-limit constraints
-- decide whether a dedicated bounded ASX JSON adapter is appropriate
+ANZ source registration remains blocked.
+ASX is technically strong but policy-blocked for GlobalPulse backend polling.
+The next implementation task should move to SET Thailand Fly/Elixir runtime compatibility probing.
 ```
 
-If ASX access is not acceptable, continue NZX exact-endpoint verification with the same access and response-shape gate rather than using third-party aggregators by default.
+Revisit ASX only after written authority or an approved ASX Information Services path exists. Continue NZX exact-endpoint verification later only with the same access and response-shape gate rather than using third-party aggregators by default.

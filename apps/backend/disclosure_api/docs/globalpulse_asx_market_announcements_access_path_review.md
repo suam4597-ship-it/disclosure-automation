@@ -12,7 +12,8 @@ This is documentation-only. It does not add runtime code, routes, controllers, t
 ASX_OFFICIAL_MARKET_ANNOUNCEMENTS_JSON_ACCESS_PATH_CONFIRMED
 ASX_MARKITDIGITAL_ANNOUNCEMENTS_JSON_SHAPE_CAPTURED_BOUNDED
 ASX_DIRECT_NODE_AND_POWERSHELL_FETCH_PASS
-ASX_SOURCE_REGISTRATION_PENDING_ACCESS_POLICY_DECISION_AND_BOUNDED_ADAPTER
+ASX_ACCESS_POLICY_DECISION_RECORDED
+ASX_SOURCE_REGISTRATION_BLOCKED_UNTIL_WRITTEN_AUTHORITY_OR_APPROVED_INFORMATION_SERVICE_PATH
 NZX_OFFICIAL_CONTINGENCY_HTML_SURFACE_CONFIRMED
 NZX_MACHINE_READABLE_ENDPOINT_NOT_ACCEPTED_YET
 ANZ_SCHEDULED_LIVE_POLLING_NOT_ENABLED
@@ -102,7 +103,9 @@ Implication:
 
 ```text
 The JSON endpoint is technically strong enough for a bounded adapter candidate.
-Source registration should still wait for an explicit access-policy decision because the data is market-announcement data served through ASX/MarkitDigital surfaces with terms/copyright notices.
+Source registration is now blocked by globalpulse_asx_markitdigital_access_policy_decision.md.
+Public-site access is not enough authority for GlobalPulse backend polling, storage, digest materialization, or redistribution.
+Revisit only after written ASX authority or an approved ASX Information Services/Company News path exists.
 ```
 
 ## NZX Follow-Up Check
@@ -140,7 +143,7 @@ Current ASX decision:
 source key proposal: au_asx_market_announcements
 parser/adapter proposal: asx_markitdigital_announcements_json_v1
 registration status: blocked
-blocking class: access_policy_decision + bounded_adapter_required + rate_cadence_policy
+blocking class: written_authority_or_approved_information_service_path_required + bounded_adapter_required + rate_cadence_policy
 scheduled polling: not allowed
 production polling: not allowed
 public UI: not changed
@@ -169,7 +172,7 @@ public Source Health UI: not added
 Required validation before any parser/source PR:
 
 ```text
-access-policy decision recorded
+written authority or approved ASX Information Services/Company News path recorded
 Fly/Elixir runtime probe returns 2xx JSON
 parser rejects HTML, challenge pages, and non-JSON responses
 parser extracts only bounded data.items metadata
@@ -196,8 +199,8 @@ Do not use third-party ASX/NZX mirrors or aggregators by default.
 ## Allowed Next PRs
 
 ```text
-1. Record ASX access-policy decision for MarkitDigital announcement JSON usage.
-2. Add a bounded inactive ASX JSON parser/source candidate only after access-policy acceptance.
-3. Add an ASX Fly/Elixir runtime probe if access-policy review accepts the endpoint.
-4. Continue NZX exact-endpoint verification only if ASX policy review blocks the ASX adapter.
+1. Add SET Fly/Elixir runtime compatibility probe.
+2. Add a bounded inactive SET JSON parser/source candidate only if runtime fetch and access gates pass.
+3. Add IDX Fly/Elixir runtime compatibility probe if SET remains blocked.
+4. Revisit ASX only after written authority or approved ASX Information Services path exists.
 ```
