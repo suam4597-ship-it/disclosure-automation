@@ -104,6 +104,12 @@ For future frontend production config promotion templates, read:
 apps/backend/disclosure_api/docs/globalpulse_frontend_production_config_templates.md
 ```
 
+For the latest pipeline formatting CI recovery, read:
+
+```text
+apps/backend/disclosure_api/docs/globalpulse_pipeline_format_ci_recovery.md
+```
+
 Current remote continuation status:
 
 ```text
@@ -122,6 +128,7 @@ production approval issue: https://github.com/suam4597-ship-it/disclosure-automa
 production Fly command templates: added, commands not executed
 frontend production config templates: added, config not promoted
 source promotion approval issue: https://github.com/suam4597-ship-it/disclosure-automation/issues/565
+pipeline format CI recovery: pass, merge commit 34c7d06e0503bcf83f64d35a7c4b59b55b64a69e
 ```
 
 Current public surfaces:
