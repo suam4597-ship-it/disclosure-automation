@@ -110,6 +110,12 @@ For the latest pipeline formatting CI recovery, read:
 apps/backend/disclosure_api/docs/globalpulse_pipeline_format_ci_recovery.md
 ```
 
+For the scheduled workflow observation command path, read:
+
+```text
+apps/backend/disclosure_api/docs/globalpulse_scheduled_workflow_observation_cookbook.md
+```
+
 Current remote continuation status:
 
 ```text
@@ -129,6 +135,8 @@ production Fly command templates: added, commands not executed
 frontend production config templates: added, config not promoted
 source promotion approval issue: https://github.com/suam4597-ship-it/disclosure-automation/issues/565
 pipeline format CI recovery: pass, merge commit 34c7d06e0503bcf83f64d35a7c4b59b55b64a69e
+post-recovery docs CI: pass, head 62922a389913b63aa832799a8cade1bc6270fd00
+scheduled workflow observation cookbook: added
 ```
 
 Current public surfaces:
