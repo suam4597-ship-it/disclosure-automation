@@ -159,7 +159,7 @@ attachment fetch not enabled
 ```text
 1. Continue APAC official-source scanning within official exchange/OAM surfaces.
 2. Keep observing India NSE scheduled staging runs until the 7-day window matures.
-3. Repeat Taiwan MOPS manual staging smoke in another observation window.
+3. Revisit Taiwan MOPS only through another explicit staging-only cadence design or manual observation.
 4. Keep KR deferred until the dedicated KR backend/source authority path exists.
 5. Keep JP blocked until issue #339 source authority is resolved.
 ```

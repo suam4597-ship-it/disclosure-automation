@@ -30,6 +30,11 @@ VIETNAM_HSX_LISTED_COMPANY_NEWS_SOURCE_REGISTERED_INACTIVE
 VIETNAM_HSX_MANUAL_STAGING_SMOKE_PASS
 VIETNAM_HSX_REPEATED_MANUAL_STAGING_SMOKE_PASS
 VIETNAM_HSX_DIGEST_VISIBLE_LIVE
+TAIWAN_MOPS_DAILY_MATERIAL_INFO_JSON_CONFIRMED
+TAIWAN_MOPS_DAILY_MATERIAL_INFO_SOURCE_REGISTERED_INACTIVE
+TAIWAN_MOPS_MANUAL_STAGING_LIVE_POLL_PASS
+TAIWAN_MOPS_REPEATED_MANUAL_STAGING_LIVE_POLL_PASS
+TAIWAN_MOPS_DAILY_MATERIAL_INFO_DIGEST_VISIBLE_LIVE
 IDX_IS_SECOND_ASEAN_RUNTIME_PROBE_CANDIDATE
 IDX_FLY_ELIXIR_RUNTIME_PROBE_RECORDED
 IDX_SOURCE_REGISTRATION_STILL_BLOCKED_BY_CHALLENGE_COOKIE_DEPENDENCY
@@ -50,6 +55,7 @@ Bursa Malaysia: official browser JSON path confirmed, blocked by Cloudflare/runt
 SET Thailand: bounded inactive source candidate added and repeated manual staging smoke passed; still inactive and production scheduling remains disabled
 Vietnam HNX: official issuer-disclosure RSS returned 200 application/rss+xml; bounded inactive rss_v1 source candidate added with fixture fallback disabled; repeated manual Fly staging smoke passed with digest visibility
 Vietnam HSX: official listed-company RSS returned 200 application/rss+xml; bounded inactive rss_v1 source candidate added with fixture fallback disabled; repeated manual Fly staging smoke passed with digest visibility
+Taiwan MOPS: official daily material-information JSON endpoint returned 200 application/json; bounded inactive date-aware parser/source candidate added with fixture fallback disabled; repeated manual Fly staging smoke passed with digest visibility
 IDX Indonesia: official JSON path confirmed; Fly/Elixir direct API/page bootstrap returned Cloudflare 403, cookie-mediated API returned 200 JSON; access decision blocks source registration until a clean backend runtime or approved data-access path exists
 Philippines PSE EDGE: official disclosure surface confirmed; official CAF/ITCH data-access products found; public-site access is not enough for backend polling without approved data-access path
 ASX: official MarkitDigital JSON path confirmed, direct Node/PowerShell fetch passed, blocked by access-policy decision until written authority or approved ASX Information Services path exists
@@ -63,9 +69,9 @@ JP: remains blocked by source-authority issue #339
 ```text
 1. Keep observing India NSE until the 7-day staging schedule window is complete
 2. Keep SET inactive; if cadence is considered later, design staging-only schedule first
-3. Repeat Taiwan MOPS manual staging smoke in another observation window
-4. Keep IDX blocked unless a clean backend runtime or approved data-access path is documented
-5. Continue APAC official-source scanning within official exchange/OAM surfaces
+3. Keep IDX blocked unless a clean backend runtime or approved data-access path is documented
+4. Continue APAC official-source scanning within official exchange/OAM surfaces
+5. Revisit Taiwan MOPS only through another explicit staging-only cadence design or manual observation
 6. Revisit ASX only after written authority or approved ASX Information Services path exists
 7. Revisit SGX only after policy/permission and runtime compatibility are explicitly accepted
 8. Revisit Bursa only if a non-bypass backend runtime fetch path is accepted
@@ -149,9 +155,9 @@ Do not start JP live polling until issue #339 is resolved.
 ```text
 1. Keep observing India NSE until the 7-day staging schedule window is complete
 2. Keep SET inactive; if cadence is considered later, design staging-only schedule first
-3. Repeat Taiwan MOPS manual staging smoke in another observation window
-4. Keep IDX blocked unless a clean backend runtime or approved data-access path is documented
-5. Continue APAC official-source scanning within official exchange/OAM surfaces
+3. Keep IDX blocked unless a clean backend runtime or approved data-access path is documented
+4. Continue APAC official-source scanning within official exchange/OAM surfaces
+5. Revisit Taiwan MOPS only through another explicit staging-only cadence design or manual observation
 6. Revisit ASX only after written authority or approved ASX Information Services path exists
 7. Revisit PSE only after approved PSE data-product or written permission path exists
 ```
