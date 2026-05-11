@@ -12,6 +12,7 @@ INDIA_NSE_SOURCE_CAP_SAFETY_GUARD_PASS
 INDIA_NSE_DIGEST_DIVERSITY_SAFETY_GUARD_PASS
 INDIA_NSE_DUPLICATE_REFERENCE_BOUNDING_PASS
 INDIA_NSE_ELIGIBLE_FOR_CONSERVATIVE_STAGING_SCHEDULE
+INDIA_NSE_FIRST_AUTOMATED_STAGING_SCHEDULE_RUN_PASS
 INDIA_NSE_PRODUCTION_SCHEDULED_POLLING_NOT_APPROVED
 ```
 
@@ -128,6 +129,23 @@ duplicate_reference_noise
 digest_diversity_regression
 ```
 
+## First Scheduled Run
+
+The first automated scheduled staging run passed after the conservative staging workflow schedule was activated on the repository default branch.
+
+```text
+result record: globalpulse_india_nse_first_scheduled_staging_run_results.md
+workflow run id: 25650796284
+event: schedule
+cron: 37 */2 * * 1-5
+resolved source_key: india_nse_announcements
+fetch.mode: live
+fetch.status_code: 200
+records_seen: 13
+records_inserted: 13
+digest.metadata.fallback_to_fixture: false
+```
+
 ## Rollback Policy
 
 Rollback immediately if any of the following occur:
@@ -187,6 +205,7 @@ Do not enable JP live polling before issue #339 source-authority decision is res
 
 ```text
 INDIA_NSE_READY_FOR_CONSERVATIVE_STAGING_SCHEDULE_PR
+INDIA_NSE_FIRST_AUTOMATED_STAGING_SCHEDULE_RUN_PASS
 INDIA_NSE_NOT_READY_FOR_PRODUCTION_SCHEDULED_POLLING
-NEXT_STEP_ADD_NSE_TO_STAGING_POLL_WORKFLOW_WITH_2H_WEEKDAY_CADENCE
+NEXT_STEP_OBSERVE_7_DAY_STAGING_WINDOW
 ```

@@ -9,7 +9,7 @@ This is documentation-only. It does not add runtime code, routes, controllers, t
 ```text
 INDIA_NSE_CONSERVATIVE_STAGING_SCHEDULE_CONFIGURED
 INDIA_NSE_DEFAULT_BRANCH_SCHEDULE_ACTIVATED
-INDIA_NSE_FIRST_AUTOMATED_SCHEDULED_RUN_PENDING
+INDIA_NSE_FIRST_AUTOMATED_STAGING_SCHEDULE_RUN_PASS
 INDIA_NSE_PRODUCTION_SCHEDULED_POLLING_NOT_ENABLED
 SEC_LIVE_STAGING_SCHEDULE_PRESERVED
 ```
@@ -88,18 +88,28 @@ default manual source_key: sec_press_releases
 
 ## Expected First Scheduled Run
 
-The first automated NSE schedule run is pending the next matching GitHub Actions cron slot.
+The first automated NSE schedule run passed on the matching GitHub Actions cron slot.
 
-Expected validation for the first scheduled NSE run:
+Recorded validation for the first scheduled NSE run:
 
 ```text
-Health check: success
-Poll live source: success
-Verify digest: success
+workflow run id: 25650796284
+workflow event: schedule
+workflow branch: main
+workflow head sha: 8445ae20f87432f58602482dcea772e994702a6c
+cron: 37 */2 * * 1-5
+resolved source_key: india_nse_announcements
+run_mode: single_source
+artifact name: globalpulse-live-staging-poll-25650796284
+artifact id: 6910516526
+Health check: success, status 200
+Poll live source: success, status 202
+Verify digest: success, status 200
 poll.fetch.mode: live
 poll.fetch.status_code: 200
-poll.records_seen <= 25
-poll.records_inserted <= poll.records_seen
+poll.fetch.bytes: 56067
+poll.records_seen: 13
+poll.records_inserted: 13
 digest.metadata.fallback_to_fixture: false
 digest top-12 source/region mix remains bounded
 ```
@@ -119,18 +129,12 @@ public Source Health UI added: no
 JP live polling: still blocked pending issue #339 source-authority decision
 ```
 
-## Next Result To Record
+## First Scheduled Run Result
 
-After the first automatic NSE cron completes, record:
+The first automatic NSE cron completed successfully and is recorded in:
 
 ```text
-workflow run URL
-artifact name and id
-health.json status
-poll.json records_seen and records_inserted
-poll.json fetch.mode and fetch.status_code
-digest.json item_count and fallback_to_fixture
-source and region distribution after scheduled run
+globalpulse_india_nse_first_scheduled_staging_run_results.md
 ```
 
 ## Current Conclusion
@@ -138,5 +142,6 @@ source and region distribution after scheduled run
 ```text
 INDIA_NSE_STAGING_SCHEDULE_CONFIGURATION_READY
 INDIA_NSE_DEFAULT_BRANCH_SCHEDULE_READY
-NEXT_STEP_RECORD_FIRST_AUTOMATED_NSE_SCHEDULE_RUN
+INDIA_NSE_FIRST_AUTOMATED_SCHEDULED_RUN_RECORDED
+NEXT_STEP_OBSERVE_7_DAY_STAGING_WINDOW
 ```

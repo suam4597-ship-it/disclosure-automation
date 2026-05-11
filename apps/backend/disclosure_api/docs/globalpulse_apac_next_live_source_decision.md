@@ -18,6 +18,8 @@ SET_FLY_ELIXIR_RUNTIME_PROBE_PASS
 SET_BOUNDED_INACTIVE_ADAPTER_SOURCE_CANDIDATE_ADDED
 SET_MANUAL_STAGING_SMOKE_PASS
 SET_REPEATED_MANUAL_STAGING_POLL_PASS
+INDIA_NSE_FIRST_AUTOMATED_STAGING_SCHEDULE_RUN_PASS
+INDIA_NSE_7_DAY_STAGING_OBSERVATION_WINDOW_PENDING
 VIETNAM_HNX_ISSUER_DISCLOSURE_RSS_CONFIRMED
 VIETNAM_HNX_ISSUER_DISCLOSURE_SOURCE_REGISTERED_INACTIVE
 VIETNAM_HNX_MANUAL_STAGING_SMOKE_PASS
@@ -36,7 +38,7 @@ PRODUCTION_APAC_SCHEDULED_LIVE_POLLING_NOT_ENABLED
 ## Inputs Reviewed
 
 ```text
-India NSE official RSS: staging-live verified and conservative staging schedule configured
+India NSE official RSS: staging-live verified, conservative staging schedule configured, and first automated scheduled staging run passed on GitHub Actions run 25650796284
 SGX: official browser JSON path confirmed, blocked by policy/runtime review
 Bursa Malaysia: official browser JSON path confirmed, blocked by Cloudflare/runtime fetch
 SET Thailand: bounded inactive source candidate added and repeated manual staging smoke passed; still inactive and production scheduling remains disabled
@@ -52,15 +54,16 @@ JP: remains blocked by source-authority issue #339
 ## Recommended Order
 
 ```text
-1. Keep SET inactive; if cadence is considered later, design staging-only schedule first
-2. Repeat Vietnam HNX manual Fly staging live poll smoke in another observation window
-3. Keep IDX blocked unless a clean backend runtime or approved data-access path is documented
-4. Continue APAC official-source scanning within official exchange/OAM surfaces
-5. Revisit ASX only after written authority or approved ASX Information Services path exists
-6. Revisit SGX only after policy/permission and runtime compatibility are explicitly accepted
-7. Revisit Bursa only if a non-bypass backend runtime fetch path is accepted
-8. Revisit PSE only after approved PSE data-product or written permission path exists
-9. Keep KR last until its dedicated backend/source authority path exists
+1. Keep observing India NSE until the 7-day staging schedule window is complete
+2. Keep SET inactive; if cadence is considered later, design staging-only schedule first
+3. Repeat Vietnam HNX manual Fly staging live poll smoke in another observation window
+4. Keep IDX blocked unless a clean backend runtime or approved data-access path is documented
+5. Continue APAC official-source scanning within official exchange/OAM surfaces
+6. Revisit ASX only after written authority or approved ASX Information Services path exists
+7. Revisit SGX only after policy/permission and runtime compatibility are explicitly accepted
+8. Revisit Bursa only if a non-bypass backend runtime fetch path is accepted
+9. Revisit PSE only after approved PSE data-product or written permission path exists
+10. Keep KR last until its dedicated backend/source authority path exists
 ```
 
 ## Rationale
@@ -137,10 +140,11 @@ Do not start JP live polling until issue #339 is resolved.
 ## Next PR Candidates
 
 ```text
-1. Keep SET inactive; if cadence is considered later, design staging-only schedule first
-2. Repeat Vietnam HNX manual Fly staging live poll smoke in another observation window
-3. Keep IDX blocked unless a clean backend runtime or approved data-access path is documented
-4. Continue APAC official-source scanning within official exchange/OAM surfaces
-5. Revisit ASX only after written authority or approved ASX Information Services path exists
-6. Revisit PSE only after approved PSE data-product or written permission path exists
+1. Keep observing India NSE until the 7-day staging schedule window is complete
+2. Keep SET inactive; if cadence is considered later, design staging-only schedule first
+3. Repeat Vietnam HNX manual Fly staging live poll smoke in another observation window
+4. Keep IDX blocked unless a clean backend runtime or approved data-access path is documented
+5. Continue APAC official-source scanning within official exchange/OAM surfaces
+6. Revisit ASX only after written authority or approved ASX Information Services path exists
+7. Revisit PSE only after approved PSE data-product or written permission path exists
 ```
