@@ -22,6 +22,8 @@ on:
     - cron: "37 */2 * * 1-5"
     # Run the first EU listed-company disclosure canary every 4 hours on weekdays in staging.
     - cron: "17 */4 * * 1-5"
+    # Run the Denmark DFSA OAM candidate as a separate staging-only canary on weekdays.
+    - cron: "47 */4 * * 1-5"
 
 permissions:
   contents: read
@@ -47,6 +49,8 @@ jobs:
         ch_six_ser_official_notices
         eu_euronext_company_press_releases
         pt_cmvm_portal_info_privi
+      DENMARK_DFSA_OAM_CANARY_SOURCES: >-
+        dk_dfsa_oam_company_announcements
 
     steps:
       - name: Resolve source
@@ -54,12 +58,18 @@ jobs:
           if [ "${REQUESTED_SOURCE_KEY}" = "eu_scheduled_staging_canary" ]; then
             resolved_source="eu_scheduled_staging_canary"
             run_mode="eu_canary"
+          elif [ "${REQUESTED_SOURCE_KEY}" = "denmark_dfsa_oam_staging_canary" ]; then
+            resolved_source="denmark_dfsa_oam_staging_canary"
+            run_mode="denmark_dfsa_oam_canary"
           elif [ -n "${REQUESTED_SOURCE_KEY}" ]; then
             resolved_source="${REQUESTED_SOURCE_KEY}"
             run_mode="single_source"
           elif [ "${SCHEDULE_EXPR}" = "17 */4 * * 1-5" ]; then
             resolved_source="eu_scheduled_staging_canary"
             run_mode="eu_canary"
+          elif [ "${SCHEDULE_EXPR}" = "47 */4 * * 1-5" ]; then
+            resolved_source="denmark_dfsa_oam_staging_canary"
+            run_mode="denmark_dfsa_oam_canary"
           elif [ "${SCHEDULE_EXPR}" = "37 */2 * * 1-5" ]; then
             resolved_source="india_nse_announcements"
             run_mode="single_source"
@@ -80,6 +90,8 @@ jobs:
           echo "edition=${EDITION}"
           if [ "${RUN_MODE}" = "eu_canary" ]; then
             echo "eu_canary_sources=${EU_CANARY_SOURCES}"
+          elif [ "${RUN_MODE}" = "denmark_dfsa_oam_canary" ]; then
+            echo "denmark_dfsa_oam_canary_sources=${DENMARK_DFSA_OAM_CANARY_SOURCES}"
           fi
 
       - name: Health check
@@ -93,10 +105,15 @@ jobs:
 
       - name: Poll live source
         run: |
-          if [ "${RUN_MODE}" = "eu_canary" ]; then
+          if [ "${RUN_MODE}" = "eu_canary" ] || [ "${RUN_MODE}" = "denmark_dfsa_oam_canary" ]; then
             failed=0
+            canary_sources="${EU_CANARY_SOURCES}"
 
-            for source in ${EU_CANARY_SOURCES}; do
+            if [ "${RUN_MODE}" = "denmark_dfsa_oam_canary" ]; then
+              canary_sources="${DENMARK_DFSA_OAM_CANARY_SOURCES}"
+            fi
+
+            for source in ${canary_sources}; do
               output="poll-${source}.json"
               status=$(curl -sS -o "${output}" -w "%{http_code}" -X POST "${BACKEND_URL}/api/admin/sources/${source}/poll?use_live_fetch=true&edition=${EDITION}")
               echo "source=${source} poll status=${status}"
@@ -172,6 +189,8 @@ jobs:
         run: |
           if [ "${RUN_MODE}" = "eu_canary" ]; then
             digest_output="digest-eu-canary.json"
+          elif [ "${RUN_MODE}" = "denmark_dfsa_oam_canary" ]; then
+            digest_output="digest-denmark-dfsa-oam-canary.json"
           else
             digest_output="digest.json"
           fi
