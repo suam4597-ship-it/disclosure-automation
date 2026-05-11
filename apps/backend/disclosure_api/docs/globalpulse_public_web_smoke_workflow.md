@@ -106,7 +106,14 @@ digest.json
 
 ## Next Gate
 
-After this workflow is available on the default branch, run it manually and record:
+The workflow is available on the default branch through PR #545.
+
+```text
+workflow id: 274668919
+first workflow_dispatch result: pending
+```
+
+Run it manually and record:
 
 ```text
 workflow run id

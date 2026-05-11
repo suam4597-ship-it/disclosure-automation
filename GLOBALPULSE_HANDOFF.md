@@ -20,6 +20,16 @@ For the public Pages + Fly staging smoke workflow contract, read:
 apps/backend/disclosure_api/docs/globalpulse_public_web_smoke_workflow.md
 ```
 
+Current remote continuation status:
+
+```text
+phase0 public web smoke workflow PR: #544 merged
+main public web smoke activation PR: #545 merged
+workflow id: 274668919
+first workflow_dispatch result: pending
+next web deployment gate: run GlobalPulse public web smoke from GitHub Actions
+```
+
 Current public surfaces:
 
 ```text

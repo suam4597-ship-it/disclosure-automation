@@ -23,10 +23,12 @@ globalpulse_web_deployment_workflow_roadmap.md
 ```text
 repo: suam4597-ship-it/disclosure-automation
 primary working branch: phase0-foundation
-current anchor commit: 78485e754e7614572ccd8e760cf1ad8b7dda3f10
-latest phase0 anchor PR: #540 Add HKEX conservative staging workflow
+current anchor commit: 74973e905e9949dc46df9ee7964de41dd1f69bd3
+latest phase0 anchor PR: #544 Add GlobalPulse public web smoke workflow
 default-branch schedule activation PR: #541 Activate HKEX staging schedule on main
 main schedule activation commit: 423ca7fa710b04de56a74b0a1ee092b43597b8a1
+default-branch public web smoke activation PR: #545 Activate public web smoke workflow on main
+main public web smoke activation commit: 8a2a4b5279f578c1ab62622768acf6d0adbbb2ab
 backend staging: https://globalpulse-backend-staging.fly.dev
 public Pages UI: https://suam4597-ship-it.github.io/disclosure-automation/
 ```
@@ -266,7 +268,11 @@ Denmark DFSA OAM first automated scheduled run: 25668194957
 HKEX scheduled staging cron: 22 */2 * * 1-5
 HKEX main activation PR: #541
 HKEX main activation commit: 423ca7fa710b04de56a74b0a1ee092b43597b8a1
-Public web smoke workflow: globalpulse-public-web-smoke.yml on phase0-foundation
+Public web smoke workflow: globalpulse-public-web-smoke.yml
+Public web smoke phase0 PR: #544
+Public web smoke main activation PR: #545
+Public web smoke workflow id: 274668919
+Public web smoke first workflow_dispatch run: pending
 ```
 
 Useful branch checks:
