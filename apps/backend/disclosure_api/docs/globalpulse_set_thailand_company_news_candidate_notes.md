@@ -15,6 +15,7 @@ SET_THAILAND_FIXTURE_PARSER_SAMPLE_ADDED
 SET_THAILAND_LIVE_FIXTURE_FALLBACK_DISABLED
 SET_THAILAND_DETAIL_FETCH_DISABLED
 SET_THAILAND_MANUAL_STAGING_SMOKE_PASS
+SET_THAILAND_REPEATED_MANUAL_STAGING_POLL_PASS
 ASEAN_SCHEDULED_LIVE_POLLING_NOT_ENABLED
 PUBLIC_UI_AND_BACKEND_DIGEST_SHAPE_UNCHANGED
 ```
@@ -122,4 +123,4 @@ GET /api/feed/digest/latest?edition=breaking
 
 ## Next Step
 
-SET has one manual staging pass. Keep the source inactive and repeat the manual smoke in a different observation window before any activation or schedule decision.
+SET has repeated manual staging live-poll evidence. Keep the source inactive and do not enable production scheduled polling.
