@@ -35,6 +35,7 @@ regional sections render from backend digest data
 Source Health operator link is present
 HKEX appears in public digest after manual staging poll
 source observation production readiness matrix is recorded
+basic monitoring and incident-response plan is recorded
 ```
 
 ## Current Gaps
@@ -290,6 +291,14 @@ manual incident checklist
 ```
 
 Do not add alerting noise until the checks and owners are clear.
+
+Status:
+
+```text
+basic monitoring plan: globalpulse_basic_monitoring_incident_plan.md
+alerting runtime: not added
+production monitoring: not enabled
+```
 
 ## Preferred Sequence From Here
 
