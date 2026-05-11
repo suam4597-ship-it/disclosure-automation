@@ -57,6 +57,17 @@ APAC live source verification must stay split into small tracks:
 
 Do not enable broad APAC scheduled live polling before each track has an accepted source, staging live-poll smoke, and public UI smoke.
 
+Current next-source decision:
+
+```text
+decision record: globalpulse_apac_next_live_source_decision.md
+next technical candidate: ASX MarkitDigital market-announcements JSON
+blocking gate: ASX access-policy decision
+ASEAN fallback order: SET runtime probe, then IDX runtime probe
+KR live-source track: deferred until dedicated backend/source authority path exists
+JP live polling: blocked until issue #339 is resolved
+```
+
 ## Candidate Sources
 
 ### Candidate A: India NSE RSS announcements
@@ -266,6 +277,7 @@ REJECT: enabling JP live polling before issue #339 source-authority decision is 
 8. Record ASX access-policy decision for MarkitDigital announcements JSON usage.
 9. Add a bounded inactive ASX adapter/source candidate only if official access terms, response shape, runtime fetch, and staging-smoke gates pass.
 10. Keep JP blocked until issue #339 source authority is resolved.
+11. Keep KR deferred until the dedicated KR backend/source authority path exists.
 ```
 
 ## Current Conclusion
@@ -290,6 +302,8 @@ ANZ_LIVE_ENDPOINT_SCAN_STARTED
 ASX_JSON_ACCESS_PATH_CONFIRMED
 ASX_SOURCE_REGISTRATION_PENDING_ACCESS_POLICY_AND_ADAPTER
 NZX_MACHINE_READABLE_ENDPOINT_NOT_ACCEPTED_YET
+APAC_NEXT_LIVE_SOURCE_DECISION_RECORDED
+KR_LIVE_SOURCE_TRACK_DEFERRED_UNTIL_DEDICATED_BACKEND_EXISTS
 PRODUCTION_APAC_SCHEDULED_LIVE_POLLING_NOT_ENABLED
 JP_REMAINING_AUTHORITY_DECISION_TRACKED_IN_ISSUE_339
 ```
