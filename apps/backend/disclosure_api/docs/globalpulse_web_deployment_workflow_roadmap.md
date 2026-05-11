@@ -34,6 +34,7 @@ public browser smoke sees Backend ok and Backend digest live
 regional sections render from backend digest data
 Source Health operator link is present
 HKEX appears in public digest after manual staging poll
+source observation production readiness matrix is recorded
 ```
 
 ## Current Gaps
@@ -255,6 +256,12 @@ HKEX: record first scheduled staging run, then observe
 Taiwan/SET/Vietnam: cadence only through separate staging designs
 JP: blocked by issue #339
 KR: deferred
+```
+
+Current matrix:
+
+```text
+globalpulse_source_observation_production_readiness_matrix.md
 ```
 
 Production source promotion requires:
