@@ -6,13 +6,19 @@ This guide is the remote source of truth for continuing GlobalPulse work across 
 
 If a local environment changes, start here before writing code.
 
+Repo-root quick entrypoint:
+
+```text
+GLOBALPULSE_HANDOFF.md
+```
+
 ## Current Repository Anchor
 
 ```text
 repo: suam4597-ship-it/disclosure-automation
 primary working branch: phase0-foundation
-current anchor commit: 6473fbc79e668a7c2207effd45aa51d151ba07b2
-latest anchor PR: #535 Add HKEX inactive source candidate
+current anchor commit: dd4992d8aadc9c2c472a5fd28692450ab8579db6
+latest anchor PR: #536 Record HKEX manual staging smoke
 backend staging: https://globalpulse-backend-staging.fly.dev
 public Pages UI: https://suam4597-ship-it.github.io/disclosure-automation/
 ```
@@ -35,7 +41,7 @@ Expected:
 
 ```text
 git status --short: empty
-HEAD: 6473fbc79e668a7c2207effd45aa51d151ba07b2 or a newer origin/phase0-foundation commit
+HEAD: dd4992d8aadc9c2c472a5fd28692450ab8579db6 or a newer origin/phase0-foundation commit
 ```
 
 If the local checkout has unrelated uncommitted work, do not overwrite it. Either use a fresh clone or create a new branch and inspect the diff first.
@@ -157,6 +163,7 @@ HKEX:
   Fly staging deploy: pass
   manual live poll: pass
   latest digest visibility: pass
+  public Pages browser visibility: pass
   source health after poll: healthy
   cadence: not approved
 ```
@@ -197,6 +204,7 @@ disable_live_fixture_fallback: true
 runtime GET verification: globalpulse_hkex_fly_runtime_probe_results.md
 candidate note: globalpulse_hkex_inactive_source_candidate_notes.md
 manual staging smoke: globalpulse_hkex_manual_staging_smoke_results.md
+public Pages browser smoke: globalpulse_hkex_public_pages_browser_smoke_results.md
 ```
 
 Completed before manual staging verification:
@@ -215,6 +223,7 @@ Current HKEX gate:
 ```text
 manual staging live poll: pass
 digest visibility: pass
+public Pages browser visibility: pass
 source health: healthy
 source remains active=false
 candidate_status remains manual_staging_only
