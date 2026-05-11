@@ -18,7 +18,7 @@ Current APAC live-source status:
 
 ```text
 India NSE official RSS: staging-live verified, bounded, duplicate-handling hardened, conservative staging schedule configured
-India NSE first automated scheduled run: pending first matching GitHub Actions cron slot
+India NSE first automated scheduled run: passed on GitHub Actions run 25650796284; 7-day staging observation window pending
 ASEAN official endpoint: scan started, SGX browser JSON access path confirmed but blocked by policy/runtime review; Bursa browser JSON access path confirmed but blocked by Cloudflare/runtime fetch; SET official JSON access path and repeated Fly staging smoke passed while inactive; HNX Vietnam official RSS inactive candidate added and repeated manual staging smoke passed; HSX Vietnam official listed-company RSS inactive candidate added and first manual staging smoke passed; Taiwan MOPS official JSON inactive candidate added and first manual staging smoke passed; IDX official JSON access path confirmed but blocked by challenge-cookie dependency
 ANZ official endpoint: ASX official JSON access path confirmed, but access-policy decision blocks source registration until written authority or approved ASX Information Services path exists
 Taiwan official endpoint: MOPS daily material-information JSON endpoint confirmed; bounded inactive date-aware POST adapter/parser source candidate added; first manual staging smoke passed while inactive
@@ -128,7 +128,8 @@ duplicate reference bounding: completed
 staging cadence policy: completed
 phase0 workflow schedule configuration: completed
 default-branch schedule activation: completed
-first automated scheduled run: pending
+first automated scheduled run: completed on run 25650796284
+7-day staging observation window: pending
 ```
 
 ### Candidate B: India SEBI/BSE/NSE secondary feeds
@@ -274,7 +275,7 @@ REJECT: enabling JP live polling before issue #339 source-authority decision is 
 ## Next Allowed PRs
 
 ```text
-1. Record first automated India NSE scheduled staging poll after the GitHub Actions cron fires.
+1. Record India NSE 7-day scheduled staging observation summary after enough successful cron runs accumulate.
 2. Record SGX policy/permission decision or runtime compatibility probe if SGX access is allowed to continue.
 3. Add a bounded SGX adapter only if policy/permission, runtime fetch, and response-shape gates pass.
 4. Add a bounded inactive SET adapter/source candidate.
@@ -296,7 +297,8 @@ APAC_FIXTURE_UI_TRACK_CLOSED
 APAC_LIVE_SOURCE_TRACK_STARTED
 INDIA_NSE_STAGING_LIVE_CANDIDATE_VERIFIED
 INDIA_NSE_CONSERVATIVE_STAGING_SCHEDULE_CONFIGURED
-INDIA_NSE_FIRST_AUTOMATED_SCHEDULED_RUN_PENDING
+INDIA_NSE_FIRST_AUTOMATED_STAGING_SCHEDULE_RUN_PASS
+INDIA_NSE_7_DAY_STAGING_OBSERVATION_WINDOW_PENDING
 ASEAN_LIVE_ENDPOINT_SCAN_STARTED
 SGX_BROWSER_JSON_ACCESS_PATH_CONFIRMED
 SGX_SOURCE_REGISTRATION_BLOCKED_BY_POLICY_REVIEW
