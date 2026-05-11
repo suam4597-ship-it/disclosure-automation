@@ -117,7 +117,7 @@ workflow added on phase0-foundation: globalpulse-public-web-smoke.yml
 default-branch activation: complete via PR #545
 default-branch activation commit: 8a2a4b5279f578c1ab62622768acf6d0adbbb2ab
 workflow id: 274668919
-first workflow_dispatch result: pending
+first workflow_dispatch result: pass, run 25676030410
 ```
 
 ### 3. Split Staging And Production Runtime Configuration

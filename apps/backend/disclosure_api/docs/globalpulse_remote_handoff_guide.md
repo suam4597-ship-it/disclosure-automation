@@ -304,7 +304,7 @@ Public web smoke workflow: globalpulse-public-web-smoke.yml
 Public web smoke phase0 PR: #544
 Public web smoke main activation PR: #545
 Public web smoke workflow id: 274668919
-Public web smoke first workflow_dispatch run: pending
+Public web smoke first workflow_dispatch run: 25676030410 pass
 ```
 
 Useful branch checks:
