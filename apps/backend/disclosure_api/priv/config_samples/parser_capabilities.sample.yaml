@@ -1393,3 +1393,43 @@ parsers:
       reject_empty_url: true
       reject_non_dfsa_oam_payload: true
       reject_future_timestamps: true
+
+  - parser_key: set_thailand_company_news_json_v1
+    display_name: SET Thailand Company News JSON Parser
+    enabled: true
+    input_types: [json]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: false
+    supports_detail_fetch: false
+    extraction:
+      id_fields:
+        - id
+      title_fields:
+        - headline
+      summary_fields:
+        - symbol
+        - source
+        - group
+        - tag
+        - product
+      url_fields:
+        - url
+      published_at_fields:
+        - datetime
+      category_fields:
+        - group
+        - tag
+    normalization:
+      source_shape: set_thailand_news_groups_json
+      trim_html: true
+      collapse_whitespace: true
+      timezone_strategy: source_timestamp_offset
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_non_set_thailand_company_news_payload: true
+      reject_future_timestamps: true
+      detail_fetch_disabled: true

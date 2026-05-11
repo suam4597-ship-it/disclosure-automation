@@ -14,7 +14,8 @@ SET_THAILAND_FLY_ELIXIR_HTTP_WRAPPER_FETCH_PASS
 SET_THAILAND_BOOTSTRAP_PLUS_API_PROBE_PASS
 SET_THAILAND_API_RETURNS_JSON_FROM_FLY_STAGING
 SET_THAILAND_CHALLENGE_HTML_NOT_OBSERVED_FROM_FLY_STAGING
-SET_THAILAND_SOURCE_REGISTRATION_PENDING_BOUNDED_ADAPTER_RATE_CADENCE_AND_STAGING_SMOKE
+SET_THAILAND_BOUNDED_INACTIVE_SOURCE_CANDIDATE_ADDED
+SET_THAILAND_MANUAL_STAGING_SMOKE_PENDING
 ASEAN_SCHEDULED_LIVE_POLLING_NOT_ENABLED
 PUBLIC_UI_AND_BACKEND_DIGEST_SHAPE_UNCHANGED
 ```
@@ -133,40 +134,31 @@ Current SET decision:
 source key proposal: th_set_company_news
 parser/adapter proposal: set_thailand_company_news_json_v1
 runtime fetch status: passed
-registration status: blocked
-blocking class: bounded_adapter_required + rate_cadence_policy + manual_staging_smoke_required
+registration status: inactive manual-staging-only candidate
+blocking class: manual_staging_smoke_required
 scheduled polling: not allowed
 production polling: not allowed
 public UI: not changed
 ```
 
-## Next Implementation Step
+## Current Implementation Step
 
-The next implementation step can be a bounded inactive SET JSON adapter/source candidate, provided it stays manual-staging-only:
+The bounded inactive SET JSON adapter/source candidate has been added under:
 
 ```text
-source active: false
-candidate_status: manual_staging_only
-base_url: official SET JSON endpoint with explicit bounded date window
-live_headers: bounded non-secret SET browser-style headers
+source: th_set_company_news
 parser: set_thailand_company_news_json_v1
-max_items_per_poll: conservative cap
-detail page fetch: disabled
-attachment fetch: disabled
-public digest shape: unchanged
-public poll UI: not added
-public Source Health UI: not added
-scheduled polling: disabled
+fixture: source_payloads/th_set_company_news.json
+notes: globalpulse_set_thailand_company_news_candidate_notes.md
 ```
 
-Before any staging live poll smoke, the candidate PR still needs:
+Before any source activation or schedule, the candidate still needs:
 
 ```text
-bounded parser rejecting HTML/challenge/non-JSON payloads
-fixture sample for parser safety
-source config active=false
-rate/cadence cap documented
 manual poll command documented
+manual Fly staging smoke passed
+fixture_fallback=false confirmed from live poll metadata
+digest impact recorded
 rollback path documented
 ```
 
@@ -191,7 +183,7 @@ Keep JP blocked until issue #339 source authority is resolved.
 ## Allowed Next PRs
 
 ```text
-1. Add bounded inactive SET JSON parser/source candidate.
-2. Add SET manual Fly staging live poll smoke only after the parser/source candidate is deployed.
-3. If SET parser/source candidate is delayed or blocked, continue to IDX Fly/Elixir runtime compatibility probe.
+1. Add SET manual Fly staging live poll smoke only after the parser/source candidate is deployed.
+2. If SET manual staging smoke fails, record the bounded failure and fix the smallest parser/live-fetch issue.
+3. If SET staging smoke is delayed or blocked, continue to IDX Fly/Elixir runtime compatibility probe.
 ```
