@@ -20,7 +20,7 @@ Current APAC live-source status:
 India NSE official RSS: staging-live verified, bounded, duplicate-handling hardened, conservative staging schedule configured
 India NSE first automated scheduled run: pending first matching GitHub Actions cron slot
 ASEAN official endpoint: scan started, SGX browser JSON access path confirmed but blocked by policy/runtime review; Bursa browser JSON access path confirmed but blocked by Cloudflare/runtime fetch; SET and IDX official JSON access paths confirmed but pending adapter/runtime probes
-ANZ official endpoint: scan started, exact machine-readable endpoint not accepted yet
+ANZ official endpoint: ASX official JSON access path confirmed, but source registration pending access-policy decision and bounded adapter
 JP live source: blocked by issue #339 source-authority decision
 ```
 
@@ -204,7 +204,8 @@ Observed ANZ exact-endpoint scan:
 ```text
 scan record: globalpulse_anz_live_endpoint_verification_scan.md
 ASX recent/historical/today's announcements: official HTML surfaces found; no accepted RSS/Atom/JSON endpoint verified
-NZX public announcements: official HTML surfaces found; guessed public API resource returned 403
+ASX MarkitDigital announcements JSON: official page access path confirmed; direct Node/PowerShell fetch returned 200 JSON
+NZX public announcements: official contingency HTML surface confirmed; no RSS/Atom/JSON endpoint observed
 NZX data products: official access-policy surface found; not accepted as unauthenticated live source
 decision: no ANZ source registration yet
 ```
@@ -262,8 +263,8 @@ REJECT: enabling JP live polling before issue #339 source-authority decision is 
 5. Add a bounded inactive SET adapter/source candidate only if runtime fetch, parser, rate/cadence, and staging-smoke gates pass.
 6. Add an IDX Indonesia runtime compatibility probe if the bounded date-window query shape is accepted.
 7. Decide whether SET or IDX should be the first ASEAN adapter candidate.
-8. Continue ASX/NZX access-path review for ANZ.
-9. Add a bounded ASX/NZX adapter only if official access terms and response shape are accepted.
+8. Record ASX access-policy decision for MarkitDigital announcements JSON usage.
+9. Add a bounded inactive ASX adapter/source candidate only if official access terms, response shape, runtime fetch, and staging-smoke gates pass.
 10. Keep JP blocked until issue #339 source authority is resolved.
 ```
 
@@ -286,7 +287,9 @@ IDX_INDONESIA_JSON_ACCESS_PATH_CONFIRMED
 IDX_INDONESIA_SOURCE_REGISTRATION_PENDING_RUNTIME_PROBE_AND_ADAPTER
 ASEAN_MACHINE_READABLE_ENDPOINTS_CONFIRMED_BUT_NOT_ACCEPTED_FOR_SOURCE_REGISTRATION
 ANZ_LIVE_ENDPOINT_SCAN_STARTED
-ANZ_MACHINE_READABLE_ENDPOINT_NOT_ACCEPTED_YET
+ASX_JSON_ACCESS_PATH_CONFIRMED
+ASX_SOURCE_REGISTRATION_PENDING_ACCESS_POLICY_AND_ADAPTER
+NZX_MACHINE_READABLE_ENDPOINT_NOT_ACCEPTED_YET
 PRODUCTION_APAC_SCHEDULED_LIVE_POLLING_NOT_ENABLED
 JP_REMAINING_AUTHORITY_DECISION_TRACKED_IN_ISSUE_339
 ```
