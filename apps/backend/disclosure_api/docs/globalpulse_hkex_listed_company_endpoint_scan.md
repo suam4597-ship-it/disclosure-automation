@@ -14,8 +14,8 @@ HKEXNEWS_OFFICIAL_LISTED_COMPANY_PUBLICATION_SURFACE_CONFIRMED
 HKEX_TITLE_SEARCH_HTML_RESULTS_CONFIRMED
 HKEX_SIMPLE_SEARCH_SURFACE_CONFIRMED
 HKEX_LOCAL_ELIXIR_RUNTIME_PROBE_PASS
-HKEX_JSON_OR_RSS_CONTRACT_NOT_CONFIRMED
-HKEX_BACKEND_COMPATIBLE_CONTRACT_PENDING
+HKEX_LATEST_LISTED_COMPANY_JSON_ASSET_CONFIRMED
+HKEX_BACKEND_COMPATIBLE_SOURCE_CONTRACT_PENDING
 HKEX_SOURCE_REGISTRATION_BLOCKED
 NO_CNTW_SOURCE_REGISTERED
 NO_CNTW_SCHEDULED_LIVE_POLLING_ENABLED
@@ -182,12 +182,42 @@ PDF link marker: present
 
 This is positive local runtime evidence, but it is not a Fly staging release-eval pass. Source registration remains blocked until the Fly/application runtime path and query contract are accepted.
 
+## Latest Listed Company Asset Follow-Up
+
+A later official-asset scan confirmed that the HKEXnews Latest Listed Company Information shell points to official JSON assets:
+
+```text
+record: globalpulse_hkex_latest_listed_company_asset_scan.md
+shell: https://www.hkexnews.hk/homeLLCI.html
+config: https://www.hkexnews.hk/ncms/eds/latestlistedcompanyinformation/config.js
+category list: https://www.hkexnews.hk/ncms/script/eds/homecat_e.json
+latest submissions: https://www.hkexnews.hk/ncms/script/eds/homecat0_e.json
+```
+
+Observed latest-submissions asset:
+
+```text
+status: 200
+content_type: application/json
+newsInfo_count: 5
+viewAllHyperlink: https://www1.hkexnews.hk/listedco/listconews/index/lci.html?lang=en
+local Erlang :httpc fetch: pass
+```
+
+Interpretation:
+
+```text
+HKEX now has a machine-readable latest-listed-company-information asset candidate.
+The preferred next candidate is a bounded homecat0_e.json parser/source contract, not title-search pagination or PDF parsing.
+Source registration remains blocked until a bounded parser/source contract and Fly/application-runtime path are accepted.
+```
+
 Required before an HKEX source PR:
 
 ```text
-accepted query contract for latest or bounded recent listed-company documents
-confirmed backend-compatible GET from Fly staging or application HTTP runtime
-parser decision: bounded HTML parser or confirmed machine-readable endpoint
+accepted source contract for latest listed-company documents
+confirmed backend-compatible GET from Fly staging or application HTTP runtime for homecat0_e.json
+parser decision: bounded JSON parser for homecat0_e.json newsInfo rows
 source-level cap, date window, and pagination limits
 fixture fallback disabled
 source active=false
@@ -217,7 +247,7 @@ JP remains blocked until issue #339 is resolved
 
 ```text
 1. Run a Fly/application-runtime probe against the bounded HKEX title-search URL.
-2. Search only official HKEX/HKEXnews assets for a stable latest/recent query contract.
+2. Draft a bounded parser/source contract for the official HKEX homecat0_e.json latest-submissions asset.
 3. Add a bounded inactive HKEX parser/source candidate only after backend compatibility and parser shape are accepted.
 4. Keep CN/TW production scheduled polling disabled.
 ```
