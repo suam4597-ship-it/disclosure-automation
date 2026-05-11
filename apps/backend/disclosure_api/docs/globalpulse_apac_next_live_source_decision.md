@@ -20,6 +20,9 @@ SET_MANUAL_STAGING_SMOKE_PASS
 SET_REPEATED_MANUAL_STAGING_POLL_PASS
 INDIA_NSE_FIRST_AUTOMATED_STAGING_SCHEDULE_RUN_PASS
 INDIA_NSE_7_DAY_STAGING_OBSERVATION_WINDOW_PENDING
+INDIA_SECONDARY_ENDPOINT_SCAN_RECORDED
+BSE_SOURCE_REGISTRATION_BLOCKED_PENDING_BACKEND_COMPATIBLE_ACCESS_PATH
+SEBI_REVIEWED_AS_SEPARATE_REGULATOR_POLICY_TRACK
 VIETNAM_HNX_ISSUER_DISCLOSURE_RSS_CONFIRMED
 VIETNAM_HNX_ISSUER_DISCLOSURE_SOURCE_REGISTERED_INACTIVE
 VIETNAM_HNX_MANUAL_STAGING_SMOKE_PASS
@@ -50,6 +53,7 @@ PRODUCTION_APAC_SCHEDULED_LIVE_POLLING_NOT_ENABLED
 
 ```text
 India NSE official RSS: staging-live verified, conservative staging schedule configured, and first automated scheduled staging run passed on GitHub Actions run 25650796284
+India secondary endpoints: BSE corporate-announcement surface is relevant but backend-compatible fetch is not proven; SEBI media/notification surface is a separate regulator-policy track, not a listed-company disclosure source
 SGX: official browser JSON path confirmed, blocked by policy/runtime review
 Bursa Malaysia: official browser JSON path confirmed, blocked by Cloudflare/runtime fetch
 SET Thailand: bounded inactive source candidate added and repeated manual staging smoke passed; still inactive and production scheduling remains disabled
@@ -68,15 +72,16 @@ JP: remains blocked by source-authority issue #339
 
 ```text
 1. Keep observing India NSE until the 7-day staging schedule window is complete
-2. Keep SET inactive; if cadence is considered later, design staging-only schedule first
-3. Keep IDX blocked unless a clean backend runtime or approved data-access path is documented
-4. Continue APAC official-source scanning within official exchange/OAM surfaces
-5. Revisit Taiwan MOPS only through another explicit staging-only cadence design or manual observation
-6. Revisit ASX only after written authority or approved ASX Information Services path exists
-7. Revisit SGX only after policy/permission and runtime compatibility are explicitly accepted
-8. Revisit Bursa only if a non-bypass backend runtime fetch path is accepted
-9. Revisit PSE only after approved PSE data-product or written permission path exists
-10. Keep KR last until its dedicated backend/source authority path exists
+2. Revisit BSE only after a backend-compatible official endpoint or approved data-access path is proven
+3. Keep SET inactive; if cadence is considered later, design staging-only schedule first
+4. Keep IDX blocked unless a clean backend runtime or approved data-access path is documented
+5. Continue APAC official-source scanning within official exchange/OAM surfaces
+6. Revisit Taiwan MOPS only through another explicit staging-only cadence design or manual observation
+7. Revisit ASX only after written authority or approved ASX Information Services path exists
+8. Revisit SGX only after policy/permission and runtime compatibility are explicitly accepted
+9. Revisit Bursa only if a non-bypass backend runtime fetch path is accepted
+10. Revisit PSE only after approved PSE data-product or written permission path exists
+11. Keep KR last until its dedicated backend/source authority path exists
 ```
 
 ## Rationale
@@ -134,6 +139,14 @@ IDX challenge-cookie access decision is recorded
 unbounded query shapes returned Varnish 503 HTML
 ```
 
+India secondary sources remain behind NSE because:
+
+```text
+BSE corporate announcements are relevant, but local page/API probes returned 403 and no Fly/backend-compatible fetch contract is proven
+SEBI media and notifications are official, but they are regulator media/policy records rather than listed-company issuer announcements
+NSE already has a working official RSS source with staging schedule evidence
+```
+
 ## Guardrails
 
 ```text
@@ -154,10 +167,11 @@ Do not start JP live polling until issue #339 is resolved.
 
 ```text
 1. Keep observing India NSE until the 7-day staging schedule window is complete
-2. Keep SET inactive; if cadence is considered later, design staging-only schedule first
-3. Keep IDX blocked unless a clean backend runtime or approved data-access path is documented
-4. Continue APAC official-source scanning within official exchange/OAM surfaces
-5. Revisit Taiwan MOPS only through another explicit staging-only cadence design or manual observation
-6. Revisit ASX only after written authority or approved ASX Information Services path exists
-7. Revisit PSE only after approved PSE data-product or written permission path exists
+2. Revisit BSE only after a backend-compatible official endpoint or approved data-access path is proven
+3. Keep SET inactive; if cadence is considered later, design staging-only schedule first
+4. Keep IDX blocked unless a clean backend runtime or approved data-access path is documented
+5. Continue APAC official-source scanning within official exchange/OAM surfaces
+6. Revisit Taiwan MOPS only through another explicit staging-only cadence design or manual observation
+7. Revisit ASX only after written authority or approved ASX Information Services path exists
+8. Revisit PSE only after approved PSE data-product or written permission path exists
 ```
