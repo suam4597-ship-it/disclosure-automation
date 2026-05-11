@@ -9,6 +9,8 @@ This is documentation-only. It does not add runtime code, routes, controllers, t
 ```text
 ASEAN_LIVE_SOURCE_SCAN_STARTED
 ASEAN_OFFICIAL_SURFACES_FOUND
+SGX_OFFICIAL_BROWSER_ACCESS_PATH_CONFIRMED
+SGX_SOURCE_REGISTRATION_BLOCKED_BY_POLICY_REVIEW
 ASEAN_MACHINE_READABLE_ENDPOINT_NOT_ACCEPTED_YET
 ASEAN_SOURCE_REGISTRATION_NOT_READY
 ASEAN_SCHEDULED_LIVE_POLLING_BLOCKED
@@ -24,6 +26,17 @@ APAC live contract: globalpulse_apac_live_source_verification_contract.md
 India NSE staging schedule activation PR: #366 Activate India NSE staging schedule on main
 current branch: phase0-foundation
 scan date: 2026-05-08 UTC / 2026-05-09 KST
+SGX focused follow-up: globalpulse_sgx_company_announcements_access_path_review.md
+```
+
+## Latest SGX Access-Path Addendum
+
+```text
+SGX company-announcements browser access path confirmed.
+ANNOUNCEMENTS_API_URL observed as https://api.sgx.com/announcements/v1.1/.
+Bounded first-page JSON response observed with 20 rows and links.sgx.com detail URLs.
+The raw authorization token is not recorded.
+Source registration remains blocked by SGX policy/permission review and backend runtime fetch compatibility.
 ```
 
 ## Candidate Surfaces Checked
@@ -35,7 +48,7 @@ authority: official Singapore Exchange surface
 candidate URL: https://www.sgx.com/securities/company-announcements
 category: ASEAN listed-company announcements
 quick result: 200 text/html
-decision: official surface, but not rss_v1-ready
+decision: official JSON access path observed, but source registration blocked by policy/runtime review
 ```
 
 Observed:
@@ -43,8 +56,13 @@ Observed:
 ```text
 The public SGX company announcements page loads as HTML.
 The page metadata describes latest company announcements, corporate actions, disclosures, and trading status.
-The frontend bundle references an announcements service using ANNOUNCEMENTS_API_URL and an authorizationToken.
-Direct unauthenticated API probes to https://api.sgx.com/announcements/v1.0/ returned 403 in this executor.
+The browser-rendered page displays a Date & Time / Issuer Name / Security Name / Title / Category table.
+The frontend config exposes ANNOUNCEMENTS_API_URL=https://api.sgx.com/announcements/v1.1/.
+The frontend retrieves a CMS validator and uses a derived authorizationToken header for the announcements API.
+The raw authorization token is intentionally not recorded.
+Browser-compatible requests returned HTTP 200 JSON from the v1.1 list API.
+Direct unauthenticated API probes returned 403.
+At least one non-browser PowerShell request with token returned Akamai Access Denied, so backend runtime fetch compatibility is still unproven.
 ```
 
 Decision:
@@ -52,8 +70,9 @@ Decision:
 ```text
 Do not register SGX as an rss_v1 source.
 Do not treat the HTML page as live source input.
-Do not treat the token-protected JSON path as accepted until access terms, required headers/token flow, parser shape, and rate limits are explicitly verified.
-SGX remains a strong ASEAN candidate, but it likely needs a dedicated bounded JSON adapter or an accepted official feed/API path.
+Do not treat the token-protected JSON path as accepted until SGX policy/permission, backend runtime fetch compatibility, parser shape, and rate limits are explicitly verified.
+Do not store or log raw authorizationToken values.
+SGX remains a strong ASEAN candidate, but it needs a policy-approved bounded JSON adapter path before source registration.
 ```
 
 ### Bursa Malaysia Company Announcements
