@@ -121,6 +121,7 @@ basic monitoring incident plan: added, no alerting runtime enabled
 production approval issue: https://github.com/suam4597-ship-it/disclosure-automation/issues/561
 production Fly command templates: added, commands not executed
 frontend production config templates: added, config not promoted
+source promotion approval issue: https://github.com/suam4597-ship-it/disclosure-automation/issues/565
 ```
 
 Current public surfaces:
