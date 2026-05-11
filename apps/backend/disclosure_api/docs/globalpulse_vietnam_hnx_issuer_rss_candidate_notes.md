@@ -152,7 +152,7 @@ Keep JP blocked until issue #339 source authority is resolved.
 ## Allowed Next PRs
 
 ```text
-1. Repeat HSX manual staging live poll smoke in another observation window.
-2. Repeat SET Thailand manual staging smoke in another observation window.
-3. Continue APAC official-source scanning within official exchange/OAM surfaces.
+1. Continue APAC official-source scanning within official exchange/OAM surfaces.
+2. Keep observing India NSE scheduled staging runs until the 7-day window matures.
+3. Repeat Taiwan MOPS manual staging smoke in another observation window.
 ```

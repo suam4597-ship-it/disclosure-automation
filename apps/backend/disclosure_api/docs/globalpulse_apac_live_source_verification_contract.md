@@ -19,7 +19,7 @@ Current APAC live-source status:
 ```text
 India NSE official RSS: staging-live verified, bounded, duplicate-handling hardened, conservative staging schedule configured
 India NSE first automated scheduled run: passed on GitHub Actions run 25650796284; 7-day staging observation window pending
-ASEAN official endpoint: scan started, SGX browser JSON access path confirmed but blocked by policy/runtime review; Bursa browser JSON access path confirmed but blocked by Cloudflare/runtime fetch; SET official JSON access path and repeated Fly staging smoke passed while inactive; HNX Vietnam official RSS inactive candidate added and repeated manual staging smoke passed; HSX Vietnam official listed-company RSS inactive candidate added and first manual staging smoke passed; Taiwan MOPS official JSON inactive candidate added and first manual staging smoke passed; IDX official JSON access path confirmed but blocked by challenge-cookie dependency
+ASEAN official endpoint: scan started, SGX browser JSON access path confirmed but blocked by policy/runtime review; Bursa browser JSON access path confirmed but blocked by Cloudflare/runtime fetch; SET official JSON access path and repeated Fly staging smoke passed while inactive; HNX Vietnam official RSS inactive candidate added and repeated manual staging smoke passed; HSX Vietnam official listed-company RSS inactive candidate added and repeated manual staging smoke passed; Taiwan MOPS official JSON inactive candidate added and first manual staging smoke passed; IDX official JSON access path confirmed but blocked by challenge-cookie dependency
 ANZ official endpoint: ASX official JSON access path confirmed, but access-policy decision blocks source registration until written authority or approved ASX Information Services path exists
 Taiwan official endpoint: MOPS daily material-information JSON endpoint confirmed; bounded inactive date-aware POST adapter/parser source candidate added; first manual staging smoke passed while inactive
 JP live source: blocked by issue #339 source-authority decision
@@ -177,7 +177,7 @@ SET Thailand company news: official JSON access path confirmed; source registrat
 SET Thailand Fly/Elixir runtime probe: passed through DisclosureAutomation.Http.fetch/2 from globalpulse-backend-staging
 SET Thailand manual staging smoke: passed twice with fetch.mode=live and metadata.fallback_to_fixture=false; still inactive and unscheduled
 Vietnam HNX issuer disclosures: official RSS path confirmed; inactive rss_v1 source candidate added with fixture fallback disabled; repeated manual staging smoke passed with digest visibility
-Vietnam HSX listed-company news: official RSS path confirmed; inactive rss_v1 source candidate added with fixture fallback disabled; first manual staging smoke passed with digest visibility
+Vietnam HSX listed-company news: official RSS path confirmed; inactive rss_v1 source candidate added with fixture fallback disabled; repeated manual staging smoke passed with digest visibility
 IDX announcements: official JSON access path confirmed; Fly/Elixir runtime probe recorded direct API/page bootstrap Cloudflare 403 and cookie-mediated API 200 JSON; source registration blocked by challenge-cookie dependency, bounded adapter, and query-shape policy
 decision: no active or scheduled ASEAN source yet; inactive ASEAN candidates remain manual-staging-only
 ```
@@ -281,8 +281,8 @@ REJECT: enabling JP live polling before issue #339 source-authority decision is 
 4. Add a bounded inactive SET adapter/source candidate.
 5. Add SET manual Fly staging live poll smoke only after parser/source candidate deployment.
 6. Repeat SET Thailand manual staging smoke in another observation window.
-7. Repeat Vietnam HNX or HSX manual staging smoke in another observation window.
-8. Repeat Taiwan MOPS manual staging smoke in another observation window.
+7. Repeat Taiwan MOPS manual staging smoke in another observation window.
+8. Continue APAC official-source scanning within official exchange/OAM surfaces.
 9. Keep IDX blocked unless a clean backend runtime or approved data-access path is documented.
 10. Revisit ASX only after written authority or approved ASX Information Services path exists.
 11. Add a bounded inactive ASX adapter/source candidate only if authority, response shape, runtime fetch, and staging-smoke gates pass.
@@ -317,6 +317,7 @@ VIETNAM_HNX_DIGEST_VISIBLE_LIVE
 VIETNAM_HSX_LISTED_COMPANY_NEWS_RSS_CONFIRMED
 VIETNAM_HSX_LISTED_COMPANY_NEWS_SOURCE_REGISTERED_INACTIVE
 VIETNAM_HSX_MANUAL_STAGING_SMOKE_PASS
+VIETNAM_HSX_REPEATED_MANUAL_STAGING_SMOKE_PASS
 VIETNAM_HSX_DIGEST_VISIBLE_LIVE
 IDX_INDONESIA_JSON_ACCESS_PATH_CONFIRMED
 IDX_INDONESIA_FLY_ELIXIR_RUNTIME_PROBE_RECORDED

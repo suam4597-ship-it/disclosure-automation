@@ -23,7 +23,13 @@ INDIA_NSE_7_DAY_STAGING_OBSERVATION_WINDOW_PENDING
 VIETNAM_HNX_ISSUER_DISCLOSURE_RSS_CONFIRMED
 VIETNAM_HNX_ISSUER_DISCLOSURE_SOURCE_REGISTERED_INACTIVE
 VIETNAM_HNX_MANUAL_STAGING_SMOKE_PASS
+VIETNAM_HNX_REPEATED_MANUAL_STAGING_SMOKE_PASS
 VIETNAM_HNX_DIGEST_VISIBLE_LIVE
+VIETNAM_HSX_LISTED_COMPANY_NEWS_RSS_CONFIRMED
+VIETNAM_HSX_LISTED_COMPANY_NEWS_SOURCE_REGISTERED_INACTIVE
+VIETNAM_HSX_MANUAL_STAGING_SMOKE_PASS
+VIETNAM_HSX_REPEATED_MANUAL_STAGING_SMOKE_PASS
+VIETNAM_HSX_DIGEST_VISIBLE_LIVE
 IDX_IS_SECOND_ASEAN_RUNTIME_PROBE_CANDIDATE
 IDX_FLY_ELIXIR_RUNTIME_PROBE_RECORDED
 IDX_SOURCE_REGISTRATION_STILL_BLOCKED_BY_CHALLENGE_COOKIE_DEPENDENCY
@@ -42,7 +48,8 @@ India NSE official RSS: staging-live verified, conservative staging schedule con
 SGX: official browser JSON path confirmed, blocked by policy/runtime review
 Bursa Malaysia: official browser JSON path confirmed, blocked by Cloudflare/runtime fetch
 SET Thailand: bounded inactive source candidate added and repeated manual staging smoke passed; still inactive and production scheduling remains disabled
-Vietnam HNX: official issuer-disclosure RSS returned 200 application/rss+xml; bounded inactive rss_v1 source candidate added with fixture fallback disabled; first manual Fly staging smoke passed with digest visibility
+Vietnam HNX: official issuer-disclosure RSS returned 200 application/rss+xml; bounded inactive rss_v1 source candidate added with fixture fallback disabled; repeated manual Fly staging smoke passed with digest visibility
+Vietnam HSX: official listed-company RSS returned 200 application/rss+xml; bounded inactive rss_v1 source candidate added with fixture fallback disabled; repeated manual Fly staging smoke passed with digest visibility
 IDX Indonesia: official JSON path confirmed; Fly/Elixir direct API/page bootstrap returned Cloudflare 403, cookie-mediated API returned 200 JSON; access decision blocks source registration until a clean backend runtime or approved data-access path exists
 Philippines PSE EDGE: official disclosure surface confirmed; official CAF/ITCH data-access products found; public-site access is not enough for backend polling without approved data-access path
 ASX: official MarkitDigital JSON path confirmed, direct Node/PowerShell fetch passed, blocked by access-policy decision until written authority or approved ASX Information Services path exists
@@ -56,7 +63,7 @@ JP: remains blocked by source-authority issue #339
 ```text
 1. Keep observing India NSE until the 7-day staging schedule window is complete
 2. Keep SET inactive; if cadence is considered later, design staging-only schedule first
-3. Repeat Vietnam HNX manual Fly staging live poll smoke in another observation window
+3. Repeat Taiwan MOPS manual staging smoke in another observation window
 4. Keep IDX blocked unless a clean backend runtime or approved data-access path is documented
 5. Continue APAC official-source scanning within official exchange/OAM surfaces
 6. Revisit ASX only after written authority or approved ASX Information Services path exists
@@ -142,7 +149,7 @@ Do not start JP live polling until issue #339 is resolved.
 ```text
 1. Keep observing India NSE until the 7-day staging schedule window is complete
 2. Keep SET inactive; if cadence is considered later, design staging-only schedule first
-3. Repeat Vietnam HNX manual Fly staging live poll smoke in another observation window
+3. Repeat Taiwan MOPS manual staging smoke in another observation window
 4. Keep IDX blocked unless a clean backend runtime or approved data-access path is documented
 5. Continue APAC official-source scanning within official exchange/OAM surfaces
 6. Revisit ASX only after written authority or approved ASX Information Services path exists
