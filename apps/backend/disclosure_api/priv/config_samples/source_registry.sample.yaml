@@ -1645,6 +1645,38 @@ sources:
         x-client-uuid: 00000000-0000-4000-8000-000000000001
         user-agent: Mozilla/5.0 GlobalPulse SET runtime probe
 
+  - source_key: vn_hnx_issuer_disclosures
+    display_name: Vietnam HNX Issuer Disclosures
+    source_type: rss
+    base_url: https://www.hnx.vn/3/vi_vn/thong-tin-cong-bo-tu-to-chuc-phat-hanh.rss
+    healthcheck_url: https://www.hnx.vn/en-gb/thong-tin-cong-bo-ny-hnx.html
+    parser_key: rss_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.14
+    coverage_tags:
+      - apac
+      - asean
+      - vietnam
+      - vn
+      - disclosure
+      - exchange
+      - listed_companies
+      - issuer_announcement
+      - regulated_information
+      - rss
+    active: false
+    config:
+      fixture_path: source_payloads/vn_hnx_issuer_disclosures.xml
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_vietnam_hnx_issuer_rss_candidate_notes.md
+      disable_live_fixture_fallback: true
+      max_items_per_poll: 25
+      live_timeout_ms: 30000
+      live_headers:
+        accept: application/rss+xml, application/xml, text/xml
+        accept-language: vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7
+        user-agent: Mozilla/5.0 GlobalPulse HNX RSS runtime probe
+
   - source_key: india_market_disclosures
     display_name: India Market Disclosures
     source_type: rss
