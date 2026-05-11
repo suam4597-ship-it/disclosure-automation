@@ -32,6 +32,12 @@ For production backend deployment rules, read:
 apps/backend/disclosure_api/docs/globalpulse_production_backend_deployment_design.md
 ```
 
+For the future production deployment operator checklist, read:
+
+```text
+apps/backend/disclosure_api/docs/globalpulse_production_deployment_runbook.md
+```
+
 Current remote continuation status:
 
 ```text
