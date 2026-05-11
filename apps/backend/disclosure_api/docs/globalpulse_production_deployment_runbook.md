@@ -44,6 +44,12 @@ Fly.io command templates for after approval are recorded in:
 globalpulse_production_fly_command_templates.md
 ```
 
+Frontend production config templates are recorded in:
+
+```text
+globalpulse_frontend_production_config_templates.md
+```
+
 Secret values must not be pasted into this document, PR descriptions, issue comments, terminal logs, or screenshots.
 
 ## Preflight Checklist

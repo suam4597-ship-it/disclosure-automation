@@ -98,6 +98,12 @@ For future Fly.io production command templates, read:
 apps/backend/disclosure_api/docs/globalpulse_production_fly_command_templates.md
 ```
 
+For future frontend production config promotion templates, read:
+
+```text
+apps/backend/disclosure_api/docs/globalpulse_frontend_production_config_templates.md
+```
+
 Current remote continuation status:
 
 ```text
@@ -114,6 +120,7 @@ source observation matrix: added, production source promotion not approved
 basic monitoring incident plan: added, no alerting runtime enabled
 production approval issue: https://github.com/suam4597-ship-it/disclosure-automation/issues/561
 production Fly command templates: added, commands not executed
+frontend production config templates: added, config not promoted
 ```
 
 Current public surfaces:

@@ -251,3 +251,9 @@ Add GlobalPulse frontend config version marker
 ```
 
 It should add only bounded runtime config metadata and tests/smoke checks, not a production backend URL.
+
+Production config promotion templates are recorded separately:
+
+```text
+globalpulse_frontend_production_config_templates.md
+```
