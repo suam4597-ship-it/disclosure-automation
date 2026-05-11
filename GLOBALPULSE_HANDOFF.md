@@ -20,6 +20,12 @@ For the public Pages + Fly staging smoke workflow contract, read:
 apps/backend/disclosure_api/docs/globalpulse_public_web_smoke_workflow.md
 ```
 
+For frontend runtime config promotion rules, read:
+
+```text
+apps/backend/disclosure_api/docs/globalpulse_frontend_runtime_config_promotion_design.md
+```
+
 Current remote continuation status:
 
 ```text
