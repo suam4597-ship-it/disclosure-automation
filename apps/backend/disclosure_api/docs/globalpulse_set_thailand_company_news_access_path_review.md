@@ -12,7 +12,8 @@ This is documentation-only. It does not add runtime code, routes, controllers, t
 SET_THAILAND_OFFICIAL_BROWSER_ACCESS_PATH_CONFIRMED
 SET_THAILAND_COMPANY_NEWS_JSON_SHAPE_CAPTURED_BOUNDED
 SET_THAILAND_DIRECT_API_FETCH_BLOCKED_WITHOUT_SESSION_BOOTSTRAP
-SET_THAILAND_SOURCE_REGISTRATION_PENDING_BOUNDED_ADAPTER_AND_FLY_RUNTIME_PROBE
+SET_THAILAND_FLY_ELIXIR_RUNTIME_PROBE_PASS
+SET_THAILAND_SOURCE_REGISTRATION_PENDING_BOUNDED_ADAPTER_RATE_CADENCE_AND_STAGING_SMOKE
 ASEAN_SOURCE_REGISTRATION_STILL_BLOCKED
 ASEAN_SCHEDULED_LIVE_POLLING_NOT_ENABLED
 PUBLIC_UI_AND_BACKEND_DIGEST_SHAPE_UNCHANGED
@@ -98,10 +99,10 @@ Implication:
 The official SET JSON shape is proven.
 The API is not a simple standalone unauthenticated endpoint.
 The accepted path appears to require a bounded session bootstrap from the official page plus documented SET browser headers.
-Do not register SET Thailand as a live source until a Fly/Elixir runtime probe proves the same bootstrap path returns 2xx JSON without challenge HTML.
+The Fly/Elixir runtime probe is now recorded in globalpulse_set_thailand_fly_elixir_runtime_probe_results.md and returned 2xx JSON from Fly staging without challenge HTML.
 ```
 
-This is less blocked than Bursa Malaysia because a non-browser PowerShell session could fetch the API after a normal page bootstrap. It is still not source-ready because GlobalPulse does not yet have a bounded SET JSON adapter, runtime probe, rate/cadence policy, or staging smoke record.
+SET is still not source-ready because GlobalPulse does not yet have a bounded SET JSON adapter, parser fixture, rate/cadence policy, source registration, deployment, or staging live-poll smoke record.
 
 ## Source Registration Decision
 
@@ -113,7 +114,7 @@ Current decision:
 source key proposal: th_set_company_news
 parser/adapter proposal: set_thailand_company_news_json_v1
 registration status: blocked
-blocking class: bounded_adapter_required + fly_runtime_fetch_probe + rate_cadence_policy
+blocking class: bounded_adapter_required + rate_cadence_policy + manual_staging_smoke_required
 scheduled polling: not allowed
 production polling: not allowed
 public UI: not changed
@@ -143,7 +144,7 @@ public Source Health UI: not added
 Required validation before any parser/source PR:
 
 ```text
-Fly/Elixir runtime bootstrap probe returns 2xx JSON without challenge HTML
+Fly/Elixir runtime bootstrap probe returns 2xx JSON without challenge HTML: complete
 parser rejects challenge pages and non-JSON responses
 parser extracts only bounded newsGroups/newsInfoList metadata
 no detail pages or attachment documents are fetched
@@ -170,8 +171,7 @@ Do not use third-party SET mirrors or aggregators by default.
 ## Allowed Next PRs
 
 ```text
-1. Add a SET Fly/Elixir runtime compatibility probe if the bootstrap path is accepted.
-2. Add a bounded inactive SET JSON parser/source candidate only after runtime fetch and access gates pass.
-3. Retry IDX Indonesia official announcement access-path review.
-4. Continue ASX/NZX access-path review for ANZ.
+1. Add a bounded inactive SET JSON parser/source candidate.
+2. Add SET manual Fly staging live poll smoke after the candidate is deployed.
+3. If SET parser/source candidate is delayed or blocked, continue to IDX Fly/Elixir runtime compatibility probe.
 ```

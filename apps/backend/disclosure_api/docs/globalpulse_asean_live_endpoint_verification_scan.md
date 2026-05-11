@@ -14,7 +14,8 @@ SGX_SOURCE_REGISTRATION_BLOCKED_BY_POLICY_REVIEW
 BURSA_MALAYSIA_OFFICIAL_BROWSER_ACCESS_PATH_CONFIRMED
 BURSA_MALAYSIA_SOURCE_REGISTRATION_BLOCKED_BY_CLOUDFLARE_RUNTIME_FETCH
 SET_THAILAND_OFFICIAL_JSON_ACCESS_PATH_CONFIRMED
-SET_THAILAND_SOURCE_REGISTRATION_PENDING_RUNTIME_PROBE_AND_ADAPTER
+SET_THAILAND_FLY_ELIXIR_RUNTIME_PROBE_PASS
+SET_THAILAND_SOURCE_REGISTRATION_PENDING_BOUNDED_ADAPTER_RATE_CADENCE_AND_STAGING_SMOKE
 IDX_INDONESIA_OFFICIAL_JSON_ACCESS_PATH_CONFIRMED
 IDX_INDONESIA_SOURCE_REGISTRATION_PENDING_RUNTIME_PROBE_AND_ADAPTER
 ASEAN_MACHINE_READABLE_ENDPOINTS_CONFIRMED_BUT_NOT_ACCEPTED_FOR_SOURCE_REGISTRATION
@@ -67,7 +68,8 @@ Official JSON endpoint observed as /api/cms/v1/news/set with sourceId=company an
 Bounded first-page JSON response observed with newsGroups/newsInfoList metadata.
 Fresh direct API probes returned 403 Incapsula challenge HTML.
 Normal page bootstrap plus SET browser headers returned 200 JSON in a local PowerShell session.
-Source registration remains blocked pending a bounded adapter and Fly/Elixir runtime probe.
+Fly/Elixir runtime probe from globalpulse-backend-staging returned 200 application/json through DisclosureAutomation.Http.fetch/2.
+Source registration remains blocked pending a bounded adapter, rate/cadence policy, and staging live-poll smoke.
 ```
 
 ## Latest IDX Indonesia Access-Path Addendum
@@ -167,7 +169,8 @@ The page called /api/cms/v1/news/set with sourceId=company, securityTypeIds=S, a
 The browser XHR returned HTTP 200 JSON with newsGroups and newsInfoList metadata.
 Fresh direct API probes returned 403 Incapsula challenge HTML.
 A normal page bootstrap followed by the API request with X-Channel=WEB_SET and X-Client-Uuid returned 200 JSON in a local PowerShell session.
-No Fly/Elixir runtime probe or bounded adapter has been added yet.
+The Fly/Elixir runtime probe also returned 200 application/json through the application HTTP wrapper with two news groups and totalCount=63.
+No bounded SET adapter/source candidate has been added yet.
 ```
 
 Decision:
@@ -176,7 +179,7 @@ Decision:
 Do not register SET as an rss_v1 source.
 Do not treat the HTML page as live source input.
 Do not claim SET live readiness from browser-only success or fresh API 403 challenge responses.
-Add a source only after a Fly/Elixir bootstrap probe, bounded JSON adapter, rate/cadence policy, and staging smoke pass.
+Add a source only after a bounded JSON adapter, rate/cadence policy, and staging smoke pass.
 ```
 
 ### IDX Indonesia Announcements
