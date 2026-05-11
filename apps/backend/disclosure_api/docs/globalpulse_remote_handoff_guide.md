@@ -17,8 +17,8 @@ GLOBALPULSE_HANDOFF.md
 ```text
 repo: suam4597-ship-it/disclosure-automation
 primary working branch: phase0-foundation
-current anchor commit: dd4992d8aadc9c2c472a5fd28692450ab8579db6
-latest anchor PR: #536 Record HKEX manual staging smoke
+current anchor commit: af422039b9b2f0b9e2333a5eb3f500daf365c9b8
+latest anchor PR: #537 Record HKEX public Pages browser smoke
 backend staging: https://globalpulse-backend-staging.fly.dev
 public Pages UI: https://suam4597-ship-it.github.io/disclosure-automation/
 ```
@@ -41,7 +41,7 @@ Expected:
 
 ```text
 git status --short: empty
-HEAD: dd4992d8aadc9c2c472a5fd28692450ab8579db6 or a newer origin/phase0-foundation commit
+HEAD: af422039b9b2f0b9e2333a5eb3f500daf365c9b8 or a newer origin/phase0-foundation commit
 ```
 
 If the local checkout has unrelated uncommitted work, do not overwrite it. Either use a fresh clone or create a new branch and inspect the diff first.
@@ -162,10 +162,11 @@ HKEX:
   source status: active=false
   Fly staging deploy: pass
   manual live poll: pass
+  second manual observation: pass
   latest digest visibility: pass
   public Pages browser visibility: pass
   source health after poll: healthy
-  cadence: not approved
+  next gate: staging-only cadence design
 ```
 
 ### Korea / Japan
@@ -181,10 +182,9 @@ JP live polling: blocked by issue #339 until source authority decision
 2. Record EU scheduled staging canary observation summary after enough scheduled runs accumulate.
 3. Record scheduled-canary digest diversity and public Pages visibility smoke.
 4. Continue India NSE 7-day staging observation.
-5. Record HKEX manual staging smoke result if not already merged.
-6. Run one additional HKEX manual observation window before considering any cadence design.
-7. Continue scheduled observation summaries for Europe and India when enough runs accumulate.
-8. Revisit Taiwan/SET/Vietnam cadence only through staging-only design PRs.
+5. Design HKEX staging-only cadence before any schedule change.
+6. Continue scheduled observation summaries for Europe and India when enough runs accumulate.
+7. Revisit Taiwan/SET/Vietnam cadence only through staging-only design PRs.
 
 ## HKEX Next-Step Contract
 
@@ -204,6 +204,7 @@ disable_live_fixture_fallback: true
 runtime GET verification: globalpulse_hkex_fly_runtime_probe_results.md
 candidate note: globalpulse_hkex_inactive_source_candidate_notes.md
 manual staging smoke: globalpulse_hkex_manual_staging_smoke_results.md
+second manual observation: globalpulse_hkex_second_manual_observation_results.md
 public Pages browser smoke: globalpulse_hkex_public_pages_browser_smoke_results.md
 ```
 
@@ -222,13 +223,14 @@ Current HKEX gate:
 
 ```text
 manual staging live poll: pass
+second manual observation: pass
 digest visibility: pass
 public Pages browser visibility: pass
 source health: healthy
 source remains active=false
 candidate_status remains manual_staging_only
 cadence: not approved
-next: additional manual observation window, then staging-only cadence design if still healthy
+next: staging-only cadence design if still healthy
 ```
 
 ## GitHub Actions Checks To Review
