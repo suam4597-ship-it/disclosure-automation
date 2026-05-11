@@ -14,6 +14,8 @@ ASX_IS_STRONGEST_NEXT_TECHNICAL_ADAPTER_CANDIDATE
 ASX_ACCESS_POLICY_DECISION_RECORDED
 ASX_ADAPTER_BLOCKED_UNTIL_WRITTEN_AUTHORITY_OR_APPROVED_INFORMATION_SERVICE_PATH
 SET_IS_FIRST_ASEAN_RUNTIME_PROBE_CANDIDATE
+SET_FLY_ELIXIR_RUNTIME_PROBE_PASS
+SET_BOUNDED_INACTIVE_ADAPTER_SOURCE_CANDIDATE_IS_NEXT
 IDX_IS_SECOND_ASEAN_RUNTIME_PROBE_CANDIDATE
 KR_LIVE_SOURCE_TRACK_DEFERRED_UNTIL_DEDICATED_BACKEND_EXISTS
 JP_LIVE_POLLING_STILL_BLOCKED_BY_ISSUE_339
@@ -26,7 +28,7 @@ PRODUCTION_APAC_SCHEDULED_LIVE_POLLING_NOT_ENABLED
 India NSE official RSS: staging-live verified and conservative staging schedule configured
 SGX: official browser JSON path confirmed, blocked by policy/runtime review
 Bursa Malaysia: official browser JSON path confirmed, blocked by Cloudflare/runtime fetch
-SET Thailand: official JSON path confirmed, blocked pending bounded adapter and Fly/Elixir runtime probe
+SET Thailand: official JSON path confirmed, Fly/Elixir runtime probe passed, blocked pending bounded adapter/source candidate, rate/cadence policy, and staging smoke
 IDX Indonesia: official JSON path confirmed, blocked pending bounded adapter, query-shape policy, and Fly/Elixir runtime probe
 ASX: official MarkitDigital JSON path confirmed, direct Node/PowerShell fetch passed, blocked by access-policy decision until written authority or approved ASX Information Services path exists
 NZX: official contingency HTML surface confirmed, no machine-readable endpoint accepted
@@ -37,9 +39,9 @@ JP: remains blocked by source-authority issue #339
 ## Recommended Order
 
 ```text
-1. SET Fly/Elixir runtime compatibility probe
-2. If SET runtime probe passes: bounded inactive SET JSON parser/source candidate
-3. If SET is blocked: IDX Fly/Elixir runtime compatibility probe using YYYYMMDD date-window query
+1. Bounded inactive SET JSON parser/source candidate
+2. SET manual Fly staging live poll smoke after candidate deployment
+3. If SET parser/source candidate is blocked: IDX Fly/Elixir runtime compatibility probe using YYYYMMDD date-window query
 4. Revisit ASX only after written authority or approved ASX Information Services path exists
 5. Revisit SGX only after policy/permission and runtime compatibility are explicitly accepted
 6. Revisit Bursa only if a non-bypass backend runtime fetch path is accepted
@@ -76,14 +78,16 @@ SET is the first ASEAN implementation fallback because:
 official SET company-news JSON path was observed
 the response shape is typed JSON
 local PowerShell could fetch JSON after normal page bootstrap and documented SET browser headers
+Fly staging could fetch JSON through the application Erlang :httpc wrapper with bounded SET headers
 ```
 
-SET remains behind ASX because:
+SET remains bounded because:
 
 ```text
 the API is not a simple standalone endpoint
-fresh direct API probes returned Incapsula challenge HTML
-Fly/Elixir bootstrap compatibility is not proven
+some fresh direct API probes previously returned Incapsula challenge HTML
+no bounded parser/source candidate exists yet
+no staging live-poll smoke exists yet
 ```
 
 IDX is behind SET because:
@@ -114,8 +118,8 @@ Do not start JP live polling until issue #339 is resolved.
 ## Next PR Candidates
 
 ```text
-1. Add SET Fly/Elixir runtime compatibility probe
-2. Add bounded inactive SET JSON parser/source candidate if the runtime probe passes
-3. Add IDX Fly/Elixir runtime compatibility probe if SET remains blocked
+1. Add bounded inactive SET JSON parser/source candidate
+2. Add SET manual Fly staging live poll smoke after candidate deployment
+3. Add IDX Fly/Elixir runtime compatibility probe if SET parser/source candidate remains blocked
 4. Revisit ASX only after written authority or approved ASX Information Services path exists
 ```

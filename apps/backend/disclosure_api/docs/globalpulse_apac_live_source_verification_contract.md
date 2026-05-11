@@ -19,7 +19,7 @@ Current APAC live-source status:
 ```text
 India NSE official RSS: staging-live verified, bounded, duplicate-handling hardened, conservative staging schedule configured
 India NSE first automated scheduled run: pending first matching GitHub Actions cron slot
-ASEAN official endpoint: scan started, SGX browser JSON access path confirmed but blocked by policy/runtime review; Bursa browser JSON access path confirmed but blocked by Cloudflare/runtime fetch; SET and IDX official JSON access paths confirmed but pending adapter/runtime probes
+ASEAN official endpoint: scan started, SGX browser JSON access path confirmed but blocked by policy/runtime review; Bursa browser JSON access path confirmed but blocked by Cloudflare/runtime fetch; SET official JSON access path and Fly/Elixir runtime probe passed but pending bounded adapter/source candidate; IDX official JSON access path confirmed but pending adapter/runtime probe
 ANZ official endpoint: ASX official JSON access path confirmed, but access-policy decision blocks source registration until written authority or approved ASX Information Services path exists
 JP live source: blocked by issue #339 source-authority decision
 ```
@@ -62,9 +62,9 @@ Current next-source decision:
 ```text
 decision record: globalpulse_apac_next_live_source_decision.md
 ASX access-policy record: globalpulse_asx_markitdigital_access_policy_decision.md
-next technical candidate: SET Thailand runtime compatibility probe
+next technical candidate: bounded inactive SET Thailand JSON parser/source candidate
 ASX status: technical JSON path confirmed, policy-blocked
-ASEAN fallback order: SET runtime probe, then IDX runtime probe
+ASEAN fallback order: SET parser/source candidate, then IDX runtime probe
 KR live-source track: deferred until dedicated backend/source authority path exists
 JP live polling: blocked until issue #339 is resolved
 ```
@@ -172,6 +172,7 @@ scan record: globalpulse_asean_live_endpoint_verification_scan.md
 SGX company announcements: official browser JSON access path confirmed; source registration blocked by SGX policy/permission review and backend runtime fetch compatibility
 Bursa Malaysia company announcements: official browser JSON access path confirmed; source registration blocked by Cloudflare/runtime fetch compatibility
 SET Thailand company news: official JSON access path confirmed; source registration blocked pending bounded adapter and Fly/Elixir runtime probe
+SET Thailand Fly/Elixir runtime probe: passed through DisclosureAutomation.Http.fetch/2 from globalpulse-backend-staging
 IDX announcements: official JSON access path confirmed; source registration blocked pending bounded adapter, query-shape policy, and Fly/Elixir runtime probe
 decision: no ASEAN source registration yet
 ```
@@ -272,8 +273,8 @@ REJECT: enabling JP live polling before issue #339 source-authority decision is 
 1. Record first automated India NSE scheduled staging poll after the GitHub Actions cron fires.
 2. Record SGX policy/permission decision or runtime compatibility probe if SGX access is allowed to continue.
 3. Add a bounded SGX adapter only if policy/permission, runtime fetch, and response-shape gates pass.
-4. Add a SET Thailand runtime compatibility probe.
-5. Add a bounded inactive SET adapter/source candidate only if runtime fetch, parser, rate/cadence, and staging-smoke gates pass.
+4. Add a bounded inactive SET adapter/source candidate.
+5. Add SET manual Fly staging live poll smoke only after parser/source candidate deployment.
 6. Add an IDX Indonesia runtime compatibility probe if the bounded date-window query shape is accepted.
 7. Decide whether SET or IDX should be the first ASEAN adapter candidate.
 8. Revisit ASX only after written authority or approved ASX Information Services path exists.
@@ -296,7 +297,8 @@ SGX_SOURCE_REGISTRATION_BLOCKED_BY_POLICY_REVIEW
 BURSA_MALAYSIA_BROWSER_JSON_ACCESS_PATH_CONFIRMED
 BURSA_MALAYSIA_SOURCE_REGISTRATION_BLOCKED_BY_RUNTIME_FETCH
 SET_THAILAND_JSON_ACCESS_PATH_CONFIRMED
-SET_THAILAND_SOURCE_REGISTRATION_PENDING_RUNTIME_PROBE_AND_ADAPTER
+SET_THAILAND_FLY_ELIXIR_RUNTIME_PROBE_PASS
+SET_THAILAND_SOURCE_REGISTRATION_PENDING_BOUNDED_ADAPTER_RATE_CADENCE_AND_STAGING_SMOKE
 IDX_INDONESIA_JSON_ACCESS_PATH_CONFIRMED
 IDX_INDONESIA_SOURCE_REGISTRATION_PENDING_RUNTIME_PROBE_AND_ADAPTER
 ASEAN_MACHINE_READABLE_ENDPOINTS_CONFIRMED_BUT_NOT_ACCEPTED_FOR_SOURCE_REGISTRATION
