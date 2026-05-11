@@ -26,6 +26,12 @@ For frontend runtime config promotion rules, read:
 apps/backend/disclosure_api/docs/globalpulse_frontend_runtime_config_promotion_design.md
 ```
 
+For production backend deployment rules, read:
+
+```text
+apps/backend/disclosure_api/docs/globalpulse_production_backend_deployment_design.md
+```
+
 Current remote continuation status:
 
 ```text
