@@ -13,6 +13,7 @@ HKEX_LOCAL_ELIXIR_RUNTIME_PROBE_RECORDED
 HKEX_LOCAL_ERLANG_HTTPC_FETCH_PASS
 HKEX_TITLE_SEARCH_HTML_RETURNED_FROM_LOCAL_ELIXIR
 HKEX_BOUNDED_ISSUER_ROWS_DETECTED
+HKEX_LLCI_JSON_LOCAL_ERLANG_HTTPC_FETCH_PASS
 HKEX_FLY_RUNTIME_PROBE_STILL_PENDING
 HKEX_SOURCE_REGISTRATION_STILL_BLOCKED
 NO_CNTW_SOURCE_REGISTERED
@@ -97,13 +98,41 @@ The first parser candidate would still need to avoid attachment/PDF fetching.
 The source registration gate remains closed until Fly/application runtime compatibility is proven and the query contract is accepted.
 ```
 
+## LLCI JSON Follow-Up
+
+A later local Erlang/Elixir `:httpc` probe fetched the HKEXnews Latest Listed Company Information JSON assets:
+
+```text
+target: https://www.hkexnews.hk/ncms/script/eds/homecat_e.json
+status: 200
+content_type: application/json
+bytes: 529
+has_latest_submissions: true
+
+target: https://www.hkexnews.hk/ncms/script/eds/homecat0_e.json
+status: 200
+content_type: application/json
+bytes: 1940
+has_news_info: true
+has_stock_code: true
+has_pdf_link: true
+```
+
+Interpretation:
+
+```text
+The local Erlang runtime can also fetch the smaller official HKEX LLCI JSON assets.
+homecat0_e.json is now the preferred HKEX parser/source-contract candidate.
+This still does not replace the required Fly staging or application-runtime verification before source registration.
+```
+
 ## Remaining Blockers
 
 ```text
 Fly staging release-eval probe not run from this local environment
-latest-all or recent-window query contract not accepted yet
-machine-readable JSON/RSS feed not confirmed
-HTML parser shape not designed
+homecat0_e.json source/parser contract not accepted yet
+Fly/application-runtime verification for homecat0_e.json not recorded yet
+JSON parser shape not designed
 access-policy review not complete
 source active=false/manual-staging-only contract not written
 manual staging live-poll smoke not possible before source registration
@@ -131,7 +160,7 @@ JP remains blocked until issue #339 is resolved
 
 ```text
 1. Run the same bounded HKEX title-search URL through Fly staging release eval when Fly CLI/auth is available.
-2. Search official HKEX/HKEXnews assets for a recent/latest query contract that does not require per-issuer stockId enumeration.
-3. Draft a bounded HTML parser/source contract only if Fly runtime compatibility and access policy are accepted.
+2. Run the official HKEX homecat0_e.json asset through Fly staging release eval when Fly CLI/auth is available.
+3. Draft a bounded JSON parser/source contract for homecat0_e.json only if Fly runtime compatibility and access policy are accepted.
 4. Keep CN/TW production scheduled polling disabled.
 ```

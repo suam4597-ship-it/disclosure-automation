@@ -40,7 +40,9 @@ TAIWAN_MOPS_REPEATED_MANUAL_STAGING_LIVE_POLL_PASS
 TAIWAN_MOPS_DAILY_MATERIAL_INFO_DIGEST_VISIBLE_LIVE
 HKEX_LISTED_COMPANY_ENDPOINT_SCAN_RECORDED
 HKEX_LOCAL_ELIXIR_RUNTIME_PROBE_PASS
-HKEX_SOURCE_REGISTRATION_BLOCKED_PENDING_BACKEND_COMPATIBLE_QUERY_CONTRACT
+HKEX_LATEST_LISTED_COMPANY_ASSET_SCAN_RECORDED
+HKEX_LATEST_LISTED_COMPANY_JSON_ASSET_CONFIRMED
+HKEX_SOURCE_REGISTRATION_BLOCKED_PENDING_BOUNDED_SOURCE_CONTRACT
 IDX_IS_SECOND_ASEAN_RUNTIME_PROBE_CANDIDATE
 IDX_FLY_ELIXIR_RUNTIME_PROBE_RECORDED
 IDX_SOURCE_REGISTRATION_STILL_BLOCKED_BY_CHALLENGE_COOKIE_DEPENDENCY
@@ -63,8 +65,8 @@ SET Thailand: bounded inactive source candidate added and repeated manual stagin
 Vietnam HNX: official issuer-disclosure RSS returned 200 application/rss+xml; bounded inactive rss_v1 source candidate added with fixture fallback disabled; repeated manual Fly staging smoke passed with digest visibility
 Vietnam HSX: official listed-company RSS returned 200 application/rss+xml; bounded inactive rss_v1 source candidate added with fixture fallback disabled; repeated manual Fly staging smoke passed with digest visibility
 Taiwan MOPS: official daily material-information JSON endpoint returned 200 application/json; bounded inactive date-aware parser/source candidate added with fixture fallback disabled; repeated manual Fly staging smoke passed with digest visibility
-HKEXnews: official listed-company title-search HTML surface returned bounded issuer rows, but machine-readable feed and backend-compatible query contract are not accepted yet
-HKEX local Elixir runtime probe: bounded title-search URL returned 200 text/html through Erlang :httpc with total_records=877; Fly staging runtime probe remains pending
+HKEXnews: official listed-company title-search HTML surface returned bounded issuer rows, and official Latest Listed Company Information JSON assets were confirmed
+HKEX local Elixir runtime probe: bounded title-search URL returned 200 text/html through Erlang :httpc with total_records=877; homecat0_e.json returned 200 application/json through Erlang :httpc; Fly staging runtime probe remains pending
 IDX Indonesia: official JSON path confirmed; Fly/Elixir direct API/page bootstrap returned Cloudflare 403, cookie-mediated API returned 200 JSON; access decision blocks source registration until a clean backend runtime or approved data-access path exists
 Philippines PSE EDGE: official disclosure surface confirmed; official CAF/ITCH data-access products found; public-site access is not enough for backend polling without approved data-access path
 ASX: official MarkitDigital JSON path confirmed, direct Node/PowerShell fetch passed, blocked by access-policy decision until written authority or approved ASX Information Services path exists
@@ -81,7 +83,7 @@ JP: remains blocked by source-authority issue #339
 3. Keep SET inactive; if cadence is considered later, design staging-only schedule first
 4. Keep IDX blocked unless a clean backend runtime or approved data-access path is documented
 5. Continue APAC official-source scanning within official exchange/OAM surfaces
-6. Revisit HKEX only after a backend-compatible recent/latest query contract and parser shape are accepted
+6. Revisit HKEX by drafting a bounded homecat0_e.json parser/source contract, then running Fly/application-runtime verification
 7. Revisit Taiwan MOPS only through another explicit staging-only cadence design or manual observation
 8. Revisit ASX only after written authority or approved ASX Information Services path exists
 9. Revisit SGX only after policy/permission and runtime compatibility are explicitly accepted
@@ -153,14 +155,16 @@ SEBI media and notifications are official, but they are regulator media/policy r
 NSE already has a working official RSS source with staging schedule evidence
 ```
 
-HKEX remains a scan-only candidate because:
+HKEX remains blocked from source registration because:
 
 ```text
 official HKEXnews listed-company HTML rows were confirmed
 local Erlang :httpc returned 200 HTML for the bounded title-search URL
-no JSON or RSS feed contract has been accepted
-the reviewed all-market title-search URL returned no rows without a concrete query/search state
-curl HEAD returned 503 on reviewed HKEXnews URLs, and Fly runtime compatibility still needs a dedicated probe
+official HKEXnews LLCI JSON assets were confirmed
+local Erlang :httpc returned 200 application/json for homecat0_e.json
+homecat0_e.json parser/source contract is not accepted yet
+Fly runtime compatibility still needs a dedicated probe
+attachment/detail/PDF fetch must remain excluded from the first candidate
 ```
 
 ## Guardrails
@@ -187,7 +191,7 @@ Do not start JP live polling until issue #339 is resolved.
 3. Keep SET inactive; if cadence is considered later, design staging-only schedule first
 4. Keep IDX blocked unless a clean backend runtime or approved data-access path is documented
 5. Continue APAC official-source scanning within official exchange/OAM surfaces
-6. Revisit HKEX only after a backend-compatible recent/latest query contract and parser shape are accepted
+6. Revisit HKEX by drafting a bounded homecat0_e.json parser/source contract, then running Fly/application-runtime verification
 7. Revisit Taiwan MOPS only through another explicit staging-only cadence design or manual observation
 8. Revisit ASX only after written authority or approved ASX Information Services path exists
 9. Revisit PSE only after approved PSE data-product or written permission path exists
