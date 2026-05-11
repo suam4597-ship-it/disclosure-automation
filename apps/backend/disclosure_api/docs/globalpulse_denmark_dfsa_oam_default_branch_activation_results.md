@@ -8,7 +8,7 @@ Date: 2026-05-11 KST
 DENMARK_DFSA_OAM_DEFAULT_BRANCH_WORKFLOW_ACTIVATION_PASS
 DENMARK_DFSA_OAM_MAIN_MANUAL_DISPATCH_PASS
 DENMARK_DFSA_OAM_SCHEDULE_CRON_PRESENT_ON_MAIN
-DENMARK_DFSA_OAM_FIRST_AUTOMATED_SCHEDULED_RUN_PENDING
+DENMARK_DFSA_OAM_FIRST_AUTOMATED_SCHEDULED_RUN_PASS
 DENMARK_DFSA_OAM_PRODUCTION_SCHEDULED_POLLING_NOT_ENABLED
 DENMARK_DFSA_OAM_SOURCE_REMAINS_ACTIVE_FALSE
 ```
@@ -138,15 +138,17 @@ audit UI not added
 public Source Health UI not added
 ```
 
-## Pending Observation
+## Automated Schedule Observation
 
-The first automated scheduled Denmark run is pending the next matching default-branch cron slot:
+The first automated scheduled Denmark run is now recorded in `globalpulse_denmark_dfsa_oam_first_automated_scheduled_run_results.md`.
 
 ```text
 cron: 47 */4 * * 1-5
-event expected: schedule
-expected run_mode: denmark_dfsa_oam_canary
-expected source list: dk_dfsa_oam_company_announcements
+event: schedule
+run: https://github.com/suam4597-ship-it/disclosure-automation/actions/runs/25668194957
+run id: 25668194957
+run number: 62
+conclusion: success
+source health last_success_at: 2026-05-11T11:47:18.381358Z
+latest digest visibility: pass
 ```
-
-After that run completes, record a separate docs-only first scheduled observation with workflow URL, artifact metadata, health, poll, digest, source-health, and any rollback action if validation fails.
