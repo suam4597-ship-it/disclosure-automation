@@ -13,6 +13,7 @@ HKEX_LISTED_COMPANY_ENDPOINT_SCAN_RECORDED
 HKEXNEWS_OFFICIAL_LISTED_COMPANY_PUBLICATION_SURFACE_CONFIRMED
 HKEX_TITLE_SEARCH_HTML_RESULTS_CONFIRMED
 HKEX_SIMPLE_SEARCH_SURFACE_CONFIRMED
+HKEX_LOCAL_ELIXIR_RUNTIME_PROBE_PASS
 HKEX_JSON_OR_RSS_CONTRACT_NOT_CONFIRMED
 HKEX_BACKEND_COMPATIBLE_CONTRACT_PENDING
 HKEX_SOURCE_REGISTRATION_BLOCKED
@@ -163,6 +164,23 @@ Do not parse PDF attachments in the first candidate.
 Do not rely on third-party HK filing APIs.
 Do not claim backend readiness from PowerShell/browser HTML success alone.
 ```
+
+## Local Elixir Runtime Follow-Up
+
+A local Erlang/Elixir `:httpc` probe later fetched the same bounded title-search URL successfully:
+
+```text
+record: globalpulse_hkex_local_elixir_runtime_probe_results.md
+runtime: Elixir 1.18.4 / Erlang OTP 28
+status: 200
+content_type: text/html;charset=UTF-8
+bytes: 120707
+total_records: 877
+issuer row markers: present
+PDF link marker: present
+```
+
+This is positive local runtime evidence, but it is not a Fly staging release-eval pass. Source registration remains blocked until the Fly/application runtime path and query contract are accepted.
 
 Required before an HKEX source PR:
 
