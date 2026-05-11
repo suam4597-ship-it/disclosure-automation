@@ -15,7 +15,7 @@ SET_THAILAND_BOOTSTRAP_PLUS_API_PROBE_PASS
 SET_THAILAND_API_RETURNS_JSON_FROM_FLY_STAGING
 SET_THAILAND_CHALLENGE_HTML_NOT_OBSERVED_FROM_FLY_STAGING
 SET_THAILAND_BOUNDED_INACTIVE_SOURCE_CANDIDATE_ADDED
-SET_THAILAND_MANUAL_STAGING_SMOKE_PENDING
+SET_THAILAND_MANUAL_STAGING_SMOKE_PASS
 ASEAN_SCHEDULED_LIVE_POLLING_NOT_ENABLED
 PUBLIC_UI_AND_BACKEND_DIGEST_SHAPE_UNCHANGED
 ```
@@ -135,7 +135,7 @@ source key proposal: th_set_company_news
 parser/adapter proposal: set_thailand_company_news_json_v1
 runtime fetch status: passed
 registration status: inactive manual-staging-only candidate
-blocking class: manual_staging_smoke_required
+blocking class: repeated_observation_window_required
 scheduled polling: not allowed
 production polling: not allowed
 public UI: not changed
@@ -150,6 +150,7 @@ source: th_set_company_news
 parser: set_thailand_company_news_json_v1
 fixture: source_payloads/th_set_company_news.json
 notes: globalpulse_set_thailand_company_news_candidate_notes.md
+manual smoke: globalpulse_set_thailand_manual_staging_poll_smoke_results.md
 ```
 
 Before any source activation or schedule, the candidate still needs:
@@ -159,6 +160,7 @@ manual poll command documented
 manual Fly staging smoke passed
 fixture_fallback=false confirmed from live poll metadata
 digest impact recorded
+repeated manual staging smoke in another observation window
 rollback path documented
 ```
 
@@ -183,7 +185,7 @@ Keep JP blocked until issue #339 source authority is resolved.
 ## Allowed Next PRs
 
 ```text
-1. Add SET manual Fly staging live poll smoke only after the parser/source candidate is deployed.
-2. If SET manual staging smoke fails, record the bounded failure and fix the smallest parser/live-fetch issue.
-3. If SET staging smoke is delayed or blocked, continue to IDX Fly/Elixir runtime compatibility probe.
+1. Repeat SET manual Fly staging live poll smoke in another observation window.
+2. If repeated SET staging smoke fails, record the bounded failure and fix the smallest parser/live-fetch issue.
+3. If SET repeated smoke is delayed, continue to IDX Fly/Elixir runtime compatibility probe.
 ```

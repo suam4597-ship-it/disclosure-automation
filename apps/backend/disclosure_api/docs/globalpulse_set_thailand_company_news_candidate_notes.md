@@ -14,7 +14,7 @@ SET_THAILAND_SOURCE_REGISTERED_INACTIVE
 SET_THAILAND_FIXTURE_PARSER_SAMPLE_ADDED
 SET_THAILAND_LIVE_FIXTURE_FALLBACK_DISABLED
 SET_THAILAND_DETAIL_FETCH_DISABLED
-SET_THAILAND_MANUAL_STAGING_SMOKE_PENDING
+SET_THAILAND_MANUAL_STAGING_SMOKE_PASS
 ASEAN_SCHEDULED_LIVE_POLLING_NOT_ENABLED
 PUBLIC_UI_AND_BACKEND_DIGEST_SHAPE_UNCHANGED
 ```
@@ -93,13 +93,33 @@ KR source path: still deferred
 JP live polling: still blocked until source authority issue is resolved
 ```
 
-## Next Step
+## Manual Staging Smoke
 
-After this branch is merged and deployed to Fly staging, run a manual staging smoke only:
+The first manual Fly staging smoke is recorded in:
+
+```text
+globalpulse_set_thailand_manual_staging_poll_smoke_results.md
+```
+
+Observed bounded result:
+
+```text
+poll status: 202
+fetch.mode: live
+fetch.status_code: 200
+records_seen: 25
+records_inserted: 25
+digest item_count: 12
+metadata.fallback_to_fixture: false
+```
+
+The smoke used:
 
 ```text
 POST /api/admin/sources/th_set_company_news/poll?use_live_fetch=true&edition=breaking
 GET /api/feed/digest/latest?edition=breaking
 ```
 
-The smoke result must record whether the live fetch used the SET JSON endpoint and whether fixture fallback stayed false. If it fails, document the exact bounded error class before any further source expansion.
+## Next Step
+
+SET has one manual staging pass. Keep the source inactive and repeat the manual smoke in a different observation window before any activation or schedule decision.
