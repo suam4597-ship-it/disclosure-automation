@@ -15,9 +15,11 @@ BURSA_MALAYSIA_OFFICIAL_BROWSER_ACCESS_PATH_CONFIRMED
 BURSA_MALAYSIA_SOURCE_REGISTRATION_BLOCKED_BY_CLOUDFLARE_RUNTIME_FETCH
 SET_THAILAND_OFFICIAL_JSON_ACCESS_PATH_CONFIRMED
 SET_THAILAND_FLY_ELIXIR_RUNTIME_PROBE_PASS
-SET_THAILAND_SOURCE_REGISTRATION_PENDING_BOUNDED_ADAPTER_RATE_CADENCE_AND_STAGING_SMOKE
+SET_THAILAND_BOUNDED_INACTIVE_SOURCE_CANDIDATE_ADDED
+SET_THAILAND_MANUAL_STAGING_SMOKE_PASS
 IDX_INDONESIA_OFFICIAL_JSON_ACCESS_PATH_CONFIRMED
-IDX_INDONESIA_SOURCE_REGISTRATION_PENDING_RUNTIME_PROBE_AND_ADAPTER
+IDX_INDONESIA_FLY_ELIXIR_RUNTIME_PROBE_RECORDED
+IDX_INDONESIA_SOURCE_REGISTRATION_STILL_BLOCKED_BY_CHALLENGE_COOKIE_DEPENDENCY
 ASEAN_MACHINE_READABLE_ENDPOINTS_CONFIRMED_BUT_NOT_ACCEPTED_FOR_SOURCE_REGISTRATION
 ASEAN_SOURCE_REGISTRATION_NOT_READY
 ASEAN_SCHEDULED_LIVE_POLLING_BLOCKED
@@ -69,7 +71,8 @@ Bounded first-page JSON response observed with newsGroups/newsInfoList metadata.
 Fresh direct API probes returned 403 Incapsula challenge HTML.
 Normal page bootstrap plus SET browser headers returned 200 JSON in a local PowerShell session.
 Fly/Elixir runtime probe from globalpulse-backend-staging returned 200 application/json through DisclosureAutomation.Http.fetch/2.
-Source registration remains blocked pending a bounded adapter, rate/cadence policy, and staging live-poll smoke.
+Bounded inactive source candidate added and first manual staging smoke passed.
+Source activation and scheduling remain blocked pending repeated observation-window evidence.
 ```
 
 ## Latest IDX Indonesia Access-Path Addendum
@@ -80,7 +83,8 @@ Official JSON endpoint observed as /primary/NewsAnnouncement/GetAllAnnouncement.
 Bounded JSON response observed with Items, ItemCount, PageSize, PageNumber, and PageCount.
 dateFrom/dateTo in YYYYMMDD format returned 200 JSON for a bounded date window.
 Direct Node and PowerShell probes returned Cloudflare/403, while Playwright Chromium API returned 200 for accepted query shapes.
-Source registration remains blocked pending Fly/Elixir runtime probe, bounded adapter, and query-shape policy.
+Fly/Elixir runtime probe recorded direct API/page-bootstrap Cloudflare 403 and cookie-mediated API 200 JSON.
+Source registration remains blocked by challenge-cookie dependency, bounded adapter, and query-shape policy.
 ```
 
 ## Candidate Surfaces Checked
@@ -190,7 +194,7 @@ candidate URL: https://www.idx.co.id/en/news/announcement/
 alternate URL: https://www.idx.id/en/news/announcement/
 category: ASEAN/Indonesia announcements
 quick result: browser page 200; bounded Playwright Chromium API request 200 JSON; direct Node/PowerShell 403
-decision: official JSON access path observed, but source registration blocked pending runtime probe/adapter
+decision: official JSON access path observed, but source registration blocked by challenge-cookie dependency and missing accepted adapter
 ```
 
 Observed:
@@ -200,7 +204,9 @@ Official IDX announcement pages rendered announcement lists.
 The Nuxt announcement component uses /primary/NewsAnnouncement/GetAllAnnouncement.
 The endpoint returned JSON with Items, ItemCount, PageSize, PageNumber, and PageCount for accepted bounded query shapes.
 dateFrom/dateTo in YYYYMMDD format returned 200 JSON for a bounded date-window request.
-Direct Node and PowerShell probes returned Cloudflare 403, so backend runtime compatibility is still unproven.
+Direct Node and PowerShell probes returned Cloudflare 403.
+Fly/Elixir direct API/page-bootstrap probes returned Cloudflare 403 HTML.
+Fly/Elixir cookie-mediated API retry returned 200 JSON, but that dependency is not accepted for source registration.
 ```
 
 Decision:
@@ -208,8 +214,9 @@ Decision:
 ```text
 Do not register IDX as an rss_v1 source.
 Do not treat the HTML page or Nuxt inline state as live source input.
+Do not treat challenge-cookie-mediated API success as automatic source-registration approval.
 Do not fetch attachment PDFs in the initial candidate.
-Add a source only after a Fly/Elixir runtime probe, bounded JSON adapter, query-shape policy, rate/cadence policy, and staging smoke pass.
+Add a source only after a clean backend runtime path, bounded JSON adapter, query-shape policy, rate/cadence policy, and staging smoke pass.
 ```
 
 ## Rejected For This Pass

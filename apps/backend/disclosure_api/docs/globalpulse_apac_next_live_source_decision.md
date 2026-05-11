@@ -15,8 +15,11 @@ ASX_ACCESS_POLICY_DECISION_RECORDED
 ASX_ADAPTER_BLOCKED_UNTIL_WRITTEN_AUTHORITY_OR_APPROVED_INFORMATION_SERVICE_PATH
 SET_IS_FIRST_ASEAN_RUNTIME_PROBE_CANDIDATE
 SET_FLY_ELIXIR_RUNTIME_PROBE_PASS
-SET_BOUNDED_INACTIVE_ADAPTER_SOURCE_CANDIDATE_IS_NEXT
+SET_BOUNDED_INACTIVE_ADAPTER_SOURCE_CANDIDATE_ADDED
+SET_MANUAL_STAGING_SMOKE_PASS
 IDX_IS_SECOND_ASEAN_RUNTIME_PROBE_CANDIDATE
+IDX_FLY_ELIXIR_RUNTIME_PROBE_RECORDED
+IDX_SOURCE_REGISTRATION_STILL_BLOCKED_BY_CHALLENGE_COOKIE_DEPENDENCY
 KR_LIVE_SOURCE_TRACK_DEFERRED_UNTIL_DEDICATED_BACKEND_EXISTS
 JP_LIVE_POLLING_STILL_BLOCKED_BY_ISSUE_339
 PRODUCTION_APAC_SCHEDULED_LIVE_POLLING_NOT_ENABLED
@@ -28,8 +31,8 @@ PRODUCTION_APAC_SCHEDULED_LIVE_POLLING_NOT_ENABLED
 India NSE official RSS: staging-live verified and conservative staging schedule configured
 SGX: official browser JSON path confirmed, blocked by policy/runtime review
 Bursa Malaysia: official browser JSON path confirmed, blocked by Cloudflare/runtime fetch
-SET Thailand: official JSON path confirmed, Fly/Elixir runtime probe passed, blocked pending bounded adapter/source candidate, rate/cadence policy, and staging smoke
-IDX Indonesia: official JSON path confirmed, blocked pending bounded adapter, query-shape policy, and Fly/Elixir runtime probe
+SET Thailand: bounded inactive source candidate added and first manual staging smoke passed; still blocked pending repeated observation-window evidence before activation/scheduling
+IDX Indonesia: official JSON path confirmed; Fly/Elixir direct API/page bootstrap returned Cloudflare 403, cookie-mediated API returned 200 JSON; source registration remains blocked by challenge-cookie dependency
 ASX: official MarkitDigital JSON path confirmed, direct Node/PowerShell fetch passed, blocked by access-policy decision until written authority or approved ASX Information Services path exists
 NZX: official contingency HTML surface confirmed, no machine-readable endpoint accepted
 KR: explicitly deferred by product direction because the dedicated backend is not ready
@@ -39,9 +42,9 @@ JP: remains blocked by source-authority issue #339
 ## Recommended Order
 
 ```text
-1. Bounded inactive SET JSON parser/source candidate
-2. SET manual Fly staging live poll smoke after candidate deployment
-3. If SET parser/source candidate is blocked: IDX Fly/Elixir runtime compatibility probe using YYYYMMDD date-window query
+1. Repeat SET manual Fly staging live poll smoke in another observation window
+2. Record IDX access decision for challenge-cookie-mediated backend fetch before any IDX source candidate
+3. Continue APAC official-source scanning within official exchange/OAM surfaces
 4. Revisit ASX only after written authority or approved ASX Information Services path exists
 5. Revisit SGX only after policy/permission and runtime compatibility are explicitly accepted
 6. Revisit Bursa only if a non-bypass backend runtime fetch path is accepted
@@ -86,8 +89,9 @@ SET remains bounded because:
 ```text
 the API is not a simple standalone endpoint
 some fresh direct API probes previously returned Incapsula challenge HTML
-no bounded parser/source candidate exists yet
-no staging live-poll smoke exists yet
+bounded parser/source candidate remains active=false
+only one manual staging smoke has passed
+repeated observation-window evidence is still required before any activation or schedule decision
 ```
 
 IDX is behind SET because:
@@ -96,6 +100,8 @@ IDX is behind SET because:
 official IDX JSON path was observed
 bounded YYYYMMDD date-window query returned 200 JSON through Chromium network
 direct Node and PowerShell probes returned Cloudflare/403
+Fly/Elixir direct API and page-bootstrap probes returned Cloudflare 403 HTML
+Fly/Elixir cookie-mediated API retry returned 200 JSON, which is diagnostic but not source-registration approval
 unbounded query shapes returned Varnish 503 HTML
 ```
 
@@ -118,8 +124,8 @@ Do not start JP live polling until issue #339 is resolved.
 ## Next PR Candidates
 
 ```text
-1. Add bounded inactive SET JSON parser/source candidate
-2. Add SET manual Fly staging live poll smoke after candidate deployment
-3. Add IDX Fly/Elixir runtime compatibility probe if SET parser/source candidate remains blocked
+1. Repeat SET manual Fly staging live poll smoke in another observation window
+2. Record IDX challenge-cookie access decision before any IDX source candidate
+3. Continue APAC official-source scanning within official exchange/OAM surfaces
 4. Revisit ASX only after written authority or approved ASX Information Services path exists
 ```
