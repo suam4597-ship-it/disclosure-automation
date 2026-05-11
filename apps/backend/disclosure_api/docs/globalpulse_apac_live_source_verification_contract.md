@@ -19,6 +19,7 @@ Current APAC live-source status:
 ```text
 India NSE official RSS: staging-live verified, bounded, duplicate-handling hardened, conservative staging schedule configured
 India NSE first automated scheduled run: passed on GitHub Actions run 25650796284; 7-day staging observation window pending
+India secondary endpoints: BSE corporate-announcement surface is relevant but backend-compatible fetch is not proven; SEBI media/notification surface is a separate regulator-policy track, not a listed-company disclosure source
 ASEAN official endpoint: scan started, SGX browser JSON access path confirmed but blocked by policy/runtime review; Bursa browser JSON access path confirmed but blocked by Cloudflare/runtime fetch; SET official JSON access path and repeated Fly staging smoke passed while inactive; HNX Vietnam official RSS inactive candidate added and repeated manual staging smoke passed; HSX Vietnam official listed-company RSS inactive candidate added and repeated manual staging smoke passed; Taiwan MOPS official JSON inactive candidate added and repeated manual staging smoke passed; IDX official JSON access path confirmed but blocked by challenge-cookie dependency
 ANZ official endpoint: ASX official JSON access path confirmed, but access-policy decision blocks source registration until written authority or approved ASX Information Services path exists
 Taiwan official endpoint: MOPS daily material-information JSON endpoint confirmed; bounded inactive date-aware POST adapter/parser source candidate added; repeated manual staging smoke passed while inactive
@@ -137,8 +138,8 @@ first automated scheduled run: completed on run 25650796284
 ```text
 source authority: official if exact endpoint is SEBI, BSE, or NSE owned
 candidate category: India regulator and exchange announcements
-machine-readable shape: pending exact endpoint verification
-status: SECONDARY_INDIA_CANDIDATES_PENDING_EXACT_FEED_SELECTION
+machine-readable shape: BSE JSON candidate blocked by 403/runtime access; SEBI HTML media listing reviewed as separate regulator-policy surface
+status: SECONDARY_INDIA_CANDIDATES_BLOCKED_OR_SEGMENTED
 ```
 
 Observed quick smoke on 2026-05-08:
@@ -149,12 +150,22 @@ result: executor timeout
 decision: do not accept or reject from this timeout alone
 ```
 
+Follow-up scan on 2026-05-11:
+
+```text
+scan record: globalpulse_india_secondary_exchange_regulator_endpoint_scan.md
+BSE corporate announcements: relevant official listed-company surface, but local page/API probes returned 403 and backend-compatible fetch is not proven
+SEBI media and notifications: official regulator surface reachable as HTML, but this is not a listed-company issuer-announcement source
+decision: no secondary India source registration yet; NSE remains the only accepted India live source candidate
+```
+
 Acceptance caveat:
 
 ```text
 Select one exact RSS, Atom, XML, JSON, or known API endpoint before adding a source registry entry.
 Do not use HTML search/listing pages as rss_v1 sources.
 Do not treat a timeout in the executor as a product decision; retry with browser or alternate network before rejecting.
+Do not blend SEBI regulator-policy material into the listed-company disclosure source track without a separate product decision.
 ```
 
 ### Candidate C: ASEAN exchange announcements
@@ -299,6 +310,9 @@ INDIA_NSE_STAGING_LIVE_CANDIDATE_VERIFIED
 INDIA_NSE_CONSERVATIVE_STAGING_SCHEDULE_CONFIGURED
 INDIA_NSE_FIRST_AUTOMATED_STAGING_SCHEDULE_RUN_PASS
 INDIA_NSE_7_DAY_STAGING_OBSERVATION_WINDOW_PENDING
+INDIA_SECONDARY_ENDPOINT_SCAN_RECORDED
+BSE_SOURCE_REGISTRATION_BLOCKED_PENDING_BACKEND_COMPATIBLE_ACCESS_PATH
+SEBI_REVIEWED_AS_SEPARATE_REGULATOR_POLICY_TRACK
 ASEAN_LIVE_ENDPOINT_SCAN_STARTED
 SGX_BROWSER_JSON_ACCESS_PATH_CONFIRMED
 SGX_SOURCE_REGISTRATION_BLOCKED_BY_POLICY_REVIEW
