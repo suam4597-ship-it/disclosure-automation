@@ -26,6 +26,12 @@ For frontend runtime config promotion rules, read:
 apps/backend/disclosure_api/docs/globalpulse_frontend_runtime_config_promotion_design.md
 ```
 
+For the current staging config marker, read:
+
+```text
+apps/backend/disclosure_api/docs/globalpulse_frontend_config_version_marker.md
+```
+
 For production backend deployment rules, read:
 
 ```text
