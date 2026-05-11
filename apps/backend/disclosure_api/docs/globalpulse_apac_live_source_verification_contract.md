@@ -45,7 +45,8 @@ inactive source candidate: globalpulse_hkex_inactive_source_candidate_notes.md
 manual staging smoke: globalpulse_hkex_manual_staging_smoke_results.md
 second manual observation: globalpulse_hkex_second_manual_observation_results.md
 public Pages browser smoke: globalpulse_hkex_public_pages_browser_smoke_results.md
-decision: HKEX source is live-verified as active=false/manual staging-only; staging-only cadence design is the next allowed gate
+staging cadence design: globalpulse_hkex_staging_cadence_design.md
+decision: HKEX source is live-verified as active=false/manual staging-only; conservative staging workflow implementation is the next allowed gate
 ```
 
 Current APAC fixture-backed source buckets:
@@ -317,7 +318,7 @@ REJECT: enabling JP live polling before issue #339 source-authority decision is 
 7. Continue APAC official-source scanning within official exchange/OAM surfaces.
 8. Keep observing India NSE scheduled staging runs until the 7-day window matures.
 9. Keep IDX blocked unless a clean backend runtime or approved data-access path is documented.
-10. Add HKEX staging-only cadence design only after repeated manual observation remains healthy.
+10. Add HKEX to the staging workflow only after cadence design is reviewed.
 11. Keep HKEX active=false until a separate staging-only schedule implementation PR is approved.
 12. Revisit ASX only after written authority or approved ASX Information Services path exists.
 13. Add a bounded inactive ASX adapter/source candidate only if authority, response shape, runtime fetch, and staging-smoke gates pass.
@@ -386,7 +387,8 @@ HKEX_MANUAL_STAGING_LIVE_POLL_PASS
 HKEX_DIGEST_VISIBLE_LIVE
 HKEX_SOURCE_HEALTH_HEALTHY
 HKEX_SECOND_MANUAL_OBSERVATION_PASS
-HKEX_CADENCE_DESIGN_READY_FOR_STAGING_ONLY_PROPOSAL
+HKEX_STAGING_CADENCE_DESIGN_RECORDED
+HKEX_READY_FOR_CONSERVATIVE_STAGING_SCHEDULE_PR
 APAC_NEXT_LIVE_SOURCE_DECISION_RECORDED
 KR_LIVE_SOURCE_TRACK_DEFERRED_UNTIL_DEDICATED_BACKEND_EXISTS
 PRODUCTION_APAC_SCHEDULED_LIVE_POLLING_NOT_ENABLED
