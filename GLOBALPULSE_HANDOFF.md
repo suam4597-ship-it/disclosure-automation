@@ -62,6 +62,12 @@ For the current HKEX scheduled staging pending status, read:
 apps/backend/disclosure_api/docs/globalpulse_hkex_scheduled_staging_pending_status.md
 ```
 
+For the source-observation production readiness matrix, read:
+
+```text
+apps/backend/disclosure_api/docs/globalpulse_source_observation_production_readiness_matrix.md
+```
+
 For production backend deployment rules, read:
 
 ```text
@@ -92,6 +98,7 @@ HKEX first automated scheduled staging run: pending after 2026-05-11T14:22Z wind
 next HKEX check window: 2026-05-11T16:22Z / 2026-05-12 01:22 KST
 next web deployment gate: decide production backend app/database/frontend URL
 production decision record: added, production infra not created
+source observation matrix: added, production source promotion not approved
 ```
 
 Current public surfaces:
