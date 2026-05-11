@@ -219,6 +219,13 @@ Recommended PR:
 Add GlobalPulse production deployment runbook
 ```
 
+Status:
+
+```text
+runbook doc: globalpulse_production_deployment_runbook.md
+actual production deployment: pending
+```
+
 ### 6. Promote Sources Only After Observation Windows
 
 Current staging-source tracks should stay separate from production:

@@ -30,6 +30,12 @@ Production backend deployment design:
 globalpulse_production_backend_deployment_design.md
 ```
 
+Production deployment runbook:
+
+```text
+globalpulse_production_deployment_runbook.md
+```
+
 ## Current Repository Anchor
 
 ```text
@@ -212,7 +218,7 @@ JP live polling: blocked by issue #339 until source authority decision
 7. Revisit Taiwan/SET/Vietnam cadence only through staging-only design PRs.
 8. Activate and run public Pages + Fly staging web smoke workflow before any production deployment decision.
 9. Add bounded frontend config version marker after the runtime config promotion design.
-10. Add production deployment runbook after the production backend deployment design.
+10. Use the production deployment runbook only after production backend app/database/CORS choices are made.
 
 ## HKEX Next-Step Contract
 
