@@ -14,6 +14,7 @@ IDX_INDONESIA_ANNOUNCEMENTS_JSON_SHAPE_CAPTURED_BOUNDED
 IDX_INDONESIA_DIRECT_NODE_AND_POWERSHELL_FETCH_BLOCKED_BY_CLOUDFLARE
 IDX_INDONESIA_FLY_ELIXIR_RUNTIME_PROBE_RECORDED
 IDX_INDONESIA_SOURCE_REGISTRATION_STILL_BLOCKED_BY_CHALLENGE_COOKIE_DEPENDENCY
+IDX_CHALLENGE_COOKIE_ACCESS_DECISION_RECORDED
 ASEAN_SOURCE_REGISTRATION_STILL_BLOCKED
 ASEAN_SCHEDULED_LIVE_POLLING_NOT_ENABLED
 PUBLIC_UI_AND_BACKEND_DIGEST_SHAPE_UNCHANGED
@@ -120,6 +121,7 @@ The accepted path may depend on Chromium-like network behavior or other edge con
 The Fly/Elixir runtime probe is now recorded in globalpulse_idx_indonesia_fly_elixir_runtime_probe_results.md.
 Direct API and page-bootstrap fetches returned Cloudflare 403 HTML from Fly staging.
 A cookie-mediated retry returned 200 JSON, but that challenge-cookie dependency is not clean source-registration evidence.
+The access decision is recorded in globalpulse_idx_indonesia_challenge_cookie_access_decision.md.
 Do not register IDX Indonesia as a live source until a policy-acceptable backend runtime path is accepted.
 ```
 
@@ -134,6 +136,7 @@ source key proposal: id_idx_announcements
 parser/adapter proposal: idx_indonesia_announcements_json_v1
 registration status: blocked
 blocking class: challenge_cookie_dependency + bounded_adapter_required + query_shape_policy
+access decision: globalpulse_idx_indonesia_challenge_cookie_access_decision.md
 scheduled polling: not allowed
 production polling: not allowed
 public UI: not changed
@@ -188,8 +191,7 @@ Do not use third-party IDX mirrors or aggregators by default.
 ## Allowed Next PRs
 
 ```text
-1. Record an IDX access decision that challenge-cookie-mediated backend fetch is not enough for source registration.
-2. Add a bounded inactive IDX JSON parser/source candidate only if runtime fetch and access gates pass later.
-3. Repeat SET Thailand manual staging smoke in another observation window.
-4. Continue APAC official-source scanning within official exchange/OAM surfaces.
+1. Add a bounded inactive IDX JSON parser/source candidate only if runtime fetch and access gates pass later.
+2. Repeat SET Thailand manual staging smoke in another observation window.
+3. Continue APAC official-source scanning within official exchange/OAM surfaces.
 ```

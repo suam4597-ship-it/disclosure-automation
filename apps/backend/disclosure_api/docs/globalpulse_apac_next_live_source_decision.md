@@ -20,6 +20,7 @@ SET_MANUAL_STAGING_SMOKE_PASS
 IDX_IS_SECOND_ASEAN_RUNTIME_PROBE_CANDIDATE
 IDX_FLY_ELIXIR_RUNTIME_PROBE_RECORDED
 IDX_SOURCE_REGISTRATION_STILL_BLOCKED_BY_CHALLENGE_COOKIE_DEPENDENCY
+IDX_CHALLENGE_COOKIE_ACCESS_DECISION_RECORDED
 KR_LIVE_SOURCE_TRACK_DEFERRED_UNTIL_DEDICATED_BACKEND_EXISTS
 JP_LIVE_POLLING_STILL_BLOCKED_BY_ISSUE_339
 PRODUCTION_APAC_SCHEDULED_LIVE_POLLING_NOT_ENABLED
@@ -32,7 +33,7 @@ India NSE official RSS: staging-live verified and conservative staging schedule 
 SGX: official browser JSON path confirmed, blocked by policy/runtime review
 Bursa Malaysia: official browser JSON path confirmed, blocked by Cloudflare/runtime fetch
 SET Thailand: bounded inactive source candidate added and first manual staging smoke passed; still blocked pending repeated observation-window evidence before activation/scheduling
-IDX Indonesia: official JSON path confirmed; Fly/Elixir direct API/page bootstrap returned Cloudflare 403, cookie-mediated API returned 200 JSON; source registration remains blocked by challenge-cookie dependency
+IDX Indonesia: official JSON path confirmed; Fly/Elixir direct API/page bootstrap returned Cloudflare 403, cookie-mediated API returned 200 JSON; access decision blocks source registration until a clean backend runtime or approved data-access path exists
 ASX: official MarkitDigital JSON path confirmed, direct Node/PowerShell fetch passed, blocked by access-policy decision until written authority or approved ASX Information Services path exists
 NZX: official contingency HTML surface confirmed, no machine-readable endpoint accepted
 KR: explicitly deferred by product direction because the dedicated backend is not ready
@@ -43,7 +44,7 @@ JP: remains blocked by source-authority issue #339
 
 ```text
 1. Repeat SET manual Fly staging live poll smoke in another observation window
-2. Record IDX access decision for challenge-cookie-mediated backend fetch before any IDX source candidate
+2. Keep IDX blocked unless a clean backend runtime or approved data-access path is documented
 3. Continue APAC official-source scanning within official exchange/OAM surfaces
 4. Revisit ASX only after written authority or approved ASX Information Services path exists
 5. Revisit SGX only after policy/permission and runtime compatibility are explicitly accepted
@@ -102,6 +103,7 @@ bounded YYYYMMDD date-window query returned 200 JSON through Chromium network
 direct Node and PowerShell probes returned Cloudflare/403
 Fly/Elixir direct API and page-bootstrap probes returned Cloudflare 403 HTML
 Fly/Elixir cookie-mediated API retry returned 200 JSON, which is diagnostic but not source-registration approval
+IDX challenge-cookie access decision is recorded
 unbounded query shapes returned Varnish 503 HTML
 ```
 
@@ -125,7 +127,7 @@ Do not start JP live polling until issue #339 is resolved.
 
 ```text
 1. Repeat SET manual Fly staging live poll smoke in another observation window
-2. Record IDX challenge-cookie access decision before any IDX source candidate
+2. Keep IDX blocked unless a clean backend runtime or approved data-access path is documented
 3. Continue APAC official-source scanning within official exchange/OAM surfaces
 4. Revisit ASX only after written authority or approved ASX Information Services path exists
 ```

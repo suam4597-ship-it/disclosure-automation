@@ -20,6 +20,7 @@ SET_THAILAND_MANUAL_STAGING_SMOKE_PASS
 IDX_INDONESIA_OFFICIAL_JSON_ACCESS_PATH_CONFIRMED
 IDX_INDONESIA_FLY_ELIXIR_RUNTIME_PROBE_RECORDED
 IDX_INDONESIA_SOURCE_REGISTRATION_STILL_BLOCKED_BY_CHALLENGE_COOKIE_DEPENDENCY
+IDX_CHALLENGE_COOKIE_ACCESS_DECISION_RECORDED
 ASEAN_MACHINE_READABLE_ENDPOINTS_CONFIRMED_BUT_NOT_ACCEPTED_FOR_SOURCE_REGISTRATION
 ASEAN_SOURCE_REGISTRATION_NOT_READY
 ASEAN_SCHEDULED_LIVE_POLLING_BLOCKED
@@ -84,7 +85,7 @@ Bounded JSON response observed with Items, ItemCount, PageSize, PageNumber, and 
 dateFrom/dateTo in YYYYMMDD format returned 200 JSON for a bounded date window.
 Direct Node and PowerShell probes returned Cloudflare/403, while Playwright Chromium API returned 200 for accepted query shapes.
 Fly/Elixir runtime probe recorded direct API/page-bootstrap Cloudflare 403 and cookie-mediated API 200 JSON.
-Source registration remains blocked by challenge-cookie dependency, bounded adapter, and query-shape policy.
+IDX challenge-cookie access decision recorded; source registration remains blocked by challenge-cookie dependency, bounded adapter, and query-shape policy.
 ```
 
 ## Candidate Surfaces Checked
@@ -207,6 +208,7 @@ dateFrom/dateTo in YYYYMMDD format returned 200 JSON for a bounded date-window r
 Direct Node and PowerShell probes returned Cloudflare 403.
 Fly/Elixir direct API/page-bootstrap probes returned Cloudflare 403 HTML.
 Fly/Elixir cookie-mediated API retry returned 200 JSON, but that dependency is not accepted for source registration.
+IDX challenge-cookie access decision recorded.
 ```
 
 Decision:

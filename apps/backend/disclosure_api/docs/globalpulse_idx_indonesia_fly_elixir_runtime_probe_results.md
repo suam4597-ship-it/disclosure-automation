@@ -14,6 +14,7 @@ IDX_INDONESIA_DIRECT_API_FETCH_BLOCKED_BY_CLOUDFLARE_403
 IDX_INDONESIA_PAGE_BOOTSTRAP_BLOCKED_BY_CLOUDFLARE_403
 IDX_INDONESIA_COOKIE_MEDIATED_API_FETCH_RETURNS_JSON_200
 IDX_INDONESIA_SOURCE_REGISTRATION_STILL_BLOCKED_BY_CHALLENGE_COOKIE_DEPENDENCY
+IDX_CHALLENGE_COOKIE_ACCESS_DECISION_RECORDED
 ASEAN_SCHEDULED_LIVE_POLLING_NOT_ENABLED
 PUBLIC_UI_AND_BACKEND_DIGEST_SHAPE_UNCHANGED
 ```
@@ -141,6 +142,7 @@ source key proposal: id_idx_announcements
 parser/adapter proposal: idx_indonesia_announcements_json_v1
 registration status: blocked
 blocking class: challenge_cookie_dependency + bounded_adapter_required + query_shape_policy
+access decision: globalpulse_idx_indonesia_challenge_cookie_access_decision.md
 scheduled polling: not allowed
 production polling: not allowed
 public UI: not changed
@@ -169,7 +171,7 @@ Keep JP blocked until issue #339 source authority is resolved.
 ## Allowed Next PRs
 
 ```text
-1. Record an IDX access decision that challenge-cookie-mediated backend fetch is not enough for source registration.
-2. Repeat SET Thailand manual staging live smoke in another observation window.
-3. Continue APAC official-source scanning only within official exchange/OAM surfaces.
+1. Repeat SET Thailand manual staging live smoke in another observation window.
+2. Continue APAC official-source scanning only within official exchange/OAM surfaces.
+3. Revisit IDX only if a clean backend runtime or approved data-access path is documented.
 ```
