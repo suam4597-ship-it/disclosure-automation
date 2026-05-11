@@ -147,6 +147,7 @@ defmodule DisclosureAutomation.Parser do
   @sase_strategy "sase_multi_issuer_announcements_xml_v1"
   @sase_profile_base_url "https://www.sase.ba/v1/en-us/Market/Issuers-Securities/Issuer-profile/symbol/"
   @set_thailand_base_url "https://www.set.or.th"
+  @tw_mops_material_info_base_url "https://mops.twse.com.tw/mops"
 
   def parse(parser_key, raw_payload, opts \\ [])
       when is_binary(parser_key) and is_binary(raw_payload) do
@@ -262,6 +263,9 @@ defmodule DisclosureAutomation.Parser do
 
   defp parse_by_key("set_thailand_company_news_json_v1", raw_payload),
     do: parse_set_thailand_company_news(raw_payload)
+
+  defp parse_by_key("tw_mops_daily_material_info_json_v1", raw_payload),
+    do: parse_tw_mops_daily_material_info(raw_payload)
 
   defp parse_by_key("belex_issuer_news_html_v1", raw_payload),
     do: parse_belex_issuer_news(raw_payload)
@@ -4091,6 +4095,139 @@ defmodule DisclosureAutomation.Parser do
     parse_iso8601_datetime(value) || DateTime.utc_now()
   end
 
+  defp parse_tw_mops_daily_material_info(raw_payload) do
+    with {:ok, decoded} <- raw_payload |> trim_utf8_bom() |> Jason.decode(),
+         %{"result" => %{"data" => rows}} <- decoded,
+         true <- is_list(rows) do
+      items =
+        rows
+        |> Enum.map(&parse_tw_mops_daily_material_info_row/1)
+        |> Enum.filter(&(&1.url && &1.title && &1.published_at))
+
+      {:ok, items}
+    else
+      {:error, reason} -> {:error, {:invalid_tw_mops_daily_material_info_json, reason}}
+      _shape -> {:error, :unexpected_tw_mops_daily_material_info_shape}
+    end
+  end
+
+  defp parse_tw_mops_daily_material_info_row([
+         date_text,
+         time_text,
+         company_id,
+         company_name,
+         headline | rest
+       ]) do
+    detail = Enum.at(rest, 0)
+    detail_params = tw_mops_detail_params(detail)
+    enter_date = string_field(detail_params, "enterDate")
+    serial_number = string_field(detail_params, "serialNumber")
+    company_id = to_clean_string(company_id)
+    company_name = to_clean_string(company_name)
+    headline = clean_html(to_clean_string(headline))
+
+    %{
+      external_id:
+        join_non_empty(
+          [
+            "tw-mops",
+            company_id,
+            enter_date || tw_mops_compact_roc_date(date_text),
+            serial_number
+          ],
+          ":"
+        ),
+      title: join_non_empty([company_id, company_name, headline], " - "),
+      url: tw_mops_material_info_url(date_text),
+      summary:
+        join_non_empty(
+          [
+            "Taiwan MOPS daily material information",
+            prefixed("Company", join_non_empty([company_id, company_name], " ")),
+            prefixed("Published", join_non_empty([date_text, time_text], " ")),
+            prefixed("Market", string_field(detail_params, "marketKind"))
+          ],
+          " | "
+        ),
+      published_at: parse_tw_mops_datetime(date_text, time_text),
+      category: "material_information"
+    }
+  end
+
+  defp parse_tw_mops_daily_material_info_row(_row) do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: nil,
+      category: nil
+    }
+  end
+
+  defp tw_mops_detail_params(%{"parameters" => params}) when is_map(params), do: params
+  defp tw_mops_detail_params(_detail), do: %{}
+
+  defp tw_mops_material_info_url(date_text) do
+    case parse_tw_mops_roc_date_parts(date_text) do
+      {year, month, day} ->
+        @tw_mops_material_info_base_url <>
+          "/#/web/t05st02?year=#{year}&month=#{month}&day=#{pad2(day)}"
+
+      nil ->
+        @tw_mops_material_info_base_url <> "/#/web/t05st02"
+    end
+  end
+
+  defp tw_mops_compact_roc_date(date_text) do
+    case parse_tw_mops_roc_date_parts(date_text) do
+      {year, month, day} -> "#{year}#{pad2(month)}#{pad2(day)}"
+      nil -> nil
+    end
+  end
+
+  defp parse_tw_mops_datetime(date_text, time_text) do
+    with {roc_year, month, day} <- parse_tw_mops_roc_date_parts(date_text),
+         {hour, minute, second} <- parse_hms(time_text),
+         {:ok, date} <- Date.new(roc_year + 1911, month, day),
+         {:ok, time} <- Time.new(hour, minute, second),
+         {:ok, naive} <- NaiveDateTime.new(date, time) do
+      naive
+      |> DateTime.from_naive!("Etc/UTC")
+      |> DateTime.add(-8 * 60 * 60, :second)
+    else
+      _ -> DateTime.utc_now()
+    end
+  end
+
+  defp parse_tw_mops_roc_date_parts(value) do
+    value = to_clean_string(value)
+
+    with [_, year_text, month_text, day_text] <-
+           Regex.run(~r/^(\d{2,3})\/(\d{1,2})\/(\d{1,2})$/, value),
+         {year, ""} <- Integer.parse(year_text),
+         {month, ""} <- Integer.parse(month_text),
+         {day, ""} <- Integer.parse(day_text) do
+      {year, month, day}
+    else
+      _ -> nil
+    end
+  end
+
+  defp parse_hms(value) do
+    value = to_clean_string(value)
+
+    with [_, hour_text, minute_text, second_text] <-
+           Regex.run(~r/^(\d{1,2}):(\d{2}):(\d{2})$/, value),
+         {hour, ""} <- Integer.parse(hour_text),
+         {minute, ""} <- Integer.parse(minute_text),
+         {second, ""} <- Integer.parse(second_text) do
+      {hour, minute, second}
+    else
+      _ -> nil
+    end
+  end
+
   defp parse_belex_issuer_news(raw_payload) do
     table_html = regex_capture_raw(raw_payload, ~r/<table\s+id=["']t5["'][^>]*>(.*?)<\/table>/is)
 
@@ -4324,6 +4461,22 @@ defmodule DisclosureAutomation.Parser do
     end
   end
 
+  defp to_clean_string(value) when is_binary(value) do
+    value
+    |> String.replace(~r/\s+/u, " ")
+    |> String.trim()
+    |> case do
+      "" -> nil
+      cleaned -> cleaned
+    end
+  end
+
+  defp to_clean_string(value) when is_integer(value) or is_float(value), do: to_string(value)
+  defp to_clean_string(_value), do: nil
+
+  defp trim_utf8_bom(<<0xEF, 0xBB, 0xBF, rest::binary>>), do: rest
+  defp trim_utf8_bom(value), do: value
+
   defp regex_capture(raw, regex) do
     case Regex.run(regex, raw, capture: :all_but_first) do
       [value | _rest] -> clean_html(value)
@@ -4473,6 +4626,9 @@ defmodule DisclosureAutomation.Parser do
       value -> value
     end
   end
+
+  defp pad2(value) when is_integer(value) and value < 10, do: "0#{value}"
+  defp pad2(value), do: to_string(value)
 
   defp parse_xml(raw_payload) do
     try do
@@ -4706,6 +4862,7 @@ defmodule DisclosureAutomation.Ingestion do
   @de_company_register_strategy "germany_company_register_token_preflight_v1"
   @blse_strategy "blse_multi_issuer_news_rss_v1"
   @sase_strategy "sase_multi_issuer_announcements_xml_v1"
+  @tw_mops_material_info_strategy "tw_mops_daily_material_info_json_v1"
   @blse_ticker_url "https://services.blberza.com/blse/ticker.ashx?LangId=3&TickerTypeId=1&filter=all&ct=xml"
   @blse_issuer_news_url_template "https://www.blberza.com/pages/IssuerNewsRss.aspx?Code={code}&LangId=3"
 
@@ -5080,6 +5237,48 @@ defmodule DisclosureAutomation.Ingestion do
            "calendar_request_count" => length(responses)
          }
        }}
+    end
+  end
+
+  defp maybe_load_live_payload(
+         %SourceRegistry{parser_key: "tw_mops_daily_material_info_json_v1"} = source,
+         true
+       ) do
+    query_date = tw_mops_query_date(source)
+    request_body = tw_mops_daily_material_info_request_body(query_date)
+
+    with {:ok, response} <-
+           Http.fetch(source.base_url,
+             timeout: source_live_timeout(source),
+             headers: source_live_headers(source),
+             method: :post,
+             body: Jason.encode!(request_body),
+             content_type: "application/json"
+           ),
+         true <- response.status_code in 200..299,
+         :ok <- validate_live_payload(source, response) do
+      {:ok,
+       %{
+         raw_payload: response.body,
+         http_status: response.status_code,
+         fetch_info: %{
+           "mode" => "live",
+           "loaded" => true,
+           "strategy" => @tw_mops_material_info_strategy,
+           "url" => source.base_url,
+           "status_code" => response.status_code,
+           "bytes" => response.bytes,
+           "query_date" => Date.to_iso8601(query_date),
+           "roc_year" => Map.fetch!(request_body, "year"),
+           "month" => Map.fetch!(request_body, "month"),
+           "day" => Map.fetch!(request_body, "day"),
+           "records_seen" => tw_mops_daily_material_info_records_seen(response.body),
+           "fixture_fallback" => false
+         }
+       }}
+    else
+      false -> {:error, :unexpected_status}
+      {:error, _reason} = error -> error
     end
   end
 
@@ -5621,6 +5820,45 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp blse_rss_item_count(_body), do: 0
+
+  defp tw_mops_daily_material_info_records_seen(body) when is_binary(body) do
+    with {:ok, decoded} <- body |> trim_utf8_bom() |> Jason.decode(),
+         %{"result" => %{"data" => rows}} <- decoded,
+         true <- is_list(rows) do
+      length(rows)
+    else
+      _ -> 0
+    end
+  end
+
+  defp tw_mops_daily_material_info_records_seen(_body), do: 0
+
+  defp tw_mops_query_date(source) do
+    case source_config_value(source, "live_query_date", :live_query_date, nil) do
+      value when is_binary(value) ->
+        case Date.from_iso8601(value) do
+          {:ok, date} -> date
+          _ -> taiwan_today()
+        end
+
+      _value ->
+        taiwan_today()
+    end
+  end
+
+  defp taiwan_today do
+    DateTime.utc_now()
+    |> DateTime.add(8 * 60 * 60, :second)
+    |> DateTime.to_date()
+  end
+
+  defp tw_mops_daily_material_info_request_body(%Date{} = date) do
+    %{
+      "year" => to_string(date.year - 1911),
+      "month" => to_string(date.month),
+      "day" => to_string(date.day)
+    }
+  end
 
   defp blse_issuer_news_payload?(body) when is_binary(body) do
     body =~ "<rss" and body =~ "<channel>"
@@ -6679,6 +6917,25 @@ defmodule DisclosureAutomation.Ingestion do
     end
   end
 
+  defp validate_live_payload(
+         %SourceRegistry{parser_key: "tw_mops_daily_material_info_json_v1"},
+         response
+       ) do
+    cond do
+      not json_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "tw_mops_daily_material_info_json_v1",
+          content_type(response.headers)}}
+
+      not tw_mops_daily_material_info_payload?(response.body) ->
+        {:error,
+         {:unsupported_live_payload, "tw_mops_daily_material_info_json_v1", :unexpected_json}}
+
+      true ->
+        :ok
+    end
+  end
+
   defp validate_live_payload(%SourceRegistry{parser_key: "belex_issuer_news_html_v1"}, response) do
     cond do
       not html_content_type?(response.headers) ->
@@ -7066,6 +7323,20 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp set_thailand_company_news_payload?(_body), do: false
+
+  defp tw_mops_daily_material_info_payload?(body) when is_binary(body) do
+    with {:ok, %{"code" => 200, "result" => %{"data" => rows}}} <-
+           body |> trim_utf8_bom() |> Jason.decode() do
+      is_list(rows)
+    else
+      _ -> false
+    end
+  end
+
+  defp tw_mops_daily_material_info_payload?(_body), do: false
+
+  defp trim_utf8_bom(<<0xEF, 0xBB, 0xBF, rest::binary>>), do: rest
+  defp trim_utf8_bom(value), do: value
 
   defp belex_issuer_news_payload?(body) when is_binary(body) do
     body =~ "News from Issuers" and
