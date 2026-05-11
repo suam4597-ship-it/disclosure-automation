@@ -11,6 +11,7 @@ This is documentation-only. It does not add runtime code, routes, controllers, m
 ```text
 GLOBALPULSE_EUROPE_CANDIDATE_EXPANSION_CHECKPOINT_REACHED
 EUROPE_NEW_SOURCE_DISCOVERY_PAUSED_EXCEPT_BLOCKER_FOLLOWUP
+DENMARK_DFSA_OAM_FIRST_AUTOMATED_SCHEDULED_RUN_PASS
 DENMARK_DFSA_OAM_STAGING_CANARY_OBSERVATION_CONTINUES
 EU_FIRST_CANARY_CRON_PAYLOAD_REVIEW_RECORDED
 EU_PRODUCTION_SCHEDULED_POLLING_NOT_APPROVED
@@ -27,7 +28,7 @@ latest Europe residual scan PR: #499 Record Europe residual source scans
 latest Denmark default-branch activation PR: #498 Record Denmark DFSA OAM default branch activation
 Denmark default-branch workflow activation: complete
 Denmark main manual dispatch run: success
-Denmark first automated scheduled run: pending first matching cron slot
+Denmark first automated scheduled run: pass, run 25668194957
 EU first automated cron observation: recorded
 EU subsequent cron payload review: recorded
 EU production scheduled polling: disabled
@@ -116,7 +117,7 @@ Denmark remains staging-only:
 source: dk_dfsa_oam_company_announcements
 default-branch manual dispatch: success
 cron present on main: 47 */4 * * 1-5
-first automated schedule observation: pending
+first automated schedule observation: pass, run 25668194957
 production scheduled polling: not enabled
 source active flag: unchanged
 ```
@@ -126,7 +127,7 @@ source active flag: unchanged
 Run the next phase in this order:
 
 ```text
-1. Record Denmark DFSA OAM first automated scheduled staging canary result after the cron fires.
+1. Continue Denmark DFSA OAM scheduled staging observation until the minimum evidence window matures.
 2. Continue EU first-canary observation and record source-by-source success/failure counts after the observation window matures.
 3. Record a digest diversity and public Pages visibility checkpoint for scheduled staging canary output.
 4. Prepare a production-promotion readiness gate only after the observation window passes.
@@ -183,7 +184,7 @@ Do not start Korea live-source implementation before the backend integration tra
 ## Allowed Next PRs
 
 ```text
-1. Record Denmark DFSA OAM first automated scheduled staging canary observation when the cron produces an eligible run.
+1. Record Denmark DFSA OAM scheduled observation summary after enough scheduled runs accumulate.
 2. Record EU scheduled staging canary observation summary after enough scheduled runs accumulate.
 3. Record scheduled canary digest diversity and public Pages visibility smoke.
 4. Add or update a production-promotion readiness gate after the observation window passes.
