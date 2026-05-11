@@ -14,6 +14,12 @@ For the public website deployment roadmap, read:
 apps/backend/disclosure_api/docs/globalpulse_web_deployment_workflow_roadmap.md
 ```
 
+For the current website implementation checkpoint and cross-local resume path, read:
+
+```text
+apps/backend/disclosure_api/docs/globalpulse_web_implementation_current_checkpoint.md
+```
+
 For the public Pages + Fly staging smoke workflow contract, read:
 
 ```text
@@ -119,6 +125,8 @@ apps/backend/disclosure_api/docs/globalpulse_scheduled_workflow_observation_cook
 Current remote continuation status:
 
 ```text
+current phase0 head: c7331ea7a0ad1020fa6f514980a29e9b2574a9b3
+latest merged PR: #571 Record Denmark DFSA OAM follow-up scheduled observation
 phase0 public web smoke workflow PR: #544 merged
 main public web smoke activation PR: #545 merged
 workflow id: 274668919
@@ -139,6 +147,10 @@ post-recovery docs CI: pass, head 62922a389913b63aa832799a8cade1bc6270fd00
 scheduled workflow observation cookbook: added
 EU canary follow-up scheduled observation: pass, run 25680178601
 Denmark DFSA OAM follow-up scheduled observation: pass, run 25680895829
+public Pages smoke: 200
+public config smoke: 200
+Fly staging health: 200 ok
+Fly staging digest: 200 item_count=12 fallback=false
 ```
 
 Current public surfaces:

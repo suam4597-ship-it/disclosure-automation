@@ -1,6 +1,6 @@
 # GlobalPulse Remote Handoff Guide
 
-Last updated: 2026-05-11 KST
+Last updated: 2026-05-12 KST
 
 This guide is the remote source of truth for continuing GlobalPulse work across multiple local machines.
 
@@ -16,6 +16,12 @@ Public website deployment roadmap:
 
 ```text
 globalpulse_web_deployment_workflow_roadmap.md
+```
+
+Current website implementation checkpoint:
+
+```text
+globalpulse_web_implementation_current_checkpoint.md
 ```
 
 Frontend runtime config promotion design:
@@ -65,8 +71,8 @@ globalpulse_production_deployment_runbook.md
 ```text
 repo: suam4597-ship-it/disclosure-automation
 primary working branch: phase0-foundation
-current anchor commit: 74973e905e9949dc46df9ee7964de41dd1f69bd3
-latest phase0 anchor PR: #544 Add GlobalPulse public web smoke workflow
+current anchor commit: c7331ea7a0ad1020fa6f514980a29e9b2574a9b3
+latest phase0 anchor PR: #571 Record Denmark DFSA OAM follow-up scheduled observation
 default-branch schedule activation PR: #541 Activate HKEX staging schedule on main
 main schedule activation commit: 423ca7fa710b04de56a74b0a1ee092b43597b8a1
 default-branch public web smoke activation PR: #545 Activate public web smoke workflow on main
@@ -93,7 +99,7 @@ Expected:
 
 ```text
 git status --short: empty
-HEAD: 78485e754e7614572ccd8e760cf1ad8b7dda3f10 or a newer origin/phase0-foundation commit
+HEAD: c7331ea7a0ad1020fa6f514980a29e9b2574a9b3 or a newer origin/phase0-foundation commit
 ```
 
 If the local checkout has unrelated uncommitted work, do not overwrite it. Either use a fresh clone or create a new branch and inspect the diff first.
@@ -140,6 +146,9 @@ Europe broad listed-company disclosure expansion checkpoint reached
 Europe scheduled staging observation in progress
 APAC/CN-TW official listed-company disclosure source verification in progress
 production scheduled polling not approved
+current public Pages smoke: 200
+current Fly staging health: 200 ok
+current Fly staging digest: 200, item_count=12, fallback=false
 ```
 
 The project is no longer in the "can we find sources?" phase for Europe. Europe now needs observation, promotion gates, digest diversity checks, and rollback evidence.
@@ -160,6 +169,7 @@ Denmark DFSA OAM:
   manual canary dispatch: pass
   scheduled staging canary configured on main
   first automated scheduled run: pass
+  follow-up scheduled run: pass, run 25680895829
   latest digest visibility: pass
 production EU scheduled polling: not enabled
 ```
@@ -223,6 +233,7 @@ HKEX:
   default-branch schedule activation: merged to main
   first automated scheduled staging run: pending after 2026-05-11T14:22Z window
   next gate: check 2026-05-11T16:22Z / 2026-05-12 01:22 KST window
+  latest checked scheduled runs were EU/Denmark/SEC, not HKEX
 ```
 
 ### Korea / Japan
@@ -234,16 +245,14 @@ JP live polling: blocked by issue #339 until source authority decision
 
 ## Recommended Next Work Queue
 
-1. Record Denmark DFSA OAM scheduled observation summary after enough scheduled runs accumulate.
-2. Record EU scheduled staging canary observation summary after enough scheduled runs accumulate.
-3. Record scheduled-canary digest diversity and public Pages visibility smoke.
+1. Record HKEX first automated scheduled staging run after the cron fires.
+2. Continue EU scheduled staging canary observation summaries as runs accumulate.
+3. Continue Denmark DFSA OAM scheduled observation summaries as runs accumulate.
 4. Continue India NSE 7-day staging observation.
-5. Record HKEX first automated scheduled staging run after the cron fires.
-6. Continue scheduled observation summaries for Europe and India when enough runs accumulate.
+5. Record scheduled-canary digest diversity and public Pages visibility smoke.
+6. Keep public Pages + Fly staging web smoke workflow healthy.
 7. Revisit Taiwan/SET/Vietnam cadence only through staging-only design PRs.
-8. Activate and run public Pages + Fly staging web smoke workflow before any production deployment decision.
-9. Add bounded frontend config version marker after the runtime config promotion design.
-10. Use the production deployment runbook only after production backend app/database/CORS choices are made.
+8. Use production deployment templates only after production backend app/database/CORS choices are approved.
 
 ## HKEX Next-Step Contract
 
