@@ -1610,6 +1610,41 @@ sources:
     config:
       fixture_path: source_payloads/asean_market_news.xml
 
+  - source_key: th_set_company_news
+    display_name: SET Thailand Company News
+    source_type: api
+    base_url: "https://www.set.or.th/api/cms/v1/news/set?sourceId=company&securityTypeIds=S&fromDate=11/05/2026&toDate=11/05/2026&orderBy=date&lang=en"
+    healthcheck_url: "https://www.set.or.th/en/market/news-and-alert/news?newsType=company"
+    parser_key: set_thailand_company_news_json_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.17
+    coverage_tags:
+      - apac
+      - asean
+      - thailand
+      - th
+      - disclosure
+      - exchange
+      - listed_companies
+      - issuer_announcement
+      - company_news
+      - markets
+    active: false
+    config:
+      fixture_path: source_payloads/th_set_company_news.json
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_set_thailand_fly_elixir_runtime_probe_results.md
+      disable_live_fixture_fallback: true
+      max_items_per_poll: 25
+      live_timeout_ms: 30000
+      live_headers:
+        accept: "application/json, text/plain, */*"
+        accept-language: "en-US,en;q=0.9"
+        referer: "https://www.set.or.th/en/market/news-and-alert/news?newsType=company"
+        x-channel: WEB_SET
+        x-client-uuid: 00000000-0000-4000-8000-000000000001
+        user-agent: Mozilla/5.0 GlobalPulse SET runtime probe
+
   - source_key: india_market_disclosures
     display_name: India Market Disclosures
     source_type: rss

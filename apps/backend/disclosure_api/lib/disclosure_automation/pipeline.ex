@@ -146,6 +146,7 @@ defmodule DisclosureAutomation.Parser do
   @blse_strategy "blse_multi_issuer_news_rss_v1"
   @sase_strategy "sase_multi_issuer_announcements_xml_v1"
   @sase_profile_base_url "https://www.sase.ba/v1/en-us/Market/Issuers-Securities/Issuer-profile/symbol/"
+  @set_thailand_base_url "https://www.set.or.th"
 
   def parse(parser_key, raw_payload, opts \\ [])
       when is_binary(parser_key) and is_binary(raw_payload) do
@@ -258,6 +259,9 @@ defmodule DisclosureAutomation.Parser do
 
   defp parse_by_key("dfsa_oam_company_announcements_json_v1", raw_payload),
     do: parse_dfsa_oam_company_announcements(raw_payload)
+
+  defp parse_by_key("set_thailand_company_news_json_v1", raw_payload),
+    do: parse_set_thailand_company_news(raw_payload)
 
   defp parse_by_key("belex_issuer_news_html_v1", raw_payload),
     do: parse_belex_issuer_news(raw_payload)
@@ -3999,6 +4003,94 @@ defmodule DisclosureAutomation.Parser do
     end
   end
 
+  defp parse_set_thailand_company_news(raw_payload) do
+    with {:ok, decoded} <- Jason.decode(raw_payload),
+         groups when is_list(groups) <- Map.get(decoded, "newsGroups") do
+      items =
+        groups
+        |> Enum.flat_map(&set_thailand_company_news_group_records/1)
+        |> Enum.map(&parse_set_thailand_company_news_record/1)
+        |> Enum.filter(&(&1.url && &1.title && &1.published_at))
+
+      {:ok, items}
+    else
+      {:error, reason} -> {:error, {:invalid_set_thailand_company_news_json, reason}}
+      _shape -> {:error, :unexpected_set_thailand_company_news_shape}
+    end
+  end
+
+  defp set_thailand_company_news_group_records(%{"newsInfoList" => records} = group)
+       when is_list(records) do
+    group_name = string_field(group, "group")
+
+    records
+    |> Enum.filter(&is_map/1)
+    |> Enum.map(&Map.put(&1, "_group", group_name))
+  end
+
+  defp set_thailand_company_news_group_records(_group), do: []
+
+  defp parse_set_thailand_company_news_record(%{} = record) do
+    id = string_field(record, "id")
+    symbol = string_field(record, "symbol")
+    source = string_field(record, "source")
+    headline = string_field(record, "headline")
+    group = string_field(record, "_group")
+    tag = string_field(record, "tag")
+    product = string_field(record, "product")
+    published_text = string_field(record, "datetime")
+
+    %{
+      external_id: set_thailand_company_news_external_id(id),
+      title: join_non_empty([symbol, headline], " - "),
+      url: set_thailand_company_news_url(record),
+      summary:
+        join_non_empty(
+          [
+            "SET Thailand company news",
+            prefixed("Symbol", symbol),
+            prefixed("Source", source),
+            prefixed("Group", group),
+            prefixed("Tag", tag),
+            prefixed("Product", product),
+            prefixed("Published", published_text)
+          ],
+          " | "
+        ),
+      published_at: parse_set_thailand_company_news_datetime(published_text),
+      category: group || tag || "company_news"
+    }
+  end
+
+  defp parse_set_thailand_company_news_record(_record) do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: nil,
+      category: nil
+    }
+  end
+
+  defp set_thailand_company_news_external_id(nil), do: nil
+  defp set_thailand_company_news_external_id(id), do: "set-thailand:" <> id
+
+  defp set_thailand_company_news_url(record) do
+    record
+    |> string_field("url")
+    |> case do
+      @set_thailand_base_url <> "/" <> _path = url -> url
+      _url -> nil
+    end
+  end
+
+  defp parse_set_thailand_company_news_datetime(nil), do: DateTime.utc_now()
+
+  defp parse_set_thailand_company_news_datetime(value) do
+    parse_iso8601_datetime(value) || DateTime.utc_now()
+  end
+
   defp parse_belex_issuer_news(raw_payload) do
     table_html = regex_capture_raw(raw_payload, ~r/<table\s+id=["']t5["'][^>]*>(.*?)<\/table>/is)
 
@@ -6552,6 +6644,25 @@ defmodule DisclosureAutomation.Ingestion do
     end
   end
 
+  defp validate_live_payload(
+         %SourceRegistry{parser_key: "set_thailand_company_news_json_v1"},
+         response
+       ) do
+    cond do
+      not json_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "set_thailand_company_news_json_v1",
+          content_type(response.headers)}}
+
+      not set_thailand_company_news_payload?(response.body) ->
+        {:error,
+         {:unsupported_live_payload, "set_thailand_company_news_json_v1", :unexpected_json}}
+
+      true ->
+        :ok
+    end
+  end
+
   defp validate_live_payload(%SourceRegistry{parser_key: "belex_issuer_news_html_v1"}, response) do
     cond do
       not html_content_type?(response.headers) ->
@@ -6911,6 +7022,34 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp dfsa_oam_company_announcements_payload?(_body), do: false
+
+  defp set_thailand_company_news_payload?(body) when is_binary(body) do
+    with {:ok, %{"newsGroups" => groups}} when is_list(groups) <- Jason.decode(body) do
+      Enum.any?(groups, fn
+        %{"newsInfoList" => records} when is_list(records) ->
+          Enum.any?(records, fn
+            %{
+              "id" => _id,
+              "datetime" => _datetime,
+              "symbol" => _symbol,
+              "headline" => _headline,
+              "url" => _url
+            } ->
+              true
+
+            _record ->
+              false
+          end)
+
+        _group ->
+          false
+      end)
+    else
+      _ -> false
+    end
+  end
+
+  defp set_thailand_company_news_payload?(_body), do: false
 
   defp belex_issuer_news_payload?(body) when is_binary(body) do
     body =~ "News from Issuers" and
