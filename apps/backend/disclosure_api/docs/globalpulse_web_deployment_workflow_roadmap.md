@@ -30,6 +30,10 @@ Pages loads config.js
 Pages talks to Fly staging backend
 Fly /api/health returns 200
 Fly /api/feed/digest/latest?edition=breaking returns bounded JSON
+current public Pages smoke: 200
+current public config smoke: 200
+current Fly staging health smoke: 200 ok
+current Fly staging digest smoke: 200 item_count=12 fallback=false
 public browser smoke sees Backend ok and Backend digest live
 regional sections render from backend digest data
 Source Health operator link is present
@@ -83,6 +87,7 @@ latest observed schedule near that period: India NSE, run 25673025413
 next HKEX check window: 2026-05-11T16:22Z / 2026-05-12 01:22 KST
 status doc: globalpulse_hkex_scheduled_staging_pending_status.md
 observation command path: globalpulse_scheduled_workflow_observation_cookbook.md
+latest non-HKEX scheduled observations: EU run 25680178601, Denmark run 25680895829
 ```
 
 Output PR:
@@ -134,6 +139,7 @@ daily schedule: 17 0 * * *
 Node.js action runtime opt-in: FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true
 daily main maintenance verification: pass, run 25677329262
 Node.js forced-runtime warning: still present, non-blocking
+current ad-hoc public Pages/Fly smoke: pass
 ```
 
 ### 3. Split Staging And Production Runtime Configuration
@@ -314,11 +320,10 @@ production monitoring: not enabled
 ```text
 1. Record HKEX first automated scheduled staging run.
 2. Continue public web smoke daily observation.
-3. Design frontend runtime config promotion.
-4. Design production backend deployment.
-5. Add production deployment runbook.
-6. Continue source observation windows.
-7. Only then decide production backend + production frontend URL.
+3. Continue EU, Denmark, and India source observation windows.
+4. Keep production backend/frontend decision values in issue #561.
+5. Keep source promotion approvals in issue #565.
+6. Only then decide production backend + production frontend URL.
 ```
 
 ## What Not To Do Yet
