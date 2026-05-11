@@ -15,6 +15,7 @@ HKEX_LLCI_CATEGORY_JSON_CONFIRMED
 HKEX_LATEST_SUBMISSIONS_JSON_CONFIRMED
 HKEX_LOCAL_ERLANG_HTTPC_LLCI_JSON_FETCH_PASS
 HKEX_MACHINE_READABLE_LATEST_ASSET_CANDIDATE_CONFIRMED
+HKEX_LATEST_LISTED_COMPANY_PARSER_CONTRACT_RECORDED
 HKEX_SOURCE_REGISTRATION_STILL_BLOCKED
 NO_HKEX_SOURCE_REGISTERED
 NO_CNTW_SCHEDULED_LIVE_POLLING_ENABLED
@@ -274,7 +275,7 @@ Required before a source/parser PR:
 
 ```text
 accepted source key and region mapping, likely hk / Hong Kong
-bounded parser contract for homecat0_e.json newsInfo rows
+bounded parser contract for homecat0_e.json newsInfo rows: recorded in globalpulse_hkex_latest_listed_company_parser_contract.md
 reference-id strategy for webPath and/or rel timestamp plus stock code
 attachment/detail-fetch exclusion in code and tests
 fixture fallback disabled
@@ -307,8 +308,7 @@ JP remains blocked until issue #339 is resolved
 ## Next Allowed Steps
 
 ```text
-1. Draft an HKEX homecat0_e.json bounded parser/source contract while keeping source registration inactive.
-2. Run a Fly/application-runtime probe against homecat0_e.json when Fly CLI/auth is available.
-3. Add a bounded inactive HKEX JSON parser/source candidate only after the parser contract is accepted.
-4. Keep CN/TW production scheduled polling disabled.
+1. Run a Fly/application-runtime probe against homecat0_e.json when Fly CLI/auth is available.
+2. Add a bounded inactive HKEX JSON parser/source candidate only after the parser contract is accepted.
+3. Keep CN/TW production scheduled polling disabled.
 ```
