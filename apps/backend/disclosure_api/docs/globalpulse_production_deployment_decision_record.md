@@ -28,6 +28,7 @@ public web smoke workflow: GlobalPulse public web smoke
 public web smoke daily schedule: 17 0 * * *
 latest main maintenance smoke run: 25677329262
 latest main maintenance smoke result: pass
+production approval tracking issue: https://github.com/suam4597-ship-it/disclosure-automation/issues/561
 ```
 
 The public frontend currently uses the Fly staging backend. That is valid for staging smoke and live-source observation, but it is not yet a production deployment decision.
@@ -204,6 +205,12 @@ approval for whether the first production digest may be empty
 ```
 
 Secret values should be entered directly into the hosting provider or secret manager, not pasted into this repo.
+
+Track those approvals in:
+
+```text
+https://github.com/suam4597-ship-it/disclosure-automation/issues/561
+```
 
 ## Guardrails
 

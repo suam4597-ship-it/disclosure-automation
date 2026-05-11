@@ -106,6 +106,7 @@ next web deployment gate: decide production backend app/database/frontend URL
 production decision record: added, production infra not created
 source observation matrix: added, production source promotion not approved
 basic monitoring incident plan: added, no alerting runtime enabled
+production approval issue: https://github.com/suam4597-ship-it/disclosure-automation/issues/561
 ```
 
 Current public surfaces:
