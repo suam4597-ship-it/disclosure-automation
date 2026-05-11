@@ -15,6 +15,7 @@ VIETNAM_HSX_FIXTURE_PARSER_SAMPLE_ADDED
 VIETNAM_HSX_LIVE_FIXTURE_FALLBACK_DISABLED
 VIETNAM_HSX_DETAIL_FETCH_DISABLED
 VIETNAM_HSX_MANUAL_STAGING_SMOKE_PASS
+VIETNAM_HSX_REPEATED_MANUAL_STAGING_SMOKE_PASS
 VIETNAM_HSX_DIGEST_VISIBLE_LIVE
 ASEAN_SCHEDULED_LIVE_POLLING_NOT_ENABLED
 PRODUCTION_APAC_SCHEDULED_LIVE_POLLING_NOT_ENABLED
@@ -138,6 +139,12 @@ The first manual Fly staging smoke passed and is recorded in:
 globalpulse_vietnam_hsx_manual_staging_poll_smoke_results.md
 ```
 
+A repeated manual Fly staging smoke also passed and is recorded in:
+
+```text
+globalpulse_vietnam_hsx_repeated_manual_staging_poll_smoke_results.md
+```
+
 ## Guardrails
 
 ```text
@@ -157,7 +164,7 @@ Keep JP blocked until issue #339 source authority is resolved.
 ## Allowed Next PRs
 
 ```text
-1. Repeat HNX manual staging live poll smoke in another observation window.
-2. Repeat HSX manual staging live poll smoke in another observation window.
-3. Continue APAC official-source scanning within official exchange/OAM surfaces.
+1. Continue APAC official-source scanning within official exchange/OAM surfaces.
+2. Keep observing India NSE scheduled staging runs until the 7-day window matures.
+3. Repeat Taiwan MOPS manual staging smoke in another observation window.
 ```

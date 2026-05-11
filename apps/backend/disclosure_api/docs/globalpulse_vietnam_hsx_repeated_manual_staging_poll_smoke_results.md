@@ -1,8 +1,8 @@
-# GlobalPulse Vietnam HSX Manual Staging Poll Smoke Results
+# GlobalPulse Vietnam HSX Repeated Manual Staging Poll Smoke Results
 
 Date: 2026-05-11 KST
 
-This document records the first Fly staging manual live-poll smoke for the inactive Vietnam HSX listed-company news RSS candidate.
+This document records a second Fly staging manual live-poll smoke for the inactive Vietnam HSX listed-company news RSS candidate.
 
 This is documentation-only. It does not enable production scheduled polling, activate the source, add workflows, add public poll UI, add audit UI, add public Source Health UI, change backend digest JSON shape, fetch HSX detail pages, fetch attachments, or change frontend shell behavior.
 
@@ -11,7 +11,6 @@ This is documentation-only. It does not enable production scheduled polling, act
 ```text
 VIETNAM_HSX_LISTED_COMPANY_NEWS_RSS_CONFIRMED
 VIETNAM_HSX_LISTED_COMPANY_NEWS_SOURCE_REGISTERED_INACTIVE
-VIETNAM_HSX_MANUAL_STAGING_SMOKE_PASS
 VIETNAM_HSX_REPEATED_MANUAL_STAGING_SMOKE_PASS
 VIETNAM_HSX_DIGEST_VISIBLE_LIVE
 VIETNAM_HSX_LIVE_FIXTURE_FALLBACK_FALSE
@@ -25,13 +24,12 @@ PRODUCTION_APAC_SCHEDULED_LIVE_POLLING_NOT_ENABLED
 ```text
 repo: suam4597-ship-it/disclosure-automation
 branch: phase0-foundation
-merge commit: cf0bc4aac18beb97ecc3e58b1239043b25e058e9
-PR: #517 Add inactive Vietnam HSX listed company RSS candidate
+latest docs baseline: 4b257dc076d7e4ae96bf748eaed641f3d25ac11d
 Fly app: globalpulse-backend-staging
-deployed image: registry.fly.io/globalpulse-backend-staging:deployment-01KRANX01CREM0P4QZWHQV5HWN
+backend URL: https://globalpulse-backend-staging.fly.dev
 ```
 
-The #517 merge commit CI was checked before deployment:
+The latest docs-only merge commit CI was checked before this record:
 
 ```text
 Phase 0 validate: success
@@ -74,20 +72,10 @@ fetch.status_code: 200
 fetch.bytes: 5972
 records_seen: 10
 records_inserted: 10
-canonical_items:
-  - breaking-2026-05-11-2460982
-  - breaking-2026-05-11-2460981
-  - breaking-2026-05-11-2460980
-  - breaking-2026-05-11-2460979
-  - breaking-2026-05-11-2460978
-  - breaking-2026-05-11-2460977
-  - breaking-2026-05-11-2460976
-  - breaking-2026-05-11-2460975
-  - breaking-2026-05-11-2460822
-  - breaking-2026-05-11-2460838
+canonical_items count: 10
+raw_documents count: 10
+first_canonical: breaking-2026-05-11-2460982
 ```
-
-A follow-up full JSON inspection repeated the bounded manual poll and returned the same live endpoint, status code, record count, and canonical item set. This was a manual staging confirmation only, not scheduled polling.
 
 ## Source Health
 
@@ -100,9 +88,10 @@ Observed:
 ```text
 health_status: healthy
 active: false
-candidate_status: manual_staging_only
-disable_live_fixture_fallback: true
-last_success_at: 2026-05-11T04:52:07.496432Z
+config.candidate_status: manual_staging_only
+config.disable_live_fixture_fallback: true
+config.max_items_per_poll: 25
+last_success_at: 2026-05-11T05:47:46.264253Z
 last_seen_published_at: 2026-05-11T04:24:50.000000Z
 last_error: null
 ```
@@ -117,24 +106,43 @@ Observed:
 
 ```text
 digest_date: 2026-05-11
-generated_at: 2026-05-11T04:52:23Z
+generated_at: 2026-05-11T05:47:47Z
 item_count: 12
 hsx_item_count: 2
 metadata.fallback_to_fixture: false
 ```
 
-Observed HSX digest items:
+Observed first HSX digest item:
 
 ```text
 story_key: breaking-2026-05-11-2460982
 headline: FUCTVGF5: Bao cao hoat dong dau tu thang 04/2026
 source.source_key: vn_hsx_listed_company_news
 metadata.fetch_mode: live
+```
 
-story_key: breaking-2026-05-11-2460981
-headline: FUCTVGF4: Bao cao hoat dong dau tu thang 04/2026
-source.source_key: vn_hsx_listed_company_news
-metadata.fetch_mode: live
+The original live headline contains Vietnamese diacritics. This document records the ASCII-normalized headline text for durable docs compatibility.
+
+## Repeated Evidence Comparison
+
+```text
+first smoke records_seen: 10
+repeated smoke records_seen: 10
+first smoke digest hsx_item_count: 2
+repeated smoke digest hsx_item_count: 2
+first smoke fetch.mode: live
+repeated smoke fetch.mode: live
+first smoke metadata.fallback_to_fixture: false
+repeated smoke metadata.fallback_to_fixture: false
+```
+
+Interpretation:
+
+```text
+HSX official RSS remained reachable from Fly staging.
+The bounded rss_v1 parser continued to parse 10 listed-company news items.
+The inactive/manual-staging-only source remained visible in the latest digest without fixture fallback.
+No detail pages or attachments were fetched.
 ```
 
 ## Guardrails Confirmed
