@@ -110,10 +110,16 @@ The workflow is available on the default branch through PR #545.
 
 ```text
 workflow id: 274668919
-first workflow_dispatch result: pending
+first workflow_dispatch result: pass, run 25676030410
 ```
 
-Run it manually and record:
+The first run is recorded in:
+
+```text
+globalpulse_public_web_smoke_workflow_run_results.md
+```
+
+For future runs, record:
 
 ```text
 workflow run id
