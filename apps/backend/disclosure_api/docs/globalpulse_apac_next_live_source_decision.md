@@ -21,6 +21,8 @@ IDX_IS_SECOND_ASEAN_RUNTIME_PROBE_CANDIDATE
 IDX_FLY_ELIXIR_RUNTIME_PROBE_RECORDED
 IDX_SOURCE_REGISTRATION_STILL_BLOCKED_BY_CHALLENGE_COOKIE_DEPENDENCY
 IDX_CHALLENGE_COOKIE_ACCESS_DECISION_RECORDED
+PSE_EDGE_ACCESS_PATH_REVIEW_RECORDED
+PSE_EDGE_SOURCE_REGISTRATION_BLOCKED_PENDING_APPROVED_DATA_ACCESS_PATH
 KR_LIVE_SOURCE_TRACK_DEFERRED_UNTIL_DEDICATED_BACKEND_EXISTS
 JP_LIVE_POLLING_STILL_BLOCKED_BY_ISSUE_339
 PRODUCTION_APAC_SCHEDULED_LIVE_POLLING_NOT_ENABLED
@@ -34,6 +36,7 @@ SGX: official browser JSON path confirmed, blocked by policy/runtime review
 Bursa Malaysia: official browser JSON path confirmed, blocked by Cloudflare/runtime fetch
 SET Thailand: bounded inactive source candidate added and first manual staging smoke passed; still blocked pending repeated observation-window evidence before activation/scheduling
 IDX Indonesia: official JSON path confirmed; Fly/Elixir direct API/page bootstrap returned Cloudflare 403, cookie-mediated API returned 200 JSON; access decision blocks source registration until a clean backend runtime or approved data-access path exists
+Philippines PSE EDGE: official disclosure surface confirmed; official CAF/ITCH data-access products found; public-site access is not enough for backend polling without approved data-access path
 ASX: official MarkitDigital JSON path confirmed, direct Node/PowerShell fetch passed, blocked by access-policy decision until written authority or approved ASX Information Services path exists
 NZX: official contingency HTML surface confirmed, no machine-readable endpoint accepted
 KR: explicitly deferred by product direction because the dedicated backend is not ready
@@ -49,7 +52,8 @@ JP: remains blocked by source-authority issue #339
 4. Revisit ASX only after written authority or approved ASX Information Services path exists
 5. Revisit SGX only after policy/permission and runtime compatibility are explicitly accepted
 6. Revisit Bursa only if a non-bypass backend runtime fetch path is accepted
-7. Keep KR last until its dedicated backend/source authority path exists
+7. Revisit PSE only after approved PSE data-product or written permission path exists
+8. Keep KR last until its dedicated backend/source authority path exists
 ```
 
 ## Rationale
@@ -130,4 +134,5 @@ Do not start JP live polling until issue #339 is resolved.
 2. Keep IDX blocked unless a clean backend runtime or approved data-access path is documented
 3. Continue APAC official-source scanning within official exchange/OAM surfaces
 4. Revisit ASX only after written authority or approved ASX Information Services path exists
+5. Revisit PSE only after approved PSE data-product or written permission path exists
 ```
