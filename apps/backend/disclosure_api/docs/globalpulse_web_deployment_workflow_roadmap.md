@@ -143,6 +143,7 @@ Status:
 ```text
 design doc: globalpulse_frontend_runtime_config_promotion_design.md
 staging config marker doc: globalpulse_frontend_config_version_marker.md
+staging config marker public smoke: globalpulse_frontend_config_marker_public_smoke_results.md
 production backend URL: pending
 production config implementation: pending
 ```

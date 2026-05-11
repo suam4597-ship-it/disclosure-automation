@@ -30,6 +30,12 @@ Frontend staging config marker:
 globalpulse_frontend_config_version_marker.md
 ```
 
+Frontend staging config marker public smoke:
+
+```text
+globalpulse_frontend_config_marker_public_smoke_results.md
+```
+
 Production backend deployment design:
 
 ```text

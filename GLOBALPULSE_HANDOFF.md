@@ -32,6 +32,12 @@ For the current staging config marker, read:
 apps/backend/disclosure_api/docs/globalpulse_frontend_config_version_marker.md
 ```
 
+For the public smoke result after the staging config marker reached Pages, read:
+
+```text
+apps/backend/disclosure_api/docs/globalpulse_frontend_config_marker_public_smoke_results.md
+```
+
 For production backend deployment rules, read:
 
 ```text
