@@ -190,3 +190,5 @@ Do not start Korea live-source implementation before the backend integration tra
 4. Add or update a production-promotion readiness gate after the observation window passes.
 5. Start the next non-Europe endpoint scan track, excluding Korea until the backend path is ready.
 ```
+
+For cross-machine continuation, use `globalpulse_remote_handoff_guide.md` as the current remote handoff entrypoint before starting new implementation work.
