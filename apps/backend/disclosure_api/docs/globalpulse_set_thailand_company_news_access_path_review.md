@@ -14,7 +14,7 @@ SET_THAILAND_COMPANY_NEWS_JSON_SHAPE_CAPTURED_BOUNDED
 SET_THAILAND_DIRECT_API_FETCH_BLOCKED_WITHOUT_SESSION_BOOTSTRAP
 SET_THAILAND_FLY_ELIXIR_RUNTIME_PROBE_PASS
 SET_THAILAND_BOUNDED_INACTIVE_SOURCE_CANDIDATE_ADDED
-SET_THAILAND_MANUAL_STAGING_SMOKE_PENDING
+SET_THAILAND_MANUAL_STAGING_SMOKE_PASS
 ASEAN_SCHEDULED_LIVE_POLLING_NOT_ENABLED
 PUBLIC_UI_AND_BACKEND_DIGEST_SHAPE_UNCHANGED
 ```
@@ -102,7 +102,7 @@ The accepted path appears to require a bounded session bootstrap from the offici
 The Fly/Elixir runtime probe is now recorded in globalpulse_set_thailand_fly_elixir_runtime_probe_results.md and returned 2xx JSON from Fly staging without challenge HTML.
 ```
 
-SET is still not active-source-ready because the bounded inactive candidate still needs deployment and a manual staging live-poll smoke record.
+SET is still not active-source-ready because it has one manual staging live-poll pass and still needs repeated observation-window evidence before activation or scheduling.
 
 ## Source Registration Decision
 
@@ -114,7 +114,7 @@ Current decision:
 source key proposal: th_set_company_news
 parser/adapter proposal: set_thailand_company_news_json_v1
 registration status: inactive manual-staging-only candidate
-blocking class: manual_staging_smoke_required
+blocking class: repeated_observation_window_required
 scheduled polling: not allowed
 production polling: not allowed
 public UI: not changed
@@ -151,6 +151,7 @@ no detail pages or attachment documents are fetched
 rate/cadence cap is documented
 SET access/session behavior is recorded
 manual Fly staging smoke passes with fixture_fallback=false
+repeated manual Fly staging smoke passes in another observation window
 ```
 
 ## Guardrails
@@ -172,7 +173,7 @@ Do not use third-party SET mirrors or aggregators by default.
 ## Allowed Next PRs
 
 ```text
-1. Add SET manual Fly staging live poll smoke after the candidate is deployed.
-2. If SET staging smoke fails, record the bounded failure and fix the smallest parser/live-fetch issue.
-3. If SET staging smoke is delayed or blocked, continue to IDX Fly/Elixir runtime compatibility probe.
+1. Repeat SET manual Fly staging live poll smoke in another observation window.
+2. If repeated SET staging smoke fails, record the bounded failure and fix the smallest parser/live-fetch issue.
+3. If SET repeated smoke is delayed, continue to IDX Fly/Elixir runtime compatibility probe.
 ```
