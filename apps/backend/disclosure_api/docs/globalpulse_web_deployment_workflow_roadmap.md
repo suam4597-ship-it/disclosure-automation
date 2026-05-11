@@ -110,6 +110,14 @@ GlobalPulse live staging poll validates backend/source behavior.
 But no single workflow currently validates public Pages + Fly staging as an end-to-end web surface.
 ```
 
+Status:
+
+```text
+workflow added on phase0-foundation: globalpulse-public-web-smoke.yml
+default-branch activation: pending
+first workflow_dispatch result: pending
+```
+
 ### 3. Split Staging And Production Runtime Configuration
 
 Current `apps/web/config.js` points public Pages to Fly staging by default.

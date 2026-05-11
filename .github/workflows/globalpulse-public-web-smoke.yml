@@ -1,0 +1,164 @@
+name: GlobalPulse public web smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      pages_url:
+        description: "Public GlobalPulse Pages URL"
+        required: false
+        default: "https://suam4597-ship-it.github.io/disclosure-automation/"
+      backend_url:
+        description: "Backend base URL"
+        required: false
+        default: "https://globalpulse-backend-staging.fly.dev"
+      edition:
+        description: "Digest edition to verify"
+        required: false
+        default: "breaking"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: globalpulse-public-web-smoke
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    env:
+      PAGES_URL: ${{ github.event.inputs.pages_url || 'https://suam4597-ship-it.github.io/disclosure-automation/' }}
+      BACKEND_URL: ${{ github.event.inputs.backend_url || 'https://globalpulse-backend-staging.fly.dev' }}
+      EDITION: ${{ github.event.inputs.edition || 'breaking' }}
+
+    steps:
+      - name: Show target
+        run: |
+          echo "pages_url=${PAGES_URL}"
+          echo "backend_url=${BACKEND_URL}"
+          echo "edition=${EDITION}"
+
+      - name: Fetch public Pages shell
+        run: |
+          status=$(curl -sS -L -o pages.html -w "%{http_code}" "${PAGES_URL}")
+          echo "pages status=${status}"
+          if [ "${status}" -lt 200 ] || [ "${status}" -ge 300 ]; then
+            exit 1
+          fi
+
+          python3 - <<'PY'
+          from pathlib import Path
+          html = Path("pages.html").read_text(encoding="utf-8", errors="replace")
+          required = [
+              "GlobalPulse",
+              "config.js",
+              "Source Health",
+              "apiBase",
+          ]
+          missing = [needle for needle in required if needle not in html]
+          if missing:
+              raise SystemExit(f"missing public shell markers: {missing}")
+          print("public shell contract pass")
+          PY
+
+      - name: Fetch public Pages config
+        run: |
+          config_url="${PAGES_URL%/}/config.js"
+          status=$(curl -sS -L -o config.js -w "%{http_code}" "${config_url}")
+          echo "config status=${status}"
+          if [ "${status}" -lt 200 ] || [ "${status}" -ge 300 ]; then
+            exit 1
+          fi
+
+          python3 - <<'PY'
+          from pathlib import Path
+          text = Path("config.js").read_text(encoding="utf-8", errors="replace")
+          required = [
+              "window.DISCLOSURE_API_BASE_URL",
+              "https://globalpulse-backend-staging.fly.dev",
+              "greater_china",
+              "eu_north",
+              "eu_central",
+              "eu_south",
+          ]
+          missing = [needle for needle in required if needle not in text]
+          if missing:
+              raise SystemExit(f"missing config markers: {missing}")
+          print("public config contract pass")
+          PY
+
+      - name: Fetch backend health
+        run: |
+          status=$(curl -sS -o health.json -w "%{http_code}" "${BACKEND_URL}/api/health")
+          echo "health status=${status}"
+          cat health.json
+          if [ "${status}" -lt 200 ] || [ "${status}" -ge 300 ]; then
+            exit 1
+          fi
+
+          python3 - <<'PY'
+          import json
+          with open("health.json", "r", encoding="utf-8") as handle:
+              payload = json.load(handle)
+          if payload.get("status") != "ok":
+              raise SystemExit(f"expected health status ok, got {payload.get('status')!r}")
+          if payload.get("service") != "disclosure_automation":
+              raise SystemExit(f"unexpected service {payload.get('service')!r}")
+          print("backend health contract pass")
+          PY
+
+      - name: Fetch backend digest
+        run: |
+          status=$(curl -sS -o digest.json -w "%{http_code}" "${BACKEND_URL}/api/feed/digest/latest?edition=${EDITION}")
+          echo "digest status=${status}"
+          cat digest.json
+          if [ "${status}" -lt 200 ] || [ "${status}" -ge 300 ]; then
+            exit 1
+          fi
+
+          python3 - <<'PY'
+          import json
+          import sys
+
+          with open("digest.json", "r", encoding="utf-8") as handle:
+              payload = json.load(handle)
+
+          items = payload.get("items") or []
+          metadata = payload.get("metadata") or {}
+          text = json.dumps(payload, ensure_ascii=False).lower()
+
+          if payload.get("edition") != "breaking":
+              raise SystemExit(f"expected edition=breaking, got {payload.get('edition')!r}")
+          if not isinstance(items, list) or len(items) == 0:
+              raise SystemExit("expected non-empty digest items")
+          if metadata.get("fallback_to_fixture") is not False:
+              raise SystemExit(f"expected fallback_to_fixture=false, got {metadata.get('fallback_to_fixture')!r}")
+
+          forbidden_fragments = [
+              "authorization",
+              "cookie",
+              "set-cookie",
+              "secret",
+              "token",
+              "session_id",
+              "raw_provider",
+              "raw_auth",
+          ]
+          found = [fragment for fragment in forbidden_fragments if fragment in text]
+          if found:
+              raise SystemExit(f"forbidden public response fragments found: {found}")
+
+          print(f"digest contract pass: item_count={len(items)}")
+          PY
+
+      - name: Upload smoke outputs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: globalpulse-public-web-smoke-${{ github.run_id }}
+          path: |
+            pages.html
+            config.js
+            health.json
+            digest.json
+          if-no-files-found: ignore
