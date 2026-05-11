@@ -14,7 +14,9 @@ HKEX_HOMECAT0_JSON_FIRST_SOURCE_SCOPE_ACCEPTED
 HKEX_HOMECAT0_NEWSINFO_FIELD_MAP_DESIGNED
 HKEX_ATTACHMENT_DETAIL_FETCH_OUT_OF_SCOPE
 HKEX_PDF_BODY_FETCH_FORBIDDEN_FOR_FIRST_CANDIDATE
-HKEX_SOURCE_REGISTRATION_STILL_BLOCKED_PENDING_CANDIDATE_PR
+HKEX_FLY_RUNTIME_HOMECAT0_JSON_FETCH_PASS
+HKEX_STOCK_LIST_SHAPE_RECORDED
+HKEX_SOURCE_REGISTRATION_READY_FOR_INACTIVE_CANDIDATE_PR
 NO_HKEX_SOURCE_REGISTERED
 NO_CNTW_SCHEDULED_LIVE_POLLING_ENABLED
 KR_LIVE_SOURCE_TRACK_DEFERRED
@@ -65,7 +67,12 @@ webPath
 stock
 dod
 dodPath
+newsId
+size
+multi
 ```
+
+Fly runtime verification recorded `stock` as a list of issuer maps with `sc` and `sn` keys. The prior asset scan summarized stock as display text. The first parser must support the list shape and may keep a defensive string fallback if later rows differ.
 
 The first parser must ignore unknown fields and must not fail open into raw JSON exposure.
 
@@ -76,6 +83,7 @@ external_id:
   preferred: hkex-llci:<document-id-from-webPath>
   example: https://www1.hkexnews.hk/listedco/listconews/sehk/2026/0511/2026051100197.pdf
   mapped external_id: hkex-llci:2026051100197
+  metadata fallback: newsId may be stored as bounded source metadata but should not replace webPath document id unless a later PR changes the id strategy
 
 canonical_url:
   webPath
@@ -90,18 +98,20 @@ summary:
   sTxt, trimmed and bounded
 
 issuer_display_name:
-  issuer short name derived from stock after removing the leading numeric stock code when present
-  example: 00855 CHINA WATER -> CHINA WATER
+  preferred: stock[0].sn when stock is a non-empty list of issuer maps
+  fallback: issuer short name derived from stock string after removing the leading numeric stock code when present
+  example fallback: 00855 CHINA WATER -> CHINA WATER
 
 issuer_code:
-  leading numeric stock code from stock when present
-  example: 00855
+  preferred: stock[0].sc when stock is a non-empty list of issuer maps
+  fallback: leading numeric stock code from stock string when present
+  example fallback: 00855
 
 category:
   source-derived category: Latest Listed Company Information / Latest Submissions
 
 document_type:
-  ext, lowercased and allowlisted
+  ext, lowercased and allowlisted; treat NaN or unknown values as unknown metadata
 ```
 
 If `webPath` is missing or does not contain a stable document id, the parser candidate must use a bounded deterministic fallback id derived from source key, date/time, stock, title, and canonical_url. The fallback id must be hashed or otherwise bounded, and it must not include raw attachment contents.
@@ -180,7 +190,9 @@ A later implementation PR should include focused tests that lock:
 representative homecat0_e.json fixture parses into bounded canonical items
 external_id derives from webPath document id
 published_at parses from relY/relM/relD/relTime as Asia/Hong_Kong
-stock splits into issuer_code and issuer_display_name when possible
+stock list shape maps stock[0].sc and stock[0].sn into issuer_code and issuer_display_name
+stock string fallback remains bounded if future rows differ
+ext=NaN is treated as unknown metadata
 title and sTxt are bounded and trimmed
 unknown fields are ignored
 missing optional fields do not expose raw JSON
@@ -193,7 +205,7 @@ backend digest JSON response shape remains unchanged
 Required manual validation before any staging success claim:
 
 ```text
-application/Fly runtime GET verification for homecat0_e.json
+application/Fly runtime GET verification for homecat0_e.json: recorded in globalpulse_hkex_fly_runtime_probe_results.md
 manual staging poll with fetch.mode=live
 metadata.fallback_to_fixture=false
 public digest visibility smoke after staging poll
