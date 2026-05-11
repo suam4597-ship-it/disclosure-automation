@@ -16,6 +16,8 @@ HKEX_LATEST_SUBMISSIONS_JSON_CONFIRMED
 HKEX_LOCAL_ERLANG_HTTPC_LLCI_JSON_FETCH_PASS
 HKEX_MACHINE_READABLE_LATEST_ASSET_CANDIDATE_CONFIRMED
 HKEX_LATEST_LISTED_COMPANY_PARSER_CONTRACT_RECORDED
+HKEX_FLY_RUNTIME_HOMECAT0_JSON_FETCH_PASS
+HKEX_SOURCE_REGISTRATION_READY_FOR_INACTIVE_CANDIDATE_PR
 HKEX_SOURCE_REGISTRATION_STILL_BLOCKED
 NO_HKEX_SOURCE_REGISTERED
 NO_CNTW_SCHEDULED_LIVE_POLLING_ENABLED
@@ -281,7 +283,7 @@ attachment/detail-fetch exclusion in code and tests
 fixture fallback disabled
 source active=false
 manual staging-only candidate status
-Fly staging or application-runtime GET verification for homecat0_e.json
+Fly staging or application-runtime GET verification for homecat0_e.json: recorded in globalpulse_hkex_fly_runtime_probe_results.md
 manual staging poll smoke with fetch.mode=live and metadata.fallback_to_fixture=false
 public digest visibility smoke after staging poll
 rollback plan that disables the source without affecting SEC, NSE, SET, HNX, HSX, or Taiwan MOPS
@@ -308,7 +310,6 @@ JP remains blocked until issue #339 is resolved
 ## Next Allowed Steps
 
 ```text
-1. Run a Fly/application-runtime probe against homecat0_e.json when Fly CLI/auth is available.
-2. Add a bounded inactive HKEX JSON parser/source candidate only after the parser contract is accepted.
-3. Keep CN/TW production scheduled polling disabled.
+1. Add a bounded inactive HKEX JSON parser/source candidate using the recorded parser contract and Fly runtime probe.
+2. Keep CN/TW production scheduled polling disabled.
 ```

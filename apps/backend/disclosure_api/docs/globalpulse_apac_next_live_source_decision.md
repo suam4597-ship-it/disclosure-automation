@@ -43,7 +43,8 @@ HKEX_LOCAL_ELIXIR_RUNTIME_PROBE_PASS
 HKEX_LATEST_LISTED_COMPANY_ASSET_SCAN_RECORDED
 HKEX_LATEST_LISTED_COMPANY_JSON_ASSET_CONFIRMED
 HKEX_LATEST_LISTED_COMPANY_PARSER_CONTRACT_RECORDED
-HKEX_SOURCE_REGISTRATION_BLOCKED_PENDING_INACTIVE_CANDIDATE_PR
+HKEX_FLY_RUNTIME_HOMECAT0_JSON_FETCH_PASS
+HKEX_SOURCE_REGISTRATION_READY_FOR_INACTIVE_CANDIDATE_PR
 IDX_IS_SECOND_ASEAN_RUNTIME_PROBE_CANDIDATE
 IDX_FLY_ELIXIR_RUNTIME_PROBE_RECORDED
 IDX_SOURCE_REGISTRATION_STILL_BLOCKED_BY_CHALLENGE_COOKIE_DEPENDENCY
@@ -67,7 +68,7 @@ Vietnam HNX: official issuer-disclosure RSS returned 200 application/rss+xml; bo
 Vietnam HSX: official listed-company RSS returned 200 application/rss+xml; bounded inactive rss_v1 source candidate added with fixture fallback disabled; repeated manual Fly staging smoke passed with digest visibility
 Taiwan MOPS: official daily material-information JSON endpoint returned 200 application/json; bounded inactive date-aware parser/source candidate added with fixture fallback disabled; repeated manual Fly staging smoke passed with digest visibility
 HKEXnews: official listed-company title-search HTML surface returned bounded issuer rows, and official Latest Listed Company Information JSON assets were confirmed
-HKEX local Elixir runtime probe: bounded title-search URL returned 200 text/html through Erlang :httpc with total_records=877; homecat0_e.json returned 200 application/json through Erlang :httpc; bounded homecat0_e.json parser/source contract recorded; Fly staging runtime probe remains pending
+HKEX local/Fly runtime probes: bounded title-search URL returned 200 text/html through local Erlang :httpc with total_records=877; homecat0_e.json returned 200 application/json through local Erlang :httpc and Fly staging release eval; bounded homecat0_e.json parser/source contract recorded
 IDX Indonesia: official JSON path confirmed; Fly/Elixir direct API/page bootstrap returned Cloudflare 403, cookie-mediated API returned 200 JSON; access decision blocks source registration until a clean backend runtime or approved data-access path exists
 Philippines PSE EDGE: official disclosure surface confirmed; official CAF/ITCH data-access products found; public-site access is not enough for backend polling without approved data-access path
 ASX: official MarkitDigital JSON path confirmed, direct Node/PowerShell fetch passed, blocked by access-policy decision until written authority or approved ASX Information Services path exists
@@ -84,7 +85,7 @@ JP: remains blocked by source-authority issue #339
 3. Keep SET inactive; if cadence is considered later, design staging-only schedule first
 4. Keep IDX blocked unless a clean backend runtime or approved data-access path is documented
 5. Continue APAC official-source scanning within official exchange/OAM surfaces
-6. Revisit HKEX by running Fly/application-runtime verification, then adding an inactive/manual staging-only homecat0_e.json parser/source candidate
+6. Revisit HKEX by adding an inactive/manual staging-only homecat0_e.json parser/source candidate
 7. Revisit Taiwan MOPS only through another explicit staging-only cadence design or manual observation
 8. Revisit ASX only after written authority or approved ASX Information Services path exists
 9. Revisit SGX only after policy/permission and runtime compatibility are explicitly accepted
@@ -164,7 +165,7 @@ local Erlang :httpc returned 200 HTML for the bounded title-search URL
 official HKEXnews LLCI JSON assets were confirmed
 local Erlang :httpc returned 200 application/json for homecat0_e.json
 homecat0_e.json parser/source contract is recorded in globalpulse_hkex_latest_listed_company_parser_contract.md
-Fly runtime compatibility still needs a dedicated probe
+Fly runtime compatibility is recorded in globalpulse_hkex_fly_runtime_probe_results.md
 attachment/detail/PDF fetch must remain excluded from the first candidate
 ```
 
@@ -192,7 +193,7 @@ Do not start JP live polling until issue #339 is resolved.
 3. Keep SET inactive; if cadence is considered later, design staging-only schedule first
 4. Keep IDX blocked unless a clean backend runtime or approved data-access path is documented
 5. Continue APAC official-source scanning within official exchange/OAM surfaces
-6. Revisit HKEX by running Fly/application-runtime verification, then adding an inactive/manual staging-only homecat0_e.json parser/source candidate
+6. Revisit HKEX by adding an inactive/manual staging-only homecat0_e.json parser/source candidate
 7. Revisit Taiwan MOPS only through another explicit staging-only cadence design or manual observation
 8. Revisit ASX only after written authority or approved ASX Information Services path exists
 9. Revisit PSE only after approved PSE data-product or written permission path exists
