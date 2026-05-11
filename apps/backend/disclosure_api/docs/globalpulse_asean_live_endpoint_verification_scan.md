@@ -24,7 +24,8 @@ VIETNAM_HNX_MANUAL_STAGING_SMOKE_PASS
 VIETNAM_HNX_DIGEST_VISIBLE_LIVE
 VIETNAM_HSX_LISTED_COMPANY_NEWS_RSS_CONFIRMED
 VIETNAM_HSX_LISTED_COMPANY_NEWS_SOURCE_REGISTERED_INACTIVE
-VIETNAM_HSX_MANUAL_STAGING_SMOKE_PENDING
+VIETNAM_HSX_MANUAL_STAGING_SMOKE_PASS
+VIETNAM_HSX_DIGEST_VISIBLE_LIVE
 IDX_INDONESIA_OFFICIAL_JSON_ACCESS_PATH_CONFIRMED
 IDX_INDONESIA_FLY_ELIXIR_RUNTIME_PROBE_RECORDED
 IDX_INDONESIA_SOURCE_REGISTRATION_STILL_BLOCKED_BY_CHALLENGE_COOKIE_DEPENDENCY
@@ -108,7 +109,8 @@ Category feed 21 returned 200 application/rss+xml with channel title Tin To chuc
 Bounded direct RSS request observed 10 items with escaped HTML span titles and a10:updated timestamps.
 rss_v1 parser behavior was aligned with the existing capability contract for HTML trimming and updated timestamp extraction.
 Bounded inactive source candidate added with disable_live_fixture_fallback=true.
-Manual Fly staging smoke is pending.
+Manual Fly staging smoke passed with fetch.mode=live and metadata.fallback_to_fixture=false.
+Digest verification showed 2 HSX live items in the 12-item latest breaking digest.
 Source activation and scheduling remain blocked.
 ```
 
