@@ -19,7 +19,7 @@ Current APAC live-source status:
 ```text
 India NSE official RSS: staging-live verified, bounded, duplicate-handling hardened, conservative staging schedule configured
 India NSE first automated scheduled run: pending first matching GitHub Actions cron slot
-ASEAN official endpoint: scan started, SGX browser JSON access path confirmed but blocked by policy/runtime review; Bursa browser JSON access path confirmed but blocked by Cloudflare/runtime fetch; SET official JSON access path and Fly/Elixir runtime probe passed but pending bounded adapter/source candidate; IDX official JSON access path confirmed but pending adapter/runtime probe
+ASEAN official endpoint: scan started, SGX browser JSON access path confirmed but blocked by policy/runtime review; Bursa browser JSON access path confirmed but blocked by Cloudflare/runtime fetch; SET official JSON access path and Fly/Elixir runtime probe passed with inactive candidate still pending repeated smoke; HNX Vietnam official RSS inactive candidate added and pending staging smoke; IDX official JSON access path confirmed but blocked by challenge-cookie dependency
 ANZ official endpoint: ASX official JSON access path confirmed, but access-policy decision blocks source registration until written authority or approved ASX Information Services path exists
 JP live source: blocked by issue #339 source-authority decision
 ```
@@ -174,8 +174,9 @@ Bursa Malaysia company announcements: official browser JSON access path confirme
 SET Thailand company news: official JSON access path confirmed; source registration blocked pending bounded adapter and Fly/Elixir runtime probe
 SET Thailand Fly/Elixir runtime probe: passed through DisclosureAutomation.Http.fetch/2 from globalpulse-backend-staging
 SET Thailand manual staging smoke: passed once with fetch.mode=live and metadata.fallback_to_fixture=false; still inactive pending repeated observation-window evidence
+Vietnam HNX issuer disclosures: official RSS path confirmed; inactive rss_v1 source candidate added with fixture fallback disabled and pending manual staging smoke
 IDX announcements: official JSON access path confirmed; Fly/Elixir runtime probe recorded direct API/page bootstrap Cloudflare 403 and cookie-mediated API 200 JSON; source registration blocked by challenge-cookie dependency, bounded adapter, and query-shape policy
-decision: no ASEAN source registration yet
+decision: no active or scheduled ASEAN source yet; inactive ASEAN candidates remain manual-staging-only
 ```
 
 Acceptance caveat:
@@ -302,6 +303,9 @@ SET_THAILAND_FLY_ELIXIR_RUNTIME_PROBE_PASS
 SET_THAILAND_BOUNDED_INACTIVE_SOURCE_CANDIDATE_ADDED
 SET_THAILAND_MANUAL_STAGING_SMOKE_PASS
 SET_THAILAND_REPEATED_OBSERVATION_WINDOW_PENDING
+VIETNAM_HNX_ISSUER_DISCLOSURE_RSS_CONFIRMED
+VIETNAM_HNX_ISSUER_DISCLOSURE_SOURCE_REGISTERED_INACTIVE
+VIETNAM_HNX_MANUAL_STAGING_SMOKE_PENDING
 IDX_INDONESIA_JSON_ACCESS_PATH_CONFIRMED
 IDX_INDONESIA_FLY_ELIXIR_RUNTIME_PROBE_RECORDED
 IDX_INDONESIA_SOURCE_REGISTRATION_STILL_BLOCKED_BY_CHALLENGE_COOKIE_DEPENDENCY

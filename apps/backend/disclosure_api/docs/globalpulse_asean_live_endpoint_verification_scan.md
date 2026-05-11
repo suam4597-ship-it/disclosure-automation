@@ -17,12 +17,15 @@ SET_THAILAND_OFFICIAL_JSON_ACCESS_PATH_CONFIRMED
 SET_THAILAND_FLY_ELIXIR_RUNTIME_PROBE_PASS
 SET_THAILAND_BOUNDED_INACTIVE_SOURCE_CANDIDATE_ADDED
 SET_THAILAND_MANUAL_STAGING_SMOKE_PASS
+VIETNAM_HNX_ISSUER_DISCLOSURE_RSS_CONFIRMED
+VIETNAM_HNX_ISSUER_DISCLOSURE_SOURCE_REGISTERED_INACTIVE
+VIETNAM_HNX_MANUAL_STAGING_SMOKE_PENDING
 IDX_INDONESIA_OFFICIAL_JSON_ACCESS_PATH_CONFIRMED
 IDX_INDONESIA_FLY_ELIXIR_RUNTIME_PROBE_RECORDED
 IDX_INDONESIA_SOURCE_REGISTRATION_STILL_BLOCKED_BY_CHALLENGE_COOKIE_DEPENDENCY
 IDX_CHALLENGE_COOKIE_ACCESS_DECISION_RECORDED
 ASEAN_MACHINE_READABLE_ENDPOINTS_CONFIRMED_BUT_NOT_ACCEPTED_FOR_SOURCE_REGISTRATION
-ASEAN_SOURCE_REGISTRATION_NOT_READY
+ASEAN_ACTIVE_SOURCE_REGISTRATION_NOT_READY
 ASEAN_SCHEDULED_LIVE_POLLING_BLOCKED
 JP_LIVE_POLLING_STILL_BLOCKED_BY_ISSUE_339
 ```
@@ -40,6 +43,7 @@ SGX focused follow-up: globalpulse_sgx_company_announcements_access_path_review.
 Bursa Malaysia focused follow-up: globalpulse_bursa_malaysia_company_announcements_access_path_review.md
 SET Thailand focused follow-up: globalpulse_set_thailand_company_news_access_path_review.md
 IDX Indonesia focused follow-up: globalpulse_idx_indonesia_announcements_access_path_review.md
+Vietnam HNX focused candidate: globalpulse_vietnam_hnx_issuer_rss_candidate_notes.md
 ```
 
 ## Latest SGX Access-Path Addendum
@@ -74,6 +78,18 @@ Normal page bootstrap plus SET browser headers returned 200 JSON in a local Powe
 Fly/Elixir runtime probe from globalpulse-backend-staging returned 200 application/json through DisclosureAutomation.Http.fetch/2.
 Bounded inactive source candidate added and first manual staging smoke passed.
 Source activation and scheduling remain blocked pending repeated observation-window evidence.
+```
+
+## Latest Vietnam HNX Access-Path Addendum
+
+```text
+Vietnam HNX issuer-disclosure RSS path confirmed.
+Official RSS index listed the issuer-disclosure channel.
+Bounded direct RSS request returned 200 application/rss+xml from www.hnx.vn.
+Existing rss_v1 parser accepted the bounded fixture sample.
+Bounded inactive source candidate added with disable_live_fixture_fallback=true.
+Manual Fly staging smoke remains pending.
+Source activation and scheduling remain blocked.
 ```
 
 ## Latest IDX Indonesia Access-Path Addendum
@@ -219,6 +235,35 @@ Do not treat the HTML page or Nuxt inline state as live source input.
 Do not treat challenge-cookie-mediated API success as automatic source-registration approval.
 Do not fetch attachment PDFs in the initial candidate.
 Add a source only after a clean backend runtime path, bounded JSON adapter, query-shape policy, rate/cadence policy, and staging smoke pass.
+```
+
+### Vietnam HNX Issuer Disclosures
+
+```text
+authority: official Hanoi Stock Exchange surface
+candidate URL: https://www.hnx.vn/3/vi_vn/thong-tin-cong-bo-tu-to-chuc-phat-hanh.rss
+category: ASEAN/Vietnam issuer disclosures
+quick result: 200 application/rss+xml
+decision: inactive rss_v1 source candidate added; manual staging live poll still pending
+```
+
+Observed:
+
+```text
+The HNX information-disclosure page exposes issuer-disclosure sections.
+The HNX RSS index lists the issuer-disclosure RSS channel.
+The issuer-disclosure RSS endpoint returned RSS 2.0 XML with bounded issuer-disclosure item metadata.
+The existing rss_v1 parser accepts the fixture sample.
+The candidate remains active=false and fixture fallback is disabled for live smoke.
+```
+
+Decision:
+
+```text
+Do not activate the HNX Vietnam source yet.
+Do not enable ASEAN scheduled live polling.
+Do not fetch HNX detail pages or attachments in the initial candidate.
+Run manual Fly staging smoke before claiming Vietnam live-source readiness.
 ```
 
 ## Rejected For This Pass
