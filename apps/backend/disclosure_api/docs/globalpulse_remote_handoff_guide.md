@@ -36,6 +36,12 @@ Frontend staging config marker public smoke:
 globalpulse_frontend_config_marker_public_smoke_results.md
 ```
 
+HKEX scheduled staging pending status:
+
+```text
+globalpulse_hkex_scheduled_staging_pending_status.md
+```
+
 Production backend deployment design:
 
 ```text
@@ -209,7 +215,8 @@ HKEX:
   staging cadence design: recorded
   conservative staging workflow: configured
   default-branch schedule activation: merged to main
-  next gate: first automated scheduled staging run
+  first automated scheduled staging run: pending after 2026-05-11T14:22Z window
+  next gate: check 2026-05-11T16:22Z / 2026-05-12 01:22 KST window
 ```
 
 ### Korea / Japan

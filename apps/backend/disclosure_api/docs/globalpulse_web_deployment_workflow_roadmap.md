@@ -73,6 +73,15 @@ fetch.mode: live
 digest.metadata.fallback_to_fixture: false
 ```
 
+Status:
+
+```text
+HKEX first automated scheduled run: pending after 2026-05-11T14:22Z window
+latest observed schedule near that period: India NSE, run 25673025413
+next HKEX check window: 2026-05-11T16:22Z / 2026-05-12 01:22 KST
+status doc: globalpulse_hkex_scheduled_staging_pending_status.md
+```
+
 Output PR:
 
 ```text

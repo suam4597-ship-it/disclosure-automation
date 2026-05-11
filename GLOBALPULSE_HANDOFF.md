@@ -44,6 +44,12 @@ For the public smoke result after the staging config marker reached Pages, read:
 apps/backend/disclosure_api/docs/globalpulse_frontend_config_marker_public_smoke_results.md
 ```
 
+For the current HKEX scheduled staging pending status, read:
+
+```text
+apps/backend/disclosure_api/docs/globalpulse_hkex_scheduled_staging_pending_status.md
+```
+
 For production backend deployment rules, read:
 
 ```text
@@ -63,6 +69,8 @@ phase0 public web smoke workflow PR: #544 merged
 main public web smoke activation PR: #545 merged
 workflow id: 274668919
 first workflow_dispatch result: pass, run 25676030410
+HKEX first automated scheduled staging run: pending after 2026-05-11T14:22Z window
+next HKEX check window: 2026-05-11T16:22Z / 2026-05-12 01:22 KST
 next web deployment gate: decide production backend app/database/frontend URL
 ```
 
