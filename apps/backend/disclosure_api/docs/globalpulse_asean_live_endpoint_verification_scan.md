@@ -21,6 +21,7 @@ SET_THAILAND_REPEATED_MANUAL_STAGING_POLL_PASS
 VIETNAM_HNX_ISSUER_DISCLOSURE_RSS_CONFIRMED
 VIETNAM_HNX_ISSUER_DISCLOSURE_SOURCE_REGISTERED_INACTIVE
 VIETNAM_HNX_MANUAL_STAGING_SMOKE_PASS
+VIETNAM_HNX_REPEATED_MANUAL_STAGING_SMOKE_PASS
 VIETNAM_HNX_DIGEST_VISIBLE_LIVE
 VIETNAM_HSX_LISTED_COMPANY_NEWS_RSS_CONFIRMED
 VIETNAM_HSX_LISTED_COMPANY_NEWS_SOURCE_REGISTERED_INACTIVE
@@ -97,6 +98,7 @@ Existing rss_v1 parser accepted the bounded fixture sample.
 Bounded inactive source candidate added with disable_live_fixture_fallback=true.
 Manual Fly staging smoke passed with fetch.mode=live and metadata.fallback_to_fixture=false.
 Digest verification showed 6 HNX live items in the 12-item latest breaking digest.
+Repeated manual Fly staging smoke passed in a later observation window with 25 records_seen, 25 records_inserted, and 3 HNX live items in the latest breaking digest.
 Source activation and scheduling remain blocked.
 ```
 
