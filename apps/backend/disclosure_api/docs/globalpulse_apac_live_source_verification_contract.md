@@ -22,8 +22,20 @@ India NSE first automated scheduled run: passed on GitHub Actions run 2565079628
 India secondary endpoints: BSE corporate-announcement surface is relevant but backend-compatible fetch is not proven; SEBI media/notification surface is a separate regulator-policy track, not a listed-company disclosure source
 ASEAN official endpoint: scan started, SGX browser JSON access path confirmed but blocked by policy/runtime review; Bursa browser JSON access path confirmed but blocked by Cloudflare/runtime fetch; SET official JSON access path and repeated Fly staging smoke passed while inactive; HNX Vietnam official RSS inactive candidate added and repeated manual staging smoke passed; HSX Vietnam official listed-company RSS inactive candidate added and repeated manual staging smoke passed; Taiwan MOPS official JSON inactive candidate added and repeated manual staging smoke passed; IDX official JSON access path confirmed but blocked by challenge-cookie dependency
 ANZ official endpoint: ASX official JSON access path confirmed, but access-policy decision blocks source registration until written authority or approved ASX Information Services path exists
+Hong Kong official endpoint: HKEXnews listed-company title-search HTML surface confirmed; source registration blocked pending backend-compatible query contract and parser decision
 Taiwan official endpoint: MOPS daily material-information JSON endpoint confirmed; bounded inactive date-aware POST adapter/parser source candidate added; repeated manual staging smoke passed while inactive
 JP live source: blocked by issue #339 source-authority decision
+```
+
+Observed Hong Kong exact-endpoint scan:
+
+```text
+scan record: globalpulse_hkex_listed_company_endpoint_scan.md
+HKEXnews Title Search: official listed-company publication surface returned bounded issuer HTML rows
+HKEXnews Simple Search: official listed-company information shell returned HTML through PowerShell
+machine-readable feed: not confirmed
+backend compatibility: pending because curl HEAD returned 503 on reviewed HKEXnews URLs
+decision: no HKEX source registration yet
 ```
 
 Current APAC fixture-backed source buckets:
@@ -350,6 +362,8 @@ TAIWAN_MOPS_DAILY_MATERIAL_INFO_SOURCE_REGISTERED_INACTIVE
 TAIWAN_MOPS_MANUAL_STAGING_LIVE_POLL_PASS
 TAIWAN_MOPS_REPEATED_MANUAL_STAGING_LIVE_POLL_PASS
 TAIWAN_MOPS_DAILY_MATERIAL_INFO_DIGEST_VISIBLE_LIVE
+HKEX_LISTED_COMPANY_ENDPOINT_SCAN_RECORDED
+HKEX_SOURCE_REGISTRATION_BLOCKED_PENDING_BACKEND_COMPATIBLE_QUERY_CONTRACT
 APAC_NEXT_LIVE_SOURCE_DECISION_RECORDED
 KR_LIVE_SOURCE_TRACK_DEFERRED_UNTIL_DEDICATED_BACKEND_EXISTS
 PRODUCTION_APAC_SCHEDULED_LIVE_POLLING_NOT_ENABLED

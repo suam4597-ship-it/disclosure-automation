@@ -21,6 +21,7 @@ screenshot path on local machine: C:/Users/suam4/AppData/Local/Temp/globalpulse-
 
 ```text
 PR #346 Add GlobalPulse CN/TW regional fixtures
+HKEX official listed-company endpoint scan: globalpulse_hkex_listed_company_endpoint_scan.md
 ```
 
 ## CI Status for PR #346 Merge Commit
@@ -139,12 +140,15 @@ raw provider/auth/session/request material in public responses
 
 The CN/TW fixture layer is now visible in the public GlobalPulse UI.
 
+An HKEXnews official listed-company publication surface has now been scanned. It is relevant, but source registration remains blocked until a backend-compatible query contract and parser shape are accepted.
+
 Recommended next options:
 
 ```text
-1. Verify one real CN/TW company-disclosure live endpoint candidate.
-2. Move to APAC regional fixture/live-source verification.
-3. Keep JP deferred and tracked through issue #339 until source authority is decided.
+1. Run a Fly/application-runtime probe against a bounded HKEXnews listed-company title-search URL.
+2. Search official HKEX/HKEXnews assets for a stable latest/recent query contract.
+3. Move to APAC regional fixture/live-source verification.
+4. Keep JP deferred and tracked through issue #339 until source authority is decided.
 ```
 
 Live CN/TW endpoints remain blocked until source authority and machine-readable endpoint shape are verified.

@@ -38,6 +38,8 @@ TAIWAN_MOPS_DAILY_MATERIAL_INFO_SOURCE_REGISTERED_INACTIVE
 TAIWAN_MOPS_MANUAL_STAGING_LIVE_POLL_PASS
 TAIWAN_MOPS_REPEATED_MANUAL_STAGING_LIVE_POLL_PASS
 TAIWAN_MOPS_DAILY_MATERIAL_INFO_DIGEST_VISIBLE_LIVE
+HKEX_LISTED_COMPANY_ENDPOINT_SCAN_RECORDED
+HKEX_SOURCE_REGISTRATION_BLOCKED_PENDING_BACKEND_COMPATIBLE_QUERY_CONTRACT
 IDX_IS_SECOND_ASEAN_RUNTIME_PROBE_CANDIDATE
 IDX_FLY_ELIXIR_RUNTIME_PROBE_RECORDED
 IDX_SOURCE_REGISTRATION_STILL_BLOCKED_BY_CHALLENGE_COOKIE_DEPENDENCY
@@ -60,6 +62,7 @@ SET Thailand: bounded inactive source candidate added and repeated manual stagin
 Vietnam HNX: official issuer-disclosure RSS returned 200 application/rss+xml; bounded inactive rss_v1 source candidate added with fixture fallback disabled; repeated manual Fly staging smoke passed with digest visibility
 Vietnam HSX: official listed-company RSS returned 200 application/rss+xml; bounded inactive rss_v1 source candidate added with fixture fallback disabled; repeated manual Fly staging smoke passed with digest visibility
 Taiwan MOPS: official daily material-information JSON endpoint returned 200 application/json; bounded inactive date-aware parser/source candidate added with fixture fallback disabled; repeated manual Fly staging smoke passed with digest visibility
+HKEXnews: official listed-company title-search HTML surface returned bounded issuer rows, but machine-readable feed and backend-compatible query contract are not accepted yet
 IDX Indonesia: official JSON path confirmed; Fly/Elixir direct API/page bootstrap returned Cloudflare 403, cookie-mediated API returned 200 JSON; access decision blocks source registration until a clean backend runtime or approved data-access path exists
 Philippines PSE EDGE: official disclosure surface confirmed; official CAF/ITCH data-access products found; public-site access is not enough for backend polling without approved data-access path
 ASX: official MarkitDigital JSON path confirmed, direct Node/PowerShell fetch passed, blocked by access-policy decision until written authority or approved ASX Information Services path exists
@@ -76,12 +79,13 @@ JP: remains blocked by source-authority issue #339
 3. Keep SET inactive; if cadence is considered later, design staging-only schedule first
 4. Keep IDX blocked unless a clean backend runtime or approved data-access path is documented
 5. Continue APAC official-source scanning within official exchange/OAM surfaces
-6. Revisit Taiwan MOPS only through another explicit staging-only cadence design or manual observation
-7. Revisit ASX only after written authority or approved ASX Information Services path exists
-8. Revisit SGX only after policy/permission and runtime compatibility are explicitly accepted
-9. Revisit Bursa only if a non-bypass backend runtime fetch path is accepted
-10. Revisit PSE only after approved PSE data-product or written permission path exists
-11. Keep KR last until its dedicated backend/source authority path exists
+6. Revisit HKEX only after a backend-compatible recent/latest query contract and parser shape are accepted
+7. Revisit Taiwan MOPS only through another explicit staging-only cadence design or manual observation
+8. Revisit ASX only after written authority or approved ASX Information Services path exists
+9. Revisit SGX only after policy/permission and runtime compatibility are explicitly accepted
+10. Revisit Bursa only if a non-bypass backend runtime fetch path is accepted
+11. Revisit PSE only after approved PSE data-product or written permission path exists
+12. Keep KR last until its dedicated backend/source authority path exists
 ```
 
 ## Rationale
@@ -147,6 +151,15 @@ SEBI media and notifications are official, but they are regulator media/policy r
 NSE already has a working official RSS source with staging schedule evidence
 ```
 
+HKEX remains a scan-only candidate because:
+
+```text
+official HKEXnews listed-company HTML rows were confirmed
+no JSON or RSS feed contract has been accepted
+the reviewed all-market title-search URL returned no rows without a concrete query/search state
+curl HEAD returned 503 on reviewed HKEXnews URLs, so backend/runtime compatibility still needs a dedicated probe
+```
+
 ## Guardrails
 
 ```text
@@ -155,7 +168,7 @@ Do not add public poll UI.
 Do not add audit UI.
 Do not add public Source Health UI.
 Do not change backend digest JSON response shape.
-Do not fetch ASX, IDX, SET, SGX, Bursa, or NZX document/PDF attachments in initial candidates.
+Do not fetch ASX, IDX, SET, SGX, Bursa, HKEX, or NZX document/PDF attachments in initial candidates.
 Do not treat browser-only success as backend live-source readiness.
 Do not treat fixture fallback as live success.
 Do not use third-party aggregators by default.
@@ -171,7 +184,8 @@ Do not start JP live polling until issue #339 is resolved.
 3. Keep SET inactive; if cadence is considered later, design staging-only schedule first
 4. Keep IDX blocked unless a clean backend runtime or approved data-access path is documented
 5. Continue APAC official-source scanning within official exchange/OAM surfaces
-6. Revisit Taiwan MOPS only through another explicit staging-only cadence design or manual observation
-7. Revisit ASX only after written authority or approved ASX Information Services path exists
-8. Revisit PSE only after approved PSE data-product or written permission path exists
+6. Revisit HKEX only after a backend-compatible recent/latest query contract and parser shape are accepted
+7. Revisit Taiwan MOPS only through another explicit staging-only cadence design or manual observation
+8. Revisit ASX only after written authority or approved ASX Information Services path exists
+9. Revisit PSE only after approved PSE data-product or written permission path exists
 ```
