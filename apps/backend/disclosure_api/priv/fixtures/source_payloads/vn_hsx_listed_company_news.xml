@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss xmlns:a10="http://www.w3.org/2005/Atom" version="2.0">
+  <channel>
+    <title>Tin To chuc niem yet</title>
+    <link>https://api.hsx.vn/n/api/v1/News/NewsByCateFeed/21</link>
+    <description>HSX listed-company news RSS sample for GlobalPulse parser smoke</description>
+    <item>
+      <guid isPermaLink="false">2460982</guid>
+      <link>https://api.hsx.vn/tin-tuc/fuctvgf5-bao-cao-hoat-dong-dau-tu-thang-042026/2460982</link>
+      <title>&lt;span data-object-type="1"&gt;FUCTVGF5: Bao cao hoat dong dau tu thang 04/2026&lt;/span&gt;</title>
+      <description>&lt;span data-object-type="1"&gt;FUCTVGF5: Bao cao hoat dong dau tu thang 04/2026&lt;/span&gt;</description>
+      <a10:updated>2026-05-11T11:24:50+07:00</a10:updated>
+    </item>
+    <item>
+      <guid isPermaLink="false">2460981</guid>
+      <link>https://api.hsx.vn/tin-tuc/fuctvgf4-bao-cao-hoat-dong-dau-tu-thang-042026/2460981</link>
+      <title>&lt;span data-object-type="1"&gt;FUCTVGF4: Bao cao hoat dong dau tu thang 04/2026&lt;/span&gt;</title>
+      <description>&lt;span data-object-type="1"&gt;FUCTVGF4: Bao cao hoat dong dau tu thang 04/2026&lt;/span&gt;</description>
+      <a10:updated>2026-05-11T11:24:49+07:00</a10:updated>
+    </item>
+    <item>
+      <guid isPermaLink="false">2460979</guid>
+      <link>https://api.hsx.vn/tin-tuc/fuetcc50-thong-bao-ve-danh-muc-chung-khoan-co-cau-hoan-doi-ngay-11052026/2460979</link>
+      <title>&lt;span data-object-type="1"&gt;FUETCC50: Thong bao ve danh muc chung khoan co cau hoan doi ngay 11/05/2026&lt;/span&gt;</title>
+      <description>&lt;span data-object-type="1"&gt;FUETCC50: Thong bao ve danh muc chung khoan co cau hoan doi ngay 11/05/2026&lt;/span&gt;</description>
+      <a10:updated>2026-05-11T11:24:47+07:00</a10:updated>
+    </item>
+  </channel>
+</rss>
