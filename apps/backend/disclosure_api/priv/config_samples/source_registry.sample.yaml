@@ -1561,6 +1561,41 @@ sources:
     config:
       fixture_path: source_payloads/tw_market_disclosures.xml
 
+  - source_key: tw_mops_daily_material_information
+    display_name: Taiwan MOPS Daily Material Information
+    source_type: api
+    base_url: https://mops.twse.com.tw/mops/api/t05st02
+    healthcheck_url: https://mops.twse.com.tw/mops
+    parser_key: tw_mops_daily_material_info_json_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.17
+    coverage_tags:
+      - apac
+      - greater_china
+      - taiwan
+      - tw
+      - disclosure
+      - exchange
+      - listed_companies
+      - issuer_announcement
+      - material_information
+      - markets
+    active: false
+    config:
+      fixture_path: source_payloads/tw_mops_daily_material_information.json
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_taiwan_mops_daily_material_information_candidate_notes.md
+      disable_live_fixture_fallback: true
+      max_items_per_poll: 25
+      live_timeout_ms: 30000
+      live_query_timezone: Asia/Taipei
+      live_headers:
+        accept: "application/json, text/plain, */*"
+        accept-language: "zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7"
+        origin: https://mops.twse.com.tw
+        referer: https://mops.twse.com.tw/mops/
+        user-agent: Mozilla/5.0 GlobalPulse Taiwan MOPS runtime probe
+
   - source_key: hk_market_news
     display_name: Hong Kong Market News
     source_type: rss

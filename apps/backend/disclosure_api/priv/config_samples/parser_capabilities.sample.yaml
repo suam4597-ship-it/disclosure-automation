@@ -1433,3 +1433,47 @@ parsers:
       reject_non_set_thailand_company_news_payload: true
       reject_future_timestamps: true
       detail_fetch_disabled: true
+
+  - parser_key: tw_mops_daily_material_info_json_v1
+    display_name: Taiwan MOPS Daily Material Information JSON Parser
+    enabled: true
+    input_types: [json, api]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: false
+    supports_detail_fetch: false
+    extraction:
+      id_fields:
+        - result.data[5].parameters.companyId
+        - result.data[5].parameters.enterDate
+        - result.data[5].parameters.serialNumber
+      title_fields:
+        - result.data[2]
+        - result.data[3]
+        - result.data[4]
+      summary_fields:
+        - result.data[2]
+        - result.data[3]
+        - result.data[5].parameters.marketKind
+      url_fields:
+        - generated_mops_t05st02_fragment
+      published_at_fields:
+        - result.data[0]
+        - result.data[1]
+      category_fields:
+        - material_information
+    normalization:
+      source_shape: tw_mops_daily_material_info_rows_json
+      trim_html: true
+      decode_entities: true
+      collapse_whitespace: true
+      timezone_strategy: asia_taipei_roc_date_to_utc
+      generated_url_strategy: official_mops_t05st02_day_fragment
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_non_tw_mops_daily_material_info_payload: true
+      reject_future_timestamps: true
+      detail_fetch_disabled: true

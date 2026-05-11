@@ -4,14 +4,15 @@ Date: 2026-05-11 KST
 
 This document records a bounded official-endpoint scan for Taiwan MOPS daily material information.
 
-This is documentation-only. It does not add a source registry entry, runtime code, parser code, routes, controllers, templates, migrations, backend response-shape changes, frontend shell changes, workflows, production scheduled polling, public poll UI, audit UI, public Source Health UI, provider behavior, materializer behavior, canonical behavior, dashboards, alerts, or integrations.
+This scan record does not enable activation, production scheduled polling, routes, controllers, templates, migrations, backend response-shape changes, frontend shell changes, workflows, public poll UI, audit UI, public Source Health UI, dashboards, alerts, or integrations. The follow-up candidate state referenced below remains inactive and manual-staging-only.
 
 ## Conclusion
 
 ```text
 TAIWAN_MOPS_OFFICIAL_DISCLOSURE_SURFACE_CONFIRMED
 TAIWAN_MOPS_DAILY_MATERIAL_INFO_JSON_CONFIRMED
-TAIWAN_MOPS_SOURCE_REGISTRATION_BLOCKED_PENDING_BOUNDED_ADAPTER
+TAIWAN_MOPS_BOUNDED_INACTIVE_SOURCE_CANDIDATE_ADDED
+TAIWAN_MOPS_MANUAL_STAGING_SMOKE_PENDING
 TAIWAN_MOPS_DETAIL_FETCH_NOT_PROBED
 TAIWAN_MOPS_ATTACHMENT_FETCH_NOT_PROBED
 TAIWAN_MOPS_ACTIVE_SOURCE_NOT_REGISTERED
@@ -97,7 +98,17 @@ detail_fetch_required_for_v1: no
 attachment_fetch_required_for_v1: no
 ```
 
-However, it is not yet ready for source registration because GlobalPulse needs a bounded adapter:
+This scan now has a bounded inactive source candidate:
+
+```text
+source_key: tw_mops_daily_material_information
+parser_key: tw_mops_daily_material_info_json_v1
+candidate notes: globalpulse_taiwan_mops_daily_material_information_candidate_notes.md
+```
+
+The source remains manual-staging-only. It is not ready for activation or production scheduled polling until a Fly staging smoke confirms live fetch mode and fixture fallback remains disabled.
+
+The adapter includes:
 
 ```text
 date-aware POST body generation using Taiwan ROC year/month/day
@@ -113,7 +124,6 @@ manual Fly staging smoke before any schedule
 ## Decision
 
 ```text
-Do not register tw_mops_daily_material_information yet.
 Do not point tw_market_disclosures at the MOPS API yet.
 Do not use a static live_body date in source_registry.
 Do not fetch detail documents or attachments in the first adapter.
@@ -124,16 +134,18 @@ Do not add public poll UI, audit UI, or public Source Health UI.
 ## Allowed Next PR
 
 ```text
-Add a bounded inactive Taiwan MOPS daily material-information adapter/source candidate.
+Record Taiwan MOPS manual staging poll smoke after Fly staging deployment.
 ```
 
-The next PR may add a manual-staging-only source only if it keeps:
+The next PR may record smoke evidence only if it proves:
 
 ```text
 active=false
 candidate_status=manual_staging_only
 disable_live_fixture_fallback=true
-max_items_per_poll bounded
+fetch.mode=live
+metadata.fallback_to_fixture=false
+records_seen bounded
 detail_fetch disabled
 attachment_fetch disabled
 scheduled_polling disabled
