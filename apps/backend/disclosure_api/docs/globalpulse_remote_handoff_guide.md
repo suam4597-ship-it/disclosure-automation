@@ -17,8 +17,10 @@ GLOBALPULSE_HANDOFF.md
 ```text
 repo: suam4597-ship-it/disclosure-automation
 primary working branch: phase0-foundation
-current anchor commit: af422039b9b2f0b9e2333a5eb3f500daf365c9b8
-latest anchor PR: #537 Record HKEX public Pages browser smoke
+current anchor commit: 78485e754e7614572ccd8e760cf1ad8b7dda3f10
+latest phase0 anchor PR: #540 Add HKEX conservative staging workflow
+default-branch schedule activation PR: #541 Activate HKEX staging schedule on main
+main schedule activation commit: 423ca7fa710b04de56a74b0a1ee092b43597b8a1
 backend staging: https://globalpulse-backend-staging.fly.dev
 public Pages UI: https://suam4597-ship-it.github.io/disclosure-automation/
 ```
@@ -41,7 +43,7 @@ Expected:
 
 ```text
 git status --short: empty
-HEAD: af422039b9b2f0b9e2333a5eb3f500daf365c9b8 or a newer origin/phase0-foundation commit
+HEAD: 78485e754e7614572ccd8e760cf1ad8b7dda3f10 or a newer origin/phase0-foundation commit
 ```
 
 If the local checkout has unrelated uncommitted work, do not overwrite it. Either use a fresh clone or create a new branch and inspect the diff first.
@@ -168,6 +170,7 @@ HKEX:
   source health after poll: healthy
   staging cadence design: recorded
   conservative staging workflow: configured
+  default-branch schedule activation: merged to main
   next gate: first automated scheduled staging run
 ```
 
@@ -254,6 +257,8 @@ EU canary payload review run: 25650523685
 India NSE first scheduled run: 25650796284
 Denmark DFSA OAM first automated scheduled run: 25668194957
 HKEX scheduled staging cron: 22 */2 * * 1-5
+HKEX main activation PR: #541
+HKEX main activation commit: 423ca7fa710b04de56a74b0a1ee092b43597b8a1
 ```
 
 Useful branch checks:
