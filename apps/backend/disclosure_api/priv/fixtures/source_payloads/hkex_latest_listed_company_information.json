@@ -1,0 +1,46 @@
+{
+  "lastupdatetime": "11/05/2026 20:16",
+  "viewAllHyperlink": "https://www1.hkexnews.hk/listedco/listconews/index/lci.html?lang=en",
+  "newsInfo": [
+    {
+      "newsId": 12155321,
+      "sTxt": "Next Day Disclosure Returns - [Share Buyback]",
+      "title": "Next Day Disclosure...",
+      "ext": "pdf",
+      "size": "89KB",
+      "webPath": "https://www1.hkexnews.hk/listedco/listconews/sehk/2026/0511/2026051101330.pdf",
+      "dod": "N",
+      "multi": 0,
+      "stock": [
+        {
+          "sc": "02373",
+          "sn": "BEAUTYFARM MED"
+        }
+      ],
+      "relD": "11",
+      "relM": "05",
+      "relY": "2026",
+      "relTime": "20:16"
+    },
+    {
+      "newsId": 12155319,
+      "sTxt": "Documents on Display",
+      "title": "PROPOSED CONNECTED...",
+      "ext": "NaN",
+      "size": "NaN",
+      "webPath": "https://www1.hkexnews.hk/listedco/listconews/sehk/2026/0511/2026051101323.htm",
+      "dod": "N",
+      "multi": 1,
+      "stock": [
+        {
+          "sc": "02411",
+          "sn": "PAGODA GP"
+        }
+      ],
+      "relD": "11",
+      "relM": "05",
+      "relY": "2026",
+      "relTime": "20:15"
+    }
+  ]
+}
