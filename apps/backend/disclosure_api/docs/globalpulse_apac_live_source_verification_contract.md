@@ -46,7 +46,8 @@ manual staging smoke: globalpulse_hkex_manual_staging_smoke_results.md
 second manual observation: globalpulse_hkex_second_manual_observation_results.md
 public Pages browser smoke: globalpulse_hkex_public_pages_browser_smoke_results.md
 staging cadence design: globalpulse_hkex_staging_cadence_design.md
-decision: HKEX source is live-verified as active=false/manual staging-only; conservative staging workflow implementation is the next allowed gate
+staging workflow implementation: globalpulse_hkex_staging_workflow_implementation.md
+decision: HKEX source is live-verified as active=false/manual staging-only; first automated scheduled staging run is the next allowed gate
 ```
 
 Current APAC fixture-backed source buckets:
@@ -318,8 +319,8 @@ REJECT: enabling JP live polling before issue #339 source-authority decision is 
 7. Continue APAC official-source scanning within official exchange/OAM surfaces.
 8. Keep observing India NSE scheduled staging runs until the 7-day window matures.
 9. Keep IDX blocked unless a clean backend runtime or approved data-access path is documented.
-10. Add HKEX to the staging workflow only after cadence design is reviewed.
-11. Keep HKEX active=false until a separate staging-only schedule implementation PR is approved.
+10. Record the first HKEX automated scheduled staging run after the cron fires.
+11. Keep HKEX active=false until a separate promotion PR is approved.
 12. Revisit ASX only after written authority or approved ASX Information Services path exists.
 13. Add a bounded inactive ASX adapter/source candidate only if authority, response shape, runtime fetch, and staging-smoke gates pass.
 14. Keep JP blocked until issue #339 source authority is resolved.
@@ -388,7 +389,8 @@ HKEX_DIGEST_VISIBLE_LIVE
 HKEX_SOURCE_HEALTH_HEALTHY
 HKEX_SECOND_MANUAL_OBSERVATION_PASS
 HKEX_STAGING_CADENCE_DESIGN_RECORDED
-HKEX_READY_FOR_CONSERVATIVE_STAGING_SCHEDULE_PR
+HKEX_CONSERVATIVE_STAGING_WORKFLOW_ADDED
+HKEX_FIRST_AUTOMATED_STAGING_RUN_PENDING
 APAC_NEXT_LIVE_SOURCE_DECISION_RECORDED
 KR_LIVE_SOURCE_TRACK_DEFERRED_UNTIL_DEDICATED_BACKEND_EXISTS
 PRODUCTION_APAC_SCHEDULED_LIVE_POLLING_NOT_ENABLED

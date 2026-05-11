@@ -51,7 +51,8 @@ HKEX_DIGEST_VISIBLE_LIVE
 HKEX_SOURCE_HEALTH_HEALTHY
 HKEX_SECOND_MANUAL_OBSERVATION_PASS
 HKEX_STAGING_CADENCE_DESIGN_RECORDED
-HKEX_READY_FOR_CONSERVATIVE_STAGING_SCHEDULE_PR
+HKEX_CONSERVATIVE_STAGING_WORKFLOW_ADDED
+HKEX_FIRST_AUTOMATED_STAGING_RUN_PENDING
 IDX_IS_SECOND_ASEAN_RUNTIME_PROBE_CANDIDATE
 IDX_FLY_ELIXIR_RUNTIME_PROBE_RECORDED
 IDX_SOURCE_REGISTRATION_STILL_BLOCKED_BY_CHALLENGE_COOKIE_DEPENDENCY
@@ -177,8 +178,9 @@ inactive source candidate is recorded in globalpulse_hkex_inactive_source_candid
 manual staging live poll is recorded in globalpulse_hkex_manual_staging_smoke_results.md
 second manual observation is recorded in globalpulse_hkex_second_manual_observation_results.md
 staging cadence design is recorded in globalpulse_hkex_staging_cadence_design.md
+staging workflow implementation is recorded in globalpulse_hkex_staging_workflow_implementation.md
 source remains active=false and candidate_status=manual_staging_only
-conservative staging workflow implementation is the next allowed gate
+first automated scheduled staging run is the next allowed gate
 attachment/detail/PDF fetch must remain excluded from the first candidate
 ```
 
@@ -206,7 +208,7 @@ Do not start JP live polling until issue #339 is resolved.
 3. Keep SET inactive; if cadence is considered later, design staging-only schedule first
 4. Keep IDX blocked unless a clean backend runtime or approved data-access path is documented
 5. Continue APAC official-source scanning within official exchange/OAM surfaces
-6. Revisit HKEX by adding it to the staging workflow only after cadence design review
+6. Revisit HKEX by recording the first automated scheduled staging run after the cron fires
 7. Revisit Taiwan MOPS only through another explicit staging-only cadence design or manual observation
 8. Revisit ASX only after written authority or approved ASX Information Services path exists
 9. Revisit PSE only after approved PSE data-product or written permission path exists

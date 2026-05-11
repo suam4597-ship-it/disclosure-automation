@@ -20,6 +20,8 @@ on:
     - cron: "7 * * * *"
     # Run the verified India NSE candidate every 2 hours on weekdays in staging.
     - cron: "37 */2 * * 1-5"
+    # Run the HKEX latest-listed-company candidate every 2 hours on weekdays in staging.
+    - cron: "22 */2 * * 1-5"
     # Run the first EU listed-company disclosure canary every 4 hours on weekdays in staging.
     - cron: "17 */4 * * 1-5"
     # Run the Denmark DFSA OAM candidate as a separate staging-only canary on weekdays.
@@ -72,6 +74,9 @@ jobs:
             run_mode="denmark_dfsa_oam_canary"
           elif [ "${SCHEDULE_EXPR}" = "37 */2 * * 1-5" ]; then
             resolved_source="india_nse_announcements"
+            run_mode="single_source"
+          elif [ "${SCHEDULE_EXPR}" = "22 */2 * * 1-5" ]; then
+            resolved_source="hkex_latest_listed_company_information"
             run_mode="single_source"
           else
             resolved_source="sec_press_releases"
