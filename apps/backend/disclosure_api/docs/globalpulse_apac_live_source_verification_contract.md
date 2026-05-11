@@ -173,7 +173,8 @@ SGX company announcements: official browser JSON access path confirmed; source r
 Bursa Malaysia company announcements: official browser JSON access path confirmed; source registration blocked by Cloudflare/runtime fetch compatibility
 SET Thailand company news: official JSON access path confirmed; source registration blocked pending bounded adapter and Fly/Elixir runtime probe
 SET Thailand Fly/Elixir runtime probe: passed through DisclosureAutomation.Http.fetch/2 from globalpulse-backend-staging
-IDX announcements: official JSON access path confirmed; source registration blocked pending bounded adapter, query-shape policy, and Fly/Elixir runtime probe
+SET Thailand manual staging smoke: passed once with fetch.mode=live and metadata.fallback_to_fixture=false; still inactive pending repeated observation-window evidence
+IDX announcements: official JSON access path confirmed; Fly/Elixir runtime probe recorded direct API/page bootstrap Cloudflare 403 and cookie-mediated API 200 JSON; source registration blocked by challenge-cookie dependency, bounded adapter, and query-shape policy
 decision: no ASEAN source registration yet
 ```
 
@@ -275,8 +276,8 @@ REJECT: enabling JP live polling before issue #339 source-authority decision is 
 3. Add a bounded SGX adapter only if policy/permission, runtime fetch, and response-shape gates pass.
 4. Add a bounded inactive SET adapter/source candidate.
 5. Add SET manual Fly staging live poll smoke only after parser/source candidate deployment.
-6. Add an IDX Indonesia runtime compatibility probe if the bounded date-window query shape is accepted.
-7. Decide whether SET or IDX should be the first ASEAN adapter candidate.
+6. Record an IDX access decision before any IDX parser/source candidate.
+7. Repeat SET Thailand manual staging smoke in another observation window.
 8. Revisit ASX only after written authority or approved ASX Information Services path exists.
 9. Add a bounded inactive ASX adapter/source candidate only if authority, response shape, runtime fetch, and staging-smoke gates pass.
 10. Keep JP blocked until issue #339 source authority is resolved.
@@ -298,9 +299,12 @@ BURSA_MALAYSIA_BROWSER_JSON_ACCESS_PATH_CONFIRMED
 BURSA_MALAYSIA_SOURCE_REGISTRATION_BLOCKED_BY_RUNTIME_FETCH
 SET_THAILAND_JSON_ACCESS_PATH_CONFIRMED
 SET_THAILAND_FLY_ELIXIR_RUNTIME_PROBE_PASS
-SET_THAILAND_SOURCE_REGISTRATION_PENDING_BOUNDED_ADAPTER_RATE_CADENCE_AND_STAGING_SMOKE
+SET_THAILAND_BOUNDED_INACTIVE_SOURCE_CANDIDATE_ADDED
+SET_THAILAND_MANUAL_STAGING_SMOKE_PASS
+SET_THAILAND_REPEATED_OBSERVATION_WINDOW_PENDING
 IDX_INDONESIA_JSON_ACCESS_PATH_CONFIRMED
-IDX_INDONESIA_SOURCE_REGISTRATION_PENDING_RUNTIME_PROBE_AND_ADAPTER
+IDX_INDONESIA_FLY_ELIXIR_RUNTIME_PROBE_RECORDED
+IDX_INDONESIA_SOURCE_REGISTRATION_STILL_BLOCKED_BY_CHALLENGE_COOKIE_DEPENDENCY
 ASEAN_MACHINE_READABLE_ENDPOINTS_CONFIRMED_BUT_NOT_ACCEPTED_FOR_SOURCE_REGISTRATION
 ANZ_LIVE_ENDPOINT_SCAN_STARTED
 ASX_JSON_ACCESS_PATH_CONFIRMED

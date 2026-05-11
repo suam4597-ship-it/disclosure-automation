@@ -12,7 +12,8 @@ This is documentation-only. It does not add runtime code, routes, controllers, t
 IDX_INDONESIA_OFFICIAL_BROWSER_ACCESS_PATH_CONFIRMED
 IDX_INDONESIA_ANNOUNCEMENTS_JSON_SHAPE_CAPTURED_BOUNDED
 IDX_INDONESIA_DIRECT_NODE_AND_POWERSHELL_FETCH_BLOCKED_BY_CLOUDFLARE
-IDX_INDONESIA_SOURCE_REGISTRATION_PENDING_FLY_RUNTIME_PROBE_AND_ADAPTER
+IDX_INDONESIA_FLY_ELIXIR_RUNTIME_PROBE_RECORDED
+IDX_INDONESIA_SOURCE_REGISTRATION_STILL_BLOCKED_BY_CHALLENGE_COOKIE_DEPENDENCY
 ASEAN_SOURCE_REGISTRATION_STILL_BLOCKED
 ASEAN_SCHEDULED_LIVE_POLLING_NOT_ENABLED
 PUBLIC_UI_AND_BACKEND_DIGEST_SHAPE_UNCHANGED
@@ -116,7 +117,10 @@ Implication:
 The official IDX announcement JSON shape is proven for bounded query shapes.
 The endpoint is not yet proven from the backend runtime stack that GlobalPulse uses.
 The accepted path may depend on Chromium-like network behavior or other edge controls.
-Do not register IDX Indonesia as a live source until a Fly/Elixir runtime probe proves 2xx JSON for a bounded date-window query without challenge HTML.
+The Fly/Elixir runtime probe is now recorded in globalpulse_idx_indonesia_fly_elixir_runtime_probe_results.md.
+Direct API and page-bootstrap fetches returned Cloudflare 403 HTML from Fly staging.
+A cookie-mediated retry returned 200 JSON, but that challenge-cookie dependency is not clean source-registration evidence.
+Do not register IDX Indonesia as a live source until a policy-acceptable backend runtime path is accepted.
 ```
 
 ## Source Registration Decision
@@ -129,7 +133,7 @@ Current decision:
 source key proposal: id_idx_announcements
 parser/adapter proposal: idx_indonesia_announcements_json_v1
 registration status: blocked
-blocking class: fly_runtime_fetch_probe + bounded_adapter_required + query_shape_policy
+blocking class: challenge_cookie_dependency + bounded_adapter_required + query_shape_policy
 scheduled polling: not allowed
 production polling: not allowed
 public UI: not changed
@@ -158,7 +162,7 @@ public Source Health UI: not added
 Required validation before any parser/source PR:
 
 ```text
-Fly/Elixir runtime probe returns 2xx JSON without Cloudflare challenge HTML
+Fly/Elixir runtime path returns 2xx JSON without Cloudflare challenge HTML or challenge-cookie dependency
 parser rejects challenge pages, Varnish 503 pages, and non-JSON responses
 parser extracts only bounded Items metadata
 attachments are recorded as metadata only and not fetched
@@ -184,8 +188,8 @@ Do not use third-party IDX mirrors or aggregators by default.
 ## Allowed Next PRs
 
 ```text
-1. Add an IDX Fly/Elixir runtime compatibility probe if the bounded date-window query shape is accepted.
-2. Add a bounded inactive IDX JSON parser/source candidate only after runtime fetch and access gates pass.
-3. Decide whether SET or IDX should be the first ASEAN adapter candidate.
-4. Continue ASX/NZX access-path review for ANZ.
+1. Record an IDX access decision that challenge-cookie-mediated backend fetch is not enough for source registration.
+2. Add a bounded inactive IDX JSON parser/source candidate only if runtime fetch and access gates pass later.
+3. Repeat SET Thailand manual staging smoke in another observation window.
+4. Continue APAC official-source scanning within official exchange/OAM surfaces.
 ```
