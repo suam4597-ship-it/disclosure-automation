@@ -66,6 +66,12 @@ EU scheduled staging canary second follow-up observation:
 globalpulse_eu_scheduled_staging_canary_second_followup_observation_20260512.md
 ```
 
+Denmark DFSA OAM second scheduled follow-up observation:
+
+```text
+globalpulse_denmark_dfsa_oam_second_followup_scheduled_observation_20260512.md
+```
+
 Public web smoke daily schedule:
 
 ```text
@@ -89,8 +95,8 @@ globalpulse_production_deployment_runbook.md
 ```text
 repo: suam4597-ship-it/disclosure-automation
 primary working branch: phase0-foundation
-current anchor commit: 431f401176c67c39acf6f289eb5d8de2a1d6647f
-latest phase0 anchor PR: #575 Record HKEX scheduled staging follow-up observation
+current anchor commit: 4de8b4d4d5b46cac94a37fd1d4be43c324cfd589
+latest phase0 anchor PR: #576 Record EU canary second follow-up observation
 default-branch schedule activation PR: #541 Activate HKEX staging schedule on main
 main schedule activation commit: 423ca7fa710b04de56a74b0a1ee092b43597b8a1
 default-branch public web smoke activation PR: #545 Activate public web smoke workflow on main
@@ -117,7 +123,7 @@ Expected:
 
 ```text
 git status --short: empty
-HEAD: 431f401176c67c39acf6f289eb5d8de2a1d6647f or a newer origin/phase0-foundation commit
+HEAD: 4de8b4d4d5b46cac94a37fd1d4be43c324cfd589 or a newer origin/phase0-foundation commit
 ```
 
 If the local checkout has unrelated uncommitted work, do not overwrite it. Either use a fresh clone or create a new branch and inspect the diff first.
@@ -188,7 +194,7 @@ Denmark DFSA OAM:
   manual canary dispatch: pass
   scheduled staging canary configured on main
   first automated scheduled run: pass
-  follow-up scheduled run: pass, run 25680895829
+  follow-up scheduled runs: pass, runs 25680895829 and 25699532618
   latest digest visibility: pass
 production EU scheduled polling: not enabled
 ```
@@ -266,7 +272,7 @@ JP live polling: blocked by issue #339 until source authority decision
 
 1. Continue HKEX scheduled staging observation toward the 7-day / 10 successful run gate.
 2. Continue EU scheduled staging canary observation summaries and digest-diversity checks as runs accumulate.
-3. Continue Denmark DFSA OAM scheduled observation summaries as runs accumulate.
+3. Continue Denmark DFSA OAM scheduled observation summaries and digest-diversity checks as runs accumulate.
 4. Continue India NSE 7-day staging observation.
 5. Record scheduled-canary digest diversity and public Pages visibility smoke.
 6. Keep public Pages + Fly staging web smoke workflow healthy.
@@ -341,6 +347,7 @@ EU canary payload review run: 25650523685
 EU canary second follow-up run: 25698983703
 India NSE first scheduled run: 25650796284
 Denmark DFSA OAM first automated scheduled run: 25668194957
+Denmark DFSA OAM second follow-up run: 25699532618
 HKEX first automated scheduled staging run: 25684138207
 HKEX follow-up scheduled staging observation latest run: 25702861937
 HKEX scheduled staging cron: 22 */2 * * 1-5
