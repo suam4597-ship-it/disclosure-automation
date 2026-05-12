@@ -44,6 +44,12 @@ For the public web smoke daily maintenance verification on `main`, read:
 apps/backend/disclosure_api/docs/globalpulse_public_web_smoke_daily_maintenance_verification.md
 ```
 
+For the first daily scheduled public web smoke pending observation, read:
+
+```text
+apps/backend/disclosure_api/docs/globalpulse_public_web_smoke_first_daily_schedule_pending_20260512.md
+```
+
 For frontend runtime config promotion rules, read:
 
 ```text
@@ -173,13 +179,14 @@ apps/backend/disclosure_api/docs/globalpulse_scheduled_workflow_observation_cook
 Current remote continuation status:
 
 ```text
-current phase0 head: 359ba907962e3dcd55aba2f0013a0c049b9ae15d
-latest merged PR: #581 Record current GlobalPulse public web digest observation
+current phase0 head: 49bf5667f027301da02ab7b90e1ccbe239eea600
+latest merged PR: #582 Refresh GlobalPulse scheduled observation cookbook
 phase0 public web smoke workflow PR: #544 merged
 main public web smoke activation PR: #545 merged
 workflow id: 274668919
 first workflow_dispatch result: pass, run 25676030410
 daily workflow main maintenance verification: pass, run 25677329262
+first daily scheduled public web smoke run: pending observation, no event=schedule run observed yet
 HKEX first automated scheduled staging run: pass, run 25684138207
 HKEX scheduled staging follow-up observation: 4 successful scheduled runs recorded, latest run 25702861937
 next HKEX gate: continue scheduled staging observation toward 7-day / 10 successful run gate

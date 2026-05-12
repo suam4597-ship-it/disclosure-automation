@@ -13,6 +13,7 @@ GLOBALPULSE_PUBLIC_WEB_SMOKE_DAILY_SCHEDULE_ADDED
 PUBLIC_WEB_SMOKE_WORKFLOW_DISPATCH_RETAINED
 DAILY_READONLY_PAGES_AND_BACKEND_SMOKE_ADDED
 NODE24_ACTION_RUNTIME_OPT_IN_ADDED
+FIRST_DAILY_SCHEDULED_RUN_PENDING_OBSERVATION
 PRODUCTION_DEPLOYMENT_NOT_CHANGED
 ```
 
@@ -68,4 +69,6 @@ result doc: globalpulse_public_web_smoke_daily_maintenance_verification.md
 artifact upload: pass
 Node.js 24 opt-in: present
 Node.js 20 forced-runtime warning: still present, non-blocking
+first event=schedule run: not observed yet as of 2026-05-12 KST check
+pending observation doc: globalpulse_public_web_smoke_first_daily_schedule_pending_20260512.md
 ```
