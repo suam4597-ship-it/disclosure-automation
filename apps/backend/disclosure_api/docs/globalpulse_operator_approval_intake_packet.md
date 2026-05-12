@@ -149,6 +149,7 @@ After that docs-only decision PR, and only if still approved:
 next PR: Add GlobalPulse production CORS smoke contract
 scope: docs-only contract using approved origins
 runtime changes: none
+template: globalpulse_production_cors_smoke_contract_template.md
 ```
 
 After the CORS contract and only with approval:

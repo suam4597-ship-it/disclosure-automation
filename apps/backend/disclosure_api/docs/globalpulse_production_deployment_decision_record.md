@@ -215,6 +215,12 @@ The operator-facing approval intake packet is recorded in:
 globalpulse_operator_approval_intake_packet.md
 ```
 
+The production CORS smoke contract template is recorded in:
+
+```text
+globalpulse_production_cors_smoke_contract_template.md
+```
+
 ## Values To Bring From The Operator
 
 The operator should provide these values without secrets:

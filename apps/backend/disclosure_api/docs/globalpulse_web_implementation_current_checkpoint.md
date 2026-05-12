@@ -46,8 +46,8 @@ REMOTE_HANDOFF_REFRESHED_FOR_MULTI_LOCAL_WORK
 ```text
 repo: suam4597-ship-it/disclosure-automation
 primary working branch: phase0-foundation
-current head: fd249b04852b6c4626ce983cb2fa61509265db01
-latest merged PR: #599 Record production approval request comments
+current head: 66e98ddbd21c8747f0ae4336bbaad9b5ce81ae7e
+latest merged PR: #600 Add GlobalPulse operator approval intake packet
 worktree expectation: clean
 ```
 
@@ -101,7 +101,7 @@ This confirms the public website and staging backend are currently connected and
 
 ## Current CI Snapshot
 
-For head `fd249b04852b6c4626ce983cb2fa61509265db01`, push and pull-request checks completed successfully:
+For head `66e98ddbd21c8747f0ae4336bbaad9b5ce81ae7e`, pull-request checks completed successfully:
 
 ```text
 Phase 0 validate: success
@@ -175,7 +175,7 @@ git status --short
 Expected:
 
 ```text
-HEAD: fd249b04852b6c4626ce983cb2fa61509265db01 or newer
+HEAD: 66e98ddbd21c8747f0ae4336bbaad9b5ce81ae7e or newer
 git status --short: empty
 ```
 
@@ -270,6 +270,7 @@ Current best sequence:
 9. Prepare production only after Issue #561 values are approved; latest check has comments=1 with approval request posted and no operator values yet.
 10. Promote sources only after Issue #565 source-by-source approvals are recorded; latest check has comments=1 with approval request posted and no source approvals yet.
 11. Use `globalpulse_operator_approval_intake_packet.md` before interpreting future #561/#565 replies.
+12. Use `globalpulse_production_cors_smoke_contract_template.md` after production origins are approved.
 ```
 
 HKEX pass criteria are recorded in:

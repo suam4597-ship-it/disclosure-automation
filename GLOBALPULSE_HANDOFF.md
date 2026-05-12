@@ -188,6 +188,12 @@ For the operator approval intake packet, read:
 apps/backend/disclosure_api/docs/globalpulse_operator_approval_intake_packet.md
 ```
 
+For the production CORS smoke contract template, read:
+
+```text
+apps/backend/disclosure_api/docs/globalpulse_production_cors_smoke_contract_template.md
+```
+
 For future Fly.io production command templates, read:
 
 ```text
@@ -245,8 +251,8 @@ apps/backend/disclosure_api/docs/globalpulse_sec_hourly_scheduled_run_after_live
 Current remote continuation status:
 
 ```text
-current phase0 head: fd249b04852b6c4626ce983cb2fa61509265db01
-latest merged PR: #599 Record production approval request comments
+current phase0 head: 66e98ddbd21c8747f0ae4336bbaad9b5ce81ae7e
+latest merged PR: #600 Add GlobalPulse operator approval intake packet
 phase0 public web smoke workflow PR: #544 merged
 main public web smoke activation PR: #545 merged
 workflow id: 274668919
@@ -256,6 +262,7 @@ first daily scheduled public web smoke run: pass, run 25712711038, event=schedul
 source-health drift observation: real source keys reachable, workflow canary aliases are not source-health keys
 production approval blocker status: #561 open comments=1 approval request posted, #565 open comments=1 approval request posted
 operator approval intake packet: added, use before interpreting #561/#565 replies
+production CORS smoke contract template: added, not executable until origins are approved
 HKEX first automated scheduled staging run: pass, run 25684138207
 HKEX scheduled staging follow-up observation: 5 successful scheduled runs recorded, latest run 25712752961
 next HKEX gate: continue scheduled staging observation toward 7-day / 10 successful run gate
