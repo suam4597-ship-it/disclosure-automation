@@ -46,8 +46,8 @@ REMOTE_HANDOFF_REFRESHED_FOR_MULTI_LOCAL_WORK
 ```text
 repo: suam4597-ship-it/disclosure-automation
 primary working branch: phase0-foundation
-current head: 9cc8ab2f5a7151f45f581696ff26d9b5e156b5ba
-latest merged PR: #605 Add GlobalPulse production deployment smoke record template
+current head: 974847921b1680e86438e2063c03a907f35470b6
+latest merged PR: #606 Add GlobalPulse source promotion decision template
 worktree expectation: clean
 ```
 
@@ -101,7 +101,7 @@ This confirms the public website and staging backend are currently connected and
 
 ## Current CI Snapshot
 
-For head `9cc8ab2f5a7151f45f581696ff26d9b5e156b5ba`, pull-request checks completed successfully:
+For head `974847921b1680e86438e2063c03a907f35470b6`, pull-request checks completed successfully:
 
 ```text
 Phase 0 validate: success
@@ -175,7 +175,7 @@ git status --short
 Expected:
 
 ```text
-HEAD: 9cc8ab2f5a7151f45f581696ff26d9b5e156b5ba or newer
+HEAD: 974847921b1680e86438e2063c03a907f35470b6 or newer
 git status --short: empty
 ```
 
@@ -276,6 +276,7 @@ Current best sequence:
 15. Use `globalpulse_production_rollback_stop_checklist.md` before choosing rollback or forward fix during production promotion.
 16. Use `globalpulse_production_deployment_smoke_record_template.md` when recording future production smoke evidence.
 17. Use `globalpulse_source_production_promotion_decision_template.md` for future source-by-source production promotion decisions.
+18. Use the parameterized `GlobalPulse public web smoke` inputs for future production configVersion/apiBaseUrl/approved-empty checks; scheduled staging defaults remain unchanged.
 ```
 
 HKEX pass criteria are recorded in:

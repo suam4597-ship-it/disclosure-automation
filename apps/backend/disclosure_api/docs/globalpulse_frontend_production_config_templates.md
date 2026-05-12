@@ -126,6 +126,18 @@ From repo root:
 ```powershell
 node --check apps/web/config.js
 node --check apps/web/script.js
+
+$tmp = Join-Path $env:TEMP 'globalpulse-inline-index.js'
+$env:INLINE_OUT = $tmp
+@'
+from pathlib import Path
+import os, re
+html = Path('apps/web/index.html').read_text(encoding='utf-8')
+scripts = re.findall(r'<script>(.*?)</script>', html, flags=re.S)
+Path(os.environ['INLINE_OUT']).write_text('\n;\n'.join(scripts), encoding='utf-8')
+print(f'extracted inline scripts: {len(scripts)}')
+'@ | python -
+node --check $tmp
 ```
 
 If using a local static server:
@@ -209,6 +221,11 @@ Inputs:
 pages_url: <approved-production-frontend-url>
 backend_url: <approved-production-backend-url>
 edition: breaking
+expected_environment: production
+expected_config_version: <approved-production-configVersion>
+expected_api_base_url: <approved-production-backend-url>
+expected_allow_query_param_override: false
+allow_empty_digest: true only if issue #561 approves FIRST_PRODUCTION_DIGEST_EMPTY_OK
 ```
 
 Record:

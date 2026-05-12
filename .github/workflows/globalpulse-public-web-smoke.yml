@@ -17,6 +17,26 @@ on:
         description: "Digest edition to verify"
         required: false
         default: "breaking"
+      expected_environment:
+        description: "Expected frontend runtime environment marker"
+        required: false
+        default: "staging"
+      expected_config_version:
+        description: "Expected frontend configVersion marker"
+        required: false
+        default: "staging-20260511-1"
+      expected_api_base_url:
+        description: "Expected apiBaseUrl marker in config.js"
+        required: false
+        default: "https://globalpulse-backend-staging.fly.dev"
+      expected_allow_query_param_override:
+        description: "Expected allowQueryParamOverride marker"
+        required: false
+        default: "true"
+      allow_empty_digest:
+        description: "Allow an approved bounded empty digest"
+        required: false
+        default: "false"
 
 permissions:
   contents: read
@@ -32,6 +52,11 @@ jobs:
       PAGES_URL: ${{ github.event.inputs.pages_url || 'https://suam4597-ship-it.github.io/disclosure-automation/' }}
       BACKEND_URL: ${{ github.event.inputs.backend_url || 'https://globalpulse-backend-staging.fly.dev' }}
       EDITION: ${{ github.event.inputs.edition || 'breaking' }}
+      EXPECTED_ENVIRONMENT: ${{ github.event.inputs.expected_environment || 'staging' }}
+      EXPECTED_CONFIG_VERSION: ${{ github.event.inputs.expected_config_version || 'staging-20260511-1' }}
+      EXPECTED_API_BASE_URL: ${{ github.event.inputs.expected_api_base_url || 'https://globalpulse-backend-staging.fly.dev' }}
+      EXPECTED_ALLOW_QUERY_PARAM_OVERRIDE: ${{ github.event.inputs.expected_allow_query_param_override || 'true' }}
+      ALLOW_EMPTY_DIGEST: ${{ github.event.inputs.allow_empty_digest || 'false' }}
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
@@ -40,6 +65,11 @@ jobs:
           echo "pages_url=${PAGES_URL}"
           echo "backend_url=${BACKEND_URL}"
           echo "edition=${EDITION}"
+          echo "expected_environment=${EXPECTED_ENVIRONMENT}"
+          echo "expected_config_version=${EXPECTED_CONFIG_VERSION}"
+          echo "expected_api_base_url=${EXPECTED_API_BASE_URL}"
+          echo "expected_allow_query_param_override=${EXPECTED_ALLOW_QUERY_PARAM_OVERRIDE}"
+          echo "allow_empty_digest=${ALLOW_EMPTY_DIGEST}"
 
       - name: Fetch public Pages shell
         run: |
@@ -74,15 +104,22 @@ jobs:
           fi
 
           python3 - <<'PY'
+          import os
           from pathlib import Path
+
           text = Path("config.js").read_text(encoding="utf-8", errors="replace")
+          expected_environment = os.environ["EXPECTED_ENVIRONMENT"]
+          expected_config_version = os.environ["EXPECTED_CONFIG_VERSION"]
+          expected_api_base_url = os.environ["EXPECTED_API_BASE_URL"]
+          expected_allow_query_param_override = os.environ["EXPECTED_ALLOW_QUERY_PARAM_OVERRIDE"].lower()
+
           required = [
               "window.GLOBALPULSE_RUNTIME_CONFIG",
-              'environment: "staging"',
-              'configVersion: "staging-20260511-1"',
-              "allowQueryParamOverride: true",
+              f'environment: "{expected_environment}"',
+              f'configVersion: "{expected_config_version}"',
+              f"allowQueryParamOverride: {expected_allow_query_param_override}",
               "window.DISCLOSURE_API_BASE_URL",
-              "https://globalpulse-backend-staging.fly.dev",
+              expected_api_base_url,
               "greater_china",
               "eu_north",
               "eu_central",
@@ -125,18 +162,23 @@ jobs:
 
           python3 - <<'PY'
           import json
+          import os
           import sys
 
           with open("digest.json", "r", encoding="utf-8") as handle:
               payload = json.load(handle)
 
+          expected_edition = os.environ["EDITION"]
+          allow_empty_digest = os.environ["ALLOW_EMPTY_DIGEST"].lower() in {"1", "true", "yes"}
           items = payload.get("items") or []
           metadata = payload.get("metadata") or {}
           text = json.dumps(payload, ensure_ascii=False).lower()
 
-          if payload.get("edition") != "breaking":
-              raise SystemExit(f"expected edition=breaking, got {payload.get('edition')!r}")
-          if not isinstance(items, list) or len(items) == 0:
+          if payload.get("edition") != expected_edition:
+              raise SystemExit(f"expected edition={expected_edition}, got {payload.get('edition')!r}")
+          if not isinstance(items, list):
+              raise SystemExit(f"expected digest items list, got {type(items).__name__}")
+          if len(items) == 0 and not allow_empty_digest:
               raise SystemExit("expected non-empty digest items")
           if metadata.get("fallback_to_fixture") is not False:
               raise SystemExit(f"expected fallback_to_fixture=false, got {metadata.get('fallback_to_fixture')!r}")
@@ -155,7 +197,10 @@ jobs:
           if found:
               raise SystemExit(f"forbidden public response fragments found: {found}")
 
-          print(f"digest contract pass: item_count={len(items)}")
+          if len(items) == 0:
+              print("digest approved-empty contract pass: item_count=0")
+          else:
+              print(f"digest contract pass: item_count={len(items)}")
           PY
 
       - name: Upload smoke outputs

@@ -34,6 +34,23 @@ jobs:
         with:
           enablement: true
 
+      - name: Check static web JavaScript syntax
+        run: |
+          node --check apps/web/config.js
+          node --check apps/web/script.js
+
+          python3 - <<'PY'
+          import re
+          from pathlib import Path
+
+          html = Path("apps/web/index.html").read_text(encoding="utf-8")
+          scripts = re.findall(r"<script>(.*?)</script>", html, flags=re.S)
+          Path("/tmp/globalpulse-index-inline.js").write_text("\n;\n".join(scripts), encoding="utf-8")
+          print(f"extracted inline scripts: {len(scripts)}")
+          PY
+
+          node --check /tmp/globalpulse-index-inline.js
+
       - name: Prepare static site
         run: |
           mkdir -p site

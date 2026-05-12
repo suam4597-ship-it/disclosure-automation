@@ -281,8 +281,8 @@ apps/backend/disclosure_api/docs/globalpulse_sec_hourly_scheduled_run_after_live
 Current remote continuation status:
 
 ```text
-current phase0 head: 9cc8ab2f5a7151f45f581696ff26d9b5e156b5ba
-latest merged PR: #605 Add GlobalPulse production deployment smoke record template
+current phase0 head: 974847921b1680e86438e2063c03a907f35470b6
+latest merged PR: #606 Add GlobalPulse source promotion decision template
 phase0 public web smoke workflow PR: #544 merged
 main public web smoke activation PR: #545 merged
 workflow id: 274668919
@@ -298,6 +298,7 @@ production frontend empty-state smoke checklist: added, not executable until emp
 production rollback stop checklist: added, use before production rollback/fix-forward decisions
 production deployment smoke record template: added, not executable until production smoke runs
 source production promotion decision template: added, no source promoted
+public web smoke production-ready inputs: pending PR, default staging schedule unchanged
 HKEX first automated scheduled staging run: pass, run 25684138207
 HKEX scheduled staging follow-up observation: 5 successful scheduled runs recorded, latest run 25712752961
 next HKEX gate: continue scheduled staging observation toward 7-day / 10 successful run gate
