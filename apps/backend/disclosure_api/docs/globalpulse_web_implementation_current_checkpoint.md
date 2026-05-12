@@ -31,6 +31,7 @@ POWERSHELL_GITHUB_REST_OBSERVATION_FALLBACK_RECORDED
 SCHEDULED_STAGING_POLL_NO_NEW_RUN_GAP_OBSERVED
 SCHEDULED_WORKFLOW_LIVENESS_REVIEW_CHECKLIST_RECORDED
 SCHEDULED_WORKFLOW_LIVENESS_STATE_REVIEW_RECORDED
+STAGING_DIGEST_TRANSIENT_500_RETRY_OBSERVATION_RECORDED
 PRODUCTION_DEPLOYMENT_NOT_APPROVED
 REMOTE_HANDOFF_REFRESHED_FOR_MULTI_LOCAL_WORK
 ```
@@ -40,8 +41,8 @@ REMOTE_HANDOFF_REFRESHED_FOR_MULTI_LOCAL_WORK
 ```text
 repo: suam4597-ship-it/disclosure-automation
 primary working branch: phase0-foundation
-current head: 1826ad2e610e0e6abab901f8d82a182a880b3c3b
-latest merged PR: #588 Add scheduled workflow liveness review checklist
+current head: 7be5bd3893ca96984d2a58beea0a531839284e6c
+latest merged PR: #589 Record scheduled workflow liveness state review
 worktree expectation: clean
 ```
 
@@ -95,7 +96,7 @@ This confirms the public website and staging backend are currently connected and
 
 ## Current CI Snapshot
 
-For head `1826ad2e610e0e6abab901f8d82a182a880b3c3b`, push and pull-request checks completed successfully:
+For head `7be5bd3893ca96984d2a58beea0a531839284e6c`, push and pull-request checks completed successfully:
 
 ```text
 Phase 0 validate: success
@@ -138,6 +139,8 @@ Latest scheduled staging poll no-new-run gap: latest observed scheduled run rema
 No source failure is claimed from this absence.
 
 Scheduled workflow liveness state review: live staging poll and public web smoke workflows are active on main, workflow files return 200, and schedule markers are present.
+
+Staging digest transient retry observation: one digest request returned 500 during wait-time checks, while health stayed 200 ok and digest recovered to 200 on immediate retry with fallback=false.
 ```
 
 HKEX was marked passed only from real `schedule` event artifacts resolving to `source_key=hkex_latest_listed_company_information`. Continue observation before any production schedule decision.
@@ -159,7 +162,7 @@ git status --short
 Expected:
 
 ```text
-HEAD: 1826ad2e610e0e6abab901f8d82a182a880b3c3b or newer
+HEAD: 7be5bd3893ca96984d2a58beea0a531839284e6c or newer
 git status --short: empty
 ```
 
