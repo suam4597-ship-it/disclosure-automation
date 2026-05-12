@@ -233,8 +233,9 @@ globalpulse_production_deployment_runbook.md
 ```text
 repo: suam4597-ship-it/disclosure-automation
 primary working branch: phase0-foundation
-current anchor commit: 9ff91b8d40cd34c797e7573d1978813294717d57
-latest phase0 anchor PR: #607 Harden GlobalPulse public web smoke workflow
+web deployment review baseline commit: 4955d5e0df91143e2be94dc953561f44b1007f82
+latest web deployment review PR: #608 Record GlobalPulse public web smoke workflow hardening
+workflow hardening PR: #607 Harden GlobalPulse public web smoke workflow
 default-branch schedule activation PR: #541 Activate HKEX staging schedule on main
 main schedule activation commit: 423ca7fa710b04de56a74b0a1ee092b43597b8a1
 default-branch public web smoke activation PR: #545 Activate public web smoke workflow on main
@@ -243,7 +244,7 @@ backend staging: https://globalpulse-backend-staging.fly.dev
 public Pages UI: https://suam4597-ship-it.github.io/disclosure-automation/
 ```
 
-The anchor commit is a checkpoint, not a permanent pin. If `origin/phase0-foundation` is newer, use the newer remote head after reviewing the latest commits.
+The review baseline commit is a checkpoint, not a permanent pin. If `origin/phase0-foundation` is newer, use the newer remote head after reviewing the latest commits.
 
 ## Local Bootstrap
 
@@ -261,7 +262,7 @@ Expected:
 
 ```text
 git status --short: empty
-HEAD: 9ff91b8d40cd34c797e7573d1978813294717d57 or a newer origin/phase0-foundation commit
+HEAD: 4955d5e0df91143e2be94dc953561f44b1007f82 or a newer origin/phase0-foundation commit
 ```
 
 If the local checkout has unrelated uncommitted work, do not overwrite it. Either use a fresh clone or create a new branch and inspect the diff first.
