@@ -96,6 +96,12 @@ Denmark DFSA OAM later scheduled observation:
 globalpulse_denmark_dfsa_oam_later_scheduled_observation_20260512.md
 ```
 
+Latest scheduled staging rollup:
+
+```text
+globalpulse_latest_scheduled_staging_rollup_20260513.md
+```
+
 India NSE interim scheduled observation:
 
 ```text
@@ -451,7 +457,7 @@ HKEX:
   conservative staging workflow: configured
   default-branch schedule activation: merged to main
   first automated scheduled staging run: pass, run 25684138207
-  follow-up scheduled staging observation: 7 successful runs recorded, latest run 25729361512
+  follow-up scheduled staging observation: 8 successful runs recorded, latest run 25743490299
   next gate: continue scheduled staging observation toward 7-day / 10 successful run gate
 ```
 
@@ -524,7 +530,7 @@ cadence: not approved
 staging cadence design: recorded
 staging workflow: configured
 first scheduled run: pass, run 25684138207
-follow-up scheduled observation: 7 successful scheduled runs recorded, latest run 25729361512
+follow-up scheduled observation: 8 successful scheduled runs recorded, latest run 25743490299
 next: continue scheduled observation, keep source active=false
 ```
 
@@ -548,7 +554,8 @@ Denmark DFSA OAM first automated scheduled run: 25668194957
 Denmark DFSA OAM second follow-up run: 25699532618
 Denmark DFSA OAM latest scheduled run: 25730389870
 HKEX first automated scheduled staging run: 25684138207
-HKEX follow-up scheduled staging observation latest run: 25729361512
+HKEX follow-up scheduled staging observation latest run: 25743490299
+latest scheduled staging rollup: 25741580440, 25742257297, 25743490299, 25744353562, and 25744795173
 HKEX scheduled staging cron: 22 */2 * * 1-5
 HKEX main activation PR: #541
 HKEX main activation commit: 423ca7fa710b04de56a74b0a1ee092b43597b8a1

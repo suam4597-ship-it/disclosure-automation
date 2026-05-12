@@ -214,8 +214,10 @@ Recommended order:
 6. India NSE has 6 inspected recent successful scheduled staging runs through run `25730184956`; keep observing toward the 7-day window without enabling production polling.
 7. EU canary later-run observation is recorded through run `25729286004`; keep the first EU canary list unchanged unless a dedicated PR says otherwise.
 8. Denmark DFSA OAM later scheduled observation is recorded through run `25730389870`; keep it staging-only and inactive.
-9. If #561/#565 receive approved production values, prepare a production config/smoke PR using the existing templates.
-10. If no approval values exist, keep working on staging-only observation, docs, and source evidence.
+9. Latest scheduled staging rollup is recorded through runs `25741580440`, `25742257297`, `25743490299`, `25744353562`, and `25744795173`.
+10. HKEX is now at 8 observed successful scheduled staging runs; keep observing toward the 7-day / 10-run gate.
+11. If #561/#565 receive approved production values, prepare a production config/smoke PR using the existing templates.
+12. If no approval values exist, keep working on staging-only observation, docs, and source evidence.
 ```
 
 Useful result docs/templates:
