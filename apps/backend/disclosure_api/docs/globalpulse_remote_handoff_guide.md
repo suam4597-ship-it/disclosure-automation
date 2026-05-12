@@ -96,10 +96,16 @@ Remaining website implementation workflow:
 globalpulse_web_remaining_implementation_workflow.md
 ```
 
-Latest public web digest diversity observation:
+Latest public web digest diversity refresh:
 
 ```text
-globalpulse_public_web_digest_diversity_observation_20260512.md
+globalpulse_public_web_digest_diversity_refresh_20260512.md
+```
+
+Latest frontend/backend regional dashboard mapping refresh:
+
+```text
+globalpulse_regional_frontend_backend_mapping_smoke_results.md
 ```
 
 Latest source-health drift observation:
@@ -242,6 +248,8 @@ primary working branch: phase0-foundation
 web deployment review baseline commit: 4955d5e0df91143e2be94dc953561f44b1007f82
 latest web deployment review PR: #608 Record GlobalPulse public web smoke workflow hardening
 workflow hardening PR: #607 Harden GlobalPulse public web smoke workflow
+latest regional dashboard refresh PR: #612 Refresh GlobalPulse regional dashboard mapping
+latest digest diversity refresh PR: #613 Record refreshed GlobalPulse digest diversity
 default-branch schedule activation PR: #541 Activate HKEX staging schedule on main
 main schedule activation commit: 423ca7fa710b04de56a74b0a1ee092b43597b8a1
 default-branch public web smoke activation PR: #545 Activate public web smoke workflow on main
@@ -318,7 +326,8 @@ production scheduled polling not approved
 current public Pages smoke: 200
 current Fly staging health: 200 ok
 current Fly staging digest: 200, item_count=12, fallback=false
-latest digest diversity observation: public scheduled smoke top-N includes HKEX, EU Euronext, and India
+latest digest diversity refresh: public top-N includes India, Switzerland, UK, EU generic/subregions, and Greater China
+latest regional mapping refresh: config.js exposes region labels/aliases/order before dashboard render; load-time double-fetch adapter removed
 first daily scheduled public web smoke run: pass, run 25712711038, event=schedule
 source-health drift observation: real source keys reachable; workflow canary aliases are not registered source-health keys
 production approval blocker status: #561 open comments=1 approval request posted, #565 open comments=1 approval request posted

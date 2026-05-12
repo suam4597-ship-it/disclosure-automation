@@ -98,6 +98,12 @@ For the public smoke result after the staging config marker reached Pages, read:
 apps/backend/disclosure_api/docs/globalpulse_frontend_config_marker_public_smoke_results.md
 ```
 
+For the current frontend/backend regional dashboard mapping refresh, read:
+
+```text
+apps/backend/disclosure_api/docs/globalpulse_regional_frontend_backend_mapping_smoke_results.md
+```
+
 For the current HKEX scheduled staging pending status, read:
 
 ```text
@@ -146,10 +152,10 @@ For the remaining website implementation workflow, read:
 apps/backend/disclosure_api/docs/globalpulse_web_remaining_implementation_workflow.md
 ```
 
-For the latest public web digest diversity observation, read:
+For the latest public web digest diversity refresh, read:
 
 ```text
-apps/backend/disclosure_api/docs/globalpulse_public_web_digest_diversity_observation_20260512.md
+apps/backend/disclosure_api/docs/globalpulse_public_web_digest_diversity_refresh_20260512.md
 ```
 
 For the source-observation production readiness matrix, read:
