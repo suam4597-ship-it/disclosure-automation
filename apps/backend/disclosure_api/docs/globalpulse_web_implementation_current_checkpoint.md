@@ -46,8 +46,8 @@ REMOTE_HANDOFF_REFRESHED_FOR_MULTI_LOCAL_WORK
 ```text
 repo: suam4597-ship-it/disclosure-automation
 primary working branch: phase0-foundation
-current head: f0cbb4a1733b2e9588e7b1bf22a9d4420ea21914
-latest merged PR: #594 Record first scheduled public web smoke pass
+current head: 7448edb4cb1925b0a31949816018e24ccbf60bf0
+latest merged PR: #595 Record latest HKEX scheduled staging observation
 worktree expectation: clean
 ```
 
@@ -101,7 +101,7 @@ This confirms the public website and staging backend are currently connected and
 
 ## Current CI Snapshot
 
-For head `f0cbb4a1733b2e9588e7b1bf22a9d4420ea21914`, push and pull-request checks completed successfully:
+For head `7448edb4cb1925b0a31949816018e24ccbf60bf0`, push and pull-request checks completed successfully:
 
 ```text
 Phase 0 validate: success
@@ -175,7 +175,7 @@ git status --short
 Expected:
 
 ```text
-HEAD: f0cbb4a1733b2e9588e7b1bf22a9d4420ea21914 or newer
+HEAD: 7448edb4cb1925b0a31949816018e24ccbf60bf0 or newer
 git status --short: empty
 ```
 
