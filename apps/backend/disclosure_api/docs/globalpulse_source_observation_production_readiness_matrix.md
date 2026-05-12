@@ -15,6 +15,7 @@ INDIA_NSE_LIVE_STAGING_OBSERVED
 EU_CANARY_LIVE_STAGING_OBSERVED
 HKEX_MANUAL_STAGING_OBSERVED
 HKEX_FIRST_AUTOMATED_SCHEDULED_RUN_PASS
+HKEX_SCHEDULED_STAGING_FOLLOWUP_OBSERVED
 PRODUCTION_SOURCE_PROMOTION_NOT_APPROVED
 PRODUCTION_SCHEDULED_POLLING_NOT_ENABLED
 ```
@@ -63,7 +64,7 @@ https://github.com/suam4597-ship-it/disclosure-automation/issues/565
 | India NSE | Live staging observed through scheduled workflow and public digest | `india_nse_announcements` appears in public smoke digest with `fetch_mode=live` | Continue observation window and record run counts/failures before source-promotion decision |
 | EU canary batch | Live staging canary observed through scheduled workflow | `globalpulse_eu_scheduled_staging_canary_first_cron_observation.md`; later payload review recorded; follow-up run `25680178601` recorded in `globalpulse_eu_scheduled_staging_canary_followup_observation_20260511.md` | Continue multi-day scheduled observation; do not add Germany/PSE to first canary automatically |
 | Denmark DFSA OAM | Live EU northern coverage visible in public digest | Public smoke digest includes `dk_dfsa_oam_company_announcements` with `eu_north`; follow-up scheduled run `25680895829` recorded in `globalpulse_denmark_dfsa_oam_followup_scheduled_observation_20260511.md` | Keep inside EU observation path; no production schedule yet |
-| HKEX | Manual and first automated scheduled staging run observed; public digest visible | `globalpulse_hkex_second_manual_observation_results.md`; first scheduled run `25684138207` recorded in `globalpulse_hkex_first_automated_scheduled_run_results.md`; digest has `greater_china` HKEX items | Continue 7-day / 10-run staging observation before any promotion |
+| HKEX | Manual, first automated, and follow-up scheduled staging runs observed; public digest visibility observed but not guaranteed in every global top-N digest | `globalpulse_hkex_second_manual_observation_results.md`; first scheduled run `25684138207` recorded in `globalpulse_hkex_first_automated_scheduled_run_results.md`; follow-up observation recorded 4 successful scheduled runs through `25702861937` in `globalpulse_hkex_scheduled_staging_followup_observation_20260512.md` | Continue 7-day / 10-run staging observation before any promotion |
 | ASEAN/Vietnam | Live staging visible in public digest | Public smoke digest includes `vn_hnx_issuer_disclosures` with `asean` | Continue candidate observation; do not claim complete ASEAN coverage |
 | Switzerland SIX | Live staging visible in public digest | Public smoke digest includes `ch_six_ser_official_notices` | Continue EU/source-specific observation; no production approval yet |
 | UK FCA NSM | Live staging visible in public digest | Public smoke digest includes `uk_fca_nsm_regulated_information` | Continue source-specific observation; no production approval yet |
@@ -107,7 +108,7 @@ no unexpected public response shape changes
 ```text
 production backend app/database/frontend URL not approved
 production source schedule policy not approved
-HKEX needs continued scheduled staging observation after first scheduled run pass
+HKEX needs continued scheduled staging observation after 4 successful scheduled runs; target remains 7-day / 10 successful runs
 JP source authority unresolved
 KR dedicated backend/source path not designed
 Germany Company Register and Prague/PSE remain design/staging-only paths

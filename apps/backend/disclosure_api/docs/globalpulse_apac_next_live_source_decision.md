@@ -53,6 +53,7 @@ HKEX_SECOND_MANUAL_OBSERVATION_PASS
 HKEX_STAGING_CADENCE_DESIGN_RECORDED
 HKEX_CONSERVATIVE_STAGING_WORKFLOW_ADDED
 HKEX_FIRST_AUTOMATED_STAGING_RUN_PASS
+HKEX_SCHEDULED_STAGING_FOLLOWUP_OBSERVED_4_RUNS
 IDX_IS_SECOND_ASEAN_RUNTIME_PROBE_CANDIDATE
 IDX_FLY_ELIXIR_RUNTIME_PROBE_RECORDED
 IDX_SOURCE_REGISTRATION_STILL_BLOCKED_BY_CHALLENGE_COOKIE_DEPENDENCY
@@ -76,7 +77,7 @@ Vietnam HNX: official issuer-disclosure RSS returned 200 application/rss+xml; bo
 Vietnam HSX: official listed-company RSS returned 200 application/rss+xml; bounded inactive rss_v1 source candidate added with fixture fallback disabled; repeated manual Fly staging smoke passed with digest visibility
 Taiwan MOPS: official daily material-information JSON endpoint returned 200 application/json; bounded inactive date-aware parser/source candidate added with fixture fallback disabled; repeated manual Fly staging smoke passed with digest visibility
 HKEXnews: official listed-company title-search HTML surface returned bounded issuer rows, and official Latest Listed Company Information JSON assets were confirmed
-HKEX local/Fly runtime probes and inactive candidate: bounded title-search URL returned 200 text/html through local Erlang :httpc with total_records=877; homecat0_e.json returned 200 application/json through local Erlang :httpc and Fly staging release eval; bounded homecat0_e.json parser/source contract recorded; inactive/manual staging-only source candidate added; manual Fly staging live poll passed twice with digest visibility while active=false; first automated scheduled staging run passed on run 25684138207
+HKEX local/Fly runtime probes and inactive candidate: bounded title-search URL returned 200 text/html through local Erlang :httpc with total_records=877; homecat0_e.json returned 200 application/json through local Erlang :httpc and Fly staging release eval; bounded homecat0_e.json parser/source contract recorded; inactive/manual staging-only source candidate added; manual Fly staging live poll passed twice with digest visibility while active=false; first automated scheduled staging run passed on run 25684138207; follow-up scheduled observation recorded 4 successful runs through run 25702861937
 IDX Indonesia: official JSON path confirmed; Fly/Elixir direct API/page bootstrap returned Cloudflare 403, cookie-mediated API returned 200 JSON; access decision blocks source registration until a clean backend runtime or approved data-access path exists
 Philippines PSE EDGE: official disclosure surface confirmed; official CAF/ITCH data-access products found; public-site access is not enough for backend polling without approved data-access path
 ASX: official MarkitDigital JSON path confirmed, direct Node/PowerShell fetch passed, blocked by access-policy decision until written authority or approved ASX Information Services path exists
@@ -181,7 +182,7 @@ staging cadence design is recorded in globalpulse_hkex_staging_cadence_design.md
 staging workflow implementation is recorded in globalpulse_hkex_staging_workflow_implementation.md
 source remains active=false and candidate_status=manual_staging_only
 first automated scheduled staging run passed on run 25684138207
-continued scheduled observation is the next allowed gate
+continued scheduled observation toward the 7-day / 10 successful run gate is the next allowed gate
 attachment/detail/PDF fetch must remain excluded from the first candidate
 ```
 
