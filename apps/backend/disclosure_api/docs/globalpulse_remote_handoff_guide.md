@@ -119,8 +119,8 @@ globalpulse_production_deployment_runbook.md
 ```text
 repo: suam4597-ship-it/disclosure-automation
 primary working branch: phase0-foundation
-current anchor commit: fc83edb03b35220fd0abc9fae4f6177b827d1610
-latest phase0 anchor PR: #580 Record GlobalPulse web remaining implementation workflow
+current anchor commit: 359ba907962e3dcd55aba2f0013a0c049b9ae15d
+latest phase0 anchor PR: #581 Record current GlobalPulse public web digest observation
 default-branch schedule activation PR: #541 Activate HKEX staging schedule on main
 main schedule activation commit: 423ca7fa710b04de56a74b0a1ee092b43597b8a1
 default-branch public web smoke activation PR: #545 Activate public web smoke workflow on main
@@ -147,7 +147,7 @@ Expected:
 
 ```text
 git status --short: empty
-HEAD: fc83edb03b35220fd0abc9fae4f6177b827d1610 or a newer origin/phase0-foundation commit
+HEAD: 359ba907962e3dcd55aba2f0013a0c049b9ae15d or a newer origin/phase0-foundation commit
 ```
 
 If the local checkout has unrelated uncommitted work, do not overwrite it. Either use a fresh clone or create a new branch and inspect the diff first.

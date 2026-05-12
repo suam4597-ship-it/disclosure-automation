@@ -10,8 +10,10 @@ This is documentation-only. It does not change workflows, source activation, bac
 
 ```text
 SCHEDULED_WORKFLOW_OBSERVATION_COOKBOOK_RECORDED
-PHASE0_AND_PHASE1_CI_GREEN_AFTER_PIPELINE_FORMAT_RECOVERY
-HKEX_FIRST_AUTOMATED_SCHEDULED_RUN_STILL_PENDING
+SCHEDULED_WORKFLOW_OBSERVATION_COOKBOOK_REFRESHED
+PHASE0_AND_PHASE1_CI_GREEN_AFTER_PUBLIC_DIGEST_OBSERVATION
+HKEX_FIRST_AUTOMATED_SCHEDULED_RUN_PASS_RECORDED
+HKEX_SCHEDULED_FOLLOWUP_OBSERVATION_RECORDED
 LATEST_OBSERVED_STAGING_POLL_RUN_WAS_SEC_HOURLY
 MANUAL_WORKFLOW_DISPATCH_DOES_NOT_COUNT_AS_SCHEDULED_PASS
 PRODUCTION_SCHEDULED_POLLING_NOT_ENABLED
@@ -19,10 +21,10 @@ PRODUCTION_SCHEDULED_POLLING_NOT_ENABLED
 
 ## Current Known Status
 
-The latest `phase0-foundation` CI after the pipeline formatting recovery completed successfully:
+The latest `phase0-foundation` CI after the public web digest diversity observation completed successfully:
 
 ```text
-head: 62922a389913b63aa832799a8cade1bc6270fd00
+head: 359ba907962e3dcd55aba2f0013a0c049b9ae15d
 Phase 0 validate: success
 Phase 0 report: success
 Phase 1 backend verify: success
@@ -35,13 +37,14 @@ Phase 1 backend trace: success
 The latest observed `GlobalPulse live staging poll` schedule run during this check was not HKEX:
 
 ```text
-run id: 25679600068
-created_at: 2026-05-11T15:25:27Z
+run id: 25704707578
+created_at: 2026-05-12T00:03:29Z
 event: schedule
 conclusion: success
 SCHEDULE_EXPR: 7 * * * *
 SOURCE_KEY: sec_press_releases
 RUN_MODE: single_source
+poll status: 202
 fetch.mode: live
 fetch.status_code: 200
 records_seen: 25
@@ -49,7 +52,18 @@ records_inserted: 25
 digest.metadata.fallback_to_fixture: false
 ```
 
-This confirms the staging poll workflow is still running, but it is not evidence for HKEX's first automated scheduled run.
+This confirms the staging poll workflow is still running. It is not new evidence for HKEX, EU, Denmark, or India because the resolved source is `sec_press_releases`.
+
+Current observation baselines:
+
+```text
+HKEX first automated scheduled run: pass, run 25684138207
+HKEX follow-up observation: 4 successful scheduled runs through 25702861937
+India NSE interim scheduled observation: recent pass runs 25694981715, 25699447717, 25703573653
+EU scheduled staging canary second follow-up: pass, run 25698983703
+Denmark DFSA OAM second follow-up: pass, run 25699532618
+Latest public web digest diversity observation: pass, 2026-05-12 latest top-N digest India-only
+```
 
 ## Schedule Map
 
@@ -102,9 +116,11 @@ gh run view <run_id> --repo suam4597-ship-it/disclosure-automation --log |
   Select-String -Pattern 'SCHEDULE_EXPR|SOURCE_KEY|RUN_MODE|fetch.mode|fallback_to_fixture|records_seen|records_inserted|status_code|poll status|digest contract pass'
 ```
 
-## HKEX Pass Criteria
+## HKEX First-run Criteria
 
-Only record `HKEX_FIRST_AUTOMATED_SCHEDULED_STAGING_RUN_PASS` when a real scheduled run satisfies all of the following:
+The first-run gate has already been recorded in `globalpulse_hkex_first_automated_scheduled_run_results.md`. Keep this criterion here as a historical guardrail for future source schedules.
+
+Only record a first automated scheduled staging run when a real scheduled run satisfies all of the following:
 
 ```text
 event: schedule
@@ -120,7 +136,7 @@ digest.metadata.fallback_to_fixture: false
 digest contains HKEX latest-listed-company live item or confirms bounded live digest continuity
 ```
 
-Do not record an HKEX scheduled pass from:
+Do not record a scheduled pass from:
 
 ```text
 workflow_dispatch
@@ -132,64 +148,57 @@ another source key
 fixture fallback
 ```
 
-## Result PR Template
+## Follow-up Observation Criteria
 
-If the HKEX scheduled run is observed, create a docs-only PR:
-
-```text
-title: Record HKEX first automated scheduled staging run
-file: apps/backend/disclosure_api/docs/globalpulse_hkex_first_automated_scheduled_staging_run_results.md
-```
-
-Required result fields:
+For HKEX follow-up observation, continue toward the 7-day / 10 successful run gate. A follow-up observation batch should record:
 
 ```text
-run id
-run URL
-event
-created_at
-head sha
+all matching run ids in the observation window
+success count
+failure count
+latest run id
+latest run URL
+latest created_at
+latest head sha
 SCHEDULE_EXPR
 SOURCE_KEY
 RUN_MODE
-backend URL
-health result
-poll status
-fetch.mode
-fetch.status_code
-records_seen
-records_inserted
-digest fallback_to_fixture
-digest item_count
-public UI visibility if checked
-warnings
+latest poll status
+latest fetch.mode
+latest fetch.status_code
+latest records_seen
+latest records_inserted
+latest digest fallback_to_fixture
+whether latest top-N public digest includes HKEX rows
+whether source-health is healthy if checked
+warning/deprecation notes
 guardrails
 ```
 
-Required conclusion markers:
+Required conclusion markers for a follow-up batch:
 
 ```text
-HKEX_FIRST_AUTOMATED_SCHEDULED_STAGING_RUN_PASS
+HKEX_SCHEDULED_STAGING_FOLLOWUP_OBSERVED
+HKEX_SCHEDULED_STAGING_SUCCESS_COUNT_UPDATED
 HKEX_FETCH_MODE_LIVE
 HKEX_DIGEST_FALLBACK_FALSE
 HKEX_SOURCE_REMAINS_ACTIVE_FALSE
 PRODUCTION_HKEX_POLLING_NOT_ENABLED
 ```
 
-## If No HKEX Run Exists
+## If No New Matching Run Exists
 
-If no matching run exists after a check window, keep the status pending and record:
+If no matching source run exists after a check window, do not create a source-specific observation PR just to restate old evidence. During that wait, safe docs-only work includes:
 
 ```text
-latest observed schedule run id
-latest observed schedule expression
-latest observed source key
-latest observed run mode
-next expected HKEX cron window
-reason not marked pass: matching scheduled HKEX run not observed
+refreshing stale handoff/checkpoint pointers
+recording public web smoke/digest diversity if current behavior changed
+updating observation cookbooks or decision checklists
+checking production approval issues for new operator values
+checking source-promotion issue comments for approvals
 ```
 
-Do not treat GitHub schedule delay as an HKEX source failure unless a matching HKEX run actually executes and fails.
+Do not treat GitHub schedule delay as a source failure unless a matching source run actually executes and fails.
 
 ## Guardrails
 

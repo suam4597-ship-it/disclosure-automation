@@ -23,6 +23,7 @@ INDIA_NSE_INTERIM_SCHEDULED_OBSERVATION_RECORDED
 POST_EXPANSION_NEXT_STEP_PLAN_RECORDED
 WEB_REMAINING_IMPLEMENTATION_WORKFLOW_RECORDED
 CURRENT_PUBLIC_WEB_DIGEST_DIVERSITY_OBSERVATION_RECORDED
+SCHEDULED_WORKFLOW_OBSERVATION_COOKBOOK_REFRESHED
 PRODUCTION_DEPLOYMENT_NOT_APPROVED
 REMOTE_HANDOFF_REFRESHED_FOR_MULTI_LOCAL_WORK
 ```
@@ -32,8 +33,8 @@ REMOTE_HANDOFF_REFRESHED_FOR_MULTI_LOCAL_WORK
 ```text
 repo: suam4597-ship-it/disclosure-automation
 primary working branch: phase0-foundation
-current head: fc83edb03b35220fd0abc9fae4f6177b827d1610
-latest merged PR: #580 Record GlobalPulse web remaining implementation workflow
+current head: 359ba907962e3dcd55aba2f0013a0c049b9ae15d
+latest merged PR: #581 Record current GlobalPulse public web digest observation
 worktree expectation: clean
 ```
 
@@ -87,7 +88,7 @@ This confirms the public website and staging backend are currently connected and
 
 ## Current CI Snapshot
 
-For head `fc83edb03b35220fd0abc9fae4f6177b827d1610`, push and pull-request checks completed successfully:
+For head `359ba907962e3dcd55aba2f0013a0c049b9ae15d`, push and pull-request checks completed successfully:
 
 ```text
 Phase 0 validate: success
@@ -146,7 +147,7 @@ git status --short
 Expected:
 
 ```text
-HEAD: fc83edb03b35220fd0abc9fae4f6177b827d1610 or newer
+HEAD: 359ba907962e3dcd55aba2f0013a0c049b9ae15d or newer
 git status --short: empty
 ```
 
