@@ -12,6 +12,8 @@ This is documentation-only. It does not create production infrastructure, provis
 GLOBALPULSE_PRODUCTION_APPROVAL_BLOCKER_STATUS_RECORDED
 PRODUCTION_DEPLOYMENT_APPROVAL_VALUES_NOT_PROVIDED
 SOURCE_PROMOTION_APPROVALS_NOT_PROVIDED
+PRODUCTION_APPROVAL_REQUEST_COMMENT_POSTED
+SOURCE_PROMOTION_APPROVAL_REQUEST_COMMENT_POSTED
 PRODUCTION_INFRA_CREATION_BLOCKED
 FRONTEND_PRODUCTION_CONFIG_PROMOTION_BLOCKED
 PRODUCTION_SCHEDULED_POLLING_BLOCKED
@@ -27,7 +29,9 @@ number: 561
 state: open
 title: Track GlobalPulse production deployment approval values
 updated_at: 2026-05-11T15:04:00Z
-comments: 0
+latest checked updated_at: 2026-05-12T04:52:00Z
+comments: 1
+latest comment: approval request refresh posted, no secret values included
 ```
 
 Source-by-source production promotion approvals:
@@ -38,12 +42,16 @@ number: 565
 state: open
 title: Track GlobalPulse source-by-source production promotion approvals
 updated_at: 2026-05-11T15:16:48Z
-comments: 0
+latest checked updated_at: 2026-05-12T04:52:12Z
+comments: 1
+latest comment: source-promotion approval request refresh posted, no approval inferred
 ```
 
 ## Interpretation
 
 No operator approval values were available during this check.
+
+Approval request comments were posted to both tracking issues so the operator has an explicit value template to fill in. Those comments do not approve production provisioning, source promotion, or scheduled production polling.
 
 Production work remains blocked for:
 
@@ -64,7 +72,7 @@ Continue using the staging-backed public website and Fly staging backend as the 
 
 ## Safe Work While Blocked
 
-Allowed work while #561 and #565 have no approvals:
+Allowed work while #561 and #565 have request comments but no approvals:
 
 ```text
 record scheduled staging observation summaries when matching runs appear

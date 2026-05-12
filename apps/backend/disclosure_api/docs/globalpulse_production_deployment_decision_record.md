@@ -39,11 +39,12 @@ Latest approval status check:
 
 ```text
 issue #561 state: open
-issue #561 comments: 0
+issue #561 comments: 1
 issue #565 state: open
-issue #565 comments: 0
+issue #565 comments: 1
 operator production values provided: no
 source promotion approvals provided: no
+approval request comments posted: yes
 ```
 
 ## Decisions Needed Before Provisioning

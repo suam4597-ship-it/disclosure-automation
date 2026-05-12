@@ -96,8 +96,8 @@ This step is blocked until operator approval values exist.
 Latest approval status check:
 
 ```text
-production approval issue #561: open, comments 0
-source promotion issue #565: open, comments 0
+production approval issue #561: open, comments 1, approval request posted
+source promotion issue #565: open, comments 1, approval request posted
 approval blocker status doc: globalpulse_production_approval_blocker_status_20260512.md
 ```
 
