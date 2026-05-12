@@ -239,8 +239,8 @@ apps/backend/disclosure_api/docs/globalpulse_sec_hourly_scheduled_run_after_live
 Current remote continuation status:
 
 ```text
-current phase0 head: f0cbb4a1733b2e9588e7b1bf22a9d4420ea21914
-latest merged PR: #594 Record first scheduled public web smoke pass
+current phase0 head: 7448edb4cb1925b0a31949816018e24ccbf60bf0
+latest merged PR: #595 Record latest HKEX scheduled staging observation
 phase0 public web smoke workflow PR: #544 merged
 main public web smoke activation PR: #545 merged
 workflow id: 274668919
@@ -274,7 +274,7 @@ public web smoke daily schedule follow-up: resolved by first scheduled pass run 
 public web smoke default-branch schedule review: default_branch=main, workflow file present on main, daily cron marker present
 public web smoke first daily scheduled run: pass, run 25712711038, digest item_count=12, fallback=false, HKEX/EU/India rows observed
 India NSE interim scheduled observation: pass, recent runs 25694981715, 25699447717, 25703573653
-EU canary follow-up scheduled observation: pass, runs 25680178601 and 25698983703
+EU canary follow-up scheduled observation: pass, runs 25680178601, 25698983703, and 25712655792
 Denmark DFSA OAM follow-up scheduled observation: pass, runs 25680895829 and 25699532618
 HKEX first automated scheduled staging run: pass, run 25684138207
 HKEX scheduled staging follow-up observation: 5/10 successful run gate, latest run 25712752961
