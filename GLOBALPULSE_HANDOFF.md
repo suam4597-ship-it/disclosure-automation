@@ -8,6 +8,12 @@ For the full current state, next work queue, verification commands, and guardrai
 apps/backend/disclosure_api/docs/globalpulse_remote_handoff_guide.md
 ```
 
+For the shortest cross-local resume packet, read:
+
+```text
+apps/backend/disclosure_api/docs/globalpulse_cross_local_resume_packet_20260512.md
+```
+
 For the public website deployment roadmap, read:
 
 ```text
