@@ -90,6 +90,12 @@ Denmark DFSA OAM second scheduled follow-up observation:
 globalpulse_denmark_dfsa_oam_second_followup_scheduled_observation_20260512.md
 ```
 
+Denmark DFSA OAM later scheduled observation:
+
+```text
+globalpulse_denmark_dfsa_oam_later_scheduled_observation_20260512.md
+```
+
 India NSE interim scheduled observation:
 
 ```text
@@ -380,7 +386,8 @@ Denmark DFSA OAM:
   scheduled staging canary configured on main
   first automated scheduled run: pass
   follow-up scheduled runs: pass, runs 25680895829, 25699532618, and 25713328609
-  latest inspected top-N digest visibility: not present in the 2026-05-12 public web digest diversity observation
+  later scheduled runs: pass, runs 25720174153 and 25730389870
+  latest inspected top-N digest visibility: present in both later scheduled runs
 production EU scheduled polling: not enabled
 ```
 
@@ -539,7 +546,7 @@ India NSE first scheduled run: 25650796284
 India NSE interim observation recent runs: 25694981715, 25699447717, 25703573653, 25713273293, 25719883720, and 25730184956
 Denmark DFSA OAM first automated scheduled run: 25668194957
 Denmark DFSA OAM second follow-up run: 25699532618
-Denmark DFSA OAM latest scheduled run: 25713328609
+Denmark DFSA OAM latest scheduled run: 25730389870
 HKEX first automated scheduled staging run: 25684138207
 HKEX follow-up scheduled staging observation latest run: 25729361512
 HKEX scheduled staging cron: 22 */2 * * 1-5
