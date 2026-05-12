@@ -46,8 +46,8 @@ REMOTE_HANDOFF_REFRESHED_FOR_MULTI_LOCAL_WORK
 ```text
 repo: suam4597-ship-it/disclosure-automation
 primary working branch: phase0-foundation
-current head: 974847921b1680e86438e2063c03a907f35470b6
-latest merged PR: #606 Add GlobalPulse source promotion decision template
+current head: 9ff91b8d40cd34c797e7573d1978813294717d57
+latest merged PR: #607 Harden GlobalPulse public web smoke workflow
 worktree expectation: clean
 ```
 
@@ -101,7 +101,7 @@ This confirms the public website and staging backend are currently connected and
 
 ## Current CI Snapshot
 
-For head `974847921b1680e86438e2063c03a907f35470b6`, pull-request checks completed successfully:
+For head `9ff91b8d40cd34c797e7573d1978813294717d57`, pull-request checks completed successfully:
 
 ```text
 Phase 0 validate: success
@@ -175,7 +175,7 @@ git status --short
 Expected:
 
 ```text
-HEAD: 974847921b1680e86438e2063c03a907f35470b6 or newer
+HEAD: 9ff91b8d40cd34c797e7573d1978813294717d57 or newer
 git status --short: empty
 ```
 

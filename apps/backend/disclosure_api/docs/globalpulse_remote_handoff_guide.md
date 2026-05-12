@@ -174,6 +174,12 @@ Public web smoke default-branch schedule review:
 globalpulse_public_web_smoke_default_branch_schedule_review_20260512.md
 ```
 
+Public web smoke workflow hardening result:
+
+```text
+globalpulse_public_web_smoke_workflow_hardening_results.md
+```
+
 First successful daily scheduled public web smoke run:
 
 ```text
@@ -227,8 +233,8 @@ globalpulse_production_deployment_runbook.md
 ```text
 repo: suam4597-ship-it/disclosure-automation
 primary working branch: phase0-foundation
-current anchor commit: 974847921b1680e86438e2063c03a907f35470b6
-latest phase0 anchor PR: #606 Add GlobalPulse source promotion decision template
+current anchor commit: 9ff91b8d40cd34c797e7573d1978813294717d57
+latest phase0 anchor PR: #607 Harden GlobalPulse public web smoke workflow
 default-branch schedule activation PR: #541 Activate HKEX staging schedule on main
 main schedule activation commit: 423ca7fa710b04de56a74b0a1ee092b43597b8a1
 default-branch public web smoke activation PR: #545 Activate public web smoke workflow on main
@@ -255,7 +261,7 @@ Expected:
 
 ```text
 git status --short: empty
-HEAD: 974847921b1680e86438e2063c03a907f35470b6 or a newer origin/phase0-foundation commit
+HEAD: 9ff91b8d40cd34c797e7573d1978813294717d57 or a newer origin/phase0-foundation commit
 ```
 
 If the local checkout has unrelated uncommitted work, do not overwrite it. Either use a fresh clone or create a new branch and inspect the diff first.
