@@ -46,8 +46,8 @@ REMOTE_HANDOFF_REFRESHED_FOR_MULTI_LOCAL_WORK
 ```text
 repo: suam4597-ship-it/disclosure-automation
 primary working branch: phase0-foundation
-current head: 7448edb4cb1925b0a31949816018e24ccbf60bf0
-latest merged PR: #595 Record latest HKEX scheduled staging observation
+current head: dccb3e6a99b4b037356756626736baa727ce1896
+latest merged PR: #596 Record latest EU canary scheduled observation
 worktree expectation: clean
 ```
 
@@ -101,7 +101,7 @@ This confirms the public website and staging backend are currently connected and
 
 ## Current CI Snapshot
 
-For head `7448edb4cb1925b0a31949816018e24ccbf60bf0`, push and pull-request checks completed successfully:
+For head `dccb3e6a99b4b037356756626736baa727ce1896`, push and pull-request checks completed successfully:
 
 ```text
 Phase 0 validate: success
@@ -128,7 +128,7 @@ EU schedule: 17 */4 * * 1-5
 EU source key: eu_scheduled_staging_canary
 EU result: pass, all eight canary sources live/200, digest fallback=false; latest inspected public digest includes EU Euronext rows
 
-Denmark DFSA OAM follow-up runs: 25680895829 and 25699532618
+Denmark DFSA OAM follow-up runs: 25680895829, 25699532618, and 25713328609
 Denmark schedule: 47 */4 * * 1-5
 Denmark source key: denmark_dfsa_oam_staging_canary
 Denmark result: pass, live/200, records_seen=25, records_inserted=25, digest fallback=false; latest inspected digest top-N did not include Denmark, so digest diversity remains under observation
@@ -175,7 +175,7 @@ git status --short
 Expected:
 
 ```text
-HEAD: 7448edb4cb1925b0a31949816018e24ccbf60bf0 or newer
+HEAD: dccb3e6a99b4b037356756626736baa727ce1896 or newer
 git status --short: empty
 ```
 
