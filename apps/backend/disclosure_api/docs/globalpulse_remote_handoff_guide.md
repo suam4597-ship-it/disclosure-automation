@@ -138,6 +138,12 @@ Latest scheduled workflow liveness state review:
 globalpulse_scheduled_workflow_liveness_state_review_20260512.md
 ```
 
+Latest staging digest transient retry observation:
+
+```text
+globalpulse_staging_digest_transient_500_retry_observation_20260512.md
+```
+
 Production backend deployment design:
 
 ```text
@@ -155,8 +161,8 @@ globalpulse_production_deployment_runbook.md
 ```text
 repo: suam4597-ship-it/disclosure-automation
 primary working branch: phase0-foundation
-current anchor commit: 1826ad2e610e0e6abab901f8d82a182a880b3c3b
-latest phase0 anchor PR: #588 Add scheduled workflow liveness review checklist
+current anchor commit: 7be5bd3893ca96984d2a58beea0a531839284e6c
+latest phase0 anchor PR: #589 Record scheduled workflow liveness state review
 default-branch schedule activation PR: #541 Activate HKEX staging schedule on main
 main schedule activation commit: 423ca7fa710b04de56a74b0a1ee092b43597b8a1
 default-branch public web smoke activation PR: #545 Activate public web smoke workflow on main
@@ -183,7 +189,7 @@ Expected:
 
 ```text
 git status --short: empty
-HEAD: 1826ad2e610e0e6abab901f8d82a182a880b3c3b or a newer origin/phase0-foundation commit
+HEAD: 7be5bd3893ca96984d2a58beea0a531839284e6c or a newer origin/phase0-foundation commit
 ```
 
 If the local checkout has unrelated uncommitted work, do not overwrite it. Either use a fresh clone or create a new branch and inspect the diff first.
@@ -240,6 +246,7 @@ production approval blocker status: #561 open comments=0, #565 open comments=0
 scheduled staging poll no-new-run gap: latest observed scheduled run remains SEC hourly run 25704707578 at 2026-05-12T00:03:29Z
 scheduled workflow liveness review checklist: use before changing schedules after a no-new-run gap
 scheduled workflow liveness state review: live staging poll and public web smoke workflows active on main
+staging digest transient 500 retry observation: one digest 500 recovered to 200, health remained 200 ok
 ```
 
 The project is no longer in the "can we find sources?" phase for Europe. Europe now needs observation, promotion gates, digest diversity checks, and rollback evidence.
