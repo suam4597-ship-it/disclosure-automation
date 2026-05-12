@@ -191,8 +191,8 @@ apps/backend/disclosure_api/docs/globalpulse_scheduled_workflow_observation_cook
 Current remote continuation status:
 
 ```text
-current phase0 head: ba8485da6d62598264fb8e980b29c5e3bf2f60cf
-latest merged PR: #584 Record GlobalPulse source health drift observation
+current phase0 head: 9424366ba476d0d2a72adcf5315c17ad4ac27684
+latest merged PR: #585 Record GlobalPulse production approval blocker status
 phase0 public web smoke workflow PR: #544 merged
 main public web smoke activation PR: #545 merged
 workflow id: 274668919
@@ -216,7 +216,7 @@ frontend production config templates: added, config not promoted
 source promotion approval issue: https://github.com/suam4597-ship-it/disclosure-automation/issues/565
 pipeline format CI recovery: pass, merge commit 34c7d06e0503bcf83f64d35a7c4b59b55b64a69e
 post-recovery docs CI: pass, head 62922a389913b63aa832799a8cade1bc6270fd00
-scheduled workflow observation cookbook: refreshed
+scheduled workflow observation cookbook: refreshed with PowerShell REST fallback commands
 India NSE interim scheduled observation: pass, recent runs 25694981715, 25699447717, 25703573653
 EU canary follow-up scheduled observation: pass, runs 25680178601 and 25698983703
 Denmark DFSA OAM follow-up scheduled observation: pass, runs 25680895829 and 25699532618
