@@ -19,6 +19,7 @@ HKEX_FIRST_AUTOMATED_SCHEDULED_RUN_PASS
 HKEX_SCHEDULED_STAGING_FOLLOWUP_OBSERVED
 EU_CANARY_SECOND_FOLLOWUP_OBSERVED
 DENMARK_DFSA_OAM_SECOND_FOLLOWUP_OBSERVED
+INDIA_NSE_INTERIM_SCHEDULED_OBSERVATION_RECORDED
 PRODUCTION_DEPLOYMENT_NOT_APPROVED
 REMOTE_HANDOFF_REFRESHED_FOR_MULTI_LOCAL_WORK
 ```
@@ -28,8 +29,8 @@ REMOTE_HANDOFF_REFRESHED_FOR_MULTI_LOCAL_WORK
 ```text
 repo: suam4597-ship-it/disclosure-automation
 primary working branch: phase0-foundation
-current head: 4de8b4d4d5b46cac94a37fd1d4be43c324cfd589
-latest merged PR: #576 Record EU canary second follow-up observation
+current head: 1df7d5f25cbc860899f5c2c24c0e3f759f3fa1a2
+latest merged PR: #577 Record Denmark DFSA OAM second follow-up observation
 worktree expectation: clean
 ```
 
@@ -80,7 +81,7 @@ This confirms the public website and staging backend are currently connected. It
 
 ## Current CI Snapshot
 
-For head `4de8b4d4d5b46cac94a37fd1d4be43c324cfd589`, push and pull-request checks completed successfully:
+For head `1df7d5f25cbc860899f5c2c24c0e3f759f3fa1a2`, push and pull-request checks completed successfully:
 
 ```text
 Phase 0 validate: success
@@ -97,6 +98,11 @@ Phase 1 backend trace: success
 Recent scheduled staging observations:
 
 ```text
+India NSE interim scheduled observation runs: 25694981715, 25699447717, 25703573653
+India NSE schedule: 37 */2 * * 1-5
+India NSE source key: india_nse_announcements
+India NSE result: pass, live/200, bounded records, digest fallback=false, India rows visible in inspected top-N digests
+
 EU canary follow-up runs: 25680178601 and 25698983703
 EU schedule: 17 */4 * * 1-5
 EU source key: eu_scheduled_staging_canary

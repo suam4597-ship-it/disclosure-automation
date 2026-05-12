@@ -18,7 +18,7 @@ Current APAC live-source status:
 
 ```text
 India NSE official RSS: staging-live verified, bounded, duplicate-handling hardened, conservative staging schedule configured
-India NSE first automated scheduled run: passed on GitHub Actions run 25650796284; 7-day staging observation window pending
+India NSE first automated scheduled run: passed on GitHub Actions run 25650796284; interim scheduled observation recorded recent runs 25694981715, 25699447717, and 25703573653; 7-day staging observation window pending
 India secondary endpoints: BSE corporate-announcement surface is relevant but backend-compatible fetch is not proven; SEBI media/notification surface is a separate regulator-policy track, not a listed-company disclosure source
 ASEAN official endpoint: scan started, SGX browser JSON access path confirmed but blocked by policy/runtime review; Bursa browser JSON access path confirmed but blocked by Cloudflare/runtime fetch; SET official JSON access path and repeated Fly staging smoke passed while inactive; HNX Vietnam official RSS inactive candidate added and repeated manual staging smoke passed; HSX Vietnam official listed-company RSS inactive candidate added and repeated manual staging smoke passed; Taiwan MOPS official JSON inactive candidate added and repeated manual staging smoke passed; IDX official JSON access path confirmed but blocked by challenge-cookie dependency
 ANZ official endpoint: ASX official JSON access path confirmed, but access-policy decision blocks source registration until written authority or approved ASX Information Services path exists
@@ -154,6 +154,7 @@ staging cadence policy: completed
 phase0 workflow schedule configuration: completed
 default-branch schedule activation: completed
 first automated scheduled run: completed on run 25650796284
+interim scheduled observation: recorded in globalpulse_india_nse_interim_scheduled_observation_20260512.md
 7-day staging observation window: pending
 ```
 
@@ -335,6 +336,7 @@ APAC_LIVE_SOURCE_TRACK_STARTED
 INDIA_NSE_STAGING_LIVE_CANDIDATE_VERIFIED
 INDIA_NSE_CONSERVATIVE_STAGING_SCHEDULE_CONFIGURED
 INDIA_NSE_FIRST_AUTOMATED_STAGING_SCHEDULE_RUN_PASS
+INDIA_NSE_INTERIM_SCHEDULED_OBSERVATION_RECORDED
 INDIA_NSE_7_DAY_STAGING_OBSERVATION_WINDOW_PENDING
 INDIA_SECONDARY_ENDPOINT_SCAN_RECORDED
 BSE_SOURCE_REGISTRATION_BLOCKED_PENDING_BACKEND_COMPATIBLE_ACCESS_PATH

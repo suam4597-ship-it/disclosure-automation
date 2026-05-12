@@ -12,6 +12,7 @@ This is documentation-only. It does not enable production scheduled polling, doe
 SOURCE_OBSERVATION_MATRIX_RECORDED
 SEC_BASELINE_STABLE
 INDIA_NSE_LIVE_STAGING_OBSERVED
+INDIA_NSE_INTERIM_SCHEDULED_OBSERVATION_RECORDED
 EU_CANARY_LIVE_STAGING_OBSERVED
 EU_CANARY_SECOND_FOLLOWUP_OBSERVED
 DENMARK_DFSA_OAM_SECOND_FOLLOWUP_OBSERVED
@@ -63,7 +64,7 @@ https://github.com/suam4597-ship-it/disclosure-automation/issues/565
 | Track | Current status | Evidence | Production gate |
 | --- | --- | --- | --- |
 | SEC baseline | Stable live baseline | Initial SEC live polling smoke and runtime smoke history | May remain baseline, but production schedule still needs production deployment approval |
-| India NSE | Live staging observed through scheduled workflow and public digest | `india_nse_announcements` appears in public smoke digest with `fetch_mode=live` | Continue observation window and record run counts/failures before source-promotion decision |
+| India NSE | Live staging observed through scheduled workflow and public digest; interim scheduled observation recorded | `india_nse_announcements` appears in public smoke digest with `fetch_mode=live`; interim scheduled observation recorded recent runs `25694981715`, `25699447717`, and `25703573653` in `globalpulse_india_nse_interim_scheduled_observation_20260512.md` | Continue 7-day observation window and record final run counts/failures before source-promotion decision |
 | EU canary batch | Live staging canary observed through scheduled workflow; latest inspected digest top-N was India-only | `globalpulse_eu_scheduled_staging_canary_first_cron_observation.md`; later payload review recorded; follow-up run `25680178601` recorded in `globalpulse_eu_scheduled_staging_canary_followup_observation_20260511.md`; second follow-up run `25698983703` recorded in `globalpulse_eu_scheduled_staging_canary_second_followup_observation_20260512.md` | Continue multi-day scheduled observation and digest-diversity checks; do not add Germany/PSE to first canary automatically |
 | Denmark DFSA OAM | Live EU northern coverage observed, but latest inspected digest top-N did not include Denmark | Public smoke digest includes `dk_dfsa_oam_company_announcements` with `eu_north`; follow-up scheduled run `25680895829` recorded in `globalpulse_denmark_dfsa_oam_followup_scheduled_observation_20260511.md`; second follow-up run `25699532618` recorded in `globalpulse_denmark_dfsa_oam_second_followup_scheduled_observation_20260512.md` | Keep inside EU observation path and continue digest-diversity checks; no production schedule yet |
 | HKEX | Manual, first automated, and follow-up scheduled staging runs observed; public digest visibility observed but not guaranteed in every global top-N digest | `globalpulse_hkex_second_manual_observation_results.md`; first scheduled run `25684138207` recorded in `globalpulse_hkex_first_automated_scheduled_run_results.md`; follow-up observation recorded 4 successful scheduled runs through `25702861937` in `globalpulse_hkex_scheduled_staging_followup_observation_20260512.md` | Continue 7-day / 10-run staging observation before any promotion |
