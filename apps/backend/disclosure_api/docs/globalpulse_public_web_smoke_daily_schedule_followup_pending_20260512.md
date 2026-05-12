@@ -117,6 +117,14 @@ keep manual public smoke and scheduled public smoke evidence separate
 keep production config promotion blocked until production approval values exist
 ```
 
+## Later Update
+
+A later readonly review confirmed the repository default branch is `main` and that the public web smoke workflow file with the daily cron marker is present on `main`. That review is recorded in:
+
+```text
+globalpulse_public_web_smoke_default_branch_schedule_review_20260512.md
+```
+
 ## Guardrails
 
 ```text
