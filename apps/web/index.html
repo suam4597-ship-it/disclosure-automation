@@ -330,22 +330,91 @@
 </div>
 
 <script>
-const REGION_LABELS = {
+const REGION_LABELS = Object.assign({
   global: "Global",
   us: "US Americas",
   americas: "US Americas",
   eu: "EU Europe",
   europe: "EU Europe",
+  eu_north: "Northern Europe",
+  eu_central: "Central Europe",
+  eu_south: "Southern Europe",
+  uk: "United Kingdom",
+  ch: "Switzerland",
+  tr: "Turkey",
   kr: "KR Korea",
   korea: "KR Korea",
   jp: "JP Japan",
   japan: "JP Japan",
-  cn: "CN/TW Greater China",
-  tw: "CN/TW Greater China",
-  apac: "Asia-Pacific"
-};
+  greater_china: "CN/TW Greater China",
+  cn: "Mainland China",
+  tw: "Taiwan",
+  hk: "Hong Kong",
+  apac: "Asia-Pacific",
+  asean: "ASEAN",
+  india: "India",
+  anz: "Australia/NZ",
+  other: "Other Regions"
+}, window.GLOBALPULSE_REGION_LABELS || {});
 
-const REGION_ORDER = ["global", "kr", "jp", "cn", "tw", "apac", "eu", "us", "americas", "other"];
+const REGION_ALIASES = Object.assign({
+  americas: "us",
+  usa: "us",
+  united_states: "us",
+  united_states_of_america: "us",
+  europe: "eu",
+  europe_north: "eu_north",
+  northern_europe: "eu_north",
+  europe_central: "eu_central",
+  central_europe: "eu_central",
+  europe_south: "eu_south",
+  southern_europe: "eu_south",
+  gb: "uk",
+  great_britain: "uk",
+  united_kingdom: "uk",
+  switzerland: "ch",
+  turkey: "tr",
+  turkiye: "tr",
+  korea: "kr",
+  south_korea: "kr",
+  japan: "jp",
+  cn_tw: "greater_china",
+  greaterchina: "greater_china",
+  china: "cn",
+  mainland_china: "cn",
+  taiwan: "tw",
+  hong_kong: "hk",
+  hongkong: "hk",
+  southeast_asia: "asean",
+  south_east_asia: "asean",
+  in: "india",
+  australia_nz: "anz",
+  australia: "anz",
+  new_zealand: "anz"
+}, window.GLOBALPULSE_REGION_ALIASES || {});
+
+const REGION_ORDER = window.GLOBALPULSE_REGION_ORDER || [
+  "global",
+  "us",
+  "kr",
+  "jp",
+  "greater_china",
+  "cn",
+  "tw",
+  "hk",
+  "apac",
+  "asean",
+  "india",
+  "anz",
+  "eu",
+  "eu_north",
+  "eu_central",
+  "eu_south",
+  "uk",
+  "ch",
+  "tr",
+  "other"
+];
 const FILTERS = [
   ["all", "All"],
   ["disclosure", "공시"],
@@ -466,12 +535,11 @@ function sourceKey(source) {
 }
 
 function canonicalRegion(value) {
-  const raw = String(value || "global").toLowerCase();
-  if (raw === "usa") return "us";
-  if (raw === "europe") return "eu";
-  if (raw === "korea") return "kr";
-  if (raw === "japan") return "jp";
-  if (raw === "china") return "cn";
+  const raw = String(value || "global")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+  if (REGION_ALIASES[raw]) return REGION_ALIASES[raw];
   return REGION_LABELS[raw] ? raw : "other";
 }
 
@@ -573,8 +641,15 @@ function groupedByRegion(items) {
   }
 
   return Array.from(groups.entries())
-    .sort(([a], [b]) => (REGION_ORDER.indexOf(a) + 100) - (REGION_ORDER.indexOf(b) + 100))
+    .sort(([a], [b]) =>
+      regionOrderIndex(a) - regionOrderIndex(b) || regionLabel(a).localeCompare(regionLabel(b))
+    )
     .map(([region, values]) => [region, sortedItems(values)]);
+}
+
+function regionOrderIndex(region) {
+  const index = REGION_ORDER.indexOf(canonicalRegion(region));
+  return index === -1 ? REGION_ORDER.length : index;
 }
 
 function renderTabs(items) {
