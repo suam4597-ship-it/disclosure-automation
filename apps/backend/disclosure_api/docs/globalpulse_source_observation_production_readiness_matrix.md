@@ -13,6 +13,7 @@ SOURCE_OBSERVATION_MATRIX_RECORDED
 SEC_BASELINE_STABLE
 INDIA_NSE_LIVE_STAGING_OBSERVED
 EU_CANARY_LIVE_STAGING_OBSERVED
+EU_CANARY_SECOND_FOLLOWUP_OBSERVED
 HKEX_MANUAL_STAGING_OBSERVED
 HKEX_FIRST_AUTOMATED_SCHEDULED_RUN_PASS
 HKEX_SCHEDULED_STAGING_FOLLOWUP_OBSERVED
@@ -62,7 +63,7 @@ https://github.com/suam4597-ship-it/disclosure-automation/issues/565
 | --- | --- | --- | --- |
 | SEC baseline | Stable live baseline | Initial SEC live polling smoke and runtime smoke history | May remain baseline, but production schedule still needs production deployment approval |
 | India NSE | Live staging observed through scheduled workflow and public digest | `india_nse_announcements` appears in public smoke digest with `fetch_mode=live` | Continue observation window and record run counts/failures before source-promotion decision |
-| EU canary batch | Live staging canary observed through scheduled workflow | `globalpulse_eu_scheduled_staging_canary_first_cron_observation.md`; later payload review recorded; follow-up run `25680178601` recorded in `globalpulse_eu_scheduled_staging_canary_followup_observation_20260511.md` | Continue multi-day scheduled observation; do not add Germany/PSE to first canary automatically |
+| EU canary batch | Live staging canary observed through scheduled workflow; latest inspected digest top-N was India-only | `globalpulse_eu_scheduled_staging_canary_first_cron_observation.md`; later payload review recorded; follow-up run `25680178601` recorded in `globalpulse_eu_scheduled_staging_canary_followup_observation_20260511.md`; second follow-up run `25698983703` recorded in `globalpulse_eu_scheduled_staging_canary_second_followup_observation_20260512.md` | Continue multi-day scheduled observation and digest-diversity checks; do not add Germany/PSE to first canary automatically |
 | Denmark DFSA OAM | Live EU northern coverage visible in public digest | Public smoke digest includes `dk_dfsa_oam_company_announcements` with `eu_north`; follow-up scheduled run `25680895829` recorded in `globalpulse_denmark_dfsa_oam_followup_scheduled_observation_20260511.md` | Keep inside EU observation path; no production schedule yet |
 | HKEX | Manual, first automated, and follow-up scheduled staging runs observed; public digest visibility observed but not guaranteed in every global top-N digest | `globalpulse_hkex_second_manual_observation_results.md`; first scheduled run `25684138207` recorded in `globalpulse_hkex_first_automated_scheduled_run_results.md`; follow-up observation recorded 4 successful scheduled runs through `25702861937` in `globalpulse_hkex_scheduled_staging_followup_observation_20260512.md` | Continue 7-day / 10-run staging observation before any promotion |
 | ASEAN/Vietnam | Live staging visible in public digest | Public smoke digest includes `vn_hnx_issuer_disclosures` with `asean` | Continue candidate observation; do not claim complete ASEAN coverage |

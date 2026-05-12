@@ -90,7 +90,7 @@ follow-up observation doc: globalpulse_hkex_scheduled_staging_followup_observati
 follow-up observation status: 4 successful scheduled runs recorded, latest run 25702861937
 historical pending doc: globalpulse_hkex_scheduled_staging_pending_status.md
 observation command path: globalpulse_scheduled_workflow_observation_cookbook.md
-latest non-HKEX scheduled observations: EU run 25680178601, Denmark run 25680895829
+latest non-HKEX scheduled observations: EU runs 25680178601 and 25698983703, Denmark run 25680895829
 ```
 
 Output PR:

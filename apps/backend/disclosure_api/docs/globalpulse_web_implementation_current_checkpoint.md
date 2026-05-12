@@ -17,6 +17,7 @@ FLY_STAGING_DIGEST_PASS
 SOURCE_OBSERVATION_WINDOW_IN_PROGRESS
 HKEX_FIRST_AUTOMATED_SCHEDULED_RUN_PASS
 HKEX_SCHEDULED_STAGING_FOLLOWUP_OBSERVED
+EU_CANARY_SECOND_FOLLOWUP_OBSERVED
 PRODUCTION_DEPLOYMENT_NOT_APPROVED
 REMOTE_HANDOFF_REFRESHED_FOR_MULTI_LOCAL_WORK
 ```
@@ -26,8 +27,8 @@ REMOTE_HANDOFF_REFRESHED_FOR_MULTI_LOCAL_WORK
 ```text
 repo: suam4597-ship-it/disclosure-automation
 primary working branch: phase0-foundation
-current head: fcb0e97409cdbf34f417a1cb69f43be05f8ea215
-latest merged PR: #574 Record HKEX first automated scheduled staging run
+current head: 431f401176c67c39acf6f289eb5d8de2a1d6647f
+latest merged PR: #575 Record HKEX scheduled staging follow-up observation
 worktree expectation: clean
 ```
 
@@ -78,7 +79,7 @@ This confirms the public website and staging backend are currently connected. It
 
 ## Current CI Snapshot
 
-For head `fcb0e97409cdbf34f417a1cb69f43be05f8ea215`, push and pull-request checks completed successfully:
+For head `431f401176c67c39acf6f289eb5d8de2a1d6647f`, push and pull-request checks completed successfully:
 
 ```text
 Phase 0 validate: success
@@ -95,10 +96,10 @@ Phase 1 backend trace: success
 Recent scheduled staging observations:
 
 ```text
-EU canary follow-up run: 25680178601
+EU canary follow-up runs: 25680178601 and 25698983703
 EU schedule: 17 */4 * * 1-5
 EU source key: eu_scheduled_staging_canary
-EU result: pass, all eight canary sources live/200, digest fallback=false
+EU result: pass, all eight canary sources live/200, digest fallback=false; latest inspected digest top-N was India-only, so digest diversity remains under observation
 
 Denmark DFSA OAM follow-up run: 25680895829
 Denmark schedule: 47 */4 * * 1-5

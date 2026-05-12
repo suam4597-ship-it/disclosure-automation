@@ -80,6 +80,12 @@ For the HKEX scheduled staging follow-up observation window, read:
 apps/backend/disclosure_api/docs/globalpulse_hkex_scheduled_staging_followup_observation_20260512.md
 ```
 
+For the latest EU scheduled staging canary follow-up observation, read:
+
+```text
+apps/backend/disclosure_api/docs/globalpulse_eu_scheduled_staging_canary_second_followup_observation_20260512.md
+```
+
 For the source-observation production readiness matrix, read:
 
 ```text
@@ -137,8 +143,8 @@ apps/backend/disclosure_api/docs/globalpulse_scheduled_workflow_observation_cook
 Current remote continuation status:
 
 ```text
-current phase0 head: fcb0e97409cdbf34f417a1cb69f43be05f8ea215
-latest merged PR: #574 Record HKEX first automated scheduled staging run
+current phase0 head: 431f401176c67c39acf6f289eb5d8de2a1d6647f
+latest merged PR: #575 Record HKEX scheduled staging follow-up observation
 phase0 public web smoke workflow PR: #544 merged
 main public web smoke activation PR: #545 merged
 workflow id: 274668919
@@ -158,7 +164,7 @@ source promotion approval issue: https://github.com/suam4597-ship-it/disclosure-
 pipeline format CI recovery: pass, merge commit 34c7d06e0503bcf83f64d35a7c4b59b55b64a69e
 post-recovery docs CI: pass, head 62922a389913b63aa832799a8cade1bc6270fd00
 scheduled workflow observation cookbook: added
-EU canary follow-up scheduled observation: pass, run 25680178601
+EU canary follow-up scheduled observation: pass, runs 25680178601 and 25698983703
 Denmark DFSA OAM follow-up scheduled observation: pass, run 25680895829
 HKEX first automated scheduled staging run: pass, run 25684138207
 HKEX scheduled staging follow-up observation: 4/10 successful run gate, latest run 25702861937
