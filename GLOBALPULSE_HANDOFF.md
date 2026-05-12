@@ -98,6 +98,12 @@ For the India NSE interim scheduled observation, read:
 apps/backend/disclosure_api/docs/globalpulse_india_nse_interim_scheduled_observation_20260512.md
 ```
 
+For the post-expansion next-step plan, read:
+
+```text
+apps/backend/disclosure_api/docs/globalpulse_post_expansion_next_step_plan.md
+```
+
 For the source-observation production readiness matrix, read:
 
 ```text
@@ -155,8 +161,8 @@ apps/backend/disclosure_api/docs/globalpulse_scheduled_workflow_observation_cook
 Current remote continuation status:
 
 ```text
-current phase0 head: 1df7d5f25cbc860899f5c2c24c0e3f759f3fa1a2
-latest merged PR: #577 Record Denmark DFSA OAM second follow-up observation
+current phase0 head: 09062dce6ab0e52bf518990281bb477f6907b8cd
+latest merged PR: #578 Record India NSE interim scheduled observation
 phase0 public web smoke workflow PR: #544 merged
 main public web smoke activation PR: #545 merged
 workflow id: 274668919
@@ -166,6 +172,7 @@ HKEX first automated scheduled staging run: pass, run 25684138207
 HKEX scheduled staging follow-up observation: 4 successful scheduled runs recorded, latest run 25702861937
 next HKEX gate: continue scheduled staging observation toward 7-day / 10 successful run gate
 next web deployment gate: decide production backend app/database/frontend URL
+post-expansion next gate: production infrastructure decision values, source promotion approvals, and observation-window continuation
 production decision record: added, production infra not created
 source observation matrix: added, production source promotion not approved
 basic monitoring incident plan: added, no alerting runtime enabled
