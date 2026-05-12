@@ -39,6 +39,7 @@ latest asset record: globalpulse_hkex_latest_listed_company_asset_scan.md
 HKEXnews LLCI: official latest-listed-company JSON assets returned 200 application/json
 homecat0_e.json: 5 latest submissions with timestamp, stock, title/category text, file type, and webPath fields
 local Elixir runtime for LLCI JSON: Erlang :httpc returned 200 application/json
+source contract: globalpulse_hkex_latest_submissions_source_contract.md
 backend compatibility: Fly/application-runtime verification still pending
 decision: no HKEX source registration yet; homecat0_e.json is the preferred bounded parser/source-contract candidate
 ```
@@ -371,7 +372,8 @@ HKEX_LISTED_COMPANY_ENDPOINT_SCAN_RECORDED
 HKEX_LOCAL_ELIXIR_RUNTIME_PROBE_PASS
 HKEX_LATEST_LISTED_COMPANY_ASSET_SCAN_RECORDED
 HKEX_LATEST_LISTED_COMPANY_JSON_ASSET_CONFIRMED
-HKEX_SOURCE_REGISTRATION_BLOCKED_PENDING_BOUNDED_SOURCE_CONTRACT
+HKEX_LATEST_SUBMISSIONS_SOURCE_CONTRACT_RECORDED
+HKEX_SOURCE_REGISTRATION_BLOCKED_PENDING_RUNTIME_PROBE_AND_IMPLEMENTATION
 APAC_NEXT_LIVE_SOURCE_DECISION_RECORDED
 KR_LIVE_SOURCE_TRACK_DEFERRED_UNTIL_DEDICATED_BACKEND_EXISTS
 PRODUCTION_APAC_SCHEDULED_LIVE_POLLING_NOT_ENABLED

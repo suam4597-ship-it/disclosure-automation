@@ -24,6 +24,7 @@ PR #346 Add GlobalPulse CN/TW regional fixtures
 HKEX official listed-company endpoint scan: globalpulse_hkex_listed_company_endpoint_scan.md
 HKEX local Elixir runtime probe: globalpulse_hkex_local_elixir_runtime_probe_results.md
 HKEX latest listed-company asset scan: globalpulse_hkex_latest_listed_company_asset_scan.md
+HKEX latest submissions source contract: globalpulse_hkex_latest_submissions_source_contract.md
 ```
 
 ## CI Status for PR #346 Merge Commit
@@ -142,15 +143,15 @@ raw provider/auth/session/request material in public responses
 
 The CN/TW fixture layer is now visible in the public GlobalPulse UI.
 
-An HKEXnews official listed-company publication surface has now been scanned. The official Latest Listed Company Information JSON assets were also confirmed, including `homecat0_e.json` latest submissions. It is relevant, but source registration remains blocked until a bounded parser/source contract and Fly/application-runtime path are accepted.
+An HKEXnews official listed-company publication surface has now been scanned. The official Latest Listed Company Information JSON assets were also confirmed, including `homecat0_e.json` latest submissions. A bounded parser/source contract is now recorded. It is relevant, but source registration remains blocked until a Fly/application-runtime path and implementation PR are accepted.
 
 A local Erlang/Elixir `:httpc` probe returned 200 HTML for the bounded HKEX title-search URL and 200 application/json for the LLCI category/latest-submissions JSON assets. This does not replace the required Fly staging runtime probe.
 
 Recommended next options:
 
 ```text
-1. Draft a bounded HKEX homecat0_e.json parser/source contract.
-2. Run a Fly/application-runtime probe against the official HKEX homecat0_e.json latest-submissions asset.
+1. Run a Fly/application-runtime probe against the official HKEX homecat0_e.json latest-submissions asset.
+2. Add a bounded inactive HKEX parser/source candidate only after the runtime probe and contract are accepted.
 3. Move to APAC regional fixture/live-source verification.
 4. Keep JP deferred and tracked through issue #339 until source authority is decided.
 ```
