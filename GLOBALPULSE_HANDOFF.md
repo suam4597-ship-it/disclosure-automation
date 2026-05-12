@@ -152,6 +152,12 @@ For the latest Denmark DFSA OAM later scheduled observation, read:
 apps/backend/disclosure_api/docs/globalpulse_denmark_dfsa_oam_later_scheduled_observation_20260512.md
 ```
 
+For the latest scheduled staging rollup, read:
+
+```text
+apps/backend/disclosure_api/docs/globalpulse_latest_scheduled_staging_rollup_20260513.md
+```
+
 For the India NSE interim scheduled observation, read:
 
 ```text
@@ -377,8 +383,9 @@ public web smoke first daily scheduled run: pass, run 25712711038, digest item_c
 India NSE scheduled observation refresh: pass, recent inspected runs now include 25719883720 and 25730184956
 EU canary later-run observation: pass, latest recorded runs 25718344882 and 25729286004
 Denmark DFSA OAM later scheduled observation: pass, latest recorded runs 25720174153 and 25730389870
+latest scheduled staging rollup: pass, runs 25741580440, 25742257297, 25743490299, 25744353562, and 25744795173
 HKEX first automated scheduled staging run: pass, run 25684138207
-HKEX scheduled staging observation: 7/10 successful run gate, latest run 25729361512
+HKEX scheduled staging observation: 8/10 successful run gate, latest run 25743490299
 public Pages smoke: 200
 public config smoke: 200
 Fly staging health: 200 ok

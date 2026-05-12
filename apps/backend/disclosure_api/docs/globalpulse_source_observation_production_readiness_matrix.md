@@ -18,6 +18,7 @@ CURRENT_PUBLIC_WEB_DIGEST_DIVERSITY_OBSERVATION_RECORDED
 CURRENT_PUBLIC_WEB_DIGEST_DIVERSITY_REFRESH_RECORDED
 SOURCE_HEALTH_DRIFT_OBSERVATION_RECORDED
 PRODUCTION_APPROVAL_BLOCKER_STATUS_RECORDED
+LATEST_SCHEDULED_STAGING_ROLLUP_RECORDED
 EU_CANARY_LIVE_STAGING_OBSERVED
 EU_CANARY_SECOND_FOLLOWUP_OBSERVED
 EU_CANARY_LATER_RUN_OBSERVED
@@ -95,7 +96,7 @@ workflow canary aliases: eu_scheduled_staging_canary and denmark_dfsa_oam_stagin
 | India NSE | Live staging observed through scheduled workflow; top-N digest visibility is not guaranteed for every global digest | Interim scheduled observation recorded recent runs `25694981715`, `25699447717`, `25703573653`, and `25713273293` in `globalpulse_india_nse_interim_scheduled_observation_20260512.md`; scheduled observation refresh recorded later runs `25719883720` and `25730184956` in `globalpulse_india_nse_scheduled_observation_refresh_20260512.md`, with `metadata.fallback_to_fixture=false` | Continue 7-day observation window and record final run counts/failures before source-promotion decision |
 | EU canary batch | Live staging canary observed through scheduled workflow; latest inspected digest included EU rows | `globalpulse_eu_scheduled_staging_canary_first_cron_observation.md`; later payload review recorded; follow-up run `25680178601` recorded in `globalpulse_eu_scheduled_staging_canary_followup_observation_20260511.md`; second follow-up run `25698983703` and run `25712655792` recorded in `globalpulse_eu_scheduled_staging_canary_second_followup_observation_20260512.md`; later runs `25718344882` and `25729286004` recorded in `globalpulse_eu_scheduled_staging_canary_later_run_observation_20260512.md` | Continue multi-day scheduled observation and digest-diversity checks; do not add Germany/PSE to first canary automatically |
 | Denmark DFSA OAM | Live EU northern coverage observed, with Denmark top-N visibility returning in later scheduled observations | Public smoke digest includes `dk_dfsa_oam_company_announcements` with `eu_north`; follow-up scheduled run `25680895829` recorded in `globalpulse_denmark_dfsa_oam_followup_scheduled_observation_20260511.md`; second follow-up run `25699532618` and run `25713328609` recorded in `globalpulse_denmark_dfsa_oam_second_followup_scheduled_observation_20260512.md`; later runs `25720174153` and `25730389870` recorded in `globalpulse_denmark_dfsa_oam_later_scheduled_observation_20260512.md` | Keep inside EU observation path and continue digest-diversity checks; no production schedule yet |
-| HKEX | Manual, first automated, and follow-up scheduled staging runs observed; public digest visibility observed but not guaranteed in every global top-N digest | `globalpulse_hkex_second_manual_observation_results.md`; first scheduled run `25684138207` recorded in `globalpulse_hkex_first_automated_scheduled_run_results.md`; follow-up observation recorded 5 successful scheduled runs through `25712752961` in `globalpulse_hkex_scheduled_staging_followup_observation_20260512.md`; seven-run observation recorded through `25729361512` in `globalpulse_hkex_scheduled_staging_seven_run_observation_20260512.md` | Continue 7-day / 10-run staging observation before any promotion |
+| HKEX | Manual, first automated, and follow-up scheduled staging runs observed; public digest visibility observed but not guaranteed in every global top-N digest | `globalpulse_hkex_second_manual_observation_results.md`; first scheduled run `25684138207` recorded in `globalpulse_hkex_first_automated_scheduled_run_results.md`; follow-up observation recorded 5 successful scheduled runs through `25712752961` in `globalpulse_hkex_scheduled_staging_followup_observation_20260512.md`; seven-run observation recorded through `25729361512` in `globalpulse_hkex_scheduled_staging_seven_run_observation_20260512.md`; latest rollup advanced HKEX to run `25743490299` in `globalpulse_latest_scheduled_staging_rollup_20260513.md` | Continue 7-day / 10-run staging observation before any promotion |
 | ASEAN/Vietnam | Live staging visible in public digest | Public smoke digest includes `vn_hnx_issuer_disclosures` with `asean` | Continue candidate observation; do not claim complete ASEAN coverage |
 | Switzerland SIX | Live staging visible in public digest | Public smoke digest includes `ch_six_ser_official_notices` | Continue EU/source-specific observation; no production approval yet |
 | UK FCA NSM | Live staging visible in public digest | Public smoke digest includes `uk_fca_nsm_regulated_information` | Continue source-specific observation; no production approval yet |
@@ -139,7 +140,7 @@ no unexpected public response shape changes
 ```text
 production backend app/database/frontend URL not approved
 production source schedule policy not approved
-HKEX needs continued scheduled staging observation after 7 successful scheduled runs; target remains 7-day / 10 successful runs
+HKEX needs continued scheduled staging observation after 8 successful scheduled runs; target remains 7-day / 10 successful runs
 JP source authority unresolved
 KR dedicated backend/source path not designed
 Germany Company Register and Prague/PSE remain design/staging-only paths
