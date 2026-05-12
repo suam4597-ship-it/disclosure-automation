@@ -27,6 +27,8 @@ SCHEDULED_WORKFLOW_OBSERVATION_COOKBOOK_REFRESHED
 FIRST_DAILY_SCHEDULED_PUBLIC_WEB_SMOKE_PENDING_OBSERVATION_RECORDED
 PUBLIC_WEB_SMOKE_DAILY_SCHEDULE_FOLLOWUP_PENDING_RECORDED
 PUBLIC_WEB_SMOKE_DEFAULT_BRANCH_SCHEDULE_REVIEW_RECORDED
+FIRST_DAILY_SCHEDULED_PUBLIC_WEB_SMOKE_PASS_RECORDED
+PUBLIC_WEB_DIGEST_DIVERSITY_RECOVERED_IN_TOP_N
 SOURCE_HEALTH_DRIFT_OBSERVATION_RECORDED
 PRODUCTION_APPROVAL_BLOCKER_STATUS_RECORDED
 POWERSHELL_GITHUB_REST_OBSERVATION_FALLBACK_RECORDED
@@ -44,8 +46,8 @@ REMOTE_HANDOFF_REFRESHED_FOR_MULTI_LOCAL_WORK
 ```text
 repo: suam4597-ship-it/disclosure-automation
 primary working branch: phase0-foundation
-current head: 2416b0d0b565e81acb99709857f53b871959e382
-latest merged PR: #592 Record public web smoke daily schedule follow-up pending
+current head: a7ff5a156309abd442fd5172fe6d3ce1113f3db7
+latest merged PR: #593 Record public web smoke default branch schedule review
 worktree expectation: clean
 ```
 
@@ -77,7 +79,7 @@ Fly staging backend: https://globalpulse-backend-staging.fly.dev
 
 ## Current Smoke Snapshot
 
-Checked from a local Windows PowerShell environment:
+Latest scheduled public web smoke and local health checks:
 
 ```text
 GET public Pages /: 200
@@ -89,17 +91,17 @@ health.phase: phase1
 health.repo: up
 GET Fly staging /api/feed/digest/latest?edition=breaking: 200
 digest.digest_date: 2026-05-12
-digest.item_count: 10
+digest.item_count: 12
 digest.metadata.fallback_to_fixture: false
-latest observed source distribution: india_nse_announcements=10
-latest observed region distribution: india=10
+latest observed source distribution: hkex_latest_listed_company_information, eu_euronext_company_press_releases, india_nse_announcements
+latest observed region distribution: greater_china, eu, india
 ```
 
-This confirms the public website and staging backend are currently connected and live-backed. The latest inspected top-N digest is India-only, so digest diversity remains an observation item. This does not approve production deployment or production scheduled polling.
+This confirms the public website and staging backend are currently connected and live-backed. The latest inspected scheduled public smoke top-N digest includes HKEX, EU Euronext, and India rows. This does not approve production deployment or production scheduled polling.
 
 ## Current CI Snapshot
 
-For head `2416b0d0b565e81acb99709857f53b871959e382`, push and pull-request checks completed successfully:
+For head `a7ff5a156309abd442fd5172fe6d3ce1113f3db7`, push and pull-request checks completed successfully:
 
 ```text
 Phase 0 validate: success
@@ -121,10 +123,10 @@ India NSE schedule: 37 */2 * * 1-5
 India NSE source key: india_nse_announcements
 India NSE result: pass, live/200, bounded records, digest fallback=false, India rows visible in inspected top-N digests
 
-EU canary follow-up runs: 25680178601 and 25698983703
+EU canary follow-up runs: 25680178601, 25698983703, and 25712655792
 EU schedule: 17 */4 * * 1-5
 EU source key: eu_scheduled_staging_canary
-EU result: pass, all eight canary sources live/200, digest fallback=false; latest inspected digest top-N was India-only, so digest diversity remains under observation
+EU result: pass, all eight canary sources live/200, digest fallback=false; latest inspected public digest includes EU Euronext rows
 
 Denmark DFSA OAM follow-up runs: 25680895829 and 25699532618
 Denmark schedule: 47 */4 * * 1-5
@@ -135,7 +137,7 @@ HKEX schedule: 22 */2 * * 1-5
 HKEX source key: hkex_latest_listed_company_information
 HKEX first automated scheduled run: pass, run 25684138207
 HKEX result doc: globalpulse_hkex_first_automated_scheduled_run_results.md
-HKEX follow-up observation: 4 successful scheduled runs recorded, latest run 25702861937
+HKEX follow-up observation: 5 successful scheduled runs recorded, latest run 25712752961
 HKEX follow-up doc: globalpulse_hkex_scheduled_staging_followup_observation_20260512.md
 
 Latest scheduled staging poll no-new-run gap: latest observed scheduled run remained SEC hourly run 25704707578 at 2026-05-12T00:03:29Z; no newer HKEX, EU, Denmark, or India matching run was observed in that check.
@@ -147,9 +149,11 @@ Staging digest transient retry observation: one digest request returned 500 duri
 
 SEC hourly scheduled run after gap: run 25712461043 passed with source sec_press_releases, SCHEDULE_EXPR 7 * * * *, poll 202, live/200, records_seen=25, records_inserted=25, and digest fallback=false. This confirms live staging poll liveness resumed but is not HKEX/EU/Denmark/India evidence.
 
-Public web smoke daily schedule follow-up: no event=schedule run observed yet; only workflow_dispatch runs 25677329262 and 25676030410 remained visible in the inspected run list.
+Public web smoke daily schedule follow-up: first event=schedule run observed and passed, run 25712711038, with public Pages/config/health/digest checks passing.
 
 Public web smoke default-branch schedule review: repo default_branch is main, workflow file is present on main, and daily cron marker remains present. No default-branch mismatch cause was observed.
+
+Public digest diversity: first scheduled public web smoke observed digest item_count=12, fallback=false, and HKEX/EU/India rows in the top-N digest.
 ```
 
 HKEX was marked passed only from real `schedule` event artifacts resolving to `source_key=hkex_latest_listed_company_information`. Continue observation before any production schedule decision.
@@ -171,7 +175,7 @@ git status --short
 Expected:
 
 ```text
-HEAD: 2416b0d0b565e81acb99709857f53b871959e382 or newer
+HEAD: a7ff5a156309abd442fd5172fe6d3ce1113f3db7 or newer
 git status --short: empty
 ```
 
@@ -258,11 +262,11 @@ Current best sequence:
 1. Use `globalpulse_web_remaining_implementation_workflow.md` as the website workflow queue.
 2. Continue HKEX scheduled staging observation toward the 7-day / 10 successful run gate.
 3. Continue scheduled observation summaries for EU canary, Denmark DFSA OAM, and India NSE as runs accumulate.
-4. Record a new digest diversity observation when non-India rows reappear in the latest top-N digest.
-5. Keep daily public web smoke observation healthy.
-6. Record the first daily scheduled public web smoke run when an event=schedule run appears.
+4. Keep daily public web smoke observation healthy.
+5. Record future digest diversity regressions or recoveries as scheduled observations accumulate.
+6. Continue scheduled staging poll liveness observation only if a new no-run gap appears.
 7. Use source-health drift checks as context when scheduled observation failures appear.
-8. Continue scheduled staging poll liveness observation if no new scheduled run appears after 25704707578.
+8. Keep HKEX/EU/Denmark/India evidence separate from SEC and public web smoke evidence.
 9. Prepare production only after Issue #561 values are approved; latest check has comments=0.
 10. Promote sources only after Issue #565 source-by-source approvals are recorded; latest check has comments=0.
 ```
