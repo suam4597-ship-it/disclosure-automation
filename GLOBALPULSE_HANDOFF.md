@@ -56,6 +56,12 @@ For the public web smoke daily schedule follow-up pending observation, read:
 apps/backend/disclosure_api/docs/globalpulse_public_web_smoke_daily_schedule_followup_pending_20260512.md
 ```
 
+For the public web smoke default-branch schedule review, read:
+
+```text
+apps/backend/disclosure_api/docs/globalpulse_public_web_smoke_default_branch_schedule_review_20260512.md
+```
+
 For frontend runtime config promotion rules, read:
 
 ```text
@@ -227,8 +233,8 @@ apps/backend/disclosure_api/docs/globalpulse_sec_hourly_scheduled_run_after_live
 Current remote continuation status:
 
 ```text
-current phase0 head: d5cae187b5aac8de58b132f384c22b257e389407
-latest merged PR: #591 Record SEC hourly scheduled run after liveness gap
+current phase0 head: 2416b0d0b565e81acb99709857f53b871959e382
+latest merged PR: #592 Record public web smoke daily schedule follow-up pending
 phase0 public web smoke workflow PR: #544 merged
 main public web smoke activation PR: #545 merged
 workflow id: 274668919
@@ -259,6 +265,7 @@ scheduled workflow liveness state review: live staging poll and public web smoke
 staging digest transient 500 retry observation: one digest 500 recovered to 200, health remained 200 ok
 SEC hourly scheduled run after gap: pass, run 25712461043, source sec_press_releases, poll 202, live/200, records_seen=25, records_inserted=25, digest fallback=false
 public web smoke daily schedule follow-up: still pending, only workflow_dispatch runs observed
+public web smoke default-branch schedule review: default_branch=main, workflow file present on main, daily cron marker present
 India NSE interim scheduled observation: pass, recent runs 25694981715, 25699447717, 25703573653
 EU canary follow-up scheduled observation: pass, runs 25680178601 and 25698983703
 Denmark DFSA OAM follow-up scheduled observation: pass, runs 25680895829 and 25699532618

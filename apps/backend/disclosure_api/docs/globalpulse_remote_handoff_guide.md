@@ -126,6 +126,12 @@ Public web smoke daily schedule follow-up pending observation:
 globalpulse_public_web_smoke_daily_schedule_followup_pending_20260512.md
 ```
 
+Public web smoke default-branch schedule review:
+
+```text
+globalpulse_public_web_smoke_default_branch_schedule_review_20260512.md
+```
+
 Latest scheduled staging poll no-new-run gap observation:
 
 ```text
@@ -173,8 +179,8 @@ globalpulse_production_deployment_runbook.md
 ```text
 repo: suam4597-ship-it/disclosure-automation
 primary working branch: phase0-foundation
-current anchor commit: d5cae187b5aac8de58b132f384c22b257e389407
-latest phase0 anchor PR: #591 Record SEC hourly scheduled run after liveness gap
+current anchor commit: 2416b0d0b565e81acb99709857f53b871959e382
+latest phase0 anchor PR: #592 Record public web smoke daily schedule follow-up pending
 default-branch schedule activation PR: #541 Activate HKEX staging schedule on main
 main schedule activation commit: 423ca7fa710b04de56a74b0a1ee092b43597b8a1
 default-branch public web smoke activation PR: #545 Activate public web smoke workflow on main
@@ -201,7 +207,7 @@ Expected:
 
 ```text
 git status --short: empty
-HEAD: d5cae187b5aac8de58b132f384c22b257e389407 or a newer origin/phase0-foundation commit
+HEAD: 2416b0d0b565e81acb99709857f53b871959e382 or a newer origin/phase0-foundation commit
 ```
 
 If the local checkout has unrelated uncommitted work, do not overwrite it. Either use a fresh clone or create a new branch and inspect the diff first.
@@ -261,6 +267,7 @@ scheduled workflow liveness state review: live staging poll and public web smoke
 staging digest transient 500 retry observation: one digest 500 recovered to 200, health remained 200 ok
 SEC hourly scheduled run after gap: pass, run 25712461043, source sec_press_releases, poll 202, live/200, records_seen=25, records_inserted=25, digest fallback=false
 public web smoke daily schedule follow-up: still pending, only workflow_dispatch runs observed
+public web smoke default-branch schedule review: default_branch=main, workflow file present on main, daily cron marker present
 ```
 
 The project is no longer in the "can we find sources?" phase for Europe. Europe now needs observation, promotion gates, digest diversity checks, and rollback evidence.
