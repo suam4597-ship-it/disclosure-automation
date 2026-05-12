@@ -99,6 +99,7 @@ Latest approval status check:
 production approval issue #561: open, comments 1, approval request posted
 source promotion issue #565: open, comments 1, approval request posted
 approval blocker status doc: globalpulse_production_approval_blocker_status_20260512.md
+operator approval intake packet: globalpulse_operator_approval_intake_packet.md
 ```
 
 Required values:
@@ -226,7 +227,8 @@ If no production approvals are available:
 1. Continue scheduled observation summaries.
 2. Keep public web smoke workflow healthy.
 3. Record digest diversity observation when non-India rows reappear in latest top-N.
-4. Investigate only high-confidence official endpoint blockers.
+4. Keep the operator approval intake packet current if issue #561/#565 replies change.
+5. Investigate only high-confidence official endpoint blockers.
 ```
 
 If production approvals are available:
