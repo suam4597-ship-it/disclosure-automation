@@ -128,6 +128,12 @@ For the source-observation production readiness matrix, read:
 apps/backend/disclosure_api/docs/globalpulse_source_observation_production_readiness_matrix.md
 ```
 
+For the latest source-health drift observation, read:
+
+```text
+apps/backend/disclosure_api/docs/globalpulse_source_health_drift_observation_20260512.md
+```
+
 For the first monitoring and incident-response plan, read:
 
 ```text
@@ -179,14 +185,15 @@ apps/backend/disclosure_api/docs/globalpulse_scheduled_workflow_observation_cook
 Current remote continuation status:
 
 ```text
-current phase0 head: 49bf5667f027301da02ab7b90e1ccbe239eea600
-latest merged PR: #582 Refresh GlobalPulse scheduled observation cookbook
+current phase0 head: e0d9190dc9d361ee68391224b057650d85865a5a
+latest merged PR: #583 Record public web smoke daily schedule pending observation
 phase0 public web smoke workflow PR: #544 merged
 main public web smoke activation PR: #545 merged
 workflow id: 274668919
 first workflow_dispatch result: pass, run 25676030410
 daily workflow main maintenance verification: pass, run 25677329262
 first daily scheduled public web smoke run: pending observation, no event=schedule run observed yet
+source-health drift observation: real source keys reachable, workflow canary aliases are not source-health keys
 HKEX first automated scheduled staging run: pass, run 25684138207
 HKEX scheduled staging follow-up observation: 4 successful scheduled runs recorded, latest run 25702861937
 next HKEX gate: continue scheduled staging observation toward 7-day / 10 successful run gate
