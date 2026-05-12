@@ -239,8 +239,8 @@ apps/backend/disclosure_api/docs/globalpulse_sec_hourly_scheduled_run_after_live
 Current remote continuation status:
 
 ```text
-current phase0 head: 7a6f7f9cf97420acf109a1ce5dfc722bb9033084
-latest merged PR: #597 Record latest Denmark scheduled observation
+current phase0 head: 568580766a82b61803dd7a87a65ba400ee5d820f
+latest merged PR: #598 Record latest India NSE scheduled observation
 phase0 public web smoke workflow PR: #544 merged
 main public web smoke activation PR: #545 merged
 workflow id: 274668919
@@ -248,7 +248,7 @@ first workflow_dispatch result: pass, run 25676030410
 daily workflow main maintenance verification: pass, run 25677329262
 first daily scheduled public web smoke run: pass, run 25712711038, event=schedule, public Pages/config/health/digest passed
 source-health drift observation: real source keys reachable, workflow canary aliases are not source-health keys
-production approval blocker status: #561 open comments=0, #565 open comments=0
+production approval blocker status: #561 open comments=1 approval request posted, #565 open comments=1 approval request posted
 HKEX first automated scheduled staging run: pass, run 25684138207
 HKEX scheduled staging follow-up observation: 5 successful scheduled runs recorded, latest run 25712752961
 next HKEX gate: continue scheduled staging observation toward 7-day / 10 successful run gate

@@ -185,8 +185,8 @@ globalpulse_production_deployment_runbook.md
 ```text
 repo: suam4597-ship-it/disclosure-automation
 primary working branch: phase0-foundation
-current anchor commit: 7a6f7f9cf97420acf109a1ce5dfc722bb9033084
-latest phase0 anchor PR: #597 Record latest Denmark scheduled observation
+current anchor commit: 568580766a82b61803dd7a87a65ba400ee5d820f
+latest phase0 anchor PR: #598 Record latest India NSE scheduled observation
 default-branch schedule activation PR: #541 Activate HKEX staging schedule on main
 main schedule activation commit: 423ca7fa710b04de56a74b0a1ee092b43597b8a1
 default-branch public web smoke activation PR: #545 Activate public web smoke workflow on main
@@ -213,7 +213,7 @@ Expected:
 
 ```text
 git status --short: empty
-HEAD: 7a6f7f9cf97420acf109a1ce5dfc722bb9033084 or a newer origin/phase0-foundation commit
+HEAD: 568580766a82b61803dd7a87a65ba400ee5d820f or a newer origin/phase0-foundation commit
 ```
 
 If the local checkout has unrelated uncommitted work, do not overwrite it. Either use a fresh clone or create a new branch and inspect the diff first.
@@ -266,7 +266,7 @@ current Fly staging digest: 200, item_count=12, fallback=false
 latest digest diversity observation: public scheduled smoke top-N includes HKEX, EU Euronext, and India
 first daily scheduled public web smoke run: pass, run 25712711038, event=schedule
 source-health drift observation: real source keys reachable; workflow canary aliases are not registered source-health keys
-production approval blocker status: #561 open comments=0, #565 open comments=0
+production approval blocker status: #561 open comments=1 approval request posted, #565 open comments=1 approval request posted
 scheduled staging poll no-new-run gap: superseded by later SEC/EU/HKEX scheduled success runs
 scheduled workflow liveness review checklist: use before changing schedules after a no-new-run gap
 scheduled workflow liveness state review: live staging poll and public web smoke workflows active on main

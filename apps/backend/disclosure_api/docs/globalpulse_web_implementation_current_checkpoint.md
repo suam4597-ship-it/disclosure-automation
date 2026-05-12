@@ -46,8 +46,8 @@ REMOTE_HANDOFF_REFRESHED_FOR_MULTI_LOCAL_WORK
 ```text
 repo: suam4597-ship-it/disclosure-automation
 primary working branch: phase0-foundation
-current head: 7a6f7f9cf97420acf109a1ce5dfc722bb9033084
-latest merged PR: #597 Record latest Denmark scheduled observation
+current head: 568580766a82b61803dd7a87a65ba400ee5d820f
+latest merged PR: #598 Record latest India NSE scheduled observation
 worktree expectation: clean
 ```
 
@@ -101,7 +101,7 @@ This confirms the public website and staging backend are currently connected and
 
 ## Current CI Snapshot
 
-For head `7a6f7f9cf97420acf109a1ce5dfc722bb9033084`, push and pull-request checks completed successfully:
+For head `568580766a82b61803dd7a87a65ba400ee5d820f`, push and pull-request checks completed successfully:
 
 ```text
 Phase 0 validate: success
@@ -175,7 +175,7 @@ git status --short
 Expected:
 
 ```text
-HEAD: 7a6f7f9cf97420acf109a1ce5dfc722bb9033084 or newer
+HEAD: 568580766a82b61803dd7a87a65ba400ee5d820f or newer
 git status --short: empty
 ```
 
@@ -267,8 +267,8 @@ Current best sequence:
 6. Continue scheduled staging poll liveness observation only if a new no-run gap appears.
 7. Use source-health drift checks as context when scheduled observation failures appear.
 8. Keep HKEX/EU/Denmark/India evidence separate from SEC and public web smoke evidence.
-9. Prepare production only after Issue #561 values are approved; latest check has comments=0.
-10. Promote sources only after Issue #565 source-by-source approvals are recorded; latest check has comments=0.
+9. Prepare production only after Issue #561 values are approved; latest check has comments=1 with approval request posted and no operator values yet.
+10. Promote sources only after Issue #565 source-by-source approvals are recorded; latest check has comments=1 with approval request posted and no source approvals yet.
 ```
 
 HKEX pass criteria are recorded in:
