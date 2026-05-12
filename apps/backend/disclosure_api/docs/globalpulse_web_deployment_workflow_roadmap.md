@@ -115,10 +115,10 @@ resolved schedule: 22 */2 * * 1-5
 resolved source: hkex_latest_listed_company_information
 result doc: globalpulse_hkex_first_automated_scheduled_run_results.md
 follow-up observation doc: globalpulse_hkex_scheduled_staging_followup_observation_20260512.md
-follow-up observation status: 4 successful scheduled runs recorded, latest run 25702861937
+follow-up observation status: 5 successful scheduled runs recorded, latest run 25712752961
 historical pending doc: globalpulse_hkex_scheduled_staging_pending_status.md
 observation command path: globalpulse_scheduled_workflow_observation_cookbook.md
-latest non-HKEX scheduled observations: India runs 25694981715, 25699447717, and 25703573653; EU runs 25680178601 and 25698983703; Denmark runs 25680895829 and 25699532618
+latest non-HKEX scheduled observations: India runs 25694981715, 25699447717, 25703573653, and 25713273293; EU runs 25680178601, 25698983703, and 25712655792; Denmark runs 25680895829, 25699532618, and 25713328609
 ```
 
 Output PR:

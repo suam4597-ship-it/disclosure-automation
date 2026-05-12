@@ -185,8 +185,8 @@ globalpulse_production_deployment_runbook.md
 ```text
 repo: suam4597-ship-it/disclosure-automation
 primary working branch: phase0-foundation
-current anchor commit: dccb3e6a99b4b037356756626736baa727ce1896
-latest phase0 anchor PR: #596 Record latest EU canary scheduled observation
+current anchor commit: 7a6f7f9cf97420acf109a1ce5dfc722bb9033084
+latest phase0 anchor PR: #597 Record latest Denmark scheduled observation
 default-branch schedule activation PR: #541 Activate HKEX staging schedule on main
 main schedule activation commit: 423ca7fa710b04de56a74b0a1ee092b43597b8a1
 default-branch public web smoke activation PR: #545 Activate public web smoke workflow on main
@@ -213,7 +213,7 @@ Expected:
 
 ```text
 git status --short: empty
-HEAD: dccb3e6a99b4b037356756626736baa727ce1896 or a newer origin/phase0-foundation commit
+HEAD: 7a6f7f9cf97420acf109a1ce5dfc722bb9033084 or a newer origin/phase0-foundation commit
 ```
 
 If the local checkout has unrelated uncommitted work, do not overwrite it. Either use a fresh clone or create a new branch and inspect the diff first.
@@ -321,7 +321,7 @@ Pause broad Europe source discovery unless a high-confidence official endpoint o
 India NSE official RSS: inactive/manual staging source
 staging schedule: configured
 first automated scheduled staging run: pass
-interim scheduled observation: pass, recent runs 25694981715, 25699447717, 25703573653
+interim scheduled observation: pass, recent runs 25694981715, 25699447717, 25703573653, and 25713273293
 next gate: 7-day observation window and final scheduled run summary
 production scheduled polling: not enabled
 ```
@@ -453,7 +453,7 @@ EU canary payload review run: 25650523685
 EU canary second follow-up run: 25698983703
 EU canary latest scheduled run: 25712655792
 India NSE first scheduled run: 25650796284
-India NSE interim observation recent runs: 25694981715, 25699447717, 25703573653
+India NSE interim observation recent runs: 25694981715, 25699447717, 25703573653, and 25713273293
 Denmark DFSA OAM first automated scheduled run: 25668194957
 Denmark DFSA OAM second follow-up run: 25699532618
 Denmark DFSA OAM latest scheduled run: 25713328609
