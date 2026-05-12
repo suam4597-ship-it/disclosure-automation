@@ -65,6 +65,12 @@ The post-expansion plan is now recorded in:
 globalpulse_post_expansion_next_step_plan.md
 ```
 
+The ordered remaining website implementation workflow is recorded in:
+
+```text
+globalpulse_web_remaining_implementation_workflow.md
+```
+
 Default next posture:
 
 ```text

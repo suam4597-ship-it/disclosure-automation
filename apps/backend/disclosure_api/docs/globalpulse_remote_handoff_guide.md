@@ -84,6 +84,12 @@ Post-expansion next-step plan:
 globalpulse_post_expansion_next_step_plan.md
 ```
 
+Remaining website implementation workflow:
+
+```text
+globalpulse_web_remaining_implementation_workflow.md
+```
+
 Public web smoke daily schedule:
 
 ```text
@@ -107,8 +113,8 @@ globalpulse_production_deployment_runbook.md
 ```text
 repo: suam4597-ship-it/disclosure-automation
 primary working branch: phase0-foundation
-current anchor commit: 09062dce6ab0e52bf518990281bb477f6907b8cd
-latest phase0 anchor PR: #578 Record India NSE interim scheduled observation
+current anchor commit: 5562d92463189ce1c8d994746af41e9220de2665
+latest phase0 anchor PR: #579 Record GlobalPulse post-expansion next step plan
 default-branch schedule activation PR: #541 Activate HKEX staging schedule on main
 main schedule activation commit: 423ca7fa710b04de56a74b0a1ee092b43597b8a1
 default-branch public web smoke activation PR: #545 Activate public web smoke workflow on main
@@ -135,7 +141,7 @@ Expected:
 
 ```text
 git status --short: empty
-HEAD: 09062dce6ab0e52bf518990281bb477f6907b8cd or a newer origin/phase0-foundation commit
+HEAD: 5562d92463189ce1c8d994746af41e9220de2665 or a newer origin/phase0-foundation commit
 ```
 
 If the local checkout has unrelated uncommitted work, do not overwrite it. Either use a fresh clone or create a new branch and inspect the diff first.
@@ -283,15 +289,16 @@ JP live polling: blocked by issue #339 until source authority decision
 
 ## Recommended Next Work Queue
 
-1. Continue HKEX scheduled staging observation toward the 7-day / 10 successful run gate.
-2. Continue EU scheduled staging canary observation summaries and digest-diversity checks as runs accumulate.
-3. Continue Denmark DFSA OAM scheduled observation summaries and digest-diversity checks as runs accumulate.
-4. Continue India NSE 7-day staging observation.
-5. Record scheduled-canary digest diversity and public Pages visibility smoke.
-6. Keep public Pages + Fly staging web smoke workflow healthy.
-7. Revisit Taiwan/SET/Vietnam cadence only through staging-only design PRs.
-8. Use production deployment templates only after production backend app/database/CORS choices are approved.
-9. Record production infrastructure decision values only after operator approval in issue #561.
+1. Use globalpulse_web_remaining_implementation_workflow.md as the website workflow queue.
+2. Record current public web smoke and digest diversity state.
+3. Continue HKEX scheduled staging observation toward the 7-day / 10 successful run gate.
+4. Continue EU scheduled staging canary observation summaries and digest-diversity checks as runs accumulate.
+5. Continue Denmark DFSA OAM scheduled observation summaries and digest-diversity checks as runs accumulate.
+6. Continue India NSE 7-day staging observation.
+7. Keep public Pages + Fly staging web smoke workflow healthy.
+8. Revisit Taiwan/SET/Vietnam cadence only through staging-only design PRs.
+9. Use production deployment templates only after production backend app/database/CORS choices are approved.
+10. Record production infrastructure decision values only after operator approval in issue #561.
 
 ## HKEX Next-Step Contract
 
