@@ -62,6 +62,12 @@ For the public web smoke default-branch schedule review, read:
 apps/backend/disclosure_api/docs/globalpulse_public_web_smoke_default_branch_schedule_review_20260512.md
 ```
 
+For the public web smoke workflow hardening result, read:
+
+```text
+apps/backend/disclosure_api/docs/globalpulse_public_web_smoke_workflow_hardening_results.md
+```
+
 For the first successful daily scheduled public web smoke run, read:
 
 ```text
@@ -281,8 +287,8 @@ apps/backend/disclosure_api/docs/globalpulse_sec_hourly_scheduled_run_after_live
 Current remote continuation status:
 
 ```text
-current phase0 head: 974847921b1680e86438e2063c03a907f35470b6
-latest merged PR: #606 Add GlobalPulse source promotion decision template
+current phase0 head: 9ff91b8d40cd34c797e7573d1978813294717d57
+latest merged PR: #607 Harden GlobalPulse public web smoke workflow
 phase0 public web smoke workflow PR: #544 merged
 main public web smoke activation PR: #545 merged
 workflow id: 274668919
@@ -298,7 +304,8 @@ production frontend empty-state smoke checklist: added, not executable until emp
 production rollback stop checklist: added, use before production rollback/fix-forward decisions
 production deployment smoke record template: added, not executable until production smoke runs
 source production promotion decision template: added, no source promoted
-public web smoke production-ready inputs: pending PR, default staging schedule unchanged
+public web smoke production-ready inputs: added by #607, default staging schedule unchanged
+Pages deploy static JS syntax check: added by #607 and passed
 HKEX first automated scheduled staging run: pass, run 25684138207
 HKEX scheduled staging follow-up observation: 5 successful scheduled runs recorded, latest run 25712752961
 next HKEX gate: continue scheduled staging observation toward 7-day / 10 successful run gate
