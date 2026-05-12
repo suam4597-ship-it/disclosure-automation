@@ -27,6 +27,7 @@ SCHEDULED_WORKFLOW_OBSERVATION_COOKBOOK_REFRESHED
 FIRST_DAILY_SCHEDULED_PUBLIC_WEB_SMOKE_PENDING_OBSERVATION_RECORDED
 SOURCE_HEALTH_DRIFT_OBSERVATION_RECORDED
 PRODUCTION_APPROVAL_BLOCKER_STATUS_RECORDED
+POWERSHELL_GITHUB_REST_OBSERVATION_FALLBACK_RECORDED
 PRODUCTION_DEPLOYMENT_NOT_APPROVED
 REMOTE_HANDOFF_REFRESHED_FOR_MULTI_LOCAL_WORK
 ```
@@ -36,8 +37,8 @@ REMOTE_HANDOFF_REFRESHED_FOR_MULTI_LOCAL_WORK
 ```text
 repo: suam4597-ship-it/disclosure-automation
 primary working branch: phase0-foundation
-current head: ba8485da6d62598264fb8e980b29c5e3bf2f60cf
-latest merged PR: #584 Record GlobalPulse source health drift observation
+current head: 9424366ba476d0d2a72adcf5315c17ad4ac27684
+latest merged PR: #585 Record GlobalPulse production approval blocker status
 worktree expectation: clean
 ```
 
@@ -91,7 +92,7 @@ This confirms the public website and staging backend are currently connected and
 
 ## Current CI Snapshot
 
-For head `ba8485da6d62598264fb8e980b29c5e3bf2f60cf`, push and pull-request checks completed successfully:
+For head `9424366ba476d0d2a72adcf5315c17ad4ac27684`, push and pull-request checks completed successfully:
 
 ```text
 Phase 0 validate: success
@@ -150,7 +151,7 @@ git status --short
 Expected:
 
 ```text
-HEAD: ba8485da6d62598264fb8e980b29c5e3bf2f60cf or newer
+HEAD: 9424366ba476d0d2a72adcf5315c17ad4ac27684 or newer
 git status --short: empty
 ```
 
@@ -193,6 +194,12 @@ Check scheduled staging poll runs:
 gh run list --repo suam4597-ship-it/disclosure-automation --workflow globalpulse-live-staging-poll.yml --limit 20 --json databaseId,event,status,conclusion,createdAt,headSha,url,displayTitle |
   ConvertFrom-Json |
   ConvertTo-Json -Depth 8
+```
+
+If `gh` is unavailable, use the PowerShell REST fallback commands in:
+
+```text
+apps/backend/disclosure_api/docs/globalpulse_scheduled_workflow_observation_cookbook.md
 ```
 
 Inspect a candidate scheduled run:

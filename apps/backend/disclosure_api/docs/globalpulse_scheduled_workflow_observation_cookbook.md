@@ -11,7 +11,8 @@ This is documentation-only. It does not change workflows, source activation, bac
 ```text
 SCHEDULED_WORKFLOW_OBSERVATION_COOKBOOK_RECORDED
 SCHEDULED_WORKFLOW_OBSERVATION_COOKBOOK_REFRESHED
-PHASE0_AND_PHASE1_CI_GREEN_AFTER_PUBLIC_DIGEST_OBSERVATION
+POWERSHELL_GITHUB_REST_FALLBACK_RECORDED
+PHASE0_AND_PHASE1_CI_GREEN_AFTER_PRODUCTION_APPROVAL_BLOCKER_STATUS
 HKEX_FIRST_AUTOMATED_SCHEDULED_RUN_PASS_RECORDED
 HKEX_SCHEDULED_FOLLOWUP_OBSERVATION_RECORDED
 LATEST_OBSERVED_STAGING_POLL_RUN_WAS_SEC_HOURLY
@@ -21,10 +22,10 @@ PRODUCTION_SCHEDULED_POLLING_NOT_ENABLED
 
 ## Current Known Status
 
-The latest `phase0-foundation` CI after the public web digest diversity observation completed successfully:
+The latest `phase0-foundation` CI after the production approval blocker status completed successfully:
 
 ```text
-head: 359ba907962e3dcd55aba2f0013a0c049b9ae15d
+head: 9424366ba476d0d2a72adcf5315c17ad4ac27684
 Phase 0 validate: success
 Phase 0 report: success
 Phase 1 backend verify: success
@@ -114,6 +115,71 @@ For quick triage:
 ```powershell
 gh run view <run_id> --repo suam4597-ship-it/disclosure-automation --log |
   Select-String -Pattern 'SCHEDULE_EXPR|SOURCE_KEY|RUN_MODE|fetch.mode|fallback_to_fixture|records_seen|records_inserted|status_code|poll status|digest contract pass'
+```
+
+## PowerShell REST Fallback Without gh
+
+If `gh` is not installed or authenticated on a local machine, use GitHub's public REST API for readonly observation.
+
+List recent staging poll runs:
+
+```powershell
+$headers = @{ 'User-Agent' = 'globalpulse-observation' }
+$runs = Invoke-RestMethod -Headers $headers -Uri 'https://api.github.com/repos/suam4597-ship-it/disclosure-automation/actions/workflows/globalpulse-live-staging-poll.yml/runs?per_page=30&branch=main' -TimeoutSec 30
+$runs.workflow_runs |
+  Select-Object id,event,status,conclusion,created_at,head_sha,display_title |
+  Format-Table -AutoSize
+```
+
+List recent public web smoke runs:
+
+```powershell
+$headers = @{ 'User-Agent' = 'globalpulse-observation' }
+$runs = Invoke-RestMethod -Headers $headers -Uri 'https://api.github.com/repos/suam4597-ship-it/disclosure-automation/actions/workflows/globalpulse-public-web-smoke.yml/runs?per_page=20' -TimeoutSec 30
+$runs.workflow_runs |
+  Select-Object id,event,status,conclusion,created_at,head_branch,head_sha |
+  Format-Table -AutoSize
+```
+
+Check production approval blocker issues:
+
+```powershell
+$headers = @{ 'User-Agent' = 'globalpulse-observation' }
+foreach ($n in 561,565) {
+  $issue = Invoke-RestMethod -Headers $headers -Uri "https://api.github.com/repos/suam4597-ship-it/disclosure-automation/issues/$n" -TimeoutSec 30
+  [pscustomobject]@{
+    number = $issue.number
+    state = $issue.state
+    title = $issue.title
+    updated_at = $issue.updated_at
+    comments = $issue.comments
+  } | Format-List
+}
+```
+
+Check current public digest diversity:
+
+```powershell
+$digest = Invoke-RestMethod -Uri 'https://globalpulse-backend-staging.fly.dev/api/feed/digest/latest?edition=breaking' -TimeoutSec 30
+$items = @($digest.items)
+$sources = $items | ForEach-Object { $_.source.source_key } | Where-Object { $_ } | Group-Object | Sort-Object -Property Count,Name -Descending
+$regions = $items | ForEach-Object { @($_.regions)[0] } | Where-Object { $_ } | Group-Object | Sort-Object -Property Count,Name -Descending
+[pscustomobject]@{
+  digest_date = $digest.digest_date
+  edition = $digest.edition
+  item_count = $digest.item_count
+  fallback = $digest.metadata.fallback_to_fixture
+  sources = (($sources | ForEach-Object { "$($_.Name):$($_.Count)" }) -join ', ')
+  regions = (($regions | ForEach-Object { "$($_.Name):$($_.Count)" }) -join ', ')
+} | Format-List
+```
+
+Limitations:
+
+```text
+REST run lists are enough for wait-state triage.
+Detailed job logs still need gh or the GitHub connector log helpers.
+Do not infer SOURCE_KEY from timestamps alone; inspect logs before writing a source-specific observation PR.
 ```
 
 ## HKEX First-run Criteria
