@@ -12,7 +12,7 @@ This is documentation-only. It does not change workflows, source activation, bac
 SCHEDULED_WORKFLOW_OBSERVATION_COOKBOOK_RECORDED
 SCHEDULED_WORKFLOW_OBSERVATION_COOKBOOK_REFRESHED
 POWERSHELL_GITHUB_REST_FALLBACK_RECORDED
-PHASE0_AND_PHASE1_CI_GREEN_AFTER_REST_FALLBACK_COMMANDS
+PHASE0_AND_PHASE1_CI_GREEN_AFTER_SCHEDULED_RUN_GAP_OBSERVATION
 HKEX_FIRST_AUTOMATED_SCHEDULED_RUN_PASS_RECORDED
 HKEX_SCHEDULED_FOLLOWUP_OBSERVATION_RECORDED
 LATEST_OBSERVED_STAGING_POLL_RUN_WAS_SEC_HOURLY
@@ -23,10 +23,10 @@ PRODUCTION_SCHEDULED_POLLING_NOT_ENABLED
 
 ## Current Known Status
 
-The latest `phase0-foundation` CI after the PowerShell REST observation fallback commands completed successfully:
+The latest `phase0-foundation` CI after the scheduled staging poll no-new-run gap observation completed successfully:
 
 ```text
-head: 37ae146f2f938572468929cf7f1bf5669cbfe3a4
+head: 9311db8ac124010fa11595d72cccd7c780a90223
 Phase 0 validate: success
 Phase 0 report: success
 Phase 1 backend verify: success
@@ -268,6 +268,12 @@ checking source-promotion issue comments for approvals
 ```
 
 Do not treat GitHub schedule delay as a source failure unless a matching source run actually executes and fails.
+
+For a fuller liveness triage path before changing workflow schedules, use:
+
+```text
+globalpulse_scheduled_workflow_liveness_review_checklist.md
+```
 
 ## Guardrails
 

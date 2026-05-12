@@ -126,6 +126,12 @@ Latest scheduled staging poll no-new-run gap observation:
 globalpulse_scheduled_staging_poll_no_new_run_gap_observation_20260512.md
 ```
 
+Scheduled workflow liveness review checklist:
+
+```text
+globalpulse_scheduled_workflow_liveness_review_checklist.md
+```
+
 Production backend deployment design:
 
 ```text
@@ -143,8 +149,8 @@ globalpulse_production_deployment_runbook.md
 ```text
 repo: suam4597-ship-it/disclosure-automation
 primary working branch: phase0-foundation
-current anchor commit: 37ae146f2f938572468929cf7f1bf5669cbfe3a4
-latest phase0 anchor PR: #586 Add PowerShell REST observation fallback commands
+current anchor commit: 9311db8ac124010fa11595d72cccd7c780a90223
+latest phase0 anchor PR: #587 Record scheduled staging poll no-new-run gap
 default-branch schedule activation PR: #541 Activate HKEX staging schedule on main
 main schedule activation commit: 423ca7fa710b04de56a74b0a1ee092b43597b8a1
 default-branch public web smoke activation PR: #545 Activate public web smoke workflow on main
@@ -171,7 +177,7 @@ Expected:
 
 ```text
 git status --short: empty
-HEAD: 37ae146f2f938572468929cf7f1bf5669cbfe3a4 or a newer origin/phase0-foundation commit
+HEAD: 9311db8ac124010fa11595d72cccd7c780a90223 or a newer origin/phase0-foundation commit
 ```
 
 If the local checkout has unrelated uncommitted work, do not overwrite it. Either use a fresh clone or create a new branch and inspect the diff first.
@@ -226,6 +232,7 @@ first daily scheduled public web smoke run: pending observation, no event=schedu
 source-health drift observation: real source keys reachable; workflow canary aliases are not registered source-health keys
 production approval blocker status: #561 open comments=0, #565 open comments=0
 scheduled staging poll no-new-run gap: latest observed scheduled run remains SEC hourly run 25704707578 at 2026-05-12T00:03:29Z
+scheduled workflow liveness review checklist: use before changing schedules after a no-new-run gap
 ```
 
 The project is no longer in the "can we find sources?" phase for Europe. Europe now needs observation, promotion gates, digest diversity checks, and rollback evidence.
