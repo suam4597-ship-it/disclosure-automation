@@ -29,6 +29,7 @@ SOURCE_HEALTH_DRIFT_OBSERVATION_RECORDED
 PRODUCTION_APPROVAL_BLOCKER_STATUS_RECORDED
 POWERSHELL_GITHUB_REST_OBSERVATION_FALLBACK_RECORDED
 SCHEDULED_STAGING_POLL_NO_NEW_RUN_GAP_OBSERVED
+SCHEDULED_WORKFLOW_LIVENESS_REVIEW_CHECKLIST_RECORDED
 PRODUCTION_DEPLOYMENT_NOT_APPROVED
 REMOTE_HANDOFF_REFRESHED_FOR_MULTI_LOCAL_WORK
 ```
@@ -38,8 +39,8 @@ REMOTE_HANDOFF_REFRESHED_FOR_MULTI_LOCAL_WORK
 ```text
 repo: suam4597-ship-it/disclosure-automation
 primary working branch: phase0-foundation
-current head: 37ae146f2f938572468929cf7f1bf5669cbfe3a4
-latest merged PR: #586 Add PowerShell REST observation fallback commands
+current head: 9311db8ac124010fa11595d72cccd7c780a90223
+latest merged PR: #587 Record scheduled staging poll no-new-run gap
 worktree expectation: clean
 ```
 
@@ -93,7 +94,7 @@ This confirms the public website and staging backend are currently connected and
 
 ## Current CI Snapshot
 
-For head `37ae146f2f938572468929cf7f1bf5669cbfe3a4`, push and pull-request checks completed successfully:
+For head `9311db8ac124010fa11595d72cccd7c780a90223`, push and pull-request checks completed successfully:
 
 ```text
 Phase 0 validate: success
@@ -155,7 +156,7 @@ git status --short
 Expected:
 
 ```text
-HEAD: 37ae146f2f938572468929cf7f1bf5669cbfe3a4 or newer
+HEAD: 9311db8ac124010fa11595d72cccd7c780a90223 or newer
 git status --short: empty
 ```
 
