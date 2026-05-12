@@ -25,6 +25,7 @@ WEB_REMAINING_IMPLEMENTATION_WORKFLOW_RECORDED
 CURRENT_PUBLIC_WEB_DIGEST_DIVERSITY_OBSERVATION_RECORDED
 SCHEDULED_WORKFLOW_OBSERVATION_COOKBOOK_REFRESHED
 FIRST_DAILY_SCHEDULED_PUBLIC_WEB_SMOKE_PENDING_OBSERVATION_RECORDED
+SOURCE_HEALTH_DRIFT_OBSERVATION_RECORDED
 PRODUCTION_DEPLOYMENT_NOT_APPROVED
 REMOTE_HANDOFF_REFRESHED_FOR_MULTI_LOCAL_WORK
 ```
@@ -34,8 +35,8 @@ REMOTE_HANDOFF_REFRESHED_FOR_MULTI_LOCAL_WORK
 ```text
 repo: suam4597-ship-it/disclosure-automation
 primary working branch: phase0-foundation
-current head: 49bf5667f027301da02ab7b90e1ccbe239eea600
-latest merged PR: #582 Refresh GlobalPulse scheduled observation cookbook
+current head: e0d9190dc9d361ee68391224b057650d85865a5a
+latest merged PR: #583 Record public web smoke daily schedule pending observation
 worktree expectation: clean
 ```
 
@@ -89,7 +90,7 @@ This confirms the public website and staging backend are currently connected and
 
 ## Current CI Snapshot
 
-For head `49bf5667f027301da02ab7b90e1ccbe239eea600`, push and pull-request checks completed successfully:
+For head `e0d9190dc9d361ee68391224b057650d85865a5a`, push and pull-request checks completed successfully:
 
 ```text
 Phase 0 validate: success
@@ -148,7 +149,7 @@ git status --short
 Expected:
 
 ```text
-HEAD: 49bf5667f027301da02ab7b90e1ccbe239eea600 or newer
+HEAD: e0d9190dc9d361ee68391224b057650d85865a5a or newer
 git status --short: empty
 ```
 
@@ -232,8 +233,9 @@ Current best sequence:
 4. Record a new digest diversity observation when non-India rows reappear in the latest top-N digest.
 5. Keep daily public web smoke observation healthy.
 6. Record the first daily scheduled public web smoke run when an event=schedule run appears.
-7. Prepare production only after Issue #561 values are approved.
-8. Promote sources only after Issue #565 source-by-source approvals are recorded.
+7. Use source-health drift checks as context when scheduled observation failures appear.
+8. Prepare production only after Issue #561 values are approved.
+9. Promote sources only after Issue #565 source-by-source approvals are recorded.
 ```
 
 HKEX pass criteria are recorded in:

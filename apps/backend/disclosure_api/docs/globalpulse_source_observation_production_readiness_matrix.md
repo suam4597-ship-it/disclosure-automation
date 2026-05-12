@@ -15,6 +15,7 @@ INDIA_NSE_LIVE_STAGING_OBSERVED
 INDIA_NSE_INTERIM_SCHEDULED_OBSERVATION_RECORDED
 POST_EXPANSION_NEXT_STEP_PLAN_RECORDED
 CURRENT_PUBLIC_WEB_DIGEST_DIVERSITY_OBSERVATION_RECORDED
+SOURCE_HEALTH_DRIFT_OBSERVATION_RECORDED
 EU_CANARY_LIVE_STAGING_OBSERVED
 EU_CANARY_SECOND_FOLLOWUP_OBSERVED
 DENMARK_DFSA_OAM_SECOND_FOLLOWUP_OBSERVED
@@ -53,6 +54,16 @@ Production source-promotion approvals are tracked in:
 
 ```text
 https://github.com/suam4597-ship-it/disclosure-automation/issues/565
+```
+
+Latest source-health drift observation:
+
+```text
+doc: globalpulse_source_health_drift_observation_20260512.md
+real source keys checked: sec_press_releases, india_nse_announcements, hkex_latest_listed_company_information, eu_france_info_financiere_oam, eu_spain_cnmv_other_relevant_information, dk_dfsa_oam_company_announcements
+real source key route status: 200
+candidate active flags: false for checked non-SEC candidates
+workflow canary aliases: eu_scheduled_staging_canary and denmark_dfsa_oam_staging_canary are not registered source-health keys
 ```
 
 ## Readiness Matrix
@@ -120,10 +131,11 @@ Germany Company Register and Prague/PSE remain design/staging-only paths
 2. Continue HKEX scheduled staging observation toward the 7-day / 10 successful run gate.
 3. Continue India/EU/HKEX public smoke, digest diversity, and source-health observation.
 4. Record a new digest diversity observation when non-India rows reappear in the latest top-N digest.
-5. Record follow-up scheduled observation summaries as runs accumulate.
-6. Keep public web smoke daily running.
-7. Decide production backend app/database/frontend URL only after operator approval.
-8. Only after production infrastructure smoke, decide source-by-source production schedules.
+5. Use source-health drift checks as context if scheduled observations fail or last_error becomes populated.
+6. Record follow-up scheduled observation summaries as runs accumulate.
+7. Keep public web smoke daily running.
+8. Decide production backend app/database/frontend URL only after operator approval.
+9. Only after production infrastructure smoke, decide source-by-source production schedules.
 ```
 
 Use issue #565 to collect those source-by-source approvals. Do not treat matrix visibility as approval.
