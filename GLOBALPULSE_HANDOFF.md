@@ -200,11 +200,17 @@ For the scheduled workflow liveness review checklist, read:
 apps/backend/disclosure_api/docs/globalpulse_scheduled_workflow_liveness_review_checklist.md
 ```
 
+For the latest scheduled workflow liveness state review, read:
+
+```text
+apps/backend/disclosure_api/docs/globalpulse_scheduled_workflow_liveness_state_review_20260512.md
+```
+
 Current remote continuation status:
 
 ```text
-current phase0 head: 9311db8ac124010fa11595d72cccd7c780a90223
-latest merged PR: #587 Record scheduled staging poll no-new-run gap
+current phase0 head: 1826ad2e610e0e6abab901f8d82a182a880b3c3b
+latest merged PR: #588 Add scheduled workflow liveness review checklist
 phase0 public web smoke workflow PR: #544 merged
 main public web smoke activation PR: #545 merged
 workflow id: 274668919
@@ -231,6 +237,7 @@ post-recovery docs CI: pass, head 62922a389913b63aa832799a8cade1bc6270fd00
 scheduled workflow observation cookbook: refreshed with PowerShell REST fallback commands
 scheduled staging poll no-new-run gap: latest observed scheduled run remains SEC hourly run 25704707578 at 2026-05-12T00:03:29Z
 scheduled workflow liveness review checklist: recorded, use before changing schedules
+scheduled workflow liveness state review: live staging poll and public web smoke workflows are active on main
 India NSE interim scheduled observation: pass, recent runs 25694981715, 25699447717, 25703573653
 EU canary follow-up scheduled observation: pass, runs 25680178601 and 25698983703
 Denmark DFSA OAM follow-up scheduled observation: pass, runs 25680895829 and 25699532618

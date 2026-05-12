@@ -30,6 +30,7 @@ PRODUCTION_APPROVAL_BLOCKER_STATUS_RECORDED
 POWERSHELL_GITHUB_REST_OBSERVATION_FALLBACK_RECORDED
 SCHEDULED_STAGING_POLL_NO_NEW_RUN_GAP_OBSERVED
 SCHEDULED_WORKFLOW_LIVENESS_REVIEW_CHECKLIST_RECORDED
+SCHEDULED_WORKFLOW_LIVENESS_STATE_REVIEW_RECORDED
 PRODUCTION_DEPLOYMENT_NOT_APPROVED
 REMOTE_HANDOFF_REFRESHED_FOR_MULTI_LOCAL_WORK
 ```
@@ -39,8 +40,8 @@ REMOTE_HANDOFF_REFRESHED_FOR_MULTI_LOCAL_WORK
 ```text
 repo: suam4597-ship-it/disclosure-automation
 primary working branch: phase0-foundation
-current head: 9311db8ac124010fa11595d72cccd7c780a90223
-latest merged PR: #587 Record scheduled staging poll no-new-run gap
+current head: 1826ad2e610e0e6abab901f8d82a182a880b3c3b
+latest merged PR: #588 Add scheduled workflow liveness review checklist
 worktree expectation: clean
 ```
 
@@ -94,7 +95,7 @@ This confirms the public website and staging backend are currently connected and
 
 ## Current CI Snapshot
 
-For head `9311db8ac124010fa11595d72cccd7c780a90223`, push and pull-request checks completed successfully:
+For head `1826ad2e610e0e6abab901f8d82a182a880b3c3b`, push and pull-request checks completed successfully:
 
 ```text
 Phase 0 validate: success
@@ -135,6 +136,8 @@ HKEX follow-up doc: globalpulse_hkex_scheduled_staging_followup_observation_2026
 
 Latest scheduled staging poll no-new-run gap: latest observed scheduled run remained SEC hourly run 25704707578 at 2026-05-12T00:03:29Z; no newer HKEX, EU, Denmark, or India matching run was observed in that check.
 No source failure is claimed from this absence.
+
+Scheduled workflow liveness state review: live staging poll and public web smoke workflows are active on main, workflow files return 200, and schedule markers are present.
 ```
 
 HKEX was marked passed only from real `schedule` event artifacts resolving to `source_key=hkex_latest_listed_company_information`. Continue observation before any production schedule decision.
@@ -156,7 +159,7 @@ git status --short
 Expected:
 
 ```text
-HEAD: 9311db8ac124010fa11595d72cccd7c780a90223 or newer
+HEAD: 1826ad2e610e0e6abab901f8d82a182a880b3c3b or newer
 git status --short: empty
 ```
 
