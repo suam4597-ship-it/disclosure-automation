@@ -105,6 +105,7 @@ production bounded empty digest policy: globalpulse_production_bounded_empty_dig
 production frontend empty-state smoke checklist: globalpulse_production_frontend_empty_state_smoke_checklist.md
 production rollback stop checklist: globalpulse_production_rollback_stop_checklist.md
 production deployment smoke record template: globalpulse_production_deployment_smoke_record_template.md
+source production promotion decision template: globalpulse_source_production_promotion_decision_template.md
 ```
 
 Required values:

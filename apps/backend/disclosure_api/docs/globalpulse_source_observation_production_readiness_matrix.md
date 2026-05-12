@@ -149,6 +149,12 @@ Germany Company Register and Prague/PSE remain design/staging-only paths
 
 Use issue #565 to collect those source-by-source approvals. Do not treat matrix visibility as approval.
 
+Use this template when recording future source promotion decisions:
+
+```text
+globalpulse_source_production_promotion_decision_template.md
+```
+
 ## Guardrails
 
 ```text
