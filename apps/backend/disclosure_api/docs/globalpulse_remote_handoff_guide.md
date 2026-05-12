@@ -144,6 +144,12 @@ Production deployment smoke record template:
 globalpulse_production_deployment_smoke_record_template.md
 ```
 
+Source production promotion decision template:
+
+```text
+globalpulse_source_production_promotion_decision_template.md
+```
+
 Public web smoke daily schedule:
 
 ```text
@@ -221,8 +227,8 @@ globalpulse_production_deployment_runbook.md
 ```text
 repo: suam4597-ship-it/disclosure-automation
 primary working branch: phase0-foundation
-current anchor commit: 413dc3539c52c3f80fbba018ccdca4f9e337629a
-latest phase0 anchor PR: #604 Add GlobalPulse production frontend empty-state smoke checklist
+current anchor commit: 9cc8ab2f5a7151f45f581696ff26d9b5e156b5ba
+latest phase0 anchor PR: #605 Add GlobalPulse production deployment smoke record template
 default-branch schedule activation PR: #541 Activate HKEX staging schedule on main
 main schedule activation commit: 423ca7fa710b04de56a74b0a1ee092b43597b8a1
 default-branch public web smoke activation PR: #545 Activate public web smoke workflow on main
@@ -249,7 +255,7 @@ Expected:
 
 ```text
 git status --short: empty
-HEAD: 413dc3539c52c3f80fbba018ccdca4f9e337629a or a newer origin/phase0-foundation commit
+HEAD: 9cc8ab2f5a7151f45f581696ff26d9b5e156b5ba or a newer origin/phase0-foundation commit
 ```
 
 If the local checkout has unrelated uncommitted work, do not overwrite it. Either use a fresh clone or create a new branch and inspect the diff first.

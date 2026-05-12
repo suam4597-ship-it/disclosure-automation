@@ -166,6 +166,7 @@ If issue #565 receives complete source-specific approval:
 
 ```text
 next PR: Record GlobalPulse source production promotion decision for <source_key>
+template: globalpulse_source_production_promotion_decision_template.md
 scope: docs-only source decision
 runtime changes: none
 ```
