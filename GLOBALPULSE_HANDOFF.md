@@ -200,6 +200,12 @@ For the production bounded empty digest policy, read:
 apps/backend/disclosure_api/docs/globalpulse_production_bounded_empty_digest_policy.md
 ```
 
+For the production frontend empty-state smoke checklist, read:
+
+```text
+apps/backend/disclosure_api/docs/globalpulse_production_frontend_empty_state_smoke_checklist.md
+```
+
 For the production rollback stop checklist, read:
 
 ```text
@@ -276,6 +282,7 @@ production approval blocker status: #561 open comments=1 approval request posted
 operator approval intake packet: added, use before interpreting #561/#565 replies
 production CORS smoke contract template: added, not executable until origins are approved
 production bounded empty digest policy: added, fixture fallback is not production data evidence
+production frontend empty-state smoke checklist: added, not executable until empty-state approval exists
 production rollback stop checklist: added, use before production rollback/fix-forward decisions
 HKEX first automated scheduled staging run: pass, run 25684138207
 HKEX scheduled staging follow-up observation: 5 successful scheduled runs recorded, latest run 25712752961

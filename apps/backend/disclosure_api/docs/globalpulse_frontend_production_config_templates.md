@@ -242,6 +242,12 @@ no secret/token/session material
 
 If production digest is intentionally empty at launch, record the approved empty-state policy from issue #561.
 
+Use this companion checklist for the empty-state browser/public smoke:
+
+```text
+globalpulse_production_frontend_empty_state_smoke_checklist.md
+```
+
 ## Rollback Template
 
 If frontend config promotion fails:
