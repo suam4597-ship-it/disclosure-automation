@@ -104,6 +104,7 @@ production CORS smoke contract template: globalpulse_production_cors_smoke_contr
 production bounded empty digest policy: globalpulse_production_bounded_empty_digest_policy.md
 production frontend empty-state smoke checklist: globalpulse_production_frontend_empty_state_smoke_checklist.md
 production rollback stop checklist: globalpulse_production_rollback_stop_checklist.md
+production deployment smoke record template: globalpulse_production_deployment_smoke_record_template.md
 ```
 
 Required values:
