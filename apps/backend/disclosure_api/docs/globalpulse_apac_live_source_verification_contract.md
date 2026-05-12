@@ -23,7 +23,7 @@ India secondary endpoints: BSE corporate-announcement surface is relevant but ba
 ASEAN official endpoint: scan started, SGX browser JSON access path confirmed but blocked by policy/runtime review; Bursa browser JSON access path confirmed but blocked by Cloudflare/runtime fetch; SET official JSON access path and repeated Fly staging smoke passed while inactive; HNX Vietnam official RSS inactive candidate added and repeated manual staging smoke passed; HSX Vietnam official listed-company RSS inactive candidate added and repeated manual staging smoke passed; Taiwan MOPS official JSON inactive candidate added and repeated manual staging smoke passed; IDX official JSON access path confirmed but blocked by challenge-cookie dependency
 ANZ official endpoint: ASX official JSON access path confirmed, but access-policy decision blocks source registration until written authority or approved ASX Information Services path exists
 Hong Kong official endpoint: HKEXnews listed-company title-search HTML surface confirmed, and latest listed-company JSON assets were confirmed through the official LLCI surface
-Hong Kong runtime probes and inactive candidate: HKEXnews bounded title-search URL returned 200 HTML through local Erlang :httpc; HKEX homecat0_e.json returned 200 application/json through local Erlang :httpc and Fly staging release eval; bounded parser/source contract recorded; inactive/manual staging-only source candidate added; manual Fly staging live-poll smoke passed twice with digest visibility while active=false
+Hong Kong runtime probes and inactive candidate: HKEXnews bounded title-search URL returned 200 HTML through local Erlang :httpc; HKEX homecat0_e.json returned 200 application/json through local Erlang :httpc and Fly staging release eval; bounded parser/source contract recorded; inactive/manual staging-only source candidate added; manual Fly staging live-poll smoke passed twice with digest visibility while active=false; first automated scheduled staging run passed on run 25684138207
 Taiwan official endpoint: MOPS daily material-information JSON endpoint confirmed; bounded inactive date-aware POST adapter/parser source candidate added; repeated manual staging smoke passed while inactive
 JP live source: blocked by issue #339 source-authority decision
 ```
@@ -47,7 +47,7 @@ second manual observation: globalpulse_hkex_second_manual_observation_results.md
 public Pages browser smoke: globalpulse_hkex_public_pages_browser_smoke_results.md
 staging cadence design: globalpulse_hkex_staging_cadence_design.md
 staging workflow implementation: globalpulse_hkex_staging_workflow_implementation.md
-decision: HKEX source is live-verified as active=false/manual staging-only; first automated scheduled staging run is the next allowed gate
+decision: HKEX source is live-verified as active=false/manual staging-only; first automated scheduled staging run passed; continued scheduled observation is the next allowed gate
 ```
 
 Current APAC fixture-backed source buckets:
@@ -319,7 +319,7 @@ REJECT: enabling JP live polling before issue #339 source-authority decision is 
 7. Continue APAC official-source scanning within official exchange/OAM surfaces.
 8. Keep observing India NSE scheduled staging runs until the 7-day window matures.
 9. Keep IDX blocked unless a clean backend runtime or approved data-access path is documented.
-10. Record the first HKEX automated scheduled staging run after the cron fires.
+10. Continue HKEX scheduled staging observation after the first automated run pass.
 11. Keep HKEX active=false until a separate promotion PR is approved.
 12. Revisit ASX only after written authority or approved ASX Information Services path exists.
 13. Add a bounded inactive ASX adapter/source candidate only if authority, response shape, runtime fetch, and staging-smoke gates pass.
@@ -390,7 +390,7 @@ HKEX_SOURCE_HEALTH_HEALTHY
 HKEX_SECOND_MANUAL_OBSERVATION_PASS
 HKEX_STAGING_CADENCE_DESIGN_RECORDED
 HKEX_CONSERVATIVE_STAGING_WORKFLOW_ADDED
-HKEX_FIRST_AUTOMATED_STAGING_RUN_PENDING
+HKEX_FIRST_AUTOMATED_STAGING_RUN_PASS
 APAC_NEXT_LIVE_SOURCE_DECISION_RECORDED
 KR_LIVE_SOURCE_TRACK_DEFERRED_UNTIL_DEDICATED_BACKEND_EXISTS
 PRODUCTION_APAC_SCHEDULED_LIVE_POLLING_NOT_ENABLED

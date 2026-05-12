@@ -15,7 +15,7 @@ PUBLIC_PAGES_SMOKE_REACHABLE
 FLY_STAGING_HEALTH_PASS
 FLY_STAGING_DIGEST_PASS
 SOURCE_OBSERVATION_WINDOW_IN_PROGRESS
-HKEX_FIRST_AUTOMATED_SCHEDULED_RUN_PENDING
+HKEX_FIRST_AUTOMATED_SCHEDULED_RUN_PASS
 PRODUCTION_DEPLOYMENT_NOT_APPROVED
 REMOTE_HANDOFF_REFRESHED_FOR_MULTI_LOCAL_WORK
 ```
@@ -25,8 +25,8 @@ REMOTE_HANDOFF_REFRESHED_FOR_MULTI_LOCAL_WORK
 ```text
 repo: suam4597-ship-it/disclosure-automation
 primary working branch: phase0-foundation
-current head: c7331ea7a0ad1020fa6f514980a29e9b2574a9b3
-latest merged PR: #571 Record Denmark DFSA OAM follow-up scheduled observation
+current head: d3074e769c980a567898369a72bc4b11de93508a
+latest merged PR: #572 Refresh GlobalPulse web workflow handoff
 worktree expectation: clean
 ```
 
@@ -77,7 +77,7 @@ This confirms the public website and staging backend are currently connected. It
 
 ## Current CI Snapshot
 
-For head `c7331ea7a0ad1020fa6f514980a29e9b2574a9b3`, push and pull-request checks completed successfully:
+For head `d3074e769c980a567898369a72bc4b11de93508a`, push and pull-request checks completed successfully:
 
 ```text
 Phase 0 validate: success
@@ -106,10 +106,11 @@ Denmark result: pass, live/200, records_seen=25, records_inserted=25, digest fal
 
 HKEX schedule: 22 */2 * * 1-5
 HKEX source key: hkex_latest_listed_company_information
-HKEX first automated scheduled run: pending
+HKEX first automated scheduled run: pass, run 25684138207
+HKEX result doc: globalpulse_hkex_first_automated_scheduled_run_results.md
 ```
 
-Do not mark HKEX as passed from a manual dispatch, manual Fly curl, public digest visibility, or a different schedule expression.
+HKEX was marked passed only from a real `schedule` event with `SCHEDULE_EXPR=22 */2 * * 1-5`. Continue observation before any production schedule decision.
 
 ## Resume On Another Local Machine
 

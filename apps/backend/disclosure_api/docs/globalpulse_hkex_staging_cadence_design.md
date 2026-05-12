@@ -14,6 +14,7 @@ HKEX_REMAINS_INACTIVE_MANUAL_STAGING_ONLY
 HKEX_TWO_MANUAL_OBSERVATIONS_PASS
 HKEX_PUBLIC_PAGES_BROWSER_VISIBILITY_PASS
 HKEX_LIGHTWEIGHT_JSON_CANARY_DESIGNED
+HKEX_FIRST_AUTOMATED_SCHEDULED_STAGING_RUN_PASS
 HKEX_LATEST_FIVE_COMPLETENESS_NOT_CLAIMED
 HKEX_ATTACHMENT_BODY_FETCH_STILL_DISABLED
 HKEX_PRODUCTION_SCHEDULED_POLLING_NOT_APPROVED
@@ -66,6 +67,18 @@ second observation:
   records_inserted: 5
   digest visible: true
   post-poll health_status: healthy
+
+first automated scheduled staging run:
+  run id: 25684138207
+  schedule: 22 */2 * * 1-5
+  source: hkex_latest_listed_company_information
+  status: 202
+  fetch.mode: live
+  fetch.status_code: 200
+  records_seen: 5
+  records_inserted: 5
+  digest visible: true
+  digest metadata.fallback_to_fixture: false
 ```
 
 ## Design Scope
@@ -241,6 +254,7 @@ Do not start KR live-source implementation before the dedicated backend/source p
 
 ```text
 HKEX_READY_FOR_CONSERVATIVE_STAGING_SCHEDULE_PR
+HKEX_FIRST_AUTOMATED_SCHEDULED_STAGING_RUN_PASS
 HKEX_NOT_READY_FOR_PRODUCTION_SCHEDULED_POLLING
-NEXT_STEP_ADD_HKEX_TO_STAGING_WORKFLOW_ONLY
+NEXT_STEP_CONTINUE_HKEX_SCHEDULED_STAGING_OBSERVATION
 ```

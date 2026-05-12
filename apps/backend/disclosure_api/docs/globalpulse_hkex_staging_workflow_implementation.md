@@ -11,6 +11,7 @@ This implementation adds HKEX only to the existing GitHub Actions staging smoke 
 ```text
 HKEX_CONSERVATIVE_STAGING_WORKFLOW_ADDED
 HKEX_SCHEDULED_STAGING_CRON_CONFIGURED
+HKEX_FIRST_AUTOMATED_SCHEDULED_STAGING_RUN_PASS
 HKEX_SOURCE_REMAINS_ACTIVE_FALSE
 HKEX_CANDIDATE_STATUS_REMAINS_MANUAL_STAGING_ONLY
 HKEX_PRODUCTION_SCHEDULED_POLLING_NOT_APPROVED
@@ -85,6 +86,12 @@ not a completeness claim for all HKEX announcements
 
 After this workflow lands on the default branch, the first automated scheduled HKEX run must be recorded separately.
 
+The first successful automated scheduled run is now recorded in:
+
+```text
+globalpulse_hkex_first_automated_scheduled_run_results.md
+```
+
 Expected first-run markers:
 
 ```text
@@ -121,5 +128,5 @@ Do not start KR live-source implementation before the dedicated backend/source p
 ## Next Gate
 
 ```text
-Record HKEX first scheduled staging run
+Continue HKEX scheduled staging observation
 ```

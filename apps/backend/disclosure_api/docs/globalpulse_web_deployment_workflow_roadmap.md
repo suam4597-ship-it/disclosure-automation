@@ -82,10 +82,11 @@ digest.metadata.fallback_to_fixture: false
 Status:
 
 ```text
-HKEX first automated scheduled run: pending after 2026-05-11T14:22Z window
-latest observed schedule near that period: India NSE, run 25673025413
-next HKEX check window: 2026-05-11T16:22Z / 2026-05-12 01:22 KST
-status doc: globalpulse_hkex_scheduled_staging_pending_status.md
+HKEX first automated scheduled run: pass, run 25684138207
+resolved schedule: 22 */2 * * 1-5
+resolved source: hkex_latest_listed_company_information
+result doc: globalpulse_hkex_first_automated_scheduled_run_results.md
+historical pending doc: globalpulse_hkex_scheduled_staging_pending_status.md
 observation command path: globalpulse_scheduled_workflow_observation_cookbook.md
 latest non-HKEX scheduled observations: EU run 25680178601, Denmark run 25680895829
 ```
@@ -93,7 +94,7 @@ latest non-HKEX scheduled observations: EU run 25680178601, Denmark run 25680895
 Output PR:
 
 ```text
-Record HKEX first scheduled staging run
+Record HKEX follow-up scheduled staging observation after enough runs accumulate
 ```
 
 ### 2. Add A Public Web Smoke Workflow

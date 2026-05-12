@@ -48,6 +48,12 @@ HKEX scheduled staging pending status:
 globalpulse_hkex_scheduled_staging_pending_status.md
 ```
 
+HKEX first automated scheduled staging run:
+
+```text
+globalpulse_hkex_first_automated_scheduled_run_results.md
+```
+
 Public web smoke daily schedule:
 
 ```text
@@ -71,8 +77,8 @@ globalpulse_production_deployment_runbook.md
 ```text
 repo: suam4597-ship-it/disclosure-automation
 primary working branch: phase0-foundation
-current anchor commit: c7331ea7a0ad1020fa6f514980a29e9b2574a9b3
-latest phase0 anchor PR: #571 Record Denmark DFSA OAM follow-up scheduled observation
+current anchor commit: d3074e769c980a567898369a72bc4b11de93508a
+latest phase0 anchor PR: #572 Refresh GlobalPulse web workflow handoff
 default-branch schedule activation PR: #541 Activate HKEX staging schedule on main
 main schedule activation commit: 423ca7fa710b04de56a74b0a1ee092b43597b8a1
 default-branch public web smoke activation PR: #545 Activate public web smoke workflow on main
@@ -231,9 +237,8 @@ HKEX:
   staging cadence design: recorded
   conservative staging workflow: configured
   default-branch schedule activation: merged to main
-  first automated scheduled staging run: pending after 2026-05-11T14:22Z window
-  next gate: check 2026-05-11T16:22Z / 2026-05-12 01:22 KST window
-  latest checked scheduled runs were EU/Denmark/SEC, not HKEX
+  first automated scheduled staging run: pass, run 25684138207
+  next gate: continue scheduled staging observation toward 7-day / 10 successful run gate
 ```
 
 ### Korea / Japan
@@ -245,7 +250,7 @@ JP live polling: blocked by issue #339 until source authority decision
 
 ## Recommended Next Work Queue
 
-1. Record HKEX first automated scheduled staging run after the cron fires.
+1. Continue HKEX scheduled staging observation and record a follow-up summary after enough runs accumulate.
 2. Continue EU scheduled staging canary observation summaries as runs accumulate.
 3. Continue Denmark DFSA OAM scheduled observation summaries as runs accumulate.
 4. Continue India NSE 7-day staging observation.
@@ -302,7 +307,8 @@ candidate_status remains manual_staging_only
 cadence: not approved
 staging cadence design: recorded
 staging workflow: configured
-next: record first scheduled run, keep source active=false
+first scheduled run: pass, run 25684138207
+next: continue scheduled observation, keep source active=false
 ```
 
 ## GitHub Actions Checks To Review
@@ -319,6 +325,7 @@ Important runs to know:
 EU canary payload review run: 25650523685
 India NSE first scheduled run: 25650796284
 Denmark DFSA OAM first automated scheduled run: 25668194957
+HKEX first automated scheduled staging run: 25684138207
 HKEX scheduled staging cron: 22 */2 * * 1-5
 HKEX main activation PR: #541
 HKEX main activation commit: 423ca7fa710b04de56a74b0a1ee092b43597b8a1

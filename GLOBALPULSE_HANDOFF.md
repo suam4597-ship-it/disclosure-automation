@@ -68,6 +68,12 @@ For the current HKEX scheduled staging pending status, read:
 apps/backend/disclosure_api/docs/globalpulse_hkex_scheduled_staging_pending_status.md
 ```
 
+For the first successful HKEX automated scheduled staging run, read:
+
+```text
+apps/backend/disclosure_api/docs/globalpulse_hkex_first_automated_scheduled_run_results.md
+```
+
 For the source-observation production readiness matrix, read:
 
 ```text
@@ -125,15 +131,15 @@ apps/backend/disclosure_api/docs/globalpulse_scheduled_workflow_observation_cook
 Current remote continuation status:
 
 ```text
-current phase0 head: c7331ea7a0ad1020fa6f514980a29e9b2574a9b3
-latest merged PR: #571 Record Denmark DFSA OAM follow-up scheduled observation
+current phase0 head: d3074e769c980a567898369a72bc4b11de93508a
+latest merged PR: #572 Refresh GlobalPulse web workflow handoff
 phase0 public web smoke workflow PR: #544 merged
 main public web smoke activation PR: #545 merged
 workflow id: 274668919
 first workflow_dispatch result: pass, run 25676030410
 daily workflow main maintenance verification: pass, run 25677329262
-HKEX first automated scheduled staging run: pending after 2026-05-11T14:22Z window
-next HKEX check window: 2026-05-11T16:22Z / 2026-05-12 01:22 KST
+HKEX first automated scheduled staging run: pass, run 25684138207
+next HKEX gate: continue scheduled staging observation toward 7-day / 10 successful run gate
 next web deployment gate: decide production backend app/database/frontend URL
 production decision record: added, production infra not created
 source observation matrix: added, production source promotion not approved
@@ -147,6 +153,7 @@ post-recovery docs CI: pass, head 62922a389913b63aa832799a8cade1bc6270fd00
 scheduled workflow observation cookbook: added
 EU canary follow-up scheduled observation: pass, run 25680178601
 Denmark DFSA OAM follow-up scheduled observation: pass, run 25680895829
+HKEX first automated scheduled staging run: pass, run 25684138207
 public Pages smoke: 200
 public config smoke: 200
 Fly staging health: 200 ok
