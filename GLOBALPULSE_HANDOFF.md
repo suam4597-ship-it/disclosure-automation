@@ -104,6 +104,12 @@ For the post-expansion next-step plan, read:
 apps/backend/disclosure_api/docs/globalpulse_post_expansion_next_step_plan.md
 ```
 
+For the remaining website implementation workflow, read:
+
+```text
+apps/backend/disclosure_api/docs/globalpulse_web_remaining_implementation_workflow.md
+```
+
 For the source-observation production readiness matrix, read:
 
 ```text
@@ -161,8 +167,8 @@ apps/backend/disclosure_api/docs/globalpulse_scheduled_workflow_observation_cook
 Current remote continuation status:
 
 ```text
-current phase0 head: 09062dce6ab0e52bf518990281bb477f6907b8cd
-latest merged PR: #578 Record India NSE interim scheduled observation
+current phase0 head: 5562d92463189ce1c8d994746af41e9220de2665
+latest merged PR: #579 Record GlobalPulse post-expansion next step plan
 phase0 public web smoke workflow PR: #544 merged
 main public web smoke activation PR: #545 merged
 workflow id: 274668919
@@ -173,6 +179,7 @@ HKEX scheduled staging follow-up observation: 4 successful scheduled runs record
 next HKEX gate: continue scheduled staging observation toward 7-day / 10 successful run gate
 next web deployment gate: decide production backend app/database/frontend URL
 post-expansion next gate: production infrastructure decision values, source promotion approvals, and observation-window continuation
+web implementation next gate: current public web smoke/digest diversity record, then production decision values if approved
 production decision record: added, production infra not created
 source observation matrix: added, production source promotion not approved
 basic monitoring incident plan: added, no alerting runtime enabled

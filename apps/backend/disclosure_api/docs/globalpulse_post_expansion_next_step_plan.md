@@ -185,11 +185,13 @@ no KR live-source implementation
 Preferred sequence:
 
 ```text
-1. Record production infrastructure decision values after operator approval.
-2. Add/refresh production CORS smoke contract after frontend/backend origin choices are approved.
-3. Record another scheduled-observation batch after more India/EU/Denmark/HKEX runs accumulate.
-4. Record public digest diversity smoke when EU/Denmark/HKEX rows reappear in top-N digest artifacts.
-5. Only after production backend smoke passes, consider frontend production config promotion.
+1. Use globalpulse_web_remaining_implementation_workflow.md as the website workflow queue.
+2. Record current public web smoke and digest diversity state.
+3. Record production infrastructure decision values after operator approval.
+4. Add/refresh production CORS smoke contract after frontend/backend origin choices are approved.
+5. Record another scheduled-observation batch after more India/EU/Denmark/HKEX runs accumulate.
+6. Record public digest diversity smoke when EU/Denmark/HKEX rows reappear in top-N digest artifacts.
+7. Only after production backend smoke passes, consider frontend production config promotion.
 ```
 
 Fallback if no production approvals are available yet:
