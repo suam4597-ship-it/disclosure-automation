@@ -139,7 +139,7 @@ edition=breaking
 no raw provider/auth/session/request material
 ```
 
-If production has no approved source data yet, a bounded empty digest is acceptable only if documented. Do not run source candidate live polling just to make the UI look full.
+If production has no approved source data yet, a bounded empty digest is acceptable only if documented and approved in issue #561. Do not run source candidate live polling just to make the UI look full. Do not treat fixture fallback as production data evidence.
 
 ## CORS Smoke Checklist
 

@@ -55,6 +55,8 @@ FIRST_PRODUCTION_DIGEST_EMPTY_OK: yes/no
 PRODUCTION_SCHEDULED_POLLING_INITIAL_STATE: disabled recommended
 ```
 
+Use `globalpulse_production_bounded_empty_digest_policy.md` before interpreting `FIRST_PRODUCTION_DIGEST_EMPTY_OK`.
+
 Do not paste these secret values anywhere in GitHub issues, PRs, docs, screenshots, or terminal logs:
 
 ```text

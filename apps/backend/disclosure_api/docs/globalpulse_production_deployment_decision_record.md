@@ -221,6 +221,12 @@ The production CORS smoke contract template is recorded in:
 globalpulse_production_cors_smoke_contract_template.md
 ```
 
+The bounded empty production digest policy is recorded in:
+
+```text
+globalpulse_production_bounded_empty_digest_policy.md
+```
+
 ## Values To Bring From The Operator
 
 The operator should provide these values without secrets:
