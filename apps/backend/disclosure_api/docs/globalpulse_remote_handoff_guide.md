@@ -90,6 +90,12 @@ India NSE interim scheduled observation:
 globalpulse_india_nse_interim_scheduled_observation_20260512.md
 ```
 
+India NSE scheduled observation refresh:
+
+```text
+globalpulse_india_nse_scheduled_observation_refresh_20260512.md
+```
+
 Post-expansion next-step plan:
 
 ```text
@@ -392,6 +398,7 @@ India NSE official RSS: inactive/manual staging source
 staging schedule: configured
 first automated scheduled staging run: pass
 interim scheduled observation: pass, recent runs 25694981715, 25699447717, 25703573653, and 25713273293
+scheduled observation refresh: pass, later runs 25719883720 and 25730184956
 next gate: 7-day observation window and final scheduled run summary
 production scheduled polling: not enabled
 ```
@@ -523,7 +530,7 @@ EU canary payload review run: 25650523685
 EU canary second follow-up run: 25698983703
 EU canary latest scheduled run: 25712655792
 India NSE first scheduled run: 25650796284
-India NSE interim observation recent runs: 25694981715, 25699447717, 25703573653, and 25713273293
+India NSE interim observation recent runs: 25694981715, 25699447717, 25703573653, 25713273293, 25719883720, and 25730184956
 Denmark DFSA OAM first automated scheduled run: 25668194957
 Denmark DFSA OAM second follow-up run: 25699532618
 Denmark DFSA OAM latest scheduled run: 25713328609

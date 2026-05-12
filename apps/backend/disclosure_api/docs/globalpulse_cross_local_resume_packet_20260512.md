@@ -211,8 +211,9 @@ Recommended order:
 3. Record the run result only if it is a real run with matching workflow/source evidence.
 4. Continue scheduled observation windows for HKEX, EU canary, Denmark DFSA OAM, India NSE, and SEC hourly.
 5. HKEX has reached 7 observed successful scheduled staging runs through run `25729361512`; keep observing toward the 7-day / 10-run gate without enabling production polling.
-5. If #561/#565 receive approved production values, prepare a production config/smoke PR using the existing templates.
-6. If no approval values exist, keep working on staging-only observation, docs, and source evidence.
+6. India NSE has 6 inspected recent successful scheduled staging runs through run `25730184956`; keep observing toward the 7-day window without enabling production polling.
+7. If #561/#565 receive approved production values, prepare a production config/smoke PR using the existing templates.
+8. If no approval values exist, keep working on staging-only observation, docs, and source evidence.
 ```
 
 Useful result docs/templates:
