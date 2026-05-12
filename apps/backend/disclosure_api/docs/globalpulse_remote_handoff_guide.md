@@ -78,6 +78,12 @@ India NSE interim scheduled observation:
 globalpulse_india_nse_interim_scheduled_observation_20260512.md
 ```
 
+Post-expansion next-step plan:
+
+```text
+globalpulse_post_expansion_next_step_plan.md
+```
+
 Public web smoke daily schedule:
 
 ```text
@@ -101,8 +107,8 @@ globalpulse_production_deployment_runbook.md
 ```text
 repo: suam4597-ship-it/disclosure-automation
 primary working branch: phase0-foundation
-current anchor commit: 1df7d5f25cbc860899f5c2c24c0e3f759f3fa1a2
-latest phase0 anchor PR: #577 Record Denmark DFSA OAM second follow-up observation
+current anchor commit: 09062dce6ab0e52bf518990281bb477f6907b8cd
+latest phase0 anchor PR: #578 Record India NSE interim scheduled observation
 default-branch schedule activation PR: #541 Activate HKEX staging schedule on main
 main schedule activation commit: 423ca7fa710b04de56a74b0a1ee092b43597b8a1
 default-branch public web smoke activation PR: #545 Activate public web smoke workflow on main
@@ -129,7 +135,7 @@ Expected:
 
 ```text
 git status --short: empty
-HEAD: 1df7d5f25cbc860899f5c2c24c0e3f759f3fa1a2 or a newer origin/phase0-foundation commit
+HEAD: 09062dce6ab0e52bf518990281bb477f6907b8cd or a newer origin/phase0-foundation commit
 ```
 
 If the local checkout has unrelated uncommitted work, do not overwrite it. Either use a fresh clone or create a new branch and inspect the diff first.
@@ -216,7 +222,7 @@ Ireland Dublin-only positive machine filter if proven
 bug fixes for already registered sources
 ```
 
-Pause broad Europe source discovery unless a high-confidence official endpoint or blocker follow-up is already in scope.
+Pause broad Europe source discovery unless a high-confidence official endpoint or blocker follow-up is already in scope. The default next phase is production-readiness decision work plus scheduled observation, not more broad source expansion.
 
 ### India
 
@@ -285,6 +291,7 @@ JP live polling: blocked by issue #339 until source authority decision
 6. Keep public Pages + Fly staging web smoke workflow healthy.
 7. Revisit Taiwan/SET/Vietnam cadence only through staging-only design PRs.
 8. Use production deployment templates only after production backend app/database/CORS choices are approved.
+9. Record production infrastructure decision values only after operator approval in issue #561.
 
 ## HKEX Next-Step Contract
 

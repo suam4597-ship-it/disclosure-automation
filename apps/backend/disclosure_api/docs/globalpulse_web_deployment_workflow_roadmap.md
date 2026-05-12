@@ -59,6 +59,21 @@ there is no scheduled production polling approval
 
 ## Recommended Work Queue
 
+The post-expansion plan is now recorded in:
+
+```text
+globalpulse_post_expansion_next_step_plan.md
+```
+
+Default next posture:
+
+```text
+pause broad source expansion by default
+continue observation windows
+move production infrastructure decisions to the front of the queue
+keep production scheduled polling disabled
+```
+
 ### 1. Record HKEX First Automated Scheduled Staging Run
 
 Blocker:

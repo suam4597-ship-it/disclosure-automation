@@ -13,6 +13,7 @@ SOURCE_OBSERVATION_MATRIX_RECORDED
 SEC_BASELINE_STABLE
 INDIA_NSE_LIVE_STAGING_OBSERVED
 INDIA_NSE_INTERIM_SCHEDULED_OBSERVATION_RECORDED
+POST_EXPANSION_NEXT_STEP_PLAN_RECORDED
 EU_CANARY_LIVE_STAGING_OBSERVED
 EU_CANARY_SECOND_FOLLOWUP_OBSERVED
 DENMARK_DFSA_OAM_SECOND_FOLLOWUP_OBSERVED
@@ -120,12 +121,13 @@ Germany Company Register and Prague/PSE remain design/staging-only paths
 ## Recommended Next Sequence
 
 ```text
-1. Continue HKEX scheduled staging observation toward the 7-day / 10 successful run gate.
-2. Continue India/EU/HKEX public smoke and source-health observation.
-3. Record follow-up scheduled observation summaries as runs accumulate.
-4. Keep public web smoke daily running.
-5. Decide production backend app/database/frontend URL.
-6. Only after production infrastructure smoke, decide source-by-source production schedules.
+1. Use globalpulse_post_expansion_next_step_plan.md as the next queue.
+2. Continue HKEX scheduled staging observation toward the 7-day / 10 successful run gate.
+3. Continue India/EU/HKEX public smoke, digest diversity, and source-health observation.
+4. Record follow-up scheduled observation summaries as runs accumulate.
+5. Keep public web smoke daily running.
+6. Decide production backend app/database/frontend URL only after operator approval.
+7. Only after production infrastructure smoke, decide source-by-source production schedules.
 ```
 
 Use issue #565 to collect those source-by-source approvals. Do not treat matrix visibility as approval.
