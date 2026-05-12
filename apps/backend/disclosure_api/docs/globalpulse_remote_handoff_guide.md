@@ -66,6 +66,12 @@ HKEX scheduled staging follow-up observation:
 globalpulse_hkex_scheduled_staging_followup_observation_20260512.md
 ```
 
+HKEX seven-run scheduled staging observation:
+
+```text
+globalpulse_hkex_scheduled_staging_seven_run_observation_20260512.md
+```
+
 EU scheduled staging canary second follow-up observation:
 
 ```text
@@ -425,7 +431,7 @@ HKEX:
   conservative staging workflow: configured
   default-branch schedule activation: merged to main
   first automated scheduled staging run: pass, run 25684138207
-  follow-up scheduled staging observation: 5 successful runs recorded, latest run 25712752961
+  follow-up scheduled staging observation: 7 successful runs recorded, latest run 25729361512
   next gate: continue scheduled staging observation toward 7-day / 10 successful run gate
 ```
 
@@ -498,7 +504,7 @@ cadence: not approved
 staging cadence design: recorded
 staging workflow: configured
 first scheduled run: pass, run 25684138207
-follow-up scheduled observation: 5 successful scheduled runs recorded, latest run 25712752961
+follow-up scheduled observation: 7 successful scheduled runs recorded, latest run 25729361512
 next: continue scheduled observation, keep source active=false
 ```
 
@@ -522,7 +528,7 @@ Denmark DFSA OAM first automated scheduled run: 25668194957
 Denmark DFSA OAM second follow-up run: 25699532618
 Denmark DFSA OAM latest scheduled run: 25713328609
 HKEX first automated scheduled staging run: 25684138207
-HKEX follow-up scheduled staging observation latest run: 25712752961
+HKEX follow-up scheduled staging observation latest run: 25729361512
 HKEX scheduled staging cron: 22 */2 * * 1-5
 HKEX main activation PR: #541
 HKEX main activation commit: 423ca7fa710b04de56a74b0a1ee092b43597b8a1

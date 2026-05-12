@@ -122,6 +122,12 @@ For the HKEX scheduled staging follow-up observation window, read:
 apps/backend/disclosure_api/docs/globalpulse_hkex_scheduled_staging_followup_observation_20260512.md
 ```
 
+For the HKEX seven-run scheduled staging observation update, read:
+
+```text
+apps/backend/disclosure_api/docs/globalpulse_hkex_scheduled_staging_seven_run_observation_20260512.md
+```
+
 For the latest EU scheduled staging canary follow-up observation, read:
 
 ```text
@@ -327,7 +333,7 @@ public web smoke production-ready inputs: added by #607, default staging schedul
 Pages deploy static JS syntax check: added by #607 and passed
 public web smoke hardening result: recorded by #608
 HKEX first automated scheduled staging run: pass, run 25684138207
-HKEX scheduled staging follow-up observation: 5 successful scheduled runs recorded, latest run 25712752961
+HKEX scheduled staging seven-run observation: 7 successful scheduled runs recorded, latest run 25729361512
 next HKEX gate: continue scheduled staging observation toward 7-day / 10 successful run gate
 next web deployment gate: decide production backend app/database/frontend URL
 post-expansion next gate: production infrastructure decision values, source promotion approvals, and observation-window continuation
@@ -354,7 +360,7 @@ India NSE interim scheduled observation: pass, recent runs 25694981715, 25699447
 EU canary follow-up scheduled observation: pass, runs 25680178601, 25698983703, and 25712655792
 Denmark DFSA OAM follow-up scheduled observation: pass, runs 25680895829, 25699532618, and 25713328609
 HKEX first automated scheduled staging run: pass, run 25684138207
-HKEX scheduled staging follow-up observation: 5/10 successful run gate, latest run 25712752961
+HKEX scheduled staging observation: 7/10 successful run gate, latest run 25729361512
 public Pages smoke: 200
 public config smoke: 200
 Fly staging health: 200 ok
