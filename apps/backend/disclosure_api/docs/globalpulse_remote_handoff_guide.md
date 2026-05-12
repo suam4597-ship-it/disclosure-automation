@@ -12,6 +12,12 @@ Repo-root quick entrypoint:
 GLOBALPULSE_HANDOFF.md
 ```
 
+Shortest cross-local resume packet:
+
+```text
+globalpulse_cross_local_resume_packet_20260512.md
+```
+
 Public website deployment roadmap:
 
 ```text
