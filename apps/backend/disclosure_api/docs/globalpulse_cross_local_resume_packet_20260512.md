@@ -187,6 +187,8 @@ Phase 1 backend trace: success
 #610 published this cross-local resume packet.
 #612 refreshed the public dashboard regional mapping on the latest phase0-foundation head.
 #613 recorded the refreshed public digest diversity with non-India rows visible in the latest top-N digest.
+#614 refreshed the handoff docs after the mapping/digest updates.
+#277 through #311 were closed as superseded stale stacked PRs; see globalpulse_stale_stacked_pr_cleanup_20260512.md.
 ```
 
 Important #607 behavior:
@@ -214,6 +216,7 @@ Recommended order:
 Useful result docs/templates:
 
 ```text
+apps/backend/disclosure_api/docs/globalpulse_stale_stacked_pr_cleanup_20260512.md
 apps/backend/disclosure_api/docs/globalpulse_production_deployment_runbook.md
 apps/backend/disclosure_api/docs/globalpulse_production_deployment_smoke_record_template.md
 apps/backend/disclosure_api/docs/globalpulse_production_frontend_empty_state_smoke_checklist.md

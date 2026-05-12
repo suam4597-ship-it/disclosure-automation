@@ -164,6 +164,12 @@ For the source-observation production readiness matrix, read:
 apps/backend/disclosure_api/docs/globalpulse_source_observation_production_readiness_matrix.md
 ```
 
+For the stale Fast MVP / Source Health stacked PR cleanup record, read:
+
+```text
+apps/backend/disclosure_api/docs/globalpulse_stale_stacked_pr_cleanup_20260512.md
+```
+
 For the latest source-health drift observation, read:
 
 ```text
