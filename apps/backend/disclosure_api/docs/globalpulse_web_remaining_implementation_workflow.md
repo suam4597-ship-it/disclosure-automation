@@ -11,6 +11,7 @@ This is planning-only. It does not change frontend code, backend code, routes, p
 ```text
 GLOBALPULSE_WEB_REMAINING_IMPLEMENTATION_WORKFLOW_RECORDED
 CURRENT_PUBLIC_WEB_DIGEST_DIVERSITY_OBSERVATION_RECORDED
+PRODUCTION_APPROVAL_BLOCKER_STATUS_RECORDED
 PUBLIC_PAGES_STAGING_BACKEND_SMOKE_REMAINS_FIRST_CHECKPOINT
 PRODUCTION_INFRA_DECISIONS_BLOCK_RUNTIME_PROMOTION
 FRONTEND_CONFIG_PROMOTION_BLOCKED_UNTIL_PRODUCTION_BACKEND_SMOKE
@@ -91,6 +92,14 @@ fallback_to_fixture=false
 ### 3. Record Production Infrastructure Decision Values
 
 This step is blocked until operator approval values exist.
+
+Latest approval status check:
+
+```text
+production approval issue #561: open, comments 0
+source promotion issue #565: open, comments 0
+approval blocker status doc: globalpulse_production_approval_blocker_status_20260512.md
+```
 
 Required values:
 
