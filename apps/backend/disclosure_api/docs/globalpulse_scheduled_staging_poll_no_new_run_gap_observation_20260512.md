@@ -99,6 +99,28 @@ continue digest diversity checks
 keep production approval blockers open until operator values are provided
 ```
 
+## Later Update
+
+A later scheduled run showed that `GlobalPulse live staging poll` workflow liveness resumed:
+
+```text
+run id: 25712461043
+event: schedule
+conclusion: success
+created_at: 2026-05-12T03:59:01Z
+SCHEDULE_EXPR: 7 * * * *
+SOURCE_KEY: sec_press_releases
+RUN_MODE: single_source
+poll status: 202
+fetch.mode: live
+fetch.status_code: 200
+records_seen: 25
+records_inserted: 25
+digest.metadata.fallback_to_fixture: false
+```
+
+That later run is recorded in `globalpulse_sec_hourly_scheduled_run_after_liveness_gap_20260512.md`. It clears the workflow-liveness gap, but it remains SEC evidence rather than HKEX, EU, Denmark, or India evidence.
+
 ## Guardrails
 
 ```text

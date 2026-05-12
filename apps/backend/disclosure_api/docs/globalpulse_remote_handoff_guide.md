@@ -144,6 +144,12 @@ Latest staging digest transient retry observation:
 globalpulse_staging_digest_transient_500_retry_observation_20260512.md
 ```
 
+Latest SEC hourly scheduled run after liveness gap:
+
+```text
+globalpulse_sec_hourly_scheduled_run_after_liveness_gap_20260512.md
+```
+
 Production backend deployment design:
 
 ```text
@@ -161,8 +167,8 @@ globalpulse_production_deployment_runbook.md
 ```text
 repo: suam4597-ship-it/disclosure-automation
 primary working branch: phase0-foundation
-current anchor commit: 7be5bd3893ca96984d2a58beea0a531839284e6c
-latest phase0 anchor PR: #589 Record scheduled workflow liveness state review
+current anchor commit: 0194e1313678ddf4f23fd03ba1aec209ee967604
+latest phase0 anchor PR: #590 Record staging digest transient retry observation
 default-branch schedule activation PR: #541 Activate HKEX staging schedule on main
 main schedule activation commit: 423ca7fa710b04de56a74b0a1ee092b43597b8a1
 default-branch public web smoke activation PR: #545 Activate public web smoke workflow on main
@@ -189,7 +195,7 @@ Expected:
 
 ```text
 git status --short: empty
-HEAD: 7be5bd3893ca96984d2a58beea0a531839284e6c or a newer origin/phase0-foundation commit
+HEAD: 0194e1313678ddf4f23fd03ba1aec209ee967604 or a newer origin/phase0-foundation commit
 ```
 
 If the local checkout has unrelated uncommitted work, do not overwrite it. Either use a fresh clone or create a new branch and inspect the diff first.
@@ -247,6 +253,7 @@ scheduled staging poll no-new-run gap: latest observed scheduled run remains SEC
 scheduled workflow liveness review checklist: use before changing schedules after a no-new-run gap
 scheduled workflow liveness state review: live staging poll and public web smoke workflows active on main
 staging digest transient 500 retry observation: one digest 500 recovered to 200, health remained 200 ok
+SEC hourly scheduled run after gap: pass, run 25712461043, source sec_press_releases, poll 202, live/200, records_seen=25, records_inserted=25, digest fallback=false
 ```
 
 The project is no longer in the "can we find sources?" phase for Europe. Europe now needs observation, promotion gates, digest diversity checks, and rollback evidence.
@@ -437,6 +444,7 @@ Public web smoke main activation PR: #545
 Public web smoke workflow id: 274668919
 Public web smoke first workflow_dispatch run: 25676030410 pass
 Latest scheduled staging poll no-new-run gap: latest observed run remains 25704707578
+Latest SEC hourly scheduled run after gap: 25712461043
 ```
 
 Useful branch checks:

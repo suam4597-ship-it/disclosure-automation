@@ -12,21 +12,22 @@ This is documentation-only. It does not change workflows, source activation, bac
 SCHEDULED_WORKFLOW_OBSERVATION_COOKBOOK_RECORDED
 SCHEDULED_WORKFLOW_OBSERVATION_COOKBOOK_REFRESHED
 POWERSHELL_GITHUB_REST_FALLBACK_RECORDED
-PHASE0_AND_PHASE1_CI_GREEN_AFTER_SCHEDULED_RUN_GAP_OBSERVATION
+PHASE0_AND_PHASE1_CI_GREEN_AFTER_STAGING_DIGEST_TRANSIENT_RETRY_OBSERVATION
 HKEX_FIRST_AUTOMATED_SCHEDULED_RUN_PASS_RECORDED
 HKEX_SCHEDULED_FOLLOWUP_OBSERVATION_RECORDED
 LATEST_OBSERVED_STAGING_POLL_RUN_WAS_SEC_HOURLY
 SCHEDULED_STAGING_POLL_NO_NEW_RUN_GAP_OBSERVED
+SEC_HOURLY_SCHEDULED_RUN_AFTER_GAP_OBSERVED
 MANUAL_WORKFLOW_DISPATCH_DOES_NOT_COUNT_AS_SCHEDULED_PASS
 PRODUCTION_SCHEDULED_POLLING_NOT_ENABLED
 ```
 
 ## Current Known Status
 
-The latest `phase0-foundation` CI after the scheduled staging poll no-new-run gap observation completed successfully:
+The latest `phase0-foundation` CI after the staging digest transient retry observation completed successfully:
 
 ```text
-head: 9311db8ac124010fa11595d72cccd7c780a90223
+head: 0194e1313678ddf4f23fd03ba1aec209ee967604
 Phase 0 validate: success
 Phase 0 report: success
 Phase 1 backend verify: success
@@ -36,7 +37,25 @@ Phase 1 backend diagnose: success
 Phase 1 backend trace: success
 ```
 
-The latest observed `GlobalPulse live staging poll` schedule run during this check was not HKEX:
+The latest observed `GlobalPulse live staging poll` schedule run after the no-new-run gap was SEC hourly:
+
+```text
+run id: 25712461043
+created_at: 2026-05-12T03:59:01Z
+event: schedule
+conclusion: success
+SCHEDULE_EXPR: 7 * * * *
+SOURCE_KEY: sec_press_releases
+RUN_MODE: single_source
+poll status: 202
+fetch.mode: live
+fetch.status_code: 200
+records_seen: 25
+records_inserted: 25
+digest.metadata.fallback_to_fixture: false
+```
+
+Earlier, the observed schedule run during the no-new-run gap check was also SEC hourly:
 
 ```text
 run id: 25704707578
@@ -54,9 +73,11 @@ records_inserted: 25
 digest.metadata.fallback_to_fixture: false
 ```
 
-This confirms the staging poll workflow is still running. It is not new evidence for HKEX, EU, Denmark, or India because the resolved source is `sec_press_releases`.
+This confirms the staging poll workflow resumed after the gap. It is not new evidence for HKEX, EU, Denmark, or India because the resolved source is `sec_press_releases`.
 
 A later wait-state check still observed this run as the latest scheduled staging poll run. That no-new-run gap is recorded in `globalpulse_scheduled_staging_poll_no_new_run_gap_observation_20260512.md`.
+
+The later SEC hourly run after that gap is recorded in `globalpulse_sec_hourly_scheduled_run_after_liveness_gap_20260512.md`.
 
 Current observation baselines:
 
