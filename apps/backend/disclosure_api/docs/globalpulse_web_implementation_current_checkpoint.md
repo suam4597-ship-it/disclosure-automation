@@ -46,8 +46,8 @@ REMOTE_HANDOFF_REFRESHED_FOR_MULTI_LOCAL_WORK
 ```text
 repo: suam4597-ship-it/disclosure-automation
 primary working branch: phase0-foundation
-current head: dccb3e6a99b4b037356756626736baa727ce1896
-latest merged PR: #596 Record latest EU canary scheduled observation
+current head: 7a6f7f9cf97420acf109a1ce5dfc722bb9033084
+latest merged PR: #597 Record latest Denmark scheduled observation
 worktree expectation: clean
 ```
 
@@ -101,7 +101,7 @@ This confirms the public website and staging backend are currently connected and
 
 ## Current CI Snapshot
 
-For head `dccb3e6a99b4b037356756626736baa727ce1896`, push and pull-request checks completed successfully:
+For head `7a6f7f9cf97420acf109a1ce5dfc722bb9033084`, push and pull-request checks completed successfully:
 
 ```text
 Phase 0 validate: success
@@ -118,10 +118,10 @@ Phase 1 backend trace: success
 Recent scheduled staging observations:
 
 ```text
-India NSE interim scheduled observation runs: 25694981715, 25699447717, 25703573653
+India NSE interim scheduled observation runs: 25694981715, 25699447717, 25703573653, and 25713273293
 India NSE schedule: 37 */2 * * 1-5
 India NSE source key: india_nse_announcements
-India NSE result: pass, live/200, bounded records, digest fallback=false, India rows visible in inspected top-N digests
+India NSE result: pass, latest run 25713273293 live/200 with records_seen=25, records_inserted=25, digest fallback=false, India rows visible in inspected top-N digests
 
 EU canary follow-up runs: 25680178601, 25698983703, and 25712655792
 EU schedule: 17 */4 * * 1-5
@@ -175,7 +175,7 @@ git status --short
 Expected:
 
 ```text
-HEAD: dccb3e6a99b4b037356756626736baa727ce1896 or newer
+HEAD: 7a6f7f9cf97420acf109a1ce5dfc722bb9033084 or newer
 git status --short: empty
 ```
 
