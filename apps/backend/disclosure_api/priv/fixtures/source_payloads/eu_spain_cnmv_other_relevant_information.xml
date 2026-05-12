@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>CNMV - Otra informacion relevante</title>
+    <link>https://www.cnmv.es/portal/Otra-Informacion-Relevante/Busqueda-OIR</link>
+    <description>Fixture for Spain CNMV other-relevant-information issuer disclosures.</description>
+    <item>
+      <guid>globalpulse-es-oir-20260508-001</guid>
+      <title>GLOBALPULSE INFRASTRUCTURE SA - Other relevant information on board approval</title>
+      <link>https://example.com/globalpulse/fixtures/eu-spain-cnmv-oir-001.pdf</link>
+      <description>Other relevant information disclosure filed through CNMV by a listed issuer.</description>
+      <pubDate>Fri, 08 May 2026 09:30:00 GMT</pubDate>
+      <category>other_relevant_information</category>
+    </item>
+    <item>
+      <guid>globalpulse-es-oir-20260508-002</guid>
+      <title>MADRID DATA NETWORKS SA - Other relevant information on shareholder meeting</title>
+      <link>https://example.com/globalpulse/fixtures/eu-spain-cnmv-oir-002.pdf</link>
+      <description>Listed-company notice for shareholder meeting materials and voting information.</description>
+      <pubDate>Fri, 08 May 2026 10:15:00 GMT</pubDate>
+      <category>other_relevant_information</category>
+    </item>
+  </channel>
+</rss>

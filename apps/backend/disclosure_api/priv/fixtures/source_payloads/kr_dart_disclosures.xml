@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Korea DART Disclosures</title>
+    <item>
+      <title>Samsung Electronics files supply-chain investment disclosure</title>
+      <link>https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260508000101</link>
+      <guid>kr-dart-20260508-samsung-supply-chain-investment</guid>
+      <description>Major facility investment disclosure highlights advanced semiconductor packaging capacity and regional supply-chain commitments.</description>
+      <pubDate>Fri, 08 May 2026 01:10:00 GMT</pubDate>
+      <category>regulatory</category>
+    </item>
+    <item>
+      <title>Hyundai Motor discloses board approval for battery JV expansion</title>
+      <link>https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260508000102</link>
+      <guid>kr-dart-20260508-hyundai-battery-jv</guid>
+      <description>Board-approved investment expands battery joint venture capacity for North American and Korean EV production lanes.</description>
+      <pubDate>Fri, 08 May 2026 00:40:00 GMT</pubDate>
+      <category>markets</category>
+    </item>
+  </channel>
+</rss>

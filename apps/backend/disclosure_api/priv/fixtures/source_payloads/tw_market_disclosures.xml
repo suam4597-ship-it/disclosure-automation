@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Taiwan Market Disclosures</title>
+    <item>
+      <title>TSMC files advanced packaging capacity update with exchange</title>
+      <link>https://example.com/globalpulse/tw/tsmc-advanced-packaging-capacity</link>
+      <guid>tw-disclosure-20260508-tsmc-advanced-packaging</guid>
+      <description>Exchange filing outlines a capacity expansion schedule for advanced packaging lines tied to AI accelerator demand.</description>
+      <pubDate>Fri, 08 May 2026 04:18:00 GMT</pubDate>
+      <category>disclosure</category>
+    </item>
+    <item>
+      <title>Hon Hai discloses AI server revenue outlook after board review</title>
+      <link>https://example.com/globalpulse/tw/hon-hai-ai-server-outlook</link>
+      <guid>tw-disclosure-20260508-hon-hai-ai-server</guid>
+      <description>Board-reviewed update points to stronger AI server demand and a revised capital allocation plan for assembly capacity.</description>
+      <pubDate>Fri, 08 May 2026 03:52:00 GMT</pubDate>
+      <category>disclosure</category>
+    </item>
+  </channel>
+</rss>

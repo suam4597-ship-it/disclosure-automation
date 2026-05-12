@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0">
+  <channel>
+    <title>SIX Exchange Regulation | Official Notices</title>
+    <link>https://www.ser-ag.com/en/resources/notifications-market-participants/official-notices.html</link>
+    <description>SIX Exchange Regulation | Official Notices RSS</description>
+    <item>
+      <title>Increase/Decrease of issue size</title>
+      <link>https://www.ser-ag.com/en/resources/notifications-market-participants/official-notices.html#notificationId=356708</link>
+      <guid>https://www.ser-ag.com/en/resources/notifications-market-participants/official-notices.html#notificationId=356708</guid>
+      <pubDate>Fri, 08 May 2026 18:00:30 +0200</pubDate>
+      <description>Zuercher Kantonalbank Finance (Guernsey) Ltd - Increase/Decrease of issue size</description>
+    </item>
+    <item>
+      <title>Rule based parameter adjustment</title>
+      <link>https://www.ser-ag.com/en/resources/notifications-market-participants/official-notices.html#notificationId=356707</link>
+      <guid>https://www.ser-ag.com/en/resources/notifications-market-participants/official-notices.html#notificationId=356707</guid>
+      <pubDate>Fri, 08 May 2026 18:00:28 +0200</pubDate>
+      <description>Bank Vontobel AG, Zurich - Rule based parameter adjustment</description>
+    </item>
+  </channel>
+</rss>

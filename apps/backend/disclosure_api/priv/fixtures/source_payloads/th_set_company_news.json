@@ -1,0 +1,62 @@
+{
+  "newsGroups": [
+    {
+      "group": "Financial Statement",
+      "totalCount": 2,
+      "newsInfoList": [
+        {
+          "id": "17784560467780",
+          "datetime": "2026-05-11T08:49:44+07:00",
+          "symbol": "BKA",
+          "source": "BKA",
+          "url": "https://www.set.or.th/en/market/news-and-alert/newsdetails?id=17784560467780&symbol=BKA",
+          "headline": "Financial Statement Quarter 1/2026 (Reviewed)",
+          "isTodayNews": true,
+          "viewClarification": null,
+          "marketAlertTypeId": null,
+          "tag": "financial-statement",
+          "percentPriceChange": 0,
+          "view": 0,
+          "product": "S"
+        },
+        {
+          "id": "17784560467360",
+          "datetime": "2026-05-11T08:43:20+07:00",
+          "symbol": "TOP",
+          "source": "TOP",
+          "url": "https://www.set.or.th/en/market/news-and-alert/newsdetails?id=17784560467360&symbol=TOP",
+          "headline": "Financial Statement Quarter 1/2026 (Reviewed)",
+          "isTodayNews": true,
+          "viewClarification": null,
+          "marketAlertTypeId": null,
+          "tag": "financial-statement",
+          "percentPriceChange": 0,
+          "view": 0,
+          "product": "S"
+        }
+      ]
+    },
+    {
+      "group": "",
+      "totalCount": 1,
+      "newsInfoList": [
+        {
+          "id": "104057100",
+          "datetime": "2026-05-11T09:11:51+07:00",
+          "symbol": "BKA",
+          "source": "BKA",
+          "url": "https://www.set.or.th/en/market/news-and-alert/newsdetails?id=104057100&symbol=BKA",
+          "headline": "Financial Performance Quarter 1 (F45) (Reviewed) (Revised)",
+          "isTodayNews": true,
+          "viewClarification": null,
+          "marketAlertTypeId": null,
+          "tag": "",
+          "percentPriceChange": 0,
+          "view": 0,
+          "product": "S"
+        }
+      ]
+    }
+  ],
+  "paginateNews": null
+}

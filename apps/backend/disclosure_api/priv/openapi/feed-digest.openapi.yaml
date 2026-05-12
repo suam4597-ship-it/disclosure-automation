@@ -1,0 +1,79 @@
+openapi: 3.1.0
+info:
+  title: Disclosure Automation Feed Digest API
+  version: 0.1.0
+  summary: Phase 1 digest read API backed by canonical feed items with fixture fallback.
+servers:
+  - url: http://localhost:4000
+    description: Local Phoenix endpoint
+paths:
+  /api/feed/digest/latest:
+    get:
+      summary: Fetch the latest digest for an edition
+      parameters:
+        - in: query
+          name: edition
+          required: true
+          schema:
+            type: string
+            enum: [apac-open, europe-midday, us-close, breaking]
+        - in: query
+          name: timezone
+          required: false
+          schema:
+            type: string
+            default: UTC
+      responses:
+        '200':
+          description: Digest found
+        '400':
+          description: Invalid request
+        '404':
+          description: Digest not found
+  /api/feed/digest/{digest_date}/{edition}:
+    get:
+      summary: Fetch a digest by digest date and edition
+      parameters:
+        - in: path
+          name: digest_date
+          required: true
+          schema:
+            type: string
+            format: date
+        - in: path
+          name: edition
+          required: true
+          schema:
+            type: string
+            enum: [apac-open, europe-midday, us-close, breaking]
+      responses:
+        '200':
+          description: Digest found
+        '400':
+          description: Invalid request
+        '404':
+          description: Digest not found
+components:
+  schemas:
+    FeedDigest:
+      type: object
+      properties:
+        digest_date:
+          type: string
+          format: date
+        edition:
+          type: string
+        timezone:
+          type: string
+        generated_at:
+          type: string
+          format: date-time
+        generated_by:
+          type: string
+          enum: [fixture, repo]
+        item_count:
+          type: integer
+        items:
+          type: array
+          items:
+            type: object

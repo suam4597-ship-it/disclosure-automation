@@ -1,0 +1,1835 @@
+version: 1
+defaults:
+  timezone: UTC
+  poll_cron: "*/15 * * * *"
+  parser_key: rss_v1
+  ranking_weight: 1.0
+  active: true
+
+sources:
+  - source_key: sec_press_releases
+    display_name: SEC Press Releases
+    source_type: rss
+    base_url: https://www.sec.gov/news/pressreleases.rss
+    healthcheck_url: https://www.sec.gov
+    parser_key: rss_v1
+    poll_cron: "*/10 * * * *"
+    ranking_weight: 1.4
+    coverage_tags:
+      - regulatory
+      - enforcement
+      - markets
+    active: true
+    config:
+      canonical_domain: sec.gov
+      dedupe_strategy: canonical_url
+      summary_mode: first_paragraph
+      category_bias: high_signal
+      fixture_path: source_payloads/sec_press_releases.xml
+
+  - source_key: kr_dart_disclosures
+    display_name: Korea DART Disclosures
+    source_type: rss
+    base_url: https://dart.fss.or.kr/
+    healthcheck_url: https://dart.fss.or.kr/
+    parser_key: rss_v1
+    poll_cron: "*/15 * * * *"
+    ranking_weight: 1.35
+    coverage_tags:
+      - kr
+      - regulatory
+      - disclosure
+      - markets
+    active: true
+    config:
+      fixture_path: source_payloads/kr_dart_disclosures.xml
+
+  - source_key: jp_tdnet_disclosures
+    display_name: Japan TDnet Disclosures
+    source_type: rss
+    base_url: https://www.release.tdnet.info/
+    healthcheck_url: https://www.release.tdnet.info/
+    parser_key: rss_v1
+    poll_cron: "*/15 * * * *"
+    ranking_weight: 1.3
+    coverage_tags:
+      - jp
+      - regulatory
+      - disclosure
+      - markets
+    active: true
+    config:
+      fixture_path: source_payloads/jp_tdnet_disclosures.xml
+
+  - source_key: eu_market_news
+    display_name: Europe Market News
+    source_type: rss
+    base_url: https://example.com/globalpulse/eu-market-news
+    healthcheck_url: https://example.com/
+    parser_key: rss_v1
+    poll_cron: "*/20 * * * *"
+    ranking_weight: 1.15
+    coverage_tags:
+      - eu
+      - news
+      - markets
+    active: true
+    config:
+      fixture_path: source_payloads/eu_market_news.xml
+
+  - source_key: eu_north_disclosures
+    display_name: Northern Europe Disclosures
+    source_type: rss
+    base_url: https://example.com/globalpulse/eu-north-disclosures
+    healthcheck_url: https://example.com/
+    parser_key: rss_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.18
+    coverage_tags:
+      - eu
+      - eu_north
+      - disclosure
+      - filing
+      - markets
+    active: true
+    config:
+      fixture_path: source_payloads/eu_north_disclosures.xml
+
+  - source_key: eu_central_disclosures
+    display_name: Central Europe Disclosures
+    source_type: rss
+    base_url: https://example.com/globalpulse/eu-central-disclosures
+    healthcheck_url: https://example.com/
+    parser_key: rss_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.2
+    coverage_tags:
+      - eu
+      - eu_central
+      - disclosure
+      - filing
+      - markets
+    active: true
+    config:
+      fixture_path: source_payloads/eu_central_disclosures.xml
+
+  - source_key: eu_south_disclosures
+    display_name: Southern Europe Disclosures
+    source_type: rss
+    base_url: https://example.com/globalpulse/eu-south-disclosures
+    healthcheck_url: https://example.com/
+    parser_key: rss_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.12
+    coverage_tags:
+      - eu
+      - eu_south
+      - disclosure
+      - filing
+      - markets
+    active: true
+    config:
+      fixture_path: source_payloads/eu_south_disclosures.xml
+
+  - source_key: eu_france_info_financiere_oam
+    display_name: France Info-Financiere OAM
+    source_type: api
+    base_url: https://www.info-financiere.gouv.fr/api/explore/v2.1/catalog/datasets/flux-amf-new-prod/records?limit=25&order_by=uin_dat_amf%20desc
+    healthcheck_url: https://www.info-financiere.gouv.fr/
+    parser_key: info_financiere_oam_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.24
+    coverage_tags:
+      - eu
+      - france
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+    active: false
+    config:
+      fixture_path: source_payloads/eu_france_info_financiere_oam.json
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      max_items_per_poll: 25
+
+  - source_key: eu_spain_cnmv_inside_information
+    display_name: Spain CNMV Inside Information
+    source_type: rss
+    base_url: https://www.cnmv.es/portal/informacion-privilegiada/RSS.asmx/GetNoticiasCNMV
+    healthcheck_url: https://www.cnmv.es/
+    parser_key: rss_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.22
+    coverage_tags:
+      - eu
+      - eu_south
+      - spain
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - inside_information
+    active: false
+    config:
+      fixture_path: source_payloads/eu_spain_cnmv_inside_information.xml
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      max_items_per_poll: 25
+
+  - source_key: eu_spain_cnmv_other_relevant_information
+    display_name: Spain CNMV Other Relevant Information
+    source_type: rss
+    base_url: https://www.cnmv.es/portal/Otra-Informacion-Relevante/RSS.asmx/GetNoticiasCNMV
+    healthcheck_url: https://www.cnmv.es/
+    parser_key: rss_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.18
+    coverage_tags:
+      - eu
+      - eu_south
+      - spain
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - other_relevant_information
+    active: false
+    config:
+      fixture_path: source_payloads/eu_spain_cnmv_other_relevant_information.xml
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      max_items_per_poll: 25
+
+  - source_key: pt_cmvm_portal_info_privi
+    display_name: Portugal CMVM Inside Information and Other Issuer Information
+    source_type: api
+    base_url: https://www.cmvm.pt/PInstitucional/screenservices/PInstitucional/MainFlow/PortalInstitucional/DataActionFetchSectionsInfo
+    healthcheck_url: https://www.cmvm.pt/PInstitucional/PortalInstitucional?Input_language=en-US
+    parser_key: cmvm_portal_info_privi_json_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.16
+    coverage_tags:
+      - eu
+      - eu_south
+      - portugal
+      - pt
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - inside_information
+      - other_relevant_information
+    active: false
+    config:
+      fixture_path: source_payloads/pt_cmvm_portal_info_privi.json
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      max_items_per_poll: 25
+      live_method: post
+      live_content_type: application/json
+      live_timeout_ms: 30000
+      live_headers:
+        accept: application/json
+        origin: https://www.cmvm.pt
+        referer: https://www.cmvm.pt/PInstitucional/PortalInstitucional?Input_language=en-US
+        outsystems-client-env: browser
+        x-csrftoken: T6C+9iB49TLra4jEsMeSckDMNhQ=
+      live_body:
+        versionInfo:
+          moduleVersion: ""
+          apiVersion: NVaOB71xEZJBVAsjZB4E3A
+        viewName: MainFlow.PortalInstitucional
+        screenData:
+          variables:
+            ShowLowerBlocks: false
+            LocalLanguageId: 2
+            Input_language: en-US
+            _input_languageInDataFetchStatus: 1
+            Fetch_Main:
+              Language:
+                PortugueseId: 1
+                EnglishId: 2
+              Portal:
+                InstitutionalId: 1
+                InvestorsId: 0
+              DataFetchStatus: 1
+        clientVariables:
+          HasLocaleChanged: false
+          PortalId: "1"
+          Language: ""
+          Url_list_History: ""
+
+  - source_key: eu_netherlands_afm_financial_reporting
+    display_name: Netherlands AFM Financial Reporting
+    source_type: api
+    base_url: https://www.afm.nl/export.aspx?format=csv&type=e8825b05-4004-4301-b736-651e8c61053d
+    healthcheck_url: https://www.afm.nl/en/sector/registers/meldingenregisters/financiele-verslaggeving
+    parser_key: afm_financial_reporting_csv_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.2
+    coverage_tags:
+      - eu
+      - eu_north
+      - netherlands
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - financial_reporting
+    active: false
+    config:
+      fixture_path: source_payloads/eu_netherlands_afm_financial_reporting.csv
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      max_items_per_poll: 25
+
+  - source_key: eu_italy_emarket_storage_regulated_communications
+    display_name: Italy eMarket Storage Regulated Communications
+    source_type: html
+    base_url: https://www.emarketstorage.it/it/comunicati-finanziari
+    healthcheck_url: https://www.emarketstorage.it/it/comunicati-finanziari
+    parser_key: emarket_storage_html_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.19
+    coverage_tags:
+      - eu
+      - eu_south
+      - italy
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+    active: false
+    config:
+      fixture_path: source_payloads/eu_italy_emarket_storage_regulated_communications.html
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      max_items_per_poll: 25
+
+  - source_key: eu_luxembourg_luxse_oam
+    display_name: Luxembourg LuxSE OAM Regulated Information
+    source_type: api
+    base_url: https://graphqlaz.luxse.com/v1/graphql?query=query%20GetOamSubmissionsSearch(%24pageSize%3A%20Int%2C%20%24pageNumber%3A%20Int)%20%7B%20oamSubmissionsSearch(pageSize%3A%20%24pageSize%2C%20pageNumber%3A%20%24pageNumber)%20%7B%20totalHits%20submissions%20%7B%20submissionId%20submissionTypeLabel%20actionsList%20publicationDate%20referenceYear%20referenceStartDate%20referenceEndDate%20issuerName%20%7D%20%7D%20%7D&variables=%7B%22pageSize%22%3A25%2C%22pageNumber%22%3A1%7D
+    healthcheck_url: https://www.luxse.com/issuer-services-overview/oam/oam-search
+    parser_key: luxse_oam_graphql_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.18
+    coverage_tags:
+      - eu
+      - eu_central
+      - luxembourg
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+    active: false
+    config:
+      fixture_path: source_payloads/eu_luxembourg_luxse_oam.json
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      max_items_per_poll: 25
+      live_timeout_ms: 30000
+      live_headers:
+        accept: application/json
+        apollo-require-preflight: "true"
+
+  - source_key: eu_euronext_company_press_releases
+    display_name: Euronext Company Press Releases
+    source_type: rss
+    base_url: https://live.euronext.com/rss/company-pr-release
+    healthcheck_url: https://live.euronext.com/en/products/equities/company-news
+    parser_key: euronext_company_pr_rss_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.17
+    coverage_tags:
+      - eu
+      - euronext
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - company_press_release
+    active: false
+    config:
+      fixture_path: source_payloads/eu_euronext_company_press_releases.xml
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      max_items_per_poll: 25
+
+  - source_key: eu_belgium_fsma_stori
+    display_name: Belgium FSMA STORI Regulated Information
+    source_type: api
+    base_url: https://webapi.fsma.be/api/v1/en/stori/result
+    healthcheck_url: https://www.fsma.be/en/stori
+    parser_key: fsma_stori_api_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.17
+    coverage_tags:
+      - eu
+      - eu_central
+      - belgium
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+    active: false
+    config:
+      fixture_path: source_payloads/eu_belgium_fsma_stori.json
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      max_items_per_poll: 25
+      live_method: post
+      live_content_type: application/json
+      live_timeout_ms: 30000
+      live_headers:
+        accept: application/json
+      live_body:
+        startRowIndex: 0
+        pageSize: 25
+        sortDirection: Descending
+        sortColumn: DatePublication
+
+  - source_key: uk_fca_nsm_regulated_information
+    display_name: UK FCA NSM Regulated Information
+    source_type: api
+    base_url: https://api.data.fca.org.uk/search?index=fca-nsm-searchdata
+    healthcheck_url: https://www.fca.org.uk/markets/ukla/regulatory-disclosures/national-storage-mechanism
+    parser_key: fca_nsm_search_api_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.17
+    coverage_tags:
+      - uk
+      - europe
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - nsm
+    active: false
+    config:
+      fixture_path: source_payloads/uk_fca_nsm_regulated_information.json
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      max_items_per_poll: 25
+      live_method: post
+      live_content_type: application/json
+      live_timeout_ms: 30000
+      live_headers:
+        accept: application/json
+      live_body:
+        from: 0
+        size: 25
+        sort: submitted_date
+        sortorder: desc
+
+  - source_key: ch_six_ser_official_notices
+    display_name: Switzerland SIX SER Official Notices
+    source_type: rss
+    base_url: https://www.ser-ag.com/itf-data/official-notices/rss-en.xml
+    healthcheck_url: https://www.six-group.com/en/market-data/news-tools/official-notices.html
+    parser_key: rss_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.16
+    coverage_tags:
+      - ch
+      - europe
+      - switzerland
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - official_notices
+    active: false
+    config:
+      fixture_path: source_payloads/ch_six_ser_official_notices.xml
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      max_items_per_poll: 25
+
+  - source_key: eu_nasdaq_nordic_company_news
+    display_name: Nasdaq Nordic Company News
+    source_type: api
+    base_url: https://api.news.eu.nasdaq.com/news/query.action?countResults=true&globalGroup=exchangeNotice&displayLanguage=en&timeZone=CET&dateMask=yyyy-MM-dd%20HH:mm:ss&limit=25&start=0&dir=DESC&globalName=NordicAllMarkets&callback=handleResponse
+    healthcheck_url: https://www.nasdaq.com/european-market-activity/news/company-news
+    parser_key: nasdaq_nordic_cns_jsonp_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.16
+    coverage_tags:
+      - eu
+      - eu_north
+      - nordic
+      - denmark
+      - sweden
+      - finland
+      - iceland
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - company_news
+    active: false
+    config:
+      fixture_path: source_payloads/eu_nasdaq_nordic_company_news.jsonp
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      max_items_per_poll: 25
+      live_timeout_ms: 30000
+      live_headers:
+        accept: application/javascript, application/json
+
+  - source_key: no_oslo_bors_newsweb_main_market
+    display_name: Norway Oslo Bors NewsWeb Main Market Announcements
+    source_type: api
+    base_url: https://api3.oslo.oslobors.no/v1/newsreader/list?market=XOSL&category=&issuer=&fromDate=&toDate=&messageTitle=
+    healthcheck_url: https://newsweb.oslobors.no/
+    parser_key: oslo_newsweb_json_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.15
+    coverage_tags:
+      - eu
+      - eu_north
+      - norway
+      - no
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - exchange_announcement
+      - company_news
+    active: false
+    config:
+      fixture_path: source_payloads/no_oslo_bors_newsweb_main_market.json
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      max_items_per_poll: 25
+      live_method: post
+      live_content_type: application/json
+      live_timeout_ms: 30000
+      live_headers:
+        accept: application/json
+      live_body: {}
+
+  - source_key: pl_gpw_espi_ebi_reports
+    display_name: Poland GPW ESPI/EBI Company Reports
+    source_type: html
+    base_url: https://www.gpw.pl/espi-ebi-reports
+    healthcheck_url: https://www.gpw.pl/espi-ebi-reports
+    parser_key: gpw_espi_ebi_html_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.15
+    coverage_tags:
+      - eu
+      - eu_central
+      - poland
+      - pl
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - exchange_announcement
+      - espi
+      - ebi
+    active: false
+    config:
+      fixture_path: source_payloads/pl_gpw_espi_ebi_reports.html
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      max_items_per_poll: 25
+      live_timeout_ms: 30000
+      live_headers:
+        accept: text/html
+
+  - source_key: hu_bse_issuers_news
+    display_name: Hungary Budapest Stock Exchange Issuers News
+    source_type: html
+    base_url: https://www.bse.hu/issuers_news
+    healthcheck_url: https://www.bse.hu/issuers_news
+    parser_key: bse_issuers_news_html_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.14
+    coverage_tags:
+      - eu
+      - eu_central
+      - hungary
+      - hu
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - exchange_announcement
+      - issuer_news
+    active: false
+    config:
+      fixture_path: source_payloads/hu_bse_issuers_news.html
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      max_items_per_poll: 25
+      live_timeout_ms: 30000
+      live_headers:
+        accept: text/html
+
+  - source_key: ro_bvb_current_reports
+    display_name: Romania BVB Current Reports
+    source_type: html
+    base_url: https://bvb.ro/FinancialInstruments/SelectedData/CurrentReports
+    healthcheck_url: https://bvb.ro/FinancialInstruments/SelectedData/CurrentReports
+    parser_key: bvb_current_reports_html_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.14
+    coverage_tags:
+      - eu
+      - eu_central
+      - romania
+      - ro
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - exchange_announcement
+      - current_report
+    active: false
+    config:
+      fixture_path: source_payloads/ro_bvb_current_reports.html
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      max_items_per_poll: 25
+      live_timeout_ms: 30000
+      live_headers:
+        accept: text/html
+
+  - source_key: si_oam_regulated_information
+    display_name: Slovenia OAM Regulated Information
+    source_type: rss
+    base_url: https://www.oam.si/rss
+    healthcheck_url: https://www.oam.si/default_en.aspx?doc=HELP
+    parser_key: rss_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.13
+    coverage_tags:
+      - eu
+      - eu_central
+      - slovenia
+      - si
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - oam
+    active: false
+    config:
+      fixture_path: source_payloads/si_oam_regulated_information.xml
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      max_items_per_poll: 25
+      live_timeout_ms: 30000
+      live_headers:
+        accept: application/rss+xml, application/xml, text/xml
+
+  - source_key: hr_zse_eho_issuer_news
+    display_name: Croatia ZSE EHO Issuer News
+    source_type: rss
+    base_url: https://eho.zse.hr/en/feed/rss?variant=issuerNews
+    healthcheck_url: https://eho.zse.hr/en/feed
+    parser_key: rss_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.13
+    coverage_tags:
+      - eu
+      - eu_south
+      - croatia
+      - hr
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - exchange_announcement
+      - eho
+    active: false
+    config:
+      fixture_path: source_payloads/hr_zse_eho_issuer_news.xml
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      max_items_per_poll: 25
+      live_timeout_ms: 30000
+      live_headers:
+        accept: application/rss+xml, application/xml, text/xml
+
+  - source_key: hr_zse_eho_financial_reports
+    display_name: Croatia ZSE EHO Financial Reports
+    source_type: rss
+    base_url: https://eho.zse.hr/en/feed/rss?vrsta=financ
+    healthcheck_url: https://eho.zse.hr/en/feed
+    parser_key: rss_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.12
+    coverage_tags:
+      - eu
+      - eu_south
+      - croatia
+      - hr
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - exchange_announcement
+      - financial_report
+      - eho
+    active: false
+    config:
+      fixture_path: source_payloads/hr_zse_eho_financial_reports.xml
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      max_items_per_poll: 25
+      live_timeout_ms: 30000
+      live_headers:
+        accept: application/rss+xml, application/xml, text/xml
+
+  - source_key: sk_ceri_regulated_information
+    display_name: Slovakia CERI Regulated Information
+    source_type: html
+    base_url: https://ceri.nbs.sk/search
+    healthcheck_url: https://ceri.nbs.sk/index
+    parser_key: ceri_regulated_information_html_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.12
+    coverage_tags:
+      - eu
+      - eu_central
+      - slovakia
+      - sk
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - financial_report
+      - oam
+      - ceri
+    active: false
+    config:
+      fixture_path: source_payloads/sk_ceri_regulated_information.html
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      max_items_per_poll: 25
+      live_timeout_ms: 30000
+      live_headers:
+        accept: text/html
+
+  - source_key: ee_oam_market_announcements
+    display_name: Estonia OAM Market Announcements
+    source_type: html
+    base_url: https://oam.fi.ee/en/borsiteated?limit=50&n=1&order=Date&page=0&sort=desc
+    healthcheck_url: https://www.fi.ee/en/investment/registers/central-storage-regulated-information
+    parser_key: ee_oam_market_announcements_html_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.13
+    coverage_tags:
+      - eu
+      - eu_north
+      - baltic
+      - estonia
+      - ee
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - market_announcement
+      - oam
+    active: false
+    config:
+      fixture_path: source_payloads/ee_oam_market_announcements.html
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      max_items_per_poll: 25
+      live_timeout_ms: 30000
+      live_headers:
+        accept: text/html
+
+  - source_key: lt_oam_regulated_information
+    display_name: Lithuania OAM Regulated Information
+    source_type: html
+    base_url: https://www.oam.lt/?language=en
+    healthcheck_url: https://www.oam.lt/?language=en
+    parser_key: lt_oam_regulated_information_html_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.13
+    coverage_tags:
+      - eu
+      - eu_north
+      - baltic
+      - lithuania
+      - lt
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - market_announcement
+      - oam
+    active: false
+    config:
+      fixture_path: source_payloads/lt_oam_regulated_information.html
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      max_items_per_poll: 25
+      live_timeout_ms: 30000
+      live_headers:
+        accept: text/html
+
+  - source_key: lv_csri_regulated_information
+    display_name: Latvia CSRI Regulated Information
+    source_type: html
+    base_url: https://csri.investinfo.lv/en/?view=csridocuments
+    healthcheck_url: https://www.bank.lv/darbibas-jomas/uzraudziba/finansu-instrumentu-tirgus/emitents/publiski-atklajama-informacija
+    parser_key: lv_csri_regulated_information_html_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.13
+    coverage_tags:
+      - eu
+      - eu_north
+      - baltic
+      - latvia
+      - lv
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - market_announcement
+      - oam
+      - csri
+      - oricgs
+    active: false
+    config:
+      fixture_path: source_payloads/lv_csri_regulated_information.html
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      max_items_per_poll: 25
+      live_timeout_ms: 30000
+      live_headers:
+        accept: text/html
+
+  - source_key: md_msi_regulated_information
+    display_name: Moldova MSI Regulated Information
+    source_type: html
+    base_url: https://emitent-msi.market.md/includes/parts/pubdocs-list.php
+    healthcheck_url: https://emitent-msi.market.md/en/
+    parser_key: md_msi_regulated_information_html_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.08
+    coverage_tags:
+      - eu
+      - eu_central
+      - moldova
+      - md
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - official_disclosure_platform
+      - oam
+    active: false
+    config:
+      fixture_path: source_payloads/md_msi_regulated_information.html
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      disable_live_fixture_fallback: true
+      max_items_per_poll: 25
+      live_method: post
+      live_content_type: application/x-www-form-urlencoded; charset=UTF-8
+      live_body: page=1&lan=en&f1=0&f2=0&f3=01/01/2025&f4=31/12/2026
+      live_timeout_ms: 30000
+      live_headers:
+        accept: text/html
+        referer: https://emitent-msi.market.md/en/
+        x-requested-with: XMLHttpRequest
+
+  - source_key: dk_dfsa_oam_company_announcements
+    display_name: Denmark DFSA OAM Company Announcements
+    source_type: api
+    base_url: https://appft.gold.extension.gopublic.dk/api/9217fa13-5d9a-46c6-9921-69ee7e6cfaf6/search
+    healthcheck_url: https://www.dfsa.dk/financial-themes/capital-market/company-announcements
+    parser_key: dfsa_oam_company_announcements_json_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.14
+    coverage_tags:
+      - eu
+      - eu_north
+      - denmark
+      - dk
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - oam
+      - dfsa
+    active: false
+    config:
+      fixture_path: source_payloads/dk_dfsa_oam_company_announcements.json
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      disable_live_fixture_fallback: true
+      max_items_per_poll: 25
+      live_method: post
+      live_content_type: application/json
+      live_body: '{"query":"","filters":[{"type":"dropdown","key":"CategoryFilter","options":["YearlyFinancialReport","ChangeInRightsAttachedToSecurities","HalfYearlyFinancialReport","HomeMemberState","InsideInformation","OwnShares","PaymentsToGovernments","Prospectus","RelatedPartyTransactions","TakeoverBid","TotalVotingRightsAndShareCapital"]}],"page":1,"pageSize":25,"sorting":{"key":"PublicationDateColumn","direction":"descending"}}'
+      live_timeout_ms: 30000
+      live_headers:
+        accept: application/json
+        accept-language: en
+
+  - source_key: eu_austria_wiener_borse_announcements
+    display_name: Austria Wiener Boerse Announcements
+    source_type: html
+    base_url: https://www.wienerborse.at/en/legal/announcements/
+    healthcheck_url: https://www.wienerborse.at/en/legal/announcements/
+    parser_key: wiener_borse_announcements_html_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.15
+    coverage_tags:
+      - eu
+      - eu_central
+      - austria
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - exchange_announcement
+      - corporate_action
+    active: false
+    config:
+      fixture_path: source_payloads/eu_austria_wiener_borse_announcements.html
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      max_items_per_poll: 25
+      live_timeout_ms: 30000
+      live_headers:
+        accept: text/html
+
+  - source_key: at_oekb_oam_issuer_info
+    display_name: Austria OeKB OAM Issuer Info
+    source_type: api
+    base_url: https://my.oekb.at/issuer-info/rest/public/meldedaten/iic?startPosition=0&offset=25&locale=en
+    healthcheck_url: https://www.oekb.at/en/capital-market-services/our-range-of-data-knowledge-creates-an-advantage/information-about-listed-issuers.html
+    parser_key: oekb_oam_issuer_info_json_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.16
+    coverage_tags:
+      - eu
+      - eu_central
+      - austria
+      - at
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - oam
+      - official_storage
+    active: false
+    config:
+      fixture_path: source_payloads/at_oekb_oam_issuer_info.json
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      max_items_per_poll: 25
+      live_timeout_ms: 30000
+      live_headers:
+        accept: application/json
+
+  - source_key: eu_cyprus_cse_oam
+    display_name: Cyprus CSE OAM Regulated Information
+    source_type: api
+    base_url: https://publicoam.cse.com.cy/xak-public-pages-server/api/fetch-listing-versions?page=0&size=25&sort=ID,DESC
+    healthcheck_url: https://publicoam.cse.com.cy/listing-version-details
+    parser_key: cse_oam_listing_versions_json_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.12
+    coverage_tags:
+      - eu
+      - eu_south
+      - cyprus
+      - cy
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - oam
+      - official_storage
+    active: false
+    config:
+      fixture_path: source_payloads/eu_cyprus_cse_oam.json
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      disable_live_fixture_fallback: true
+      max_items_per_poll: 25
+      live_timeout_ms: 30000
+      live_headers:
+        accept: application/json
+
+  - source_key: ba_blse_issuer_news_multi_code
+    display_name: Banja Luka Stock Exchange Issuer News Multi-Code
+    source_type: rss
+    base_url: https://services.blberza.com/blse/ticker.ashx?LangId=3&TickerTypeId=1&filter=all&ct=xml
+    healthcheck_url: https://www3.blberza.com/Pages/docview.aspx?page=sp99
+    parser_key: blse_multi_issuer_news_rss_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.1
+    coverage_tags:
+      - europe
+      - eu_south
+      - bosnia_herzegovina
+      - ba
+      - banja_luka
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - exchange_announcement
+      - company_news
+    active: false
+    config:
+      fixture_path: source_payloads/ba_blse_issuer_news_multi_code.json
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      live_fetch_strategy: blse_multi_issuer_news_rss_v1
+      disable_live_fixture_fallback: true
+      max_items_per_poll: 25
+      max_issuers_per_poll: 5
+      blse_issuer_window_strategy: static_offset
+      blse_issuer_window_offset: 0
+      max_news_items_per_issuer: 5
+      blse_ticker_url: https://services.blberza.com/blse/ticker.ashx?LangId=3&TickerTypeId=1&filter=all&ct=xml
+      blse_issuer_news_url_template: https://www.blberza.com/pages/IssuerNewsRss.aspx?Code={code}&LangId=3
+      live_timeout_ms: 30000
+      live_headers:
+        accept: application/rss+xml, application/xml, text/xml
+
+  - source_key: ba_sase_issuer_announcements_multi_code
+    display_name: Sarajevo SASE Issuer Announcements Multi-Code
+    source_type: api
+    base_url: http://www.sase.ba/FeedServices/HandlerChart.ashx
+    healthcheck_url: https://www.sase.ba/v1/en-us/Reports/Companies/Financial-reports
+    parser_key: sase_multi_issuer_announcements_xml_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.1
+    coverage_tags:
+      - europe
+      - eu_south
+      - bosnia_herzegovina
+      - ba
+      - sarajevo
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - exchange_announcement
+      - company_news
+    active: false
+    config:
+      fixture_path: source_payloads/ba_sase_issuer_announcements_multi_code.json
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      live_fetch_strategy: sase_multi_issuer_announcements_xml_v1
+      disable_live_fixture_fallback: true
+      max_items_per_poll: 25
+      max_issuers_per_poll: 5
+      max_items_per_issuer: 5
+      sase_language_id: "1"
+      sase_issuer_codes:
+        - BHTS
+        - JPES
+        - BSNL
+        - ASA
+        - ALUM
+      sase_known_issuers:
+        BHTS: BH Telecom d.d. Sarajevo
+        JPES: JP Elektroprivreda BiH d.d. Sarajevo
+        BSNL: Bosnalijek d.d. Sarajevo
+        ASA: ASA Central Osiguranje d.d. Sarajevo
+        ALUM: Aluminij d.d. Mostar
+      live_timeout_ms: 30000
+      live_headers:
+        accept: application/xml, text/xml, application/json
+
+  - source_key: mk_mse_free_market_announcements
+    display_name: Macedonian Stock Exchange Free Market Announcements
+    source_type: html
+    base_url: https://www.mse.mk/Issuers.aspx
+    healthcheck_url: https://www.mse.mk/Issuers.aspx
+    parser_key: mse_free_market_announcements_html_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.1
+    coverage_tags:
+      - eu
+      - eu_south
+      - north_macedonia
+      - mk
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - exchange_announcement
+      - free_market
+    active: false
+    config:
+      fixture_path: source_payloads/mk_mse_free_market_announcements.html
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      disable_live_fixture_fallback: true
+      max_items_per_poll: 25
+      live_timeout_ms: 30000
+      live_headers:
+        accept: text/html
+
+  - source_key: mk_seinet_public_documents
+    display_name: North Macedonia SEI-NET Public Documents
+    source_type: api
+    base_url: https://api.seinet.com.mk/public/documents
+    healthcheck_url: https://www.seinet.com.mk/
+    parser_key: seinet_public_documents_json_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.12
+    coverage_tags:
+      - eu
+      - eu_south
+      - north_macedonia
+      - mk
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - exchange_announcement
+      - official_disclosure_platform
+    active: false
+    config:
+      fixture_path: source_payloads/mk_seinet_public_documents.json
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      disable_live_fixture_fallback: true
+      max_items_per_poll: 25
+      live_method: post
+      live_content_type: application/json;charset=UTF-8
+      live_body:
+        languageId: 2
+        channelId: 1
+        page: 1
+        isPushRequest: false
+      live_timeout_ms: 30000
+      live_headers:
+        accept: application/json
+
+  - source_key: me_mnse_corporate_news
+    display_name: Montenegro Stock Exchange Corporate News
+    source_type: html
+    base_url: https://www.mnse.me/code/navigate.asp?Id=852
+    healthcheck_url: https://www.mnse.me/code/navigate.asp?Id=852
+    parser_key: mnse_corporate_news_html_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.1
+    coverage_tags:
+      - eu
+      - eu_south
+      - montenegro
+      - me
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - exchange_announcement
+      - corporate_news
+    active: false
+    config:
+      fixture_path: source_payloads/me_mnse_corporate_news.html
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      disable_live_fixture_fallback: true
+      max_items_per_poll: 25
+      live_timeout_ms: 30000
+      live_headers:
+        accept: text/html
+
+  - source_key: rs_belex_issuer_news
+    display_name: Belgrade Stock Exchange Issuer News
+    source_type: html
+    base_url: https://www.belex.rs/eng/
+    healthcheck_url: https://www.belex.rs/eng/
+    parser_key: belex_issuer_news_html_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.1
+    coverage_tags:
+      - eu
+      - eu_south
+      - serbia
+      - rs
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - exchange_announcement
+      - issuer_news
+    active: false
+    config:
+      fixture_path: source_payloads/rs_belex_issuer_news.html
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      disable_live_fixture_fallback: true
+      max_items_per_poll: 10
+      live_timeout_ms: 30000
+      live_headers:
+        accept: text/html
+
+  - source_key: cz_pse_issuer_news_multi_isin
+    display_name: Prague PSE Issuer News Multi-ISIN
+    source_type: api
+    base_url: https://www.pse.cz/en/market-data/shares/prime-market
+    healthcheck_url: https://www.pse.cz/en/market-data/shares/prime-market
+    parser_key: pse_multi_isin_issuer_news_json_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.13
+    coverage_tags:
+      - eu
+      - eu_central
+      - czechia
+      - cz
+      - prague
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - exchange_announcement
+      - company_news
+    active: false
+    config:
+      fixture_path: source_payloads/cz_pse_issuer_news_multi_isin.json
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_prague_pse_multi_isin_source_design.md
+      max_items_per_poll: 25
+      live_fetch_strategy: pse_multi_isin_news_v1
+      disable_live_fixture_fallback: true
+      max_issuers_per_poll: 10
+      pse_issuer_window_strategy: static_offset
+      pse_issuer_window_offset: 0
+      max_news_items_per_issuer: 5
+      pse_issuer_universe_urls:
+        - https://www.pse.cz/en/market-data/shares/prime-market
+        - https://www.pse.cz/en/market-data/shares/standard-market
+        - https://www.pse.cz/en/market-data/shares/start-market
+        - https://www.pse.cz/en/market-data/shares/free-market
+      pse_news_url_template: https://www.pse.cz/api/news?lang=en&type=pse&page=1&homepage=0&searchKey=&dateFrom=&dateTo=&isin={isin}
+      live_timeout_ms: 30000
+      live_headers:
+        accept: application/json, text/html
+
+  - source_key: cz_pse_issuer_report_calendar_multi_isin
+    display_name: Prague PSE Issuer Report Calendar Multi-ISIN
+    source_type: api
+    base_url: https://www.pse.cz/en/market-data/shares/prime-market
+    healthcheck_url: https://www.pse.cz/en/market-data/shares/prime-market
+    parser_key: pse_multi_isin_issuer_report_calendar_json_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.12
+    coverage_tags:
+      - eu
+      - eu_central
+      - czechia
+      - cz
+      - prague
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_report
+      - financial_report
+      - exchange_announcement
+    active: false
+    config:
+      fixture_path: source_payloads/cz_pse_issuer_report_calendar_multi_isin.json
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_prague_pse_multi_isin_source_design.md
+      max_items_per_poll: 25
+      live_fetch_strategy: pse_multi_isin_report_calendar_v1
+      disable_live_fixture_fallback: true
+      max_issuers_per_poll: 10
+      pse_issuer_window_strategy: static_offset
+      pse_issuer_window_offset: 0
+      max_calendar_items_per_issuer: 8
+      pse_issuer_universe_urls:
+        - https://www.pse.cz/en/market-data/shares/prime-market
+        - https://www.pse.cz/en/market-data/shares/standard-market
+        - https://www.pse.cz/en/market-data/shares/start-market
+        - https://www.pse.cz/en/market-data/shares/free-market
+      pse_calendar_url_template: https://www.pse.cz/api/corporation-calendar?isin={isin}&order=date-DESC&lang=en
+      live_timeout_ms: 30000
+      live_headers:
+        accept: application/json, text/html
+
+  - source_key: de_xetra_frankfurt_newsboard
+    display_name: Germany Xetra Frankfurt Newsboard
+    source_type: html
+    base_url: https://www.xetra.com/xetra-en/newsroom/xetra-newsboard/
+    healthcheck_url: https://www.xetra.com/xetra-en/newsroom/xetra-newsboard/
+    parser_key: xetra_newsboard_html_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.14
+    coverage_tags:
+      - eu
+      - eu_central
+      - germany
+      - de
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - exchange_announcement
+      - corporate_action
+    active: false
+    config:
+      fixture_path: source_payloads/de_xetra_frankfurt_newsboard.html
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      max_items_per_poll: 25
+      live_timeout_ms: 30000
+      live_headers:
+        accept: text/html
+
+  - source_key: de_company_register_capital_market_info
+    display_name: Germany Company Register Capital Market Information
+    source_type: html
+    base_url: https://www.unternehmensregister.de/en/search?formType=CAPITAL_MARKET
+    healthcheck_url: https://www.unternehmensregister.de/en/search/capital-market-info
+    parser_key: germany_company_register_capital_market_flight_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.13
+    coverage_tags:
+      - eu
+      - eu_central
+      - germany
+      - de
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - company_register
+      - capital_market_information
+    active: false
+    config:
+      fixture_path: source_payloads/de_company_register_capital_market_info.json
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_germany_company_register_token_preflight_contract.md
+      max_items_per_poll: 25
+      live_fetch_strategy: germany_company_register_token_preflight_v1
+      disable_live_fixture_fallback: true
+      support_url: https://www.unternehmensregister.de/en/search/capital-market-info
+      token_url: https://www.unternehmensregister.de/api/search-token
+      search_url_template: https://www.unternehmensregister.de/en/search?formType=CAPITAL_MARKET&searchToken={token}&sourceDateFrom={source_date_from}&sourceDateTo={source_date_to}&from={from}
+      source_date_from: "2024-09-30"
+      source_date_to: "2024-09-30"
+      page_size: 30
+      max_pages_per_poll: 2
+      live_timeout_ms: 30000
+      live_headers:
+        accept: text/html, text/plain, application/json
+
+  - source_key: gr_athex_issuer_announcements
+    display_name: Greece ATHEX Issuer Announcements
+    source_type: rss
+    base_url: https://athens.euronext.com/en/rss/issuer-announcements
+    healthcheck_url: https://athens.euronext.com/en/rss
+    parser_key: rss_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.13
+    coverage_tags:
+      - eu
+      - eu_south
+      - greece
+      - gr
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - exchange_announcement
+    active: false
+    config:
+      fixture_path: source_payloads/gr_athex_issuer_announcements.xml
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      max_items_per_poll: 25
+      live_timeout_ms: 30000
+      live_headers:
+        accept: application/rss+xml, application/xml, text/xml
+
+  - source_key: gr_athex_corporate_actions
+    display_name: Greece ATHEX Corporate Actions
+    source_type: rss
+    base_url: https://athens.euronext.com/en/rss/corporate-actions
+    healthcheck_url: https://athens.euronext.com/en/rss
+    parser_key: rss_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.13
+    coverage_tags:
+      - eu
+      - eu_south
+      - greece
+      - gr
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - exchange_announcement
+      - corporate_action
+    active: false
+    config:
+      fixture_path: source_payloads/gr_athex_corporate_actions.xml
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      max_items_per_poll: 25
+      live_timeout_ms: 30000
+      live_headers:
+        accept: application/rss+xml, application/xml, text/xml
+
+  - source_key: mt_mse_announcements
+    display_name: Malta Stock Exchange Announcements
+    source_type: html
+    base_url: https://www.borzamalta.com.mt/news-and-articles/announcements
+    healthcheck_url: https://www.borzamalta.com.mt/news-and-articles/announcements
+    parser_key: malta_mse_announcements_html_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.11
+    coverage_tags:
+      - eu
+      - eu_south
+      - malta
+      - mt
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - exchange_announcement
+    active: false
+    config:
+      fixture_path: source_payloads/mt_mse_announcements.html
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      max_items_per_poll: 25
+      live_timeout_ms: 30000
+      live_headers:
+        accept: text/html
+
+  - source_key: bg_x3news_issuer_disclosures
+    display_name: Bulgaria X3News Issuer Disclosures
+    source_type: html
+    base_url: https://www.x3news.com/?language=en
+    healthcheck_url: https://fms.capital/en/aboutus
+    parser_key: bg_x3news_issuer_disclosures_html_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.11
+    coverage_tags:
+      - eu
+      - eu_central
+      - bulgaria
+      - bg
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - exchange_announcement
+      - x3news
+    active: false
+    config:
+      fixture_path: source_payloads/bg_x3news_issuer_disclosures.html
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      disable_live_fixture_fallback: true
+      max_items_per_poll: 25
+      live_timeout_ms: 30000
+      live_headers:
+        accept: text/html
+
+  - source_key: tr_kap_company_notifications
+    display_name: Turkey KAP Company Notifications
+    source_type: html
+    base_url: https://www.kap.org.tr/en/bildirim-sorgu-sonuc?srcbar=Y&cmp=Y&cat=6&slf=ALL
+    healthcheck_url: https://www.kap.org.tr/en
+    parser_key: kap_company_notifications_html_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.11
+    coverage_tags:
+      - europe
+      - turkey
+      - tr
+      - disclosure
+      - filing
+      - listed_companies
+      - regulated_information
+      - issuer_announcement
+      - public_disclosure_platform
+      - kap
+    active: false
+    config:
+      fixture_path: source_payloads/tr_kap_company_notifications.html
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
+      disable_live_fixture_fallback: true
+      max_items_per_poll: 25
+      live_timeout_ms: 45000
+      live_headers:
+        accept: text/html
+
+  - source_key: greater_china_market_news
+    display_name: Greater China Market News
+    source_type: rss
+    base_url: https://example.com/globalpulse/greater-china-market-news
+    healthcheck_url: https://example.com/
+    parser_key: rss_v1
+    poll_cron: "*/20 * * * *"
+    ranking_weight: 1.2
+    coverage_tags:
+      - greater_china
+      - news
+      - markets
+    active: true
+    config:
+      fixture_path: source_payloads/greater_china_market_news.xml
+
+  - source_key: cn_mainland_disclosures
+    display_name: Mainland China Disclosures
+    source_type: rss
+    base_url: https://example.com/globalpulse/cn-mainland-disclosures
+    healthcheck_url: https://example.com/
+    parser_key: rss_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.18
+    coverage_tags:
+      - cn
+      - regulatory
+      - disclosure
+      - filing
+      - markets
+    active: true
+    config:
+      fixture_path: source_payloads/cn_mainland_disclosures.xml
+
+  - source_key: tw_market_disclosures
+    display_name: Taiwan Market Disclosures
+    source_type: rss
+    base_url: https://example.com/globalpulse/tw-market-disclosures
+    healthcheck_url: https://example.com/
+    parser_key: rss_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.18
+    coverage_tags:
+      - tw
+      - regulatory
+      - disclosure
+      - filing
+      - markets
+    active: true
+    config:
+      fixture_path: source_payloads/tw_market_disclosures.xml
+
+  - source_key: tw_mops_daily_material_information
+    display_name: Taiwan MOPS Daily Material Information
+    source_type: api
+    base_url: https://mops.twse.com.tw/mops/api/t05st02
+    healthcheck_url: https://mops.twse.com.tw/mops
+    parser_key: tw_mops_daily_material_info_json_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.17
+    coverage_tags:
+      - apac
+      - greater_china
+      - taiwan
+      - tw
+      - disclosure
+      - exchange
+      - listed_companies
+      - issuer_announcement
+      - material_information
+      - markets
+    active: false
+    config:
+      fixture_path: source_payloads/tw_mops_daily_material_information.json
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_taiwan_mops_daily_material_information_candidate_notes.md
+      disable_live_fixture_fallback: true
+      max_items_per_poll: 25
+      live_timeout_ms: 30000
+      live_query_timezone: Asia/Taipei
+      live_headers:
+        accept: "application/json, text/plain, */*"
+        accept-language: "zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7"
+        origin: https://mops.twse.com.tw
+        referer: https://mops.twse.com.tw/mops/
+        user-agent: Mozilla/5.0 GlobalPulse Taiwan MOPS runtime probe
+
+  - source_key: hk_market_news
+    display_name: Hong Kong Market News
+    source_type: rss
+    base_url: https://example.com/globalpulse/hk-market-news
+    healthcheck_url: https://example.com/
+    parser_key: rss_v1
+    poll_cron: "*/25 * * * *"
+    ranking_weight: 1.12
+    coverage_tags:
+      - hk
+      - news
+      - markets
+    active: true
+    config:
+      fixture_path: source_payloads/hk_market_news.xml
+
+  - source_key: hkex_latest_listed_company_information
+    display_name: HKEX Latest Listed Company Information
+    source_type: api
+    base_url: https://www.hkexnews.hk/ncms/script/eds/homecat0_e.json
+    healthcheck_url: https://www.hkexnews.hk/homeLLCI.html
+    parser_key: hkex_latest_listed_company_info_json_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.18
+    coverage_tags:
+      - apac
+      - greater_china
+      - hong_kong
+      - hk
+      - disclosure
+      - exchange
+      - listed_companies
+      - issuer_announcement
+      - latest_submissions
+      - markets
+    active: false
+    config:
+      fixture_path: source_payloads/hkex_latest_listed_company_information.json
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_hkex_latest_listed_company_parser_contract.md
+      live_runtime_probe: globalpulse_hkex_fly_runtime_probe_results.md
+      disable_live_fixture_fallback: true
+      max_items_per_poll: 25
+      live_timeout_ms: 30000
+      live_headers:
+        accept: "application/json, text/plain, */*"
+        accept-language: "en-US,en;q=0.9"
+        referer: https://www.hkexnews.hk/homeLLCI.html
+        user-agent: Mozilla/5.0 GlobalPulse HKEX latest listed company probe
+
+  - source_key: apac_policy_news
+    display_name: APAC Policy News
+    source_type: rss
+    base_url: https://example.com/globalpulse/apac-policy-news
+    healthcheck_url: https://example.com/
+    parser_key: rss_v1
+    poll_cron: "*/25 * * * *"
+    ranking_weight: 1.1
+    coverage_tags:
+      - apac
+      - news
+      - policy
+      - markets
+    active: true
+    config:
+      fixture_path: source_payloads/apac_policy_news.xml
+
+  - source_key: asean_market_news
+    display_name: ASEAN Market News
+    source_type: rss
+    base_url: https://example.com/globalpulse/asean-market-news
+    healthcheck_url: https://example.com/
+    parser_key: rss_v1
+    poll_cron: "*/25 * * * *"
+    ranking_weight: 1.12
+    coverage_tags:
+      - asean
+      - news
+      - markets
+    active: true
+    config:
+      fixture_path: source_payloads/asean_market_news.xml
+
+  - source_key: th_set_company_news
+    display_name: SET Thailand Company News
+    source_type: api
+    base_url: "https://www.set.or.th/api/cms/v1/news/set?sourceId=company&securityTypeIds=S&fromDate=11/05/2026&toDate=11/05/2026&orderBy=date&lang=en"
+    healthcheck_url: "https://www.set.or.th/en/market/news-and-alert/news?newsType=company"
+    parser_key: set_thailand_company_news_json_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.17
+    coverage_tags:
+      - apac
+      - asean
+      - thailand
+      - th
+      - disclosure
+      - exchange
+      - listed_companies
+      - issuer_announcement
+      - company_news
+      - markets
+    active: false
+    config:
+      fixture_path: source_payloads/th_set_company_news.json
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_set_thailand_fly_elixir_runtime_probe_results.md
+      disable_live_fixture_fallback: true
+      max_items_per_poll: 25
+      live_timeout_ms: 30000
+      live_headers:
+        accept: "application/json, text/plain, */*"
+        accept-language: "en-US,en;q=0.9"
+        referer: "https://www.set.or.th/en/market/news-and-alert/news?newsType=company"
+        x-channel: WEB_SET
+        x-client-uuid: 00000000-0000-4000-8000-000000000001
+        user-agent: Mozilla/5.0 GlobalPulse SET runtime probe
+
+  - source_key: vn_hnx_issuer_disclosures
+    display_name: Vietnam HNX Issuer Disclosures
+    source_type: rss
+    base_url: https://www.hnx.vn/3/vi_vn/thong-tin-cong-bo-tu-to-chuc-phat-hanh.rss
+    healthcheck_url: https://www.hnx.vn/en-gb/thong-tin-cong-bo-ny-hnx.html
+    parser_key: rss_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.14
+    coverage_tags:
+      - apac
+      - asean
+      - vietnam
+      - vn
+      - disclosure
+      - exchange
+      - listed_companies
+      - issuer_announcement
+      - regulated_information
+      - rss
+    active: false
+    config:
+      fixture_path: source_payloads/vn_hnx_issuer_disclosures.xml
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_vietnam_hnx_issuer_rss_candidate_notes.md
+      disable_live_fixture_fallback: true
+      max_items_per_poll: 25
+      live_timeout_ms: 30000
+      live_headers:
+        accept: application/rss+xml, application/xml, text/xml
+        accept-language: vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7
+        user-agent: Mozilla/5.0 GlobalPulse HNX RSS runtime probe
+
+  - source_key: vn_hsx_listed_company_news
+    display_name: Vietnam HSX Listed Company News
+    source_type: rss
+    base_url: https://api.hsx.vn/n/api/v1/News/NewsByCateFeed/21
+    healthcheck_url: https://www.hsx.vn/tin-tuc/tin-to-chuc-niem-yet
+    parser_key: rss_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.13
+    coverage_tags:
+      - apac
+      - asean
+      - vietnam
+      - vn
+      - disclosure
+      - exchange
+      - listed_companies
+      - issuer_announcement
+      - company_news
+      - rss
+    active: false
+    config:
+      fixture_path: source_payloads/vn_hsx_listed_company_news.xml
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_vietnam_hsx_listed_company_news_candidate_notes.md
+      disable_live_fixture_fallback: true
+      max_items_per_poll: 25
+      live_timeout_ms: 30000
+      live_headers:
+        accept: application/rss+xml, application/xml, text/xml
+        accept-language: vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7
+        referer: https://www.hsx.vn/tin-tuc/tin-to-chuc-niem-yet
+        user-agent: Mozilla/5.0 GlobalPulse HSX RSS runtime probe
+
+  - source_key: india_market_disclosures
+    display_name: India Market Disclosures
+    source_type: rss
+    base_url: https://example.com/globalpulse/india-market-disclosures
+    healthcheck_url: https://example.com/
+    parser_key: rss_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.16
+    coverage_tags:
+      - india
+      - regulatory
+      - disclosure
+      - filing
+      - markets
+    active: true
+    config:
+      fixture_path: source_payloads/india_market_disclosures.xml
+
+  - source_key: india_nse_announcements
+    display_name: India NSE Announcements
+    source_type: rss
+    base_url: https://nsearchives.nseindia.com/content/RSS/Online_announcements.xml
+    healthcheck_url: https://www.nseindia.com/static/rss-feed
+    parser_key: rss_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.18
+    coverage_tags:
+      - india
+      - disclosure
+      - exchange
+      - listed_companies
+      - markets
+    active: false
+    config:
+      fixture_path: source_payloads/india_nse_announcements.xml
+      candidate_status: manual_staging_only
+      live_source_contract: globalpulse_apac_live_source_verification_contract.md
+      max_items_per_poll: 25
+
+  - source_key: anz_market_news
+    display_name: Australia/NZ Market News
+    source_type: rss
+    base_url: https://example.com/globalpulse/anz-market-news
+    healthcheck_url: https://example.com/
+    parser_key: rss_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.08
+    coverage_tags:
+      - anz
+      - news
+      - markets
+    active: true
+    config:
+      fixture_path: source_payloads/anz_market_news.xml

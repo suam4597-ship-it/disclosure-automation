@@ -1,0 +1,1526 @@
+version: 1
+defaults:
+  enabled: true
+  timeout_ms: 8000
+  max_items_per_poll: 50
+  supports_pagination: false
+  supports_detail_fetch: false
+  fallback_language: en
+
+parsers:
+  - parser_key: rss_v1
+    display_name: RSS / Atom Entry Parser
+    enabled: true
+    input_types: [rss, atom]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 100
+    supports_pagination: false
+    supports_detail_fetch: true
+    extraction:
+      id_fields: [guid, id, link]
+      title_fields: [title]
+      summary_fields: [summary, description]
+      body_fields: [content, content_encoded]
+      published_at_fields: [published, pubDate, updated]
+      author_fields: [author, dc_creator]
+      category_fields: [category, tags]
+    normalization:
+      trim_html: true
+      decode_entities: true
+      collapse_whitespace: true
+      timezone_strategy: source_default
+      missing_summary_strategy: first_paragraph
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_future_timestamps: true
+
+  - parser_key: euronext_company_pr_rss_v1
+    display_name: Euronext Company Press Release RSS Parser
+    enabled: true
+    input_types: [rss]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: false
+    supports_detail_fetch: true
+    extraction:
+      id_fields: [guid, link]
+      title_fields: [title]
+      summary_fields: [description]
+      body_fields: [description]
+      published_at_fields: [pubDate]
+      author_fields: [dc_creator]
+      category_fields: [category]
+    normalization:
+      trim_html: true
+      decode_entities: true
+      collapse_whitespace: true
+      prefer_english_release_links: true
+      timezone_strategy: source_default
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_html_payload: true
+      reject_future_timestamps: true
+
+  - parser_key: fsma_stori_api_v1
+    display_name: Belgium FSMA STORI API Parser
+    enabled: true
+    input_types: [json, api]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: false
+    supports_detail_fetch: true
+    extraction:
+      id_fields:
+        - requiredReportingTopicId
+        - mainDocuments.fileDataId
+      title_fields:
+        - companyName
+        - documentTitle
+        - reportingTopicName
+      summary_fields:
+        - reportingTopicName
+        - mainDocuments.originalFileName
+        - isinCodes.code
+      url_fields:
+        - mainDocuments.fileDataId
+      published_at_fields:
+        - datePublication
+        - dateReceived
+      category_fields:
+        - reportingTopicName
+    normalization:
+      source_shape: fsma_stori_result_json
+      trim_html: true
+      collapse_whitespace: true
+      timezone_strategy: source_naive_utc_iso
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_html_payload: true
+      reject_future_timestamps: true
+
+  - parser_key: fca_nsm_search_api_v1
+    display_name: UK FCA NSM Search API Parser
+    enabled: true
+    input_types: [json, api]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: false
+    supports_detail_fetch: true
+    extraction:
+      id_fields:
+        - hits.hits._source.disclosure_id
+        - hits.hits._source.seq_id
+        - hits.hits._source.download_link
+      title_fields:
+        - hits.hits._source.company
+        - hits.hits._source.headline
+      summary_fields:
+        - hits.hits._source.type
+        - hits.hits._source.source
+        - hits.hits._source.lei
+        - hits.hits._source.tag_esef
+      url_fields:
+        - hits.hits._source.download_link
+      published_at_fields:
+        - hits.hits._source.publication_date
+        - hits.hits._source.submitted_date
+        - hits.hits._source.document_date
+      category_fields:
+        - hits.hits._source.type
+    normalization:
+      source_shape: fca_nsm_search_json
+      trim_html: true
+      collapse_whitespace: true
+      timezone_strategy: source_utc_iso
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_html_payload: true
+      reject_future_timestamps: true
+
+  - parser_key: cmvm_portal_info_privi_json_v1
+    display_name: Portugal CMVM Portal InfoPrivi JSON Parser
+    enabled: true
+    input_types: [json, api]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: false
+    supports_detail_fetch: false
+    extraction:
+      id_fields:
+        - data.InfoPrivi.List.Id
+        - data.InfoPrivi.List.Table
+      title_fields:
+        - data.InfoPrivi.List.Desc
+      summary_fields:
+        - data.InfoPrivi.List.Tipo
+        - data.InfoPrivi.List.Table
+      url_fields:
+        - generated_portal_fragment
+      published_at_fields:
+        - data.InfoPrivi.List.Date
+        - data.InfoPrivi.List.Time
+      category_fields:
+        - data.InfoPrivi.List.Tipo
+    normalization:
+      source_shape: cmvm_portal_info_privi_json
+      trim_html: true
+      collapse_whitespace: true
+      timezone_strategy: europe_lisbon_to_utc
+      generated_url_strategy: official_portal_record_fragment
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_html_payload: true
+      reject_non_cmvm_info_privi_payload: true
+      reject_future_timestamps: true
+
+  - parser_key: oekb_oam_issuer_info_json_v1
+    display_name: Austria OeKB OAM Issuer Info JSON Parser
+    enabled: true
+    input_types: [json, api]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: true
+    supports_detail_fetch: true
+    extraction:
+      id_fields:
+        - dokumente.id
+        - dokumente.dateien.id
+      title_fields:
+        - dokumente.emittent.name
+        - dokumente.titel
+      summary_fields:
+        - dokumente.meldetypCode
+        - dokumente.meldeTypType
+        - dokumente.sprachcode
+        - dokumente.isinBezug
+        - dokumente.dateien.dateiname
+      url_fields:
+        - generated_download_url
+        - generated_detail_url
+      published_at_fields:
+        - dokumente.uploadzeitpunkt
+      category_fields:
+        - dokumente.meldetypCode
+    normalization:
+      source_shape: oekb_oam_issuer_info_json
+      trim_html: true
+      collapse_whitespace: true
+      timezone_strategy: epoch_milliseconds_utc
+      generated_url_strategy: official_oekb_download_or_detail_url
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_html_payload: true
+      reject_non_oekb_oam_payload: true
+      reject_future_timestamps: true
+
+  - parser_key: cse_oam_listing_versions_json_v1
+    display_name: Cyprus CSE OAM Listing Versions JSON Parser
+    enabled: true
+    input_types: [json, api]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: true
+    supports_detail_fetch: false
+    extraction:
+      id_fields:
+        - content.id
+      title_fields:
+        - content.listedCompanyEnglish
+        - content.nameEnglish
+      summary_fields:
+        - content.infoCategoriesNameEnglish
+        - content.securityCodesCode
+        - content.marketTypesDescription
+        - content.translationVersionContent
+        - content.versionContent
+      url_fields:
+        - generated_public_card_details_url
+      published_at_fields:
+        - content.publicationTimestamp
+        - content.translationRegistryTimestamp
+      category_fields:
+        - content.infoCategoriesNameEnglish
+    normalization:
+      source_shape: cse_oam_public_listing_versions_json
+      trim_html: true
+      decode_entities: true
+      collapse_whitespace: true
+      timezone_strategy: epoch_milliseconds_utc
+      generated_url_strategy: official_public_oam_card_details_url
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_html_payload: true
+      reject_non_cse_oam_payload: true
+      reject_future_timestamps: true
+
+  - parser_key: blse_multi_issuer_news_rss_v1
+    display_name: Banja Luka Stock Exchange Multi-Issuer News RSS Parser
+    enabled: true
+    input_types: [json, rss, fanout]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: false
+    supports_detail_fetch: false
+    extraction:
+      id_fields:
+        - responses.code
+        - responses.data.link
+      title_fields:
+        - responses.data.title
+      summary_fields:
+        - responses.issuer
+        - responses.code
+        - responses.data.description
+      url_fields:
+        - responses.data.link
+      published_at_fields:
+        - responses.data.pubDate
+      category_fields:
+        - issuer_news
+    normalization:
+      source_shape: blse_multi_issuer_news_rss_fanout_json
+      trim_html: true
+      decode_entities: true
+      collapse_whitespace: true
+      timezone_strategy: rss_pub_date_to_utc
+      generated_url_strategy: official_blse_docview_link
+      missing_summary_strategy: bounded_metadata_summary
+      row_filter_strategy: listed_equity_codes_only
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_html_payload: true
+      reject_non_blse_multi_issuer_payload: true
+      reject_future_timestamps: true
+
+  - parser_key: sase_multi_issuer_announcements_xml_v1
+    display_name: Sarajevo SASE Multi-Issuer Announcements XML Parser
+    enabled: true
+    input_types: [json, xml, api, fanout]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: false
+    supports_detail_fetch: false
+    extraction:
+      id_fields:
+        - responses.data.Id
+      title_fields:
+        - responses.data.Subject
+      summary_fields:
+        - responses.issuer
+        - responses.issuer_code
+        - responses.data.Link
+        - responses.data.DateOfEvent
+      url_fields:
+        - generated_issuer_profile_url
+      published_at_fields:
+        - responses.data.AnnouncementDate
+      category_fields:
+        - responses.data.AnnouncementTypeId
+    normalization:
+      source_shape: sase_multi_issuer_announcements_xml_fanout_json
+      trim_html: true
+      decode_entities: true
+      collapse_whitespace: true
+      timezone_strategy: xml_iso8601_offset_to_utc
+      generated_url_strategy: official_sase_issuer_profile_url
+      missing_summary_strategy: bounded_metadata_summary
+      row_filter_strategy: configured_issuer_codes_only
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_html_payload: true
+      reject_non_sase_multi_issuer_payload: true
+      reject_future_timestamps: true
+
+  - parser_key: pse_multi_isin_issuer_news_json_v1
+    display_name: Prague PSE Multi-ISIN Issuer News JSON Parser
+    enabled: true
+    input_types: [json, api, fanout]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: false
+    supports_detail_fetch: false
+    extraction:
+      id_fields:
+        - responses.data.id
+      title_fields:
+        - responses.data.title
+      summary_fields:
+        - responses.data.type
+        - responses.data.content
+        - responses.isin
+      url_fields:
+        - generated_news_slug_url
+        - generated_issuer_detail_url
+      published_at_fields:
+        - responses.data.publishedAt
+      category_fields:
+        - responses.data.type
+    normalization:
+      source_shape: pse_multi_isin_fanout_json
+      trim_html: true
+      collapse_whitespace: true
+      timezone_strategy: prague_local_timestamp_to_utc_approx
+      generated_url_strategy: official_pse_news_slug_or_issuer_detail_url
+      missing_summary_strategy: bounded_metadata_summary
+      row_filter_strategy: require_query_isin_in_row_isin_list
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_html_payload: true
+      reject_non_pse_multi_isin_payload: true
+      reject_future_timestamps: true
+
+  - parser_key: pse_multi_isin_issuer_report_calendar_json_v1
+    display_name: Prague PSE Multi-ISIN Issuer Report Calendar JSON Parser
+    enabled: true
+    input_types: [json, api, fanout]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: false
+    supports_detail_fetch: false
+    extraction:
+      id_fields:
+        - responses.data.id
+        - responses.data.ref
+      title_fields:
+        - responses.data.name
+      summary_fields:
+        - responses.data.instrumentName
+        - responses.data.instrumentIsin
+        - responses.data.extension
+        - responses.data.sizeFormatted
+        - responses.data.ref
+      url_fields:
+        - generated_issuer_report_download_url
+      published_at_fields:
+        - responses.data.date
+      category_fields:
+        - generated_pse_issuer_report_category
+    normalization:
+      source_shape: pse_multi_isin_report_calendar_fanout_json
+      trim_html: true
+      collapse_whitespace: true
+      timezone_strategy: date_only_utc_midnight
+      generated_url_strategy: official_pse_detail_download_path_url
+      missing_summary_strategy: bounded_metadata_summary
+      row_filter_strategy: require_query_isin_and_attached_report_ref
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_html_payload: true
+      reject_non_pse_multi_isin_payload: true
+      reject_future_timestamps: true
+
+  - parser_key: nasdaq_nordic_cns_jsonp_v1
+    display_name: Nasdaq Nordic Company News JSONP Parser
+    enabled: true
+    input_types: [jsonp, api]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: false
+    supports_detail_fetch: true
+    extraction:
+      id_fields:
+        - results.item.disclosureId
+        - results.item.messageUrl
+      title_fields:
+        - results.item.company
+        - results.item.headline
+      summary_fields:
+        - results.item.cnsCategory
+        - results.item.market
+        - results.item.language
+        - results.item.attachment.fileName
+      url_fields:
+        - results.item.messageUrl
+      published_at_fields:
+        - results.item.published
+        - results.item.releaseTime
+      category_fields:
+        - results.item.cnsCategory
+    normalization:
+      source_shape: nasdaq_nordic_cns_jsonp
+      trim_html: true
+      collapse_whitespace: true
+      timezone_strategy: source_cet_datetime
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_html_payload: true
+      reject_future_timestamps: true
+
+  - parser_key: oslo_newsweb_json_v1
+    display_name: Oslo Bors NewsWeb JSON Parser
+    enabled: true
+    input_types: [json, api]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: false
+    supports_detail_fetch: true
+    extraction:
+      id_fields:
+        - data.messages.clientAnnouncementId
+        - data.messages.messageId
+      title_fields:
+        - data.messages.issuerName
+        - data.messages.title
+      summary_fields:
+        - data.messages.issuerSign
+        - data.messages.markets
+        - data.messages.category.category_en
+        - data.messages.numbAttachments
+      url_fields:
+        - data.messages.messageId
+      published_at_fields:
+        - data.messages.publishedTime
+      category_fields:
+        - data.messages.category.category_en
+        - data.messages.category.category_no
+    normalization:
+      source_shape: oslo_newsweb_newsreader_messages_json
+      trim_html: true
+      collapse_whitespace: true
+      timezone_strategy: source_utc_iso
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_html_payload: true
+      reject_future_timestamps: true
+
+  - parser_key: gpw_espi_ebi_html_v1
+    display_name: GPW ESPI/EBI Company Reports HTML Parser
+    enabled: true
+    input_types: [html]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: false
+    supports_detail_fetch: true
+    extraction:
+      id_fields:
+        - espi_ebi_report.geru_id
+      title_fields:
+        - strong.name
+        - report_title
+      summary_fields:
+        - status
+        - system
+        - report_number
+      url_fields:
+        - espi_ebi_report_href
+      published_at_fields:
+        - span.date
+      category_fields:
+        - system
+        - status
+    normalization:
+      source_shape: gpw_espi_ebi_report_list_html
+      trim_html: true
+      decode_entities: true
+      collapse_whitespace: true
+      timezone_strategy: source_warsaw_cet_cest_datetime
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_non_gpw_espi_ebi_payload: true
+      reject_future_timestamps: true
+
+  - parser_key: bse_issuers_news_html_v1
+    display_name: Budapest Stock Exchange Issuers News HTML Parser
+    enabled: true
+    input_types: [html]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: false
+    supports_detail_fetch: true
+    extraction:
+      id_fields:
+        - newkib_href_slug
+      title_fields:
+        - issuer
+        - title
+      summary_fields:
+        - issuer
+      url_fields:
+        - newkib_href
+      published_at_fields:
+        - list-date
+      category_fields:
+        - issuer_news
+    normalization:
+      source_shape: bse_issuers_news_list_html
+      trim_html: true
+      decode_entities: true
+      collapse_whitespace: true
+      timezone_strategy: source_budapest_cet_cest_datetime
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_non_bse_issuers_news_payload: true
+      reject_future_timestamps: true
+
+  - parser_key: bvb_current_reports_html_v1
+    display_name: Bucharest Stock Exchange Current Reports HTML Parser
+    enabled: true
+    input_types: [html]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: false
+    supports_detail_fetch: true
+    extraction:
+      id_fields:
+        - news_item_slug
+        - report_pdf_href
+      title_fields:
+        - company
+        - description
+      summary_fields:
+        - company
+        - symbol
+        - isin
+        - document_type
+      url_fields:
+        - news_item_href
+        - report_pdf_href
+      published_at_fields:
+        - date
+      category_fields:
+        - document_type
+    normalization:
+      source_shape: bvb_current_reports_table_html
+      trim_html: true
+      decode_entities: true
+      collapse_whitespace: true
+      timezone_strategy: source_bucharest_eet_eest_datetime
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_non_bvb_current_reports_payload: true
+      reject_future_timestamps: true
+
+  - parser_key: ceri_regulated_information_html_v1
+    display_name: Slovakia CERI Regulated Information HTML Parser
+    enabled: true
+    input_types: [html]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: false
+    supports_detail_fetch: true
+    extraction:
+      id_fields:
+        - ceridoc_file_id
+      title_fields:
+        - issuer
+        - document_title
+      summary_fields:
+        - issuer
+        - document_type
+        - regulated_information_marker
+      url_fields:
+        - static_data_document_href
+      published_at_fields:
+        - date_received
+      category_fields:
+        - document_type
+    normalization:
+      source_shape: ceri_latest_regulated_information_table_html
+      trim_html: true
+      decode_entities: true
+      collapse_whitespace: true
+      timezone_strategy: source_slovakia_cet_cest_datetime
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_non_ceri_payload: true
+      reject_future_timestamps: true
+
+  - parser_key: ee_oam_market_announcements_html_v1
+    display_name: Estonia OAM Market Announcements HTML Parser
+    enabled: true
+    input_types: [html]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: false
+    supports_detail_fetch: true
+    extraction:
+      id_fields:
+        - borsiteated_id
+      title_fields:
+        - issuer
+        - title
+      summary_fields:
+        - issuer
+        - category
+      url_fields:
+        - announcement_href
+      published_at_fields:
+        - date
+      category_fields:
+        - category
+    normalization:
+      source_shape: ee_oam_market_announcements_table_html
+      trim_html: true
+      decode_entities: true
+      collapse_whitespace: true
+      timezone_strategy: source_estonia_eet_eest_datetime
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_non_ee_oam_payload: true
+      reject_future_timestamps: true
+
+  - parser_key: lt_oam_regulated_information_html_v1
+    display_name: Lithuania OAM Regulated Information HTML Parser
+    enabled: true
+    input_types: [html]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: false
+    supports_detail_fetch: true
+    extraction:
+      id_fields:
+        - view_id
+      title_fields:
+        - issuer
+        - headline
+      summary_fields:
+        - issuer
+        - message_category
+      url_fields:
+        - view_href
+      published_at_fields:
+        - published
+      category_fields:
+        - message_category
+    normalization:
+      source_shape: lt_oam_regulated_information_nef_table_html
+      trim_html: true
+      decode_entities: true
+      collapse_whitespace: true
+      timezone_strategy: source_lithuania_eet_eest_datetime
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_non_lt_oam_payload: true
+      reject_future_timestamps: true
+
+  - parser_key: lv_csri_regulated_information_html_v1
+    display_name: Latvia CSRI Regulated Information HTML Parser
+    enabled: true
+    input_types: [html]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: false
+    supports_detail_fetch: true
+    extraction:
+      id_fields:
+        - csridocumentsdetails_id
+      title_fields:
+        - issuer
+        - title
+      summary_fields:
+        - issuer
+        - language
+        - version
+      url_fields:
+        - details_href
+      published_at_fields:
+        - date_time
+      category_fields:
+        - regulated_information
+    normalization:
+      source_shape: lv_csri_latest_documents_table_html
+      trim_html: true
+      decode_entities: true
+      collapse_whitespace: true
+      timezone_strategy: source_latvia_eet_eest_datetime
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_non_lv_csri_payload: true
+      reject_future_timestamps: true
+
+  - parser_key: wiener_borse_announcements_html_v1
+    display_name: Vienna Stock Exchange Announcements HTML Parser
+    enabled: true
+    input_types: [html]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: false
+    supports_detail_fetch: false
+    extraction:
+      id_fields:
+        - tr.data-key
+        - announcement_href
+      title_fields:
+        - company
+        - kind
+      summary_fields:
+        - typeOfSecurity
+        - category
+        - market
+      url_fields:
+        - announcement_href
+      published_at_fields:
+        - date
+      category_fields:
+        - kind
+    normalization:
+      source_shape: wiener_borse_announcements_table_html
+      trim_html: true
+      decode_entities: true
+      collapse_whitespace: true
+      timezone_strategy: source_naive_utc_mmddyyyy
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_non_wiener_borse_payload: true
+      reject_future_timestamps: true
+
+  - parser_key: xetra_newsboard_html_v1
+    display_name: Xetra Frankfurt Newsboard HTML Parser
+    enabled: true
+    input_types: [html]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: false
+    supports_detail_fetch: false
+    extraction:
+      id_fields:
+        - newsboard_href_slug
+      title_fields:
+        - search-result-description
+      summary_fields:
+        - search-result-tagline
+        - notice_type
+      url_fields:
+        - newsboard_href
+      published_at_fields:
+        - search-result-date
+      category_fields:
+        - notice_type
+    normalization:
+      source_shape: xetra_newsboard_search_result_html
+      trim_html: true
+      decode_entities: true
+      collapse_whitespace: true
+      timezone_strategy: source_cet_cest_datetime
+      missing_summary_strategy: bounded_metadata_summary
+      filter_operational_service_notices: true
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_non_xetra_newsboard_payload: true
+      reject_future_timestamps: true
+
+  - parser_key: malta_mse_announcements_html_v1
+    display_name: Malta Stock Exchange Announcements HTML Parser
+    enabled: true
+    input_types: [html]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: false
+    supports_detail_fetch: false
+    extraction:
+      id_fields:
+        - announcement_pdf_filename
+      title_fields:
+        - issuer
+        - announcement_title
+      summary_fields:
+        - issuer
+        - announcement_title
+      url_fields:
+        - announcement_pdf_href
+      published_at_fields:
+        - date
+      category_fields:
+        - announcement_title
+    normalization:
+      source_shape: malta_mse_event_box_html
+      trim_html: true
+      decode_entities: true
+      collapse_whitespace: true
+      timezone_strategy: date_only_utc_midnight_ddmmyyyy
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_non_malta_mse_payload: true
+      reject_future_timestamps: true
+
+  - parser_key: bg_x3news_issuer_disclosures_html_v1
+    display_name: Bulgaria X3News Issuer Disclosures HTML Parser
+    enabled: true
+    input_types: [html]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: false
+    supports_detail_fetch: false
+    extraction:
+      id_fields:
+        - ExtriID
+      title_fields:
+        - issuer
+        - disclosure_headline
+      summary_fields:
+        - issuer
+        - disclosure_headline
+      url_fields:
+        - generated_show_news_ajax_url
+      published_at_fields:
+        - published_datetime
+      category_fields:
+        - disclosure_headline
+    normalization:
+      source_shape: x3news_latest_news_rows_html
+      trim_html: true
+      decode_entities: true
+      collapse_whitespace: true
+      timezone_strategy: source_sofia_eet_eest_datetime
+      generated_url_strategy: official_x3news_show_news_url
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_non_x3news_payload: true
+      reject_future_timestamps: true
+
+  - parser_key: kap_company_notifications_html_v1
+    display_name: Turkey KAP Company Notifications HTML Parser
+    enabled: true
+    input_types: [html]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: false
+    supports_detail_fetch: false
+    extraction:
+      id_fields:
+        - disclosureBasic.disclosureIndex
+      title_fields:
+        - disclosureBasic.companyTitle
+        - disclosureBasic.title
+      summary_fields:
+        - disclosureBasic.stockCode
+        - disclosureBasic.disclosureClass
+        - disclosureBasic.summary
+      url_fields:
+        - generated_kap_notification_url
+      published_at_fields:
+        - disclosureBasic.publishDate
+      category_fields:
+        - disclosureBasic.disclosureClass
+    normalization:
+      source_shape: kap_next_rsc_disclosure_basic_data
+      trim_html: true
+      decode_entities: true
+      collapse_whitespace: true
+      timezone_strategy: turkey_fixed_utc_plus_3
+      generated_url_strategy: official_kap_bildirim_url
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_non_kap_payload: true
+      reject_future_timestamps: true
+
+  - parser_key: mse_free_market_announcements_html_v1
+    display_name: Macedonian Stock Exchange Free Market Announcements HTML Parser
+    enabled: true
+    input_types: [html]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: false
+    supports_detail_fetch: false
+    extraction:
+      id_fields:
+        - announcement_url_path
+      title_fields:
+        - issuer
+        - announcement_type
+      summary_fields:
+        - issuer
+        - announcement_type
+      url_fields:
+        - announcement_href
+      published_at_fields:
+        - announcement_date
+      category_fields:
+        - announcement_type
+    normalization:
+      source_shape: mse_issuers_free_market_announcement_html
+      trim_html: true
+      decode_entities: true
+      collapse_whitespace: true
+      timezone_strategy: date_only_utc_midnight
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_non_mse_free_market_payload: true
+      reject_future_timestamps: true
+
+  - parser_key: seinet_public_documents_json_v1
+    display_name: North Macedonia SEI-NET Public Documents JSON Parser
+    enabled: true
+    input_types: [json, api]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: true
+    supports_detail_fetch: false
+    extraction:
+      id_fields:
+        - documentId
+        - publicId
+      title_fields:
+        - issuer.localizedTerms.displayName
+        - layout.description
+      summary_fields:
+        - issuer.localizedTerms.displayName
+        - layout.description
+        - content
+      url_fields:
+        - generated_seinet_document_url
+      published_at_fields:
+        - publishedDate
+        - requestPublishDate
+      category_fields:
+        - layout.description
+    normalization:
+      source_shape: seinet_public_documents_response
+      trim_html: true
+      decode_entities: true
+      collapse_whitespace: true
+      timezone_strategy: source_naive_utc
+      generated_url_strategy: official_seinet_document_url
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_html_payload: true
+      reject_non_seinet_public_documents_payload: true
+      reject_future_timestamps: true
+
+  - parser_key: mnse_corporate_news_html_v1
+    display_name: Montenegro Stock Exchange Corporate News HTML Parser
+    enabled: true
+    input_types: [html]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: false
+    supports_detail_fetch: false
+    extraction:
+      id_fields:
+        - document_href
+      title_fields:
+        - title
+      summary_fields:
+        - issuer
+        - date_text
+      url_fields:
+        - document_href
+      published_at_fields:
+        - date_text
+      category_fields:
+        - corporate_news
+    normalization:
+      source_shape: montenegro_stock_exchange_corporate_news_html
+      trim_html: true
+      decode_entities: true
+      collapse_whitespace: true
+      timezone_strategy: source_naive_utc_ddmmyy
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_non_mnse_corporate_news_payload: true
+      reject_future_timestamps: true
+
+  - parser_key: belex_issuer_news_html_v1
+    display_name: Belgrade Stock Exchange Issuer News HTML Parser
+    enabled: true
+    input_types: [html]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 10
+    supports_pagination: false
+    supports_detail_fetch: false
+    extraction:
+      id_fields:
+        - symbol
+        - date_text
+        - title
+      title_fields:
+        - title
+      summary_fields:
+        - symbol
+        - date_text
+      url_fields:
+        - issuer_news_href
+      published_at_fields:
+        - date_text
+      category_fields:
+        - issuer_news
+    normalization:
+      source_shape: belgrade_stock_exchange_homepage_issuer_news_table
+      trim_html: true
+      decode_entities: true
+      collapse_whitespace: true
+      timezone_strategy: source_naive_utc_ddmmyyyy
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_non_belex_issuer_news_payload: true
+      reject_future_timestamps: true
+
+  - parser_key: germany_company_register_capital_market_flight_v1
+    display_name: Germany Company Register Capital Market Flight Payload Parser
+    enabled: true
+    input_types: [json, html, api, fanout]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: true
+    supports_detail_fetch: false
+    extraction:
+      id_fields:
+        - responses.data.encryptedPayload
+      title_fields:
+        - responses.data.title
+      summary_fields:
+        - responses.data.companyNameAtTimeOfPublication
+        - responses.data.sourceName
+        - responses.data.sourceDate
+        - responses.data.publicationCategory.id
+      url_fields:
+        - generated_publication_payload_url
+      published_at_fields:
+        - responses.data.sourceDate
+      category_fields:
+        - responses.data.publicationCategory.id
+        - responses.data.publicationType.id
+    normalization:
+      source_shape: germany_company_register_token_preflight_fanout_json
+      trim_html: true
+      decode_entities: true
+      collapse_whitespace: true
+      timezone_strategy: date_only_utc_midnight
+      generated_url_strategy: official_company_register_publication_payload_url
+      missing_summary_strategy: bounded_metadata_summary
+      pagination_strategy: token_preflight_iso_date_window_from_offsets
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_html_payload: true
+      reject_non_company_register_payload: true
+      reject_future_timestamps: true
+
+  - parser_key: info_financiere_oam_v1
+    display_name: France Info-Financiere OAM JSON Parser
+    enabled: true
+    input_types: [json, api]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: false
+    supports_detail_fetch: false
+    extraction:
+      id_fields: [uin_idt_uin, url_de_recuperation]
+      title_fields:
+        - identificationsociete_iso_nom_soc
+        - informationdeposee_inf_tit_inf
+      summary_fields:
+        - type_of_information
+        - subtype_of_information
+        - identificationsociete_iso_cd_isi
+        - identificationsociete_iso_code_tkr_iso_cd_tkr
+      url_fields: [url_de_recuperation]
+      published_at_fields:
+        - informationdeposee_inf_dat_emt
+        - uin_dat_amf
+      category_fields:
+        - subtype_of_information
+        - type_of_information
+    normalization:
+      source_shape: opendatasoft_results
+      trim_html: true
+      collapse_whitespace: true
+      timezone_strategy: source_timestamp_offset
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_html_payload: true
+      reject_future_timestamps: true
+
+  - parser_key: emarket_storage_html_v1
+    display_name: Italy eMarket Storage Regulated Communication HTML Parser
+    enabled: true
+    input_types: [html]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: false
+    supports_detail_fetch: false
+    extraction:
+      id_fields:
+        - data_protocollo
+        - pdf_href
+      title_fields:
+        - news_azienda
+        - news_title
+      summary_fields:
+        - category
+        - news_azienda
+      url_fields:
+        - pdf_href
+      published_at_fields:
+        - time_text
+      category_fields:
+        - Comunicati Regolamentati
+    normalization:
+      source_shape: emarket_storage_views_row_html
+      trim_html: true
+      decode_entities: true
+      collapse_whitespace: true
+      timezone_strategy: source_naive_utc_ddmmyyyy
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_non_emarket_storage_payload: true
+      reject_future_timestamps: true
+
+  - parser_key: afm_financial_reporting_csv_v1
+    display_name: Netherlands AFM Financial Reporting CSV Parser
+    enabled: true
+    input_types: [csv, api]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: false
+    supports_detail_fetch: false
+    extraction:
+      id_fields:
+        - datum_deponering
+        - uitgevende_instelling
+        - boekjaar
+        - soort
+      title_fields:
+        - uitgevende_instelling
+        - soort
+      summary_fields:
+        - boekjaar
+        - soort
+      url_fields:
+        - register_url
+      published_at_fields:
+        - datum_deponering
+      category_fields:
+        - soort
+    normalization:
+      source_shape: afm_financial_reporting_semicolon_csv
+      trim_html: true
+      collapse_whitespace: true
+      timezone_strategy: source_naive_utc_iso
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_html_payload: true
+      reject_future_timestamps: true
+
+  - parser_key: luxse_oam_graphql_v1
+    display_name: Luxembourg LuxSE OAM GraphQL Parser
+    enabled: true
+    input_types: [json, api, graphql]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: false
+    supports_detail_fetch: false
+    extraction:
+      id_fields:
+        - submissionId
+      title_fields:
+        - issuerName
+        - submissionTypeLabel
+      summary_fields:
+        - actionsList
+        - referenceYear
+        - referenceStartDate
+        - referenceEndDate
+      url_fields:
+        - oam_search_url
+      published_at_fields:
+        - publicationDate
+      category_fields:
+        - submissionTypeLabel
+    normalization:
+      source_shape: luxse_oam_graphql_submissions
+      trim_html: true
+      collapse_whitespace: true
+      timezone_strategy: source_timestamp_offset
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_html_payload: true
+      reject_future_timestamps: true
+
+  - parser_key: md_msi_regulated_information_html_v1
+    display_name: Moldova MSI Regulated Information HTML Parser
+    enabled: true
+    input_types: [html]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: true
+    supports_detail_fetch: false
+    extraction:
+      id_fields:
+        - displayfile_id
+      title_fields:
+        - company_name
+        - document_type
+      summary_fields:
+        - company_name
+        - document_type
+        - publication_date
+      url_fields:
+        - displayfile_url
+      published_at_fields:
+        - publication_date
+      category_fields:
+        - document_type
+    normalization:
+      source_shape: md_msi_pubdocs_table_html
+      trim_html: true
+      collapse_whitespace: true
+      timezone_strategy: source_date_only_utc
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_non_msi_pubdocs_payload: true
+      reject_future_timestamps: true
+
+  - parser_key: dfsa_oam_company_announcements_json_v1
+    display_name: Denmark DFSA OAM Company Announcements JSON Parser
+    enabled: true
+    input_types: [json]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: true
+    supports_detail_fetch: false
+    extraction:
+      id_fields:
+        - id
+      title_fields:
+        - HeadlineColumn
+      summary_fields:
+        - IssuerColumn
+        - CategoryColumn
+        - PublicationDateColumn
+      url_fields:
+        - details_api_url
+      published_at_fields:
+        - PublicationDateColumn
+      category_fields:
+        - CategoryColumn
+    normalization:
+      source_shape: dfsa_oam_extension_search_json
+      trim_html: true
+      collapse_whitespace: true
+      timezone_strategy: source_datetime_utc
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_non_dfsa_oam_payload: true
+      reject_future_timestamps: true
+
+  - parser_key: set_thailand_company_news_json_v1
+    display_name: SET Thailand Company News JSON Parser
+    enabled: true
+    input_types: [json]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: false
+    supports_detail_fetch: false
+    extraction:
+      id_fields:
+        - id
+      title_fields:
+        - headline
+      summary_fields:
+        - symbol
+        - source
+        - group
+        - tag
+        - product
+      url_fields:
+        - url
+      published_at_fields:
+        - datetime
+      category_fields:
+        - group
+        - tag
+    normalization:
+      source_shape: set_thailand_news_groups_json
+      trim_html: true
+      collapse_whitespace: true
+      timezone_strategy: source_timestamp_offset
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_non_set_thailand_company_news_payload: true
+      reject_future_timestamps: true
+      detail_fetch_disabled: true
+
+  - parser_key: tw_mops_daily_material_info_json_v1
+    display_name: Taiwan MOPS Daily Material Information JSON Parser
+    enabled: true
+    input_types: [json, api]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: false
+    supports_detail_fetch: false
+    extraction:
+      id_fields:
+        - result.data[5].parameters.companyId
+        - result.data[5].parameters.enterDate
+        - result.data[5].parameters.serialNumber
+      title_fields:
+        - result.data[2]
+        - result.data[3]
+        - result.data[4]
+      summary_fields:
+        - result.data[2]
+        - result.data[3]
+        - result.data[5].parameters.marketKind
+      url_fields:
+        - generated_mops_t05st02_fragment
+      published_at_fields:
+        - result.data[0]
+        - result.data[1]
+      category_fields:
+        - material_information
+    normalization:
+      source_shape: tw_mops_daily_material_info_rows_json
+      trim_html: true
+      decode_entities: true
+      collapse_whitespace: true
+      timezone_strategy: asia_taipei_roc_date_to_utc
+      generated_url_strategy: official_mops_t05st02_day_fragment
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_non_tw_mops_daily_material_info_payload: true
+      reject_future_timestamps: true
+      detail_fetch_disabled: true
+
+  - parser_key: hkex_latest_listed_company_info_json_v1
+    display_name: HKEX Latest Listed Company Information JSON Parser
+    enabled: true
+    input_types: [json, api]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: false
+    supports_detail_fetch: false
+    extraction:
+      id_fields:
+        - newsInfo[].webPath
+        - newsInfo[].newsId
+      title_fields:
+        - newsInfo[].stock[].sc
+        - newsInfo[].stock[].sn
+        - newsInfo[].title
+      summary_fields:
+        - newsInfo[].sTxt
+        - newsInfo[].ext
+        - newsInfo[].size
+      url_fields:
+        - newsInfo[].webPath
+      published_at_fields:
+        - newsInfo[].relY
+        - newsInfo[].relM
+        - newsInfo[].relD
+        - newsInfo[].relTime
+      category_fields:
+        - latest_submissions
+    normalization:
+      source_shape: hkex_homecat0_newsinfo_json
+      trim_html: true
+      decode_entities: true
+      collapse_whitespace: true
+      timezone_strategy: asia_hong_kong_to_utc
+      document_id_strategy: webPath_document_id
+      stock_shape_strategy: first_stock_sc_sn_with_string_fallback
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_non_hkex_latest_listed_company_payload: true
+      reject_future_timestamps: true
+      detail_fetch_disabled: true
+      attachment_body_fetch_disabled: true

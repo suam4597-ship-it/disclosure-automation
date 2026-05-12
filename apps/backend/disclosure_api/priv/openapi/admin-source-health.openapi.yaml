@@ -1,0 +1,43 @@
+openapi: 3.1.0
+info:
+  title: Disclosure Automation Admin Source Health API
+  version: 0.1.0
+  summary: Phase 1 source health list, detail, and recheck APIs.
+servers:
+  - url: http://localhost:4000
+    description: Local Phoenix endpoint
+paths:
+  /api/admin/source-health:
+    get:
+      summary: List source health records
+      responses:
+        '200':
+          description: Source health page
+  /api/admin/source-health/{source_key}:
+    get:
+      summary: Fetch health for a single source
+      parameters:
+        - in: path
+          name: source_key
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Single source health record
+        '404':
+          description: Source not found
+  /api/admin/source-health/{source_key}/recheck:
+    post:
+      summary: Enqueue a health recheck job
+      parameters:
+        - in: path
+          name: source_key
+          required: true
+          schema:
+            type: string
+      responses:
+        '202':
+          description: Recheck accepted
+        '404':
+          description: Source not found

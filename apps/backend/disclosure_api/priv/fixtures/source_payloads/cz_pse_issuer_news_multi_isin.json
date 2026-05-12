@@ -1,0 +1,84 @@
+{
+  "strategy": "pse_multi_isin_news_v1",
+  "universe": [
+    {
+      "market": "prime-market",
+      "isin": "CZ0005112300",
+      "detail_url": "https://www.pse.cz/en/detail/CZ0005112300",
+      "source_url": "https://www.pse.cz/en/market-data/shares/prime-market"
+    },
+    {
+      "market": "standard-market",
+      "isin": "NL0010391108",
+      "detail_url": "https://www.pse.cz/en/detail/NL0010391108",
+      "source_url": "https://www.pse.cz/en/market-data/shares/standard-market"
+    },
+    {
+      "market": "start-market",
+      "isin": "CZ0009008942",
+      "detail_url": "https://www.pse.cz/en/detail/CZ0009008942",
+      "source_url": "https://www.pse.cz/en/market-data/shares/start-market"
+    },
+    {
+      "market": "free-market",
+      "isin": "AT0000652011",
+      "detail_url": "https://www.pse.cz/en/detail/AT0000652011",
+      "source_url": "https://www.pse.cz/en/market-data/shares/free-market"
+    }
+  ],
+  "selected_isins": [
+    "CZ0005112300",
+    "NL0010391108"
+  ],
+  "responses": [
+    {
+      "isin": "CZ0005112300",
+      "market": "prime-market",
+      "url": "https://www.pse.cz/api/news?lang=en&type=pse&page=1&homepage=0&searchKey=&dateFrom=&dateTo=&isin=CZ0005112300",
+      "status_code": 200,
+      "bytes": 1200,
+      "records_seen": 2,
+      "records_kept": 1,
+      "data": [
+        {
+          "id": 122456,
+          "type": "PSE",
+          "title": "New Adjustment Factors - dividend payment of CEZ",
+          "publishedAt": "2025-06-26 00:00:00",
+          "isin": null,
+          "slug": "new-adjustment-factors-dividend-payment-of-cez-2",
+          "content": "<p>Broad market notice without an issuer ISIN should be filtered out.</p>"
+        },
+        {
+          "id": 5979,
+          "type": "PSE",
+          "title": "Cancellation of accelerated book-building of CEZ shares",
+          "publishedAt": "2022-02-25 08:16:33",
+          "isin": "CZ0005112300",
+          "slug": "belviport-will-not-purchase-shares-in-cez",
+          "content": "<p>Prague Stock Exchange issuer news for CEZ shares.</p>"
+        }
+      ]
+    },
+    {
+      "isin": "NL0010391108",
+      "market": "standard-market",
+      "url": "https://www.pse.cz/api/news?lang=en&type=pse&page=1&homepage=0&searchKey=&dateFrom=&dateTo=&isin=NL0010391108",
+      "status_code": 200,
+      "bytes": 900,
+      "records_seen": 1,
+      "records_kept": 1,
+      "data": [
+        {
+          "id": 5236,
+          "type": "PSE",
+          "title": "Results of Photon Energy Share Offering",
+          "publishedAt": "2021-06-25 07:01:13",
+          "isin": "NL0010391108",
+          "slug": "results-of-photon-energy-share-offering",
+          "content": "<p>Issuer-specific PSE news with matching ISIN.</p>"
+        }
+      ]
+    }
+  ]
+}

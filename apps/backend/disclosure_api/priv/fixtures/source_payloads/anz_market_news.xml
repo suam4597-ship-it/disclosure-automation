@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Australia/NZ Market News</title>
+    <item>
+      <title>Australian lithium producers rebound after contract price update</title>
+      <link>https://example.com/globalpulse/anz/australia-lithium-contract-price-update</link>
+      <guid>anz-news-20260508-lithium-contract-price-update</guid>
+      <description>Battery materials shares recover as contract pricing commentary improves sentiment toward near-term cash flow visibility.</description>
+      <pubDate>Fri, 08 May 2026 04:08:00 GMT</pubDate>
+      <category>markets</category>
+    </item>
+    <item>
+      <title>New Zealand infrastructure operators track rate-sensitive demand signals</title>
+      <link>https://example.com/globalpulse/anz/new-zealand-infrastructure-demand</link>
+      <guid>anz-news-20260508-nz-infrastructure-demand</guid>
+      <description>Infrastructure operators monitor demand resilience as funding costs and regulated asset-base assumptions remain in focus.</description>
+      <pubDate>Fri, 08 May 2026 03:36:00 GMT</pubDate>
+      <category>markets</category>
+    </item>
+  </channel>
+</rss>

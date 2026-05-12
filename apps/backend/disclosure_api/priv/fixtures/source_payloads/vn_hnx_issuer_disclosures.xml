@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss xmlns:a10="http://www.w3.org/2005/Atom" version="2.0">
+  <channel>
+    <title>HNX - Thong tin cong bo tu to chuc phat hanh</title>
+    <link>https://www.hnx.vn/3/vi_vn/thong-tin-cong-bo-tu-to-chuc-phat-hanh.rss</link>
+    <description>HNX issuer disclosure RSS sample for GlobalPulse parser smoke</description>
+    <item>
+      <guid isPermaLink="false">614551</guid>
+      <link>http://www.vpdt.hnx.vn:7978/tin-cung-cap-rss-vi_vn-614551-1.html</link>
+      <title>Bao cao tai chinh quy 1/2026 (cong ty me)</title>
+      <description>&lt;a href='http://www.vpdt.hnx.vn:7978/tin-cung-cap-rss-vi_vn-614551-1.html'&gt;&lt;/a&gt;&lt;br/&gt;Bao cao tai chinh quy 1/2026</description>
+      <pubDate>Mon, 11 May 2026 11:09:23 +0700</pubDate>
+      <a10:updated>2026-05-11T11:09:23+07:00</a10:updated>
+    </item>
+    <item>
+      <guid isPermaLink="false">614550</guid>
+      <link>http://www.vpdt.hnx.vn:7978/tin-cung-cap-rss-vi_vn-614550-1.html</link>
+      <title>Thay doi nhan su</title>
+      <description>&lt;a href='http://www.vpdt.hnx.vn:7978/tin-cung-cap-rss-vi_vn-614550-1.html'&gt;&lt;/a&gt;&lt;br/&gt;Thay doi nhan su</description>
+      <pubDate>Mon, 11 May 2026 11:08:59 +0700</pubDate>
+      <a10:updated>2026-05-11T11:08:59+07:00</a10:updated>
+    </item>
+    <item>
+      <guid isPermaLink="false">614548</guid>
+      <link>http://www.vpdt.hnx.vn:7978/tin-cung-cap-rss-vi_vn-614548-1.html</link>
+      <title>Bao cao thuong nien 2025</title>
+      <description>&lt;a href='http://www.vpdt.hnx.vn:7978/tin-cung-cap-rss-vi_vn-614548-1.html'&gt;&lt;/a&gt;&lt;br/&gt;Bao cao thuong nien 2025</description>
+      <pubDate>Mon, 11 May 2026 11:07:42 +0700</pubDate>
+      <a10:updated>2026-05-11T11:07:42+07:00</a10:updated>
+    </item>
+  </channel>
+</rss>

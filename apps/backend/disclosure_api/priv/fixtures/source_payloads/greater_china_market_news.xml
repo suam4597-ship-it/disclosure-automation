@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Greater China Market News</title>
+    <item>
+      <title>Greater China supply-chain sentiment improves after AI infrastructure orders</title>
+      <link>https://example.com/globalpulse/greater-china/ai-infrastructure-orders</link>
+      <guid>greater-china-news-20260508-ai-infrastructure-orders</guid>
+      <description>Cross-region commentary points to stronger demand across chip packaging, server assembly, and advanced substrate suppliers.</description>
+      <pubDate>Fri, 08 May 2026 04:05:00 GMT</pubDate>
+      <category>markets</category>
+    </item>
+    <item>
+      <title>Cross-border listings sentiment improves across Greater China technology names</title>
+      <link>https://example.com/globalpulse/greater-china/cross-border-listings-sentiment</link>
+      <guid>greater-china-news-20260508-cross-border-listings</guid>
+      <description>Technology-sector filings and exchange commentary improve regional listing sentiment while investors watch liquidity and lock-up schedules.</description>
+      <pubDate>Fri, 08 May 2026 03:35:00 GMT</pubDate>
+      <category>markets</category>
+    </item>
+  </channel>
+</rss>

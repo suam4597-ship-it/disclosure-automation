@@ -1,0 +1,93 @@
+{
+  "strategy": "germany_company_register_token_preflight_v1",
+  "source_date_from": "2024-09-30",
+  "source_date_to": "2024-09-30",
+  "page_size": 30,
+  "max_pages_per_poll": 1,
+  "pages_fetched": 1,
+  "total_pages": 7,
+  "total_results": 188,
+  "over_page_cap": true,
+  "responses": [
+    {
+      "url": "https://www.unternehmensregister.de/en/search?formType=CAPITAL_MARKET&searchToken=<redacted>&sourceDateFrom=2024-09-30&sourceDateTo=2024-09-30&from=0",
+      "status_code": 200,
+      "bytes": 749008,
+      "from": 0,
+      "records_seen": 3,
+      "current_page": 1,
+      "total_pages": 7,
+      "total_results": 188,
+      "has_reached_results_limit": false,
+      "is_restricted_search": true,
+      "data": [
+        {
+          "publicationType": {
+            "id": 75,
+            "i18n_key": "drilldown:publicationType:75"
+          },
+          "companyNameAtTimeOfPublication": "COMMERZBANK Aktiengesellschaft",
+          "companyLocation": "Frankfurt am Main",
+          "sourceName": "Bundesanzeiger",
+          "sourceDate": "2024-09-30",
+          "title": "EUR 5.000.000,- Anleihe mit variablem Zinssatz von 2018/2028",
+          "language": "de",
+          "publicationCategory": {
+            "id": 69,
+            "i18n_key": "drilldown:publicationCategory:69"
+          },
+          "publicationPart": {
+            "id": 21,
+            "i18n_key": "drilldown:publicationPart:21"
+          },
+          "encryptedPayload": "5o_SSt_1blZTIkZGhD6uxUC-MC-koSAGx8t_AUwXhAHPU2_QwfPVmjO8mpT0rejOhCurAauCBXjJIyc5YYm_5IeYDSTFTEjxKQe99yyyuXRba6fcZ892q_1wxPsS4oS-ImANWF8zL61WB3d-pI9ZgAq8dcd823f4VRa1CqsQo1xyRZ2CMtfyNudEmAL7rGL6S0VappkQkBSOgEiD",
+          "hasPdf": true
+        },
+        {
+          "publicationType": {
+            "id": 907,
+            "i18n_key": "drilldown:publicationType:907"
+          },
+          "companyNameAtTimeOfPublication": "COMMERZBANK Aktiengesellschaft",
+          "companyLocation": "Frankfurt am Main",
+          "sourceName": "EQS Group AG, published via Thomson Reuters, Bloomberg and vwd",
+          "sourceDate": "2024-09-30",
+          "title": "Commerzbank Aktiengesellschaft: Release according to Article 40, Section 1 of the WpHG with the objective of Europe-wide distribution",
+          "language": "en",
+          "publicationCategory": {
+            "id": 81,
+            "i18n_key": "drilldown:publicationCategory:81"
+          },
+          "publicationPart": {
+            "id": 21,
+            "i18n_key": "drilldown:publicationPart:21"
+          },
+          "encryptedPayload": "Ekv2q1je66QceVPxcP77pwML5XPNA5oP4vfw0XTjmGWMUv7-bmYd2aoctQomIabEs_Yy88qbMzbdF-qrXRv5GMR95p7r9p1HJe0q7iHu5vMa-MHIxqUSHf5A5e6582N3nZh4lY56Tl6Zo1YrcxDnhAxe7OnlNgw2CdgLpAOoX-DGU8RMHa7cBsRyVaX52C6xsxPeRR7y4TixOwTN",
+          "hasPdf": true
+        },
+        {
+          "publicationType": {
+            "id": 907,
+            "i18n_key": "drilldown:publicationType:907"
+          },
+          "companyNameAtTimeOfPublication": "Covestro AG",
+          "companyLocation": "Leverkusen",
+          "sourceName": "EQS Group AG, published via Thomson Reuters, Bloomberg and vwd",
+          "sourceDate": "2024-09-30",
+          "title": "Covestro AG: Release according to Article 40, Section 1 of the WpHG with the objective of Europe-wide distribution",
+          "language": "en",
+          "publicationCategory": {
+            "id": 81,
+            "i18n_key": "drilldown:publicationCategory:81"
+          },
+          "publicationPart": {
+            "id": 21,
+            "i18n_key": "drilldown:publicationPart:21"
+          },
+          "encryptedPayload": "kMV6OLsMU3endtD_BhhA91nqYHZIxvg8w43pCuDKIuk-qYq2BIM1vxwUOP9ihe1Wrpkvd7qwQMG-z23OuTgK3yy-kzW1TvrzZk-WUQo9fCLActlnxn3ZQb2UViLM1OSxl2TvZUKa4fVFD_6Eb0grpfdJlf6iXpjRcRPNcVerHAz6ztVId7ZTkp977z0kgwmOzCmLOW_vHfDNZ8uqZw",
+          "hasPdf": true
+        }
+      ]
+    }
+  ]
+}

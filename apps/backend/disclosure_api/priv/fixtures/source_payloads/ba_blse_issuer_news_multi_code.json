@@ -1,0 +1,44 @@
+{
+  "strategy": "blse_multi_issuer_news_rss_v1",
+  "universe": [
+    {
+      "code": "EKBL-R-A",
+      "issuer": "Elektrokrajina a.d. Banja Luka",
+      "ticker_url": "http://www.blberza.com/Pages/SecurityTrading.aspx?code=EKBL-R-A"
+    },
+    {
+      "code": "TLKM-R-A",
+      "issuer": "Telekom Srpske a.d. Banja Luka",
+      "ticker_url": "http://www.blberza.com/Pages/SecurityTrading.aspx?code=TLKM-R-A"
+    }
+  ],
+  "issuer_window": {
+    "strategy": "static_offset",
+    "offset": 0,
+    "size": 2,
+    "universe_count": 2
+  },
+  "selected_codes": ["EKBL-R-A", "TLKM-R-A"],
+  "responses": [
+    {
+      "code": "EKBL-R-A",
+      "issuer": "Elektrokrajina a.d. Banja Luka",
+      "url": "https://www.blberza.com/pages/IssuerNewsRss.aspx?Code=EKBL-R-A&LangId=3",
+      "status_code": 200,
+      "bytes": 1265,
+      "records_seen": 2,
+      "records_kept": 2,
+      "data": "<rss version=\"2.0\"><channel><item><description>&lt;p&gt;Elektrokrajina a.d. Banja Luka - Increasing number of shares&lt;/p&gt;</description><link>http://www.blberza.com/Pages/DocView.aspx?id=114900</link><pubDate>Tue, 05 May 2026 10:00:00 +0200</pubDate><title>Elektrokrajina a.d. Banja Luka - Increasing number of shares</title></item><item><description>&lt;p&gt;Elektrokrajina a.d. Banja Luka - Financial Statement for the FY 2025&lt;/p&gt;</description><link>http://www.blberza.com/Pages/DocView.aspx?id=114600</link><pubDate>Tue, 28 Apr 2026 09:15:00 +0200</pubDate><title>Elektrokrajina a.d. Banja Luka - Financial Statement for the FY 2025</title></item></channel></rss>"
+    },
+    {
+      "code": "TLKM-R-A",
+      "issuer": "Telekom Srpske a.d. Banja Luka",
+      "url": "https://www.blberza.com/pages/IssuerNewsRss.aspx?Code=TLKM-R-A&LangId=3",
+      "status_code": 200,
+      "bytes": 1232,
+      "records_seen": 2,
+      "records_kept": 2,
+      "data": "<rss version=\"2.0\"><channel><item><description>&lt;p&gt;Telekom Srpske a.d. Banja Luka - Financial Statement for the Q1 2026&lt;/p&gt;</description><link>http://www.blberza.com/Pages/DocView.aspx?id=114854</link><pubDate>Mon, 04 May 2026 08:17:34 +0200</pubDate><title>Telekom Srpske a.d. Banja Luka - Financial Statement for the Q1 2026</title></item><item><description>&lt;p&gt;Telekom Srpske a.d. Banja Luka - The Auditor report for the FY 2025&lt;/p&gt;</description><link>http://www.blberza.com/Pages/DocView.aspx?id=114767</link><pubDate>Tue, 28 Apr 2026 08:19:11 +0200</pubDate><title>Telekom Srpske a.d. Banja Luka - The Auditor report for the FY 2025</title></item></channel></rss>"
+    }
+  ]
+}
