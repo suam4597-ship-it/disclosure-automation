@@ -11,8 +11,10 @@ It is documentation-only. It does not change frontend code, backend code, workfl
 ```text
 repo: suam4597-ship-it/disclosure-automation
 primary branch: phase0-foundation
-latest local handoff head: 68dffc3131cb7fd0109339730ee2c103d5a7e7ba
-latest merged PR: #609 Stabilize GlobalPulse public web handoff anchors
+resume packet baseline head: 68dffc3131cb7fd0109339730ee2c103d5a7e7ba
+resume packet publication PR: #610 Add GlobalPulse cross-local resume packet
+resume packet publication merge commit: 5f46461889f641063c832f6f829071b9baacbd80
+last workflow handoff stabilization PR before this packet: #609 Stabilize GlobalPulse public web handoff anchors
 previous result PR: #608 Record GlobalPulse public web smoke workflow hardening
 workflow hardening PR: #607 Harden GlobalPulse public web smoke workflow
 worktree expectation: clean
@@ -44,7 +46,7 @@ git status --short
 Expected:
 
 ```text
-HEAD: 68dffc3131cb7fd0109339730ee2c103d5a7e7ba or newer
+HEAD: 5f46461889f641063c832f6f829071b9baacbd80 or newer
 git status --short: empty
 ```
 
@@ -145,7 +147,7 @@ $runs.workflow_runs |
   Format-Table -AutoSize
 ```
 
-Last known checks for `68dffc3131cb7fd0109339730ee2c103d5a7e7ba`:
+Last known checks for `5f46461889f641063c832f6f829071b9baacbd80`:
 
 ```text
 Phase 0 validate: success
@@ -163,6 +165,7 @@ Phase 1 backend trace: success
 #607 hardened the website deployment/public web smoke workflow.
 #608 recorded the #607 result and public surface verification.
 #609 stabilized handoff wording so docs-only PRs do not immediately stale the web deployment review anchor.
+#610 published this cross-local resume packet.
 ```
 
 Important #607 behavior:
