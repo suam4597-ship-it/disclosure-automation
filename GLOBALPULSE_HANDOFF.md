@@ -146,6 +146,12 @@ For the latest Denmark DFSA OAM scheduled follow-up observation, read:
 apps/backend/disclosure_api/docs/globalpulse_denmark_dfsa_oam_second_followup_scheduled_observation_20260512.md
 ```
 
+For the latest Denmark DFSA OAM later scheduled observation, read:
+
+```text
+apps/backend/disclosure_api/docs/globalpulse_denmark_dfsa_oam_later_scheduled_observation_20260512.md
+```
+
 For the India NSE interim scheduled observation, read:
 
 ```text
@@ -370,7 +376,7 @@ public web smoke default-branch schedule review: default_branch=main, workflow f
 public web smoke first daily scheduled run: pass, run 25712711038, digest item_count=12, fallback=false, HKEX/EU/India rows observed
 India NSE scheduled observation refresh: pass, recent inspected runs now include 25719883720 and 25730184956
 EU canary later-run observation: pass, latest recorded runs 25718344882 and 25729286004
-Denmark DFSA OAM follow-up scheduled observation: pass, runs 25680895829, 25699532618, and 25713328609
+Denmark DFSA OAM later scheduled observation: pass, latest recorded runs 25720174153 and 25730389870
 HKEX first automated scheduled staging run: pass, run 25684138207
 HKEX scheduled staging observation: 7/10 successful run gate, latest run 25729361512
 public Pages smoke: 200
