@@ -90,6 +90,12 @@ Remaining website implementation workflow:
 globalpulse_web_remaining_implementation_workflow.md
 ```
 
+Latest public web digest diversity observation:
+
+```text
+globalpulse_public_web_digest_diversity_observation_20260512.md
+```
+
 Public web smoke daily schedule:
 
 ```text
@@ -113,8 +119,8 @@ globalpulse_production_deployment_runbook.md
 ```text
 repo: suam4597-ship-it/disclosure-automation
 primary working branch: phase0-foundation
-current anchor commit: 5562d92463189ce1c8d994746af41e9220de2665
-latest phase0 anchor PR: #579 Record GlobalPulse post-expansion next step plan
+current anchor commit: fc83edb03b35220fd0abc9fae4f6177b827d1610
+latest phase0 anchor PR: #580 Record GlobalPulse web remaining implementation workflow
 default-branch schedule activation PR: #541 Activate HKEX staging schedule on main
 main schedule activation commit: 423ca7fa710b04de56a74b0a1ee092b43597b8a1
 default-branch public web smoke activation PR: #545 Activate public web smoke workflow on main
@@ -141,7 +147,7 @@ Expected:
 
 ```text
 git status --short: empty
-HEAD: 5562d92463189ce1c8d994746af41e9220de2665 or a newer origin/phase0-foundation commit
+HEAD: fc83edb03b35220fd0abc9fae4f6177b827d1610 or a newer origin/phase0-foundation commit
 ```
 
 If the local checkout has unrelated uncommitted work, do not overwrite it. Either use a fresh clone or create a new branch and inspect the diff first.
@@ -190,7 +196,8 @@ APAC/CN-TW official listed-company disclosure source verification in progress
 production scheduled polling not approved
 current public Pages smoke: 200
 current Fly staging health: 200 ok
-current Fly staging digest: 200, item_count=12, fallback=false
+current Fly staging digest: 200, item_count=10, fallback=false
+latest digest diversity observation: India-only top-N, india_nse_announcements=10
 ```
 
 The project is no longer in the "can we find sources?" phase for Europe. Europe now needs observation, promotion gates, digest diversity checks, and rollback evidence.
@@ -213,7 +220,7 @@ Denmark DFSA OAM:
   scheduled staging canary configured on main
   first automated scheduled run: pass
   follow-up scheduled runs: pass, runs 25680895829 and 25699532618
-  latest digest visibility: pass
+  latest inspected top-N digest visibility: not present in the 2026-05-12 public web digest diversity observation
 production EU scheduled polling: not enabled
 ```
 
@@ -290,11 +297,11 @@ JP live polling: blocked by issue #339 until source authority decision
 ## Recommended Next Work Queue
 
 1. Use globalpulse_web_remaining_implementation_workflow.md as the website workflow queue.
-2. Record current public web smoke and digest diversity state.
-3. Continue HKEX scheduled staging observation toward the 7-day / 10 successful run gate.
-4. Continue EU scheduled staging canary observation summaries and digest-diversity checks as runs accumulate.
-5. Continue Denmark DFSA OAM scheduled observation summaries and digest-diversity checks as runs accumulate.
-6. Continue India NSE 7-day staging observation.
+2. Continue HKEX scheduled staging observation toward the 7-day / 10 successful run gate.
+3. Continue EU scheduled staging canary observation summaries and digest-diversity checks as runs accumulate.
+4. Continue Denmark DFSA OAM scheduled observation summaries and digest-diversity checks as runs accumulate.
+5. Continue India NSE 7-day staging observation.
+6. Record a new digest diversity observation when non-India rows reappear in the latest top-N digest.
 7. Keep public Pages + Fly staging web smoke workflow healthy.
 8. Revisit Taiwan/SET/Vietnam cadence only through staging-only design PRs.
 9. Use production deployment templates only after production backend app/database/CORS choices are approved.

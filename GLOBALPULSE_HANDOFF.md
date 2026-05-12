@@ -110,6 +110,12 @@ For the remaining website implementation workflow, read:
 apps/backend/disclosure_api/docs/globalpulse_web_remaining_implementation_workflow.md
 ```
 
+For the latest public web digest diversity observation, read:
+
+```text
+apps/backend/disclosure_api/docs/globalpulse_public_web_digest_diversity_observation_20260512.md
+```
+
 For the source-observation production readiness matrix, read:
 
 ```text
@@ -167,8 +173,8 @@ apps/backend/disclosure_api/docs/globalpulse_scheduled_workflow_observation_cook
 Current remote continuation status:
 
 ```text
-current phase0 head: 5562d92463189ce1c8d994746af41e9220de2665
-latest merged PR: #579 Record GlobalPulse post-expansion next step plan
+current phase0 head: fc83edb03b35220fd0abc9fae4f6177b827d1610
+latest merged PR: #580 Record GlobalPulse web remaining implementation workflow
 phase0 public web smoke workflow PR: #544 merged
 main public web smoke activation PR: #545 merged
 workflow id: 274668919
@@ -179,7 +185,7 @@ HKEX scheduled staging follow-up observation: 4 successful scheduled runs record
 next HKEX gate: continue scheduled staging observation toward 7-day / 10 successful run gate
 next web deployment gate: decide production backend app/database/frontend URL
 post-expansion next gate: production infrastructure decision values, source promotion approvals, and observation-window continuation
-web implementation next gate: current public web smoke/digest diversity record, then production decision values if approved
+web implementation next gate: continue scheduled observations and record digest diversity when non-India rows reappear, then production decision values if approved
 production decision record: added, production infra not created
 source observation matrix: added, production source promotion not approved
 basic monitoring incident plan: added, no alerting runtime enabled
@@ -198,7 +204,8 @@ HKEX scheduled staging follow-up observation: 4/10 successful run gate, latest r
 public Pages smoke: 200
 public config smoke: 200
 Fly staging health: 200 ok
-Fly staging digest: 200 item_count=12 fallback=false
+Fly staging digest: 200 item_count=10 fallback=false
+latest digest diversity observation: India-only top-N, india_nse_announcements=10
 ```
 
 Current public surfaces:
