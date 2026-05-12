@@ -92,6 +92,12 @@ For the latest Denmark DFSA OAM scheduled follow-up observation, read:
 apps/backend/disclosure_api/docs/globalpulse_denmark_dfsa_oam_second_followup_scheduled_observation_20260512.md
 ```
 
+For the India NSE interim scheduled observation, read:
+
+```text
+apps/backend/disclosure_api/docs/globalpulse_india_nse_interim_scheduled_observation_20260512.md
+```
+
 For the source-observation production readiness matrix, read:
 
 ```text
@@ -149,8 +155,8 @@ apps/backend/disclosure_api/docs/globalpulse_scheduled_workflow_observation_cook
 Current remote continuation status:
 
 ```text
-current phase0 head: 4de8b4d4d5b46cac94a37fd1d4be43c324cfd589
-latest merged PR: #576 Record EU canary second follow-up observation
+current phase0 head: 1df7d5f25cbc860899f5c2c24c0e3f759f3fa1a2
+latest merged PR: #577 Record Denmark DFSA OAM second follow-up observation
 phase0 public web smoke workflow PR: #544 merged
 main public web smoke activation PR: #545 merged
 workflow id: 274668919
@@ -170,6 +176,7 @@ source promotion approval issue: https://github.com/suam4597-ship-it/disclosure-
 pipeline format CI recovery: pass, merge commit 34c7d06e0503bcf83f64d35a7c4b59b55b64a69e
 post-recovery docs CI: pass, head 62922a389913b63aa832799a8cade1bc6270fd00
 scheduled workflow observation cookbook: added
+India NSE interim scheduled observation: pass, recent runs 25694981715, 25699447717, 25703573653
 EU canary follow-up scheduled observation: pass, runs 25680178601 and 25698983703
 Denmark DFSA OAM follow-up scheduled observation: pass, runs 25680895829 and 25699532618
 HKEX first automated scheduled staging run: pass, run 25684138207

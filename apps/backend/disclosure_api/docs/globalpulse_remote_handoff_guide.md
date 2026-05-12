@@ -72,6 +72,12 @@ Denmark DFSA OAM second scheduled follow-up observation:
 globalpulse_denmark_dfsa_oam_second_followup_scheduled_observation_20260512.md
 ```
 
+India NSE interim scheduled observation:
+
+```text
+globalpulse_india_nse_interim_scheduled_observation_20260512.md
+```
+
 Public web smoke daily schedule:
 
 ```text
@@ -95,8 +101,8 @@ globalpulse_production_deployment_runbook.md
 ```text
 repo: suam4597-ship-it/disclosure-automation
 primary working branch: phase0-foundation
-current anchor commit: 4de8b4d4d5b46cac94a37fd1d4be43c324cfd589
-latest phase0 anchor PR: #576 Record EU canary second follow-up observation
+current anchor commit: 1df7d5f25cbc860899f5c2c24c0e3f759f3fa1a2
+latest phase0 anchor PR: #577 Record Denmark DFSA OAM second follow-up observation
 default-branch schedule activation PR: #541 Activate HKEX staging schedule on main
 main schedule activation commit: 423ca7fa710b04de56a74b0a1ee092b43597b8a1
 default-branch public web smoke activation PR: #545 Activate public web smoke workflow on main
@@ -123,7 +129,7 @@ Expected:
 
 ```text
 git status --short: empty
-HEAD: 4de8b4d4d5b46cac94a37fd1d4be43c324cfd589 or a newer origin/phase0-foundation commit
+HEAD: 1df7d5f25cbc860899f5c2c24c0e3f759f3fa1a2 or a newer origin/phase0-foundation commit
 ```
 
 If the local checkout has unrelated uncommitted work, do not overwrite it. Either use a fresh clone or create a new branch and inspect the diff first.
@@ -218,7 +224,8 @@ Pause broad Europe source discovery unless a high-confidence official endpoint o
 India NSE official RSS: inactive/manual staging source
 staging schedule: configured
 first automated scheduled staging run: pass
-next gate: 7-day observation window and scheduled run summary
+interim scheduled observation: pass, recent runs 25694981715, 25699447717, 25703573653
+next gate: 7-day observation window and final scheduled run summary
 production scheduled polling: not enabled
 ```
 
@@ -346,6 +353,7 @@ Important runs to know:
 EU canary payload review run: 25650523685
 EU canary second follow-up run: 25698983703
 India NSE first scheduled run: 25650796284
+India NSE interim observation recent runs: 25694981715, 25699447717, 25703573653
 Denmark DFSA OAM first automated scheduled run: 25668194957
 Denmark DFSA OAM second follow-up run: 25699532618
 HKEX first automated scheduled staging run: 25684138207
