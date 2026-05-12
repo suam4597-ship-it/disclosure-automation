@@ -102,6 +102,7 @@ approval blocker status doc: globalpulse_production_approval_blocker_status_2026
 operator approval intake packet: globalpulse_operator_approval_intake_packet.md
 production CORS smoke contract template: globalpulse_production_cors_smoke_contract_template.md
 production bounded empty digest policy: globalpulse_production_bounded_empty_digest_policy.md
+production rollback stop checklist: globalpulse_production_rollback_stop_checklist.md
 ```
 
 Required values:
@@ -231,6 +232,7 @@ If no production approvals are available:
 3. Record digest diversity observation when non-India rows reappear in latest top-N.
 4. Keep the operator approval intake packet current if issue #561/#565 replies change.
 5. Investigate only high-confidence official endpoint blockers.
+6. Keep production rollback/fix-forward docs current without executing production commands.
 ```
 
 If production approvals are available:

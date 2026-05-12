@@ -227,6 +227,12 @@ The bounded empty production digest policy is recorded in:
 globalpulse_production_bounded_empty_digest_policy.md
 ```
 
+The production rollback stop checklist is recorded in:
+
+```text
+globalpulse_production_rollback_stop_checklist.md
+```
+
 ## Values To Bring From The Operator
 
 The operator should provide these values without secrets:
