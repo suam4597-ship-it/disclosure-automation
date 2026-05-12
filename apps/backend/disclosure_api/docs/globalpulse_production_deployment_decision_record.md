@@ -209,6 +209,12 @@ Command templates for the Fly.io path are recorded in:
 globalpulse_production_fly_command_templates.md
 ```
 
+The operator-facing approval intake packet is recorded in:
+
+```text
+globalpulse_operator_approval_intake_packet.md
+```
+
 ## Values To Bring From The Operator
 
 The operator should provide these values without secrets:
