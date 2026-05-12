@@ -146,6 +146,12 @@ For the India NSE interim scheduled observation, read:
 apps/backend/disclosure_api/docs/globalpulse_india_nse_interim_scheduled_observation_20260512.md
 ```
 
+For the latest India NSE scheduled observation refresh, read:
+
+```text
+apps/backend/disclosure_api/docs/globalpulse_india_nse_scheduled_observation_refresh_20260512.md
+```
+
 For the post-expansion next-step plan, read:
 
 ```text
@@ -356,7 +362,7 @@ SEC hourly scheduled run after gap: pass, run 25712461043, source sec_press_rele
 public web smoke daily schedule follow-up: resolved by first scheduled pass run 25712711038
 public web smoke default-branch schedule review: default_branch=main, workflow file present on main, daily cron marker present
 public web smoke first daily scheduled run: pass, run 25712711038, digest item_count=12, fallback=false, HKEX/EU/India rows observed
-India NSE interim scheduled observation: pass, recent runs 25694981715, 25699447717, 25703573653, and 25713273293
+India NSE scheduled observation refresh: pass, recent inspected runs now include 25719883720 and 25730184956
 EU canary follow-up scheduled observation: pass, runs 25680178601, 25698983703, and 25712655792
 Denmark DFSA OAM follow-up scheduled observation: pass, runs 25680895829, 25699532618, and 25713328609
 HKEX first automated scheduled staging run: pass, run 25684138207
