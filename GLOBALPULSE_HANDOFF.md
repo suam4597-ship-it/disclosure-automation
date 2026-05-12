@@ -86,6 +86,12 @@ For the latest EU scheduled staging canary follow-up observation, read:
 apps/backend/disclosure_api/docs/globalpulse_eu_scheduled_staging_canary_second_followup_observation_20260512.md
 ```
 
+For the latest Denmark DFSA OAM scheduled follow-up observation, read:
+
+```text
+apps/backend/disclosure_api/docs/globalpulse_denmark_dfsa_oam_second_followup_scheduled_observation_20260512.md
+```
+
 For the source-observation production readiness matrix, read:
 
 ```text
@@ -143,8 +149,8 @@ apps/backend/disclosure_api/docs/globalpulse_scheduled_workflow_observation_cook
 Current remote continuation status:
 
 ```text
-current phase0 head: 431f401176c67c39acf6f289eb5d8de2a1d6647f
-latest merged PR: #575 Record HKEX scheduled staging follow-up observation
+current phase0 head: 4de8b4d4d5b46cac94a37fd1d4be43c324cfd589
+latest merged PR: #576 Record EU canary second follow-up observation
 phase0 public web smoke workflow PR: #544 merged
 main public web smoke activation PR: #545 merged
 workflow id: 274668919
@@ -165,7 +171,7 @@ pipeline format CI recovery: pass, merge commit 34c7d06e0503bcf83f64d35a7c4b59b5
 post-recovery docs CI: pass, head 62922a389913b63aa832799a8cade1bc6270fd00
 scheduled workflow observation cookbook: added
 EU canary follow-up scheduled observation: pass, runs 25680178601 and 25698983703
-Denmark DFSA OAM follow-up scheduled observation: pass, run 25680895829
+Denmark DFSA OAM follow-up scheduled observation: pass, runs 25680895829 and 25699532618
 HKEX first automated scheduled staging run: pass, run 25684138207
 HKEX scheduled staging follow-up observation: 4/10 successful run gate, latest run 25702861937
 public Pages smoke: 200
