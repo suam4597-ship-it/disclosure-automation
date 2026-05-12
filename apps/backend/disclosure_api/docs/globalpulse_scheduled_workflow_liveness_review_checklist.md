@@ -142,6 +142,12 @@ The latest no-new-run gap observation is recorded in:
 globalpulse_scheduled_staging_poll_no_new_run_gap_observation_20260512.md
 ```
 
+The latest liveness-state review is recorded in:
+
+```text
+globalpulse_scheduled_workflow_liveness_state_review_20260512.md
+```
+
 Baseline from that observation:
 
 ```text
