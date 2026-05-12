@@ -10,9 +10,11 @@ This is documentation-only. It does not change frontend code, backend code, rout
 
 ```text
 STALE_FAST_MVP_SOURCE_HEALTH_STACKED_PRS_CLOSED
+STALE_PHASE1_SEC_THIN_SLICE_HISTORICAL_PRS_CLOSED
 CURRENT_CONTINUATION_PATH_IS_GLOBALPULSE_PHASE0_FOUNDATION
 ACTIVE_HANDOFF_POINTERS_REFRESHED_THROUGH_PR_614
 OLD_BRANCHES_REMAIN_RECOVERABLE_IF_NEEDED
+ONLY_PHASE0_TO_MAIN_INTEGRATION_PR_LEFT_OPEN
 PRODUCTION_SCHEDULED_POLLING_NOT_ENABLED
 ```
 
@@ -86,13 +88,39 @@ Closing these PRs reduces ambiguity in the GitHub PR queue without deleting the 
 
 ## Remaining Open PRs
 
-After this cleanup, the remaining open PRs are the older March/April PRs:
+The older March/April PRs were triaged next.
+
+Closed as superseded historical PRs:
 
 ```text
-#1 through #20
+#2 Phase 1 fix: format config and clear source-health compile warning
+#3 Phase 1 backend: verification fix branch
+#4 Phase 1 backend: verification fix branch v2
+#5 Phase 1 warning cleanup v2
+#6 Phase 1 backend: verification fix branch v3
+#7 Phase 1 backend: verification fix branch v4
+#8 p1-v5
+#9 p1-v6
+#10 p1v7
+#11 p1v8
+#12 p19
+#13 p20
+#14 p20p0
+#15 p21
+#16 r1
+#17 u1
+#18 z2
+#19 sec thin slice upload v3
+#20 WIP: lock SEC 6-K before form expansion
 ```
 
-Those were intentionally left untouched in this cleanup batch because they predate the Fast MVP / Source Health stacked PR sequence and may need a separate historical-triage pass.
+The only remaining open PR after this cleanup is:
+
+```text
+#1 Phase 0 foundation: Codespaces + Vercel entry + backend runbook
+```
+
+#1 is intentionally left open because it represents the broader `phase0-foundation` to `main` integration decision. It is not the same as the stale branch-stack cleanup. Current day-to-day work should continue on `phase0-foundation` unless the operator explicitly decides to resolve the main-branch integration path.
 
 ## Guardrails
 

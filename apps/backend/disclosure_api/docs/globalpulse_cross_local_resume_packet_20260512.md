@@ -188,7 +188,8 @@ Phase 1 backend trace: success
 #612 refreshed the public dashboard regional mapping on the latest phase0-foundation head.
 #613 recorded the refreshed public digest diversity with non-India rows visible in the latest top-N digest.
 #614 refreshed the handoff docs after the mapping/digest updates.
-#277 through #311 were closed as superseded stale stacked PRs; see globalpulse_stale_stacked_pr_cleanup_20260512.md.
+#277 through #311 and #2 through #20 were closed as superseded stale/historical PRs; see globalpulse_stale_stacked_pr_cleanup_20260512.md.
+#1 remains open as the separate phase0-foundation to main integration decision.
 ```
 
 Important #607 behavior:
