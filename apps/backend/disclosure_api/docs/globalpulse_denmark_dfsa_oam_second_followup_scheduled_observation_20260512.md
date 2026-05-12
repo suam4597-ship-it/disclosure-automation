@@ -14,6 +14,8 @@ DENMARK_DFSA_OAM_SECOND_FOLLOWUP_AUTOMATED_CRON_RUN_SUCCESS
 DENMARK_DFSA_OAM_FETCH_MODE_LIVE
 DENMARK_DFSA_OAM_DIGEST_CONTRACT_PASS
 DENMARK_DFSA_OAM_TOP_N_DIGEST_VISIBILITY_NOT_PRESENT_IN_THIS_RUN
+DENMARK_DFSA_OAM_LATEST_AUTOMATED_CRON_RUN_SUCCESS
+DENMARK_DFSA_OAM_LATEST_SOURCE_HEALTH_UPDATED
 DENMARK_DFSA_OAM_SOURCE_REMAINS_STAGING_ONLY
 PRODUCTION_DENMARK_POLLING_NOT_ENABLED
 ```
@@ -55,6 +57,73 @@ expires_at: 2026-08-09T21:53:13Z
 ```
 
 The artifact was downloaded and inspected locally from the GitHub Actions artifact reference.
+
+## Later Scheduled Run Update
+
+A later automatic Denmark DFSA OAM scheduled staging canary run also completed successfully:
+
+```text
+workflow: GlobalPulse live staging poll
+workflow path: .github/workflows/globalpulse-live-staging-poll.yml
+event: schedule
+run URL: https://github.com/suam4597-ship-it/disclosure-automation/actions/runs/25713328609
+run id: 25713328609
+head sha: c9107fe00c10bf6a239289f1c5b8aab47feb610d
+status: completed
+conclusion: success
+created_at: 2026-05-12T04:26:48Z
+```
+
+Schedule resolution:
+
+```text
+SCHEDULE_EXPR: 47 */4 * * 1-5
+SOURCE_KEY: denmark_dfsa_oam_staging_canary
+RUN_MODE: denmark_dfsa_oam_canary
+edition: breaking
+backend URL: https://globalpulse-backend-staging.fly.dev
+```
+
+Artifact:
+
+```text
+artifact name: globalpulse-live-staging-poll-25713328609
+artifact id: 6935647916
+artifact digest: sha256:70fd7e64d4c5bfea30bea75c7b4b158cab82237a9fd93ea64b7a00a799a392a5
+artifact size: 4041 bytes
+created_at: 2026-05-12T04:26:58Z
+expires_at: 2026-08-10T04:26:48Z
+```
+
+Latest poll review:
+
+```text
+source: dk_dfsa_oam_company_announcements
+poll status: 202
+fetch.mode: live
+fetch.status_code: 200
+fetch.bytes: 6784
+records_seen: 25
+records_inserted: 25
+canonical_items: 25
+raw_documents: 25
+first canonical item: breaking-2026-05-11-dfsa-oam-300008799
+```
+
+Latest digest review:
+
+```text
+GET /api/feed/digest/latest?edition=breaking
+digest_date: 2026-05-12
+edition: breaking
+generated_at: 2026-05-12T04:26:57Z
+item_count: 12
+metadata.fallback_to_fixture: false
+digest contract: pass
+denmark items in top-N digest: 0
+```
+
+The latest digest included India NSE, HKEX, and EU Euronext rows, but no Denmark rows. This is still not a Denmark poll failure; it means Denmark public top-N visibility remains an observation item.
 
 ## Source Poll Review
 
@@ -126,6 +195,24 @@ last_error: null
 last_failure_at: null
 ```
 
+A later source-health read after run `25713328609` returned:
+
+```text
+GET /api/admin/source-health/dk_dfsa_oam_company_announcements
+http_status: 200
+source_key: dk_dfsa_oam_company_announcements
+active: false
+candidate_status: manual_staging_only
+source_type: api
+parser_key: dfsa_oam_company_announcements_json_v1
+base_url: https://appft.gold.extension.gopublic.dk/api/9217fa13-5d9a-46c6-9921-69ee7e6cfaf6/search
+health_status: unknown
+last_success_at: 2026-05-12T04:26:56.909940Z
+last_seen_published_at: 2026-05-11T19:39:00.000000Z
+last_error: null
+last_failure_at: null
+```
+
 Interpretation:
 
 ```text
@@ -137,6 +224,8 @@ health_status remains informational and should be tracked, but it does not chang
 ## Observation Window Status
 
 This run adds another successful automatic canary observation for Denmark DFSA OAM. It does not approve production polling.
+
+The later run `25713328609` adds one more successful automatic Denmark observation. It still does not approve production polling.
 
 The production-promotion gate remains:
 

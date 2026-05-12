@@ -185,8 +185,8 @@ globalpulse_production_deployment_runbook.md
 ```text
 repo: suam4597-ship-it/disclosure-automation
 primary working branch: phase0-foundation
-current anchor commit: 7448edb4cb1925b0a31949816018e24ccbf60bf0
-latest phase0 anchor PR: #595 Record latest HKEX scheduled staging observation
+current anchor commit: dccb3e6a99b4b037356756626736baa727ce1896
+latest phase0 anchor PR: #596 Record latest EU canary scheduled observation
 default-branch schedule activation PR: #541 Activate HKEX staging schedule on main
 main schedule activation commit: 423ca7fa710b04de56a74b0a1ee092b43597b8a1
 default-branch public web smoke activation PR: #545 Activate public web smoke workflow on main
@@ -213,7 +213,7 @@ Expected:
 
 ```text
 git status --short: empty
-HEAD: 7448edb4cb1925b0a31949816018e24ccbf60bf0 or a newer origin/phase0-foundation commit
+HEAD: dccb3e6a99b4b037356756626736baa727ce1896 or a newer origin/phase0-foundation commit
 ```
 
 If the local checkout has unrelated uncommitted work, do not overwrite it. Either use a fresh clone or create a new branch and inspect the diff first.
@@ -297,7 +297,7 @@ Denmark DFSA OAM:
   manual canary dispatch: pass
   scheduled staging canary configured on main
   first automated scheduled run: pass
-  follow-up scheduled runs: pass, runs 25680895829 and 25699532618
+  follow-up scheduled runs: pass, runs 25680895829, 25699532618, and 25713328609
   latest inspected top-N digest visibility: not present in the 2026-05-12 public web digest diversity observation
 production EU scheduled polling: not enabled
 ```
@@ -456,6 +456,7 @@ India NSE first scheduled run: 25650796284
 India NSE interim observation recent runs: 25694981715, 25699447717, 25703573653
 Denmark DFSA OAM first automated scheduled run: 25668194957
 Denmark DFSA OAM second follow-up run: 25699532618
+Denmark DFSA OAM latest scheduled run: 25713328609
 HKEX first automated scheduled staging run: 25684138207
 HKEX follow-up scheduled staging observation latest run: 25712752961
 HKEX scheduled staging cron: 22 */2 * * 1-5
