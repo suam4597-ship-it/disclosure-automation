@@ -102,6 +102,12 @@ Public web smoke daily schedule:
 globalpulse_public_web_smoke_daily_schedule.md
 ```
 
+First daily scheduled public web smoke pending observation:
+
+```text
+globalpulse_public_web_smoke_first_daily_schedule_pending_20260512.md
+```
+
 Production backend deployment design:
 
 ```text
@@ -119,8 +125,8 @@ globalpulse_production_deployment_runbook.md
 ```text
 repo: suam4597-ship-it/disclosure-automation
 primary working branch: phase0-foundation
-current anchor commit: 359ba907962e3dcd55aba2f0013a0c049b9ae15d
-latest phase0 anchor PR: #581 Record current GlobalPulse public web digest observation
+current anchor commit: 49bf5667f027301da02ab7b90e1ccbe239eea600
+latest phase0 anchor PR: #582 Refresh GlobalPulse scheduled observation cookbook
 default-branch schedule activation PR: #541 Activate HKEX staging schedule on main
 main schedule activation commit: 423ca7fa710b04de56a74b0a1ee092b43597b8a1
 default-branch public web smoke activation PR: #545 Activate public web smoke workflow on main
@@ -147,7 +153,7 @@ Expected:
 
 ```text
 git status --short: empty
-HEAD: 359ba907962e3dcd55aba2f0013a0c049b9ae15d or a newer origin/phase0-foundation commit
+HEAD: 49bf5667f027301da02ab7b90e1ccbe239eea600 or a newer origin/phase0-foundation commit
 ```
 
 If the local checkout has unrelated uncommitted work, do not overwrite it. Either use a fresh clone or create a new branch and inspect the diff first.
@@ -198,6 +204,7 @@ current public Pages smoke: 200
 current Fly staging health: 200 ok
 current Fly staging digest: 200, item_count=10, fallback=false
 latest digest diversity observation: India-only top-N, india_nse_announcements=10
+first daily scheduled public web smoke run: pending observation, no event=schedule run observed yet
 ```
 
 The project is no longer in the "can we find sources?" phase for Europe. Europe now needs observation, promotion gates, digest diversity checks, and rollback evidence.

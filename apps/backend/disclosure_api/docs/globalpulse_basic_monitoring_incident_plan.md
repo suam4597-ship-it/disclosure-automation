@@ -246,6 +246,7 @@ Until then:
 
 ```text
 daily public web smoke remains staging observation
+first daily scheduled public web smoke run remains pending observation
 live staging poll workflows remain candidate-source observation
 production scheduled polling remains disabled
 ```
@@ -271,6 +272,6 @@ The next safe monitoring implementation step is:
 
 ```text
 record the first daily scheduled public web smoke run when it appears
-record HKEX first automated scheduled staging run when it appears
+continue HKEX scheduled staging observation toward the 7-day / 10 successful run gate
 only then consider production-specific monitoring targets after production deployment decisions are approved
 ```
