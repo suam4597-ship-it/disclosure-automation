@@ -15,6 +15,7 @@ INDIA_NSE_LIVE_STAGING_OBSERVED
 INDIA_NSE_INTERIM_SCHEDULED_OBSERVATION_RECORDED
 POST_EXPANSION_NEXT_STEP_PLAN_RECORDED
 CURRENT_PUBLIC_WEB_DIGEST_DIVERSITY_OBSERVATION_RECORDED
+CURRENT_PUBLIC_WEB_DIGEST_DIVERSITY_REFRESH_RECORDED
 SOURCE_HEALTH_DRIFT_OBSERVATION_RECORDED
 PRODUCTION_APPROVAL_BLOCKER_STATUS_RECORDED
 EU_CANARY_LIVE_STAGING_OBSERVED
@@ -29,40 +30,48 @@ PRODUCTION_SCHEDULED_POLLING_NOT_ENABLED
 
 ## Current Public Smoke Evidence
 
-The latest public web digest diversity observation recorded:
+The latest public web digest diversity refresh recorded:
 
 ```text
-doc: globalpulse_public_web_digest_diversity_observation_20260512.md
+doc: globalpulse_public_web_digest_diversity_refresh_20260512.md
 public Pages: 200
 public config: 200
 backend health: 200
 backend digest: 200
 digest date: 2026-05-12
-digest item_count: 10
+digest item_count: 12
 metadata.fallback_to_fixture: false
 ```
 
 Observed latest top-N digest coverage included:
 
 ```text
-source: india_nse_announcements=10
-region: india=10
+region: india=3
+region: ch=2
+region: eu=2
+region: eu_north=1
+region: eu_central=1
+region: eu_south=1
+region: uk=1
+region: greater_china=1
 ```
 
-This confirms public staging reachability and live-backed digest behavior. It also records that the latest inspected top-N digest is India-only, so digest diversity remains an active observation item. It does not by itself approve production source schedules.
+This confirms public staging reachability and live-backed digest behavior. It also records that non-India rows have reappeared in the latest inspected top-N digest after the regional dashboard mapping refresh. It does not by itself approve production source schedules.
 
 Production source-promotion approvals are tracked in:
 
 ```text
 https://github.com/suam4597-ship-it/disclosure-automation/issues/565
-latest checked state: open, comments 0
+latest checked state: open, comments 1
+latest refresh note: issue comment posted on 2026-05-12 KST
 ```
 
 Production deployment approval values are tracked in:
 
 ```text
 https://github.com/suam4597-ship-it/disclosure-automation/issues/561
-latest checked state: open, comments 0
+latest checked state: open, comments 1
+latest refresh note: issue comment posted on 2026-05-12 KST
 ```
 
 Latest source-health drift observation:
