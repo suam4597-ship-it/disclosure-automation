@@ -1,6 +1,6 @@
 # GlobalPulse Source Observation Production Readiness Matrix
 
-Date: 2026-05-11 KST
+Date: 2026-05-12 KST
 
 This document summarizes the current source-observation state for production-promotion planning.
 
@@ -14,6 +14,7 @@ SEC_BASELINE_STABLE
 INDIA_NSE_LIVE_STAGING_OBSERVED
 INDIA_NSE_INTERIM_SCHEDULED_OBSERVATION_RECORDED
 POST_EXPANSION_NEXT_STEP_PLAN_RECORDED
+CURRENT_PUBLIC_WEB_DIGEST_DIVERSITY_OBSERVATION_RECORDED
 EU_CANARY_LIVE_STAGING_OBSERVED
 EU_CANARY_SECOND_FOLLOWUP_OBSERVED
 DENMARK_DFSA_OAM_SECOND_FOLLOWUP_OBSERVED
@@ -26,33 +27,27 @@ PRODUCTION_SCHEDULED_POLLING_NOT_ENABLED
 
 ## Current Public Smoke Evidence
 
-The latest public web smoke maintenance verification recorded:
+The latest public web digest diversity observation recorded:
 
 ```text
-run id: 25677329262
+doc: globalpulse_public_web_digest_diversity_observation_20260512.md
 public Pages: 200
 public config: 200
 backend health: 200
 backend digest: 200
-digest item_count: 12
+digest date: 2026-05-12
+digest item_count: 10
 metadata.fallback_to_fixture: false
 ```
 
-Observed digest coverage included:
+Observed latest top-N digest coverage included:
 
 ```text
-india
-eu_north
-ch
-eu_central
-greater_china
-asean
-eu
-uk
-eu_south
+source: india_nse_announcements=10
+region: india=10
 ```
 
-This confirms public staging visibility. It does not by itself approve production source schedules.
+This confirms public staging reachability and live-backed digest behavior. It also records that the latest inspected top-N digest is India-only, so digest diversity remains an active observation item. It does not by itself approve production source schedules.
 
 Production source-promotion approvals are tracked in:
 
@@ -65,7 +60,7 @@ https://github.com/suam4597-ship-it/disclosure-automation/issues/565
 | Track | Current status | Evidence | Production gate |
 | --- | --- | --- | --- |
 | SEC baseline | Stable live baseline | Initial SEC live polling smoke and runtime smoke history | May remain baseline, but production schedule still needs production deployment approval |
-| India NSE | Live staging observed through scheduled workflow and public digest; interim scheduled observation recorded | `india_nse_announcements` appears in public smoke digest with `fetch_mode=live`; interim scheduled observation recorded recent runs `25694981715`, `25699447717`, and `25703573653` in `globalpulse_india_nse_interim_scheduled_observation_20260512.md` | Continue 7-day observation window and record final run counts/failures before source-promotion decision |
+| India NSE | Live staging observed through scheduled workflow and current public digest; interim scheduled observation recorded | `india_nse_announcements` occupies the latest inspected top-N digest with `metadata.fallback_to_fixture=false`; interim scheduled observation recorded recent runs `25694981715`, `25699447717`, and `25703573653` in `globalpulse_india_nse_interim_scheduled_observation_20260512.md` | Continue 7-day observation window and record final run counts/failures before source-promotion decision |
 | EU canary batch | Live staging canary observed through scheduled workflow; latest inspected digest top-N was India-only | `globalpulse_eu_scheduled_staging_canary_first_cron_observation.md`; later payload review recorded; follow-up run `25680178601` recorded in `globalpulse_eu_scheduled_staging_canary_followup_observation_20260511.md`; second follow-up run `25698983703` recorded in `globalpulse_eu_scheduled_staging_canary_second_followup_observation_20260512.md` | Continue multi-day scheduled observation and digest-diversity checks; do not add Germany/PSE to first canary automatically |
 | Denmark DFSA OAM | Live EU northern coverage observed, but latest inspected digest top-N did not include Denmark | Public smoke digest includes `dk_dfsa_oam_company_announcements` with `eu_north`; follow-up scheduled run `25680895829` recorded in `globalpulse_denmark_dfsa_oam_followup_scheduled_observation_20260511.md`; second follow-up run `25699532618` recorded in `globalpulse_denmark_dfsa_oam_second_followup_scheduled_observation_20260512.md` | Keep inside EU observation path and continue digest-diversity checks; no production schedule yet |
 | HKEX | Manual, first automated, and follow-up scheduled staging runs observed; public digest visibility observed but not guaranteed in every global top-N digest | `globalpulse_hkex_second_manual_observation_results.md`; first scheduled run `25684138207` recorded in `globalpulse_hkex_first_automated_scheduled_run_results.md`; follow-up observation recorded 4 successful scheduled runs through `25702861937` in `globalpulse_hkex_scheduled_staging_followup_observation_20260512.md` | Continue 7-day / 10-run staging observation before any promotion |
@@ -124,10 +119,11 @@ Germany Company Register and Prague/PSE remain design/staging-only paths
 1. Use globalpulse_post_expansion_next_step_plan.md as the next queue.
 2. Continue HKEX scheduled staging observation toward the 7-day / 10 successful run gate.
 3. Continue India/EU/HKEX public smoke, digest diversity, and source-health observation.
-4. Record follow-up scheduled observation summaries as runs accumulate.
-5. Keep public web smoke daily running.
-6. Decide production backend app/database/frontend URL only after operator approval.
-7. Only after production infrastructure smoke, decide source-by-source production schedules.
+4. Record a new digest diversity observation when non-India rows reappear in the latest top-N digest.
+5. Record follow-up scheduled observation summaries as runs accumulate.
+6. Keep public web smoke daily running.
+7. Decide production backend app/database/frontend URL only after operator approval.
+8. Only after production infrastructure smoke, decide source-by-source production schedules.
 ```
 
 Use issue #565 to collect those source-by-source approvals. Do not treat matrix visibility as approval.

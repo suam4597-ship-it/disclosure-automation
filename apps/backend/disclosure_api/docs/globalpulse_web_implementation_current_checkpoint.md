@@ -22,6 +22,7 @@ DENMARK_DFSA_OAM_SECOND_FOLLOWUP_OBSERVED
 INDIA_NSE_INTERIM_SCHEDULED_OBSERVATION_RECORDED
 POST_EXPANSION_NEXT_STEP_PLAN_RECORDED
 WEB_REMAINING_IMPLEMENTATION_WORKFLOW_RECORDED
+CURRENT_PUBLIC_WEB_DIGEST_DIVERSITY_OBSERVATION_RECORDED
 PRODUCTION_DEPLOYMENT_NOT_APPROVED
 REMOTE_HANDOFF_REFRESHED_FOR_MULTI_LOCAL_WORK
 ```
@@ -31,8 +32,8 @@ REMOTE_HANDOFF_REFRESHED_FOR_MULTI_LOCAL_WORK
 ```text
 repo: suam4597-ship-it/disclosure-automation
 primary working branch: phase0-foundation
-current head: 5562d92463189ce1c8d994746af41e9220de2665
-latest merged PR: #579 Record GlobalPulse post-expansion next step plan
+current head: fc83edb03b35220fd0abc9fae4f6177b827d1610
+latest merged PR: #580 Record GlobalPulse web remaining implementation workflow
 worktree expectation: clean
 ```
 
@@ -75,15 +76,18 @@ health.service: disclosure_automation
 health.phase: phase1
 health.repo: up
 GET Fly staging /api/feed/digest/latest?edition=breaking: 200
-digest.item_count: 12
+digest.digest_date: 2026-05-12
+digest.item_count: 10
 digest.metadata.fallback_to_fixture: false
+latest observed source distribution: india_nse_announcements=10
+latest observed region distribution: india=10
 ```
 
-This confirms the public website and staging backend are currently connected. It does not approve production deployment or production scheduled polling.
+This confirms the public website and staging backend are currently connected and live-backed. The latest inspected top-N digest is India-only, so digest diversity remains an observation item. This does not approve production deployment or production scheduled polling.
 
 ## Current CI Snapshot
 
-For head `5562d92463189ce1c8d994746af41e9220de2665`, push and pull-request checks completed successfully:
+For head `fc83edb03b35220fd0abc9fae4f6177b827d1610`, push and pull-request checks completed successfully:
 
 ```text
 Phase 0 validate: success
@@ -142,7 +146,7 @@ git status --short
 Expected:
 
 ```text
-HEAD: c7331ea7a0ad1020fa6f514980a29e9b2574a9b3 or newer
+HEAD: fc83edb03b35220fd0abc9fae4f6177b827d1610 or newer
 git status --short: empty
 ```
 
@@ -221,14 +225,12 @@ Current best sequence:
 
 ```text
 1. Use `globalpulse_web_remaining_implementation_workflow.md` as the website workflow queue.
-2. Record current public web smoke and digest diversity state.
-3. Continue HKEX scheduled staging observation toward the 7-day / 10 successful run gate.
-4. Continue scheduled observation summaries for EU canary, Denmark DFSA OAM, and India NSE as runs accumulate.
-5. Prepare production infrastructure decision values only after operator approval.
-6. Keep checking public web smoke and source-health drift.
-4. Keep daily public web smoke observation healthy.
-5. Prepare production only after Issue #561 values are approved.
-6. Promote sources only after Issue #565 source-by-source approvals are recorded.
+2. Continue HKEX scheduled staging observation toward the 7-day / 10 successful run gate.
+3. Continue scheduled observation summaries for EU canary, Denmark DFSA OAM, and India NSE as runs accumulate.
+4. Record a new digest diversity observation when non-India rows reappear in the latest top-N digest.
+5. Keep daily public web smoke observation healthy.
+6. Prepare production only after Issue #561 values are approved.
+7. Promote sources only after Issue #565 source-by-source approvals are recorded.
 ```
 
 HKEX pass criteria are recorded in:

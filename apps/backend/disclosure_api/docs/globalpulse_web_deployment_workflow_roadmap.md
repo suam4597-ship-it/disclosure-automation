@@ -1,6 +1,6 @@
 # GlobalPulse Web Deployment Workflow Roadmap
 
-Date: 2026-05-11 KST
+Date: 2026-05-12 KST
 
 This document records the recommended next workflow for moving GlobalPulse from public staging smoke toward a stable production-grade web deployment.
 
@@ -33,7 +33,8 @@ Fly /api/feed/digest/latest?edition=breaking returns bounded JSON
 current public Pages smoke: 200
 current public config smoke: 200
 current Fly staging health smoke: 200 ok
-current Fly staging digest smoke: 200 item_count=12 fallback=false
+current Fly staging digest smoke: 200 item_count=10 fallback=false
+latest digest diversity observation: India-only top-N, india_nse_announcements=10
 public browser smoke sees Backend ok and Backend digest live
 regional sections render from backend digest data
 Source Health operator link is present
@@ -69,6 +70,12 @@ The ordered remaining website implementation workflow is recorded in:
 
 ```text
 globalpulse_web_remaining_implementation_workflow.md
+```
+
+The latest public web digest diversity observation is recorded in:
+
+```text
+globalpulse_public_web_digest_diversity_observation_20260512.md
 ```
 
 Default next posture:

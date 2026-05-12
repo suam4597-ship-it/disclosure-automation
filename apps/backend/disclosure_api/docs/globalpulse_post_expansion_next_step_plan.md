@@ -10,6 +10,7 @@ This is planning-only. It does not change frontend code, backend code, routes, p
 
 ```text
 GLOBALPULSE_POST_EXPANSION_NEXT_STEP_PLAN_RECORDED
+CURRENT_PUBLIC_WEB_DIGEST_DIVERSITY_OBSERVATION_RECORDED
 BROAD_EU_SOURCE_EXPANSION_PAUSED_BY_DEFAULT
 SCHEDULED_STAGING_OBSERVATION_CONTINUES
 PRODUCTION_INFRA_DECISIONS_NEXT_MAJOR_GATE
@@ -33,12 +34,14 @@ EU canary follow-up observation: runs 25680178601 and 25698983703 pass at poll l
 Denmark DFSA OAM follow-up observation: runs 25680895829 and 25699532618 pass at poll level
 HKEX scheduled follow-up observation: 4 successful scheduled runs through 25702861937
 public Pages + Fly staging smoke: pass
+2026-05-12 latest public digest: pass, item_count=10, fallback=false, India-only top-N
 ```
 
 Important caveat:
 
 ```text
 EU and Denmark latest inspected poll runs passed, but their latest inspected global top-N digest artifacts did not include EU/Denmark rows.
+The 2026-05-12 public web digest diversity observation also found the latest top-N digest to be India-only.
 This is not a poll failure, but it means public digest diversity remains an observation item before promotion.
 ```
 
@@ -186,12 +189,11 @@ Preferred sequence:
 
 ```text
 1. Use globalpulse_web_remaining_implementation_workflow.md as the website workflow queue.
-2. Record current public web smoke and digest diversity state.
-3. Record production infrastructure decision values after operator approval.
-4. Add/refresh production CORS smoke contract after frontend/backend origin choices are approved.
-5. Record another scheduled-observation batch after more India/EU/Denmark/HKEX runs accumulate.
-6. Record public digest diversity smoke when EU/Denmark/HKEX rows reappear in top-N digest artifacts.
-7. Only after production backend smoke passes, consider frontend production config promotion.
+2. Record another scheduled-observation batch after more India/EU/Denmark/HKEX runs accumulate.
+3. Record public digest diversity smoke when EU/Denmark/HKEX rows reappear in top-N digest artifacts.
+4. Record production infrastructure decision values after operator approval.
+5. Add/refresh production CORS smoke contract after frontend/backend origin choices are approved.
+6. Only after production backend smoke passes, consider frontend production config promotion.
 ```
 
 Fallback if no production approvals are available yet:

@@ -10,6 +10,7 @@ This is planning-only. It does not change frontend code, backend code, routes, p
 
 ```text
 GLOBALPULSE_WEB_REMAINING_IMPLEMENTATION_WORKFLOW_RECORDED
+CURRENT_PUBLIC_WEB_DIGEST_DIVERSITY_OBSERVATION_RECORDED
 PUBLIC_PAGES_STAGING_BACKEND_SMOKE_REMAINS_FIRST_CHECKPOINT
 PRODUCTION_INFRA_DECISIONS_BLOCK_RUNTIME_PROMOTION
 FRONTEND_CONFIG_PROMOTION_BLOCKED_UNTIL_PRODUCTION_BACKEND_SMOKE
@@ -74,6 +75,7 @@ India NSE: poll pass and top-N digest visibility present in recent inspected run
 EU canary: poll pass, but latest inspected top-N digest was India-only
 Denmark DFSA OAM: poll pass, but latest inspected top-N digest did not include Denmark
 HKEX: poll pass, first scheduled run had HKEX top-N visibility, later top-N artifacts did not
+2026-05-12 public web digest observation: public web smoke pass, latest top-N digest India-only, metadata.fallback_to_fixture=false
 ```
 
 Before production source promotion, record:
@@ -212,9 +214,9 @@ Monitoring should not be enabled as noisy alerting until owners and thresholds a
 If no production approvals are available:
 
 ```text
-1. Record current public web smoke and digest diversity state.
-2. Continue scheduled observation summaries.
-3. Keep public web smoke workflow healthy.
+1. Continue scheduled observation summaries.
+2. Keep public web smoke workflow healthy.
+3. Record digest diversity observation when non-India rows reappear in latest top-N.
 4. Investigate only high-confidence official endpoint blockers.
 ```
 
