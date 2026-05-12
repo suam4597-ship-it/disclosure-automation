@@ -12,6 +12,7 @@ This is status documentation. It does not change workflows, source activation, b
 HKEX_STAGING_WORKFLOW_CONFIGURED
 HKEX_MAIN_SCHEDULE_ACTIVATED
 FIRST_HKEX_AUTOMATED_SCHEDULED_RUN_NOT_OBSERVED_YET
+FIRST_HKEX_AUTOMATED_SCHEDULED_RUN_LATER_RECORDED
 LATEST_OBSERVED_SCHEDULE_RUN_WAS_INDIA
 HKEX_SOURCE_REMAINS_ACTIVE_FALSE
 PRODUCTION_HKEX_POLLING_NOT_ENABLED
@@ -40,6 +41,27 @@ result: HKEX scheduled run not found
 ```
 
 GitHub scheduled workflows can be delayed or skipped. This status is not recorded as source failure because no HKEX workflow run was observed.
+
+## Follow-Up Resolution
+
+The first HKEX automated scheduled staging run was later observed and recorded in:
+
+```text
+record: globalpulse_hkex_first_automated_scheduled_run_results.md
+run id: 25684138207
+event: schedule
+created_at: 2026-05-11T16:48:50Z
+expected cron: 22 */2 * * 1-5
+resolved source: hkex_latest_listed_company_information
+run_mode: single_source
+conclusion: success
+poll fetch.mode: live
+poll records_seen: 5
+poll records_inserted: 5
+digest metadata.fallback_to_fixture: false
+```
+
+This pending-status document remains as the historical first check. The current HKEX gate has moved to continued scheduled staging observation.
 
 ## Latest Observed Live Staging Poll Run
 
@@ -85,6 +107,7 @@ digest.metadata.fallback_to_fixture: false
 
 ```text
 Do not mark HKEX scheduled staging pass until a real scheduled run is observed.
+The real scheduled run is now recorded in globalpulse_hkex_first_automated_scheduled_run_results.md.
 Do not replace this with a manual workflow_dispatch run.
 Do not set HKEX active=true.
 Do not enable production HKEX polling.
