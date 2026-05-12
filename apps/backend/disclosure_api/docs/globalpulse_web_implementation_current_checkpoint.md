@@ -272,7 +272,8 @@ Current best sequence:
 11. Use `globalpulse_operator_approval_intake_packet.md` before interpreting future #561/#565 replies.
 12. Use `globalpulse_production_cors_smoke_contract_template.md` after production origins are approved.
 13. Use `globalpulse_production_bounded_empty_digest_policy.md` before accepting an empty first production digest.
-14. Use `globalpulse_production_rollback_stop_checklist.md` before choosing rollback or forward fix during production promotion.
+14. Use `globalpulse_production_frontend_empty_state_smoke_checklist.md` before accepting an empty first production frontend smoke.
+15. Use `globalpulse_production_rollback_stop_checklist.md` before choosing rollback or forward fix during production promotion.
 ```
 
 HKEX pass criteria are recorded in:

@@ -102,6 +102,7 @@ approval blocker status doc: globalpulse_production_approval_blocker_status_2026
 operator approval intake packet: globalpulse_operator_approval_intake_packet.md
 production CORS smoke contract template: globalpulse_production_cors_smoke_contract_template.md
 production bounded empty digest policy: globalpulse_production_bounded_empty_digest_policy.md
+production frontend empty-state smoke checklist: globalpulse_production_frontend_empty_state_smoke_checklist.md
 production rollback stop checklist: globalpulse_production_rollback_stop_checklist.md
 ```
 

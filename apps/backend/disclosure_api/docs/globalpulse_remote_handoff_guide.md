@@ -126,6 +126,12 @@ Production bounded empty digest policy:
 globalpulse_production_bounded_empty_digest_policy.md
 ```
 
+Production frontend empty-state smoke checklist:
+
+```text
+globalpulse_production_frontend_empty_state_smoke_checklist.md
+```
+
 Production rollback stop checklist:
 
 ```text

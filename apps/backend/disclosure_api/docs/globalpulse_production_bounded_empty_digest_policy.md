@@ -110,6 +110,12 @@ no public Source Health UI appears
 
 The frontend must not hide a fixture-backed digest as if it were production data.
 
+The detailed frontend empty-state smoke checklist is recorded in:
+
+```text
+globalpulse_production_frontend_empty_state_smoke_checklist.md
+```
+
 ## Backend Smoke Recording
 
 When recording first production backend smoke, include:
