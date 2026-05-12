@@ -86,6 +86,8 @@ HKEX first automated scheduled run: pass, run 25684138207
 resolved schedule: 22 */2 * * 1-5
 resolved source: hkex_latest_listed_company_information
 result doc: globalpulse_hkex_first_automated_scheduled_run_results.md
+follow-up observation doc: globalpulse_hkex_scheduled_staging_followup_observation_20260512.md
+follow-up observation status: 4 successful scheduled runs recorded, latest run 25702861937
 historical pending doc: globalpulse_hkex_scheduled_staging_pending_status.md
 observation command path: globalpulse_scheduled_workflow_observation_cookbook.md
 latest non-HKEX scheduled observations: EU run 25680178601, Denmark run 25680895829
@@ -94,7 +96,7 @@ latest non-HKEX scheduled observations: EU run 25680178601, Denmark run 25680895
 Output PR:
 
 ```text
-Record HKEX follow-up scheduled staging observation after enough runs accumulate
+Continue HKEX scheduled staging observation toward the 7-day / 10 successful run gate
 ```
 
 ### 2. Add A Public Web Smoke Workflow
