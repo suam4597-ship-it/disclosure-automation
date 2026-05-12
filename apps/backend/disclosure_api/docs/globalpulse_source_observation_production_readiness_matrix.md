@@ -16,6 +16,7 @@ INDIA_NSE_INTERIM_SCHEDULED_OBSERVATION_RECORDED
 POST_EXPANSION_NEXT_STEP_PLAN_RECORDED
 CURRENT_PUBLIC_WEB_DIGEST_DIVERSITY_OBSERVATION_RECORDED
 SOURCE_HEALTH_DRIFT_OBSERVATION_RECORDED
+PRODUCTION_APPROVAL_BLOCKER_STATUS_RECORDED
 EU_CANARY_LIVE_STAGING_OBSERVED
 EU_CANARY_SECOND_FOLLOWUP_OBSERVED
 DENMARK_DFSA_OAM_SECOND_FOLLOWUP_OBSERVED
@@ -54,6 +55,14 @@ Production source-promotion approvals are tracked in:
 
 ```text
 https://github.com/suam4597-ship-it/disclosure-automation/issues/565
+latest checked state: open, comments 0
+```
+
+Production deployment approval values are tracked in:
+
+```text
+https://github.com/suam4597-ship-it/disclosure-automation/issues/561
+latest checked state: open, comments 0
 ```
 
 Latest source-health drift observation:

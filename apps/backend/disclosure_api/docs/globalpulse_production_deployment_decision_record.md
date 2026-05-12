@@ -10,6 +10,7 @@ This is decision-record only. It does not create a Fly app, provision a database
 
 ```text
 GLOBALPULSE_PRODUCTION_DEPLOYMENT_DECISION_RECORD_ADDED
+PRODUCTION_APPROVAL_BLOCKER_STATUS_RECORDED
 PRODUCTION_BACKEND_APP_DECISION_PENDING
 PRODUCTION_DATABASE_DECISION_PENDING
 PRODUCTION_FRONTEND_URL_DECISION_PENDING
@@ -29,9 +30,21 @@ public web smoke daily schedule: 17 0 * * *
 latest main maintenance smoke run: 25677329262
 latest main maintenance smoke result: pass
 production approval tracking issue: https://github.com/suam4597-ship-it/disclosure-automation/issues/561
+latest approval blocker status doc: globalpulse_production_approval_blocker_status_20260512.md
 ```
 
 The public frontend currently uses the Fly staging backend. That is valid for staging smoke and live-source observation, but it is not yet a production deployment decision.
+
+Latest approval status check:
+
+```text
+issue #561 state: open
+issue #561 comments: 0
+issue #565 state: open
+issue #565 comments: 0
+operator production values provided: no
+source promotion approvals provided: no
+```
 
 ## Decisions Needed Before Provisioning
 
@@ -240,7 +253,8 @@ Do not start JP live polling before the source authority decision is resolved.
 The next safe implementation step is not production provisioning yet. It is one of:
 
 ```text
-record HKEX first automated scheduled staging run if the cron appears
+record matching scheduled observation runs as they appear
+record first daily scheduled public web smoke when event=schedule appears
 continue public web smoke daily observation
 prepare production Fly app/database creation only after explicit approval
 continue source observation window documentation

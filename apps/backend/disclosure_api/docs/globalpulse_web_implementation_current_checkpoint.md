@@ -26,6 +26,7 @@ CURRENT_PUBLIC_WEB_DIGEST_DIVERSITY_OBSERVATION_RECORDED
 SCHEDULED_WORKFLOW_OBSERVATION_COOKBOOK_REFRESHED
 FIRST_DAILY_SCHEDULED_PUBLIC_WEB_SMOKE_PENDING_OBSERVATION_RECORDED
 SOURCE_HEALTH_DRIFT_OBSERVATION_RECORDED
+PRODUCTION_APPROVAL_BLOCKER_STATUS_RECORDED
 PRODUCTION_DEPLOYMENT_NOT_APPROVED
 REMOTE_HANDOFF_REFRESHED_FOR_MULTI_LOCAL_WORK
 ```
@@ -35,8 +36,8 @@ REMOTE_HANDOFF_REFRESHED_FOR_MULTI_LOCAL_WORK
 ```text
 repo: suam4597-ship-it/disclosure-automation
 primary working branch: phase0-foundation
-current head: e0d9190dc9d361ee68391224b057650d85865a5a
-latest merged PR: #583 Record public web smoke daily schedule pending observation
+current head: ba8485da6d62598264fb8e980b29c5e3bf2f60cf
+latest merged PR: #584 Record GlobalPulse source health drift observation
 worktree expectation: clean
 ```
 
@@ -90,7 +91,7 @@ This confirms the public website and staging backend are currently connected and
 
 ## Current CI Snapshot
 
-For head `e0d9190dc9d361ee68391224b057650d85865a5a`, push and pull-request checks completed successfully:
+For head `ba8485da6d62598264fb8e980b29c5e3bf2f60cf`, push and pull-request checks completed successfully:
 
 ```text
 Phase 0 validate: success
@@ -149,7 +150,7 @@ git status --short
 Expected:
 
 ```text
-HEAD: e0d9190dc9d361ee68391224b057650d85865a5a or newer
+HEAD: ba8485da6d62598264fb8e980b29c5e3bf2f60cf or newer
 git status --short: empty
 ```
 
@@ -234,8 +235,8 @@ Current best sequence:
 5. Keep daily public web smoke observation healthy.
 6. Record the first daily scheduled public web smoke run when an event=schedule run appears.
 7. Use source-health drift checks as context when scheduled observation failures appear.
-8. Prepare production only after Issue #561 values are approved.
-9. Promote sources only after Issue #565 source-by-source approvals are recorded.
+8. Prepare production only after Issue #561 values are approved; latest check has comments=0.
+9. Promote sources only after Issue #565 source-by-source approvals are recorded; latest check has comments=0.
 ```
 
 HKEX pass criteria are recorded in:

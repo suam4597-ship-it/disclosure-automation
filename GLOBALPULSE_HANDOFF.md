@@ -158,6 +158,12 @@ For the production deployment decision values that still require operator approv
 apps/backend/disclosure_api/docs/globalpulse_production_deployment_decision_record.md
 ```
 
+For the latest production approval blocker status, read:
+
+```text
+apps/backend/disclosure_api/docs/globalpulse_production_approval_blocker_status_20260512.md
+```
+
 For future Fly.io production command templates, read:
 
 ```text
@@ -185,8 +191,8 @@ apps/backend/disclosure_api/docs/globalpulse_scheduled_workflow_observation_cook
 Current remote continuation status:
 
 ```text
-current phase0 head: e0d9190dc9d361ee68391224b057650d85865a5a
-latest merged PR: #583 Record public web smoke daily schedule pending observation
+current phase0 head: ba8485da6d62598264fb8e980b29c5e3bf2f60cf
+latest merged PR: #584 Record GlobalPulse source health drift observation
 phase0 public web smoke workflow PR: #544 merged
 main public web smoke activation PR: #545 merged
 workflow id: 274668919
@@ -194,6 +200,7 @@ first workflow_dispatch result: pass, run 25676030410
 daily workflow main maintenance verification: pass, run 25677329262
 first daily scheduled public web smoke run: pending observation, no event=schedule run observed yet
 source-health drift observation: real source keys reachable, workflow canary aliases are not source-health keys
+production approval blocker status: #561 open comments=0, #565 open comments=0
 HKEX first automated scheduled staging run: pass, run 25684138207
 HKEX scheduled staging follow-up observation: 4 successful scheduled runs recorded, latest run 25702861937
 next HKEX gate: continue scheduled staging observation toward 7-day / 10 successful run gate
