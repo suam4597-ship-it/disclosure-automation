@@ -78,6 +78,12 @@ EU scheduled staging canary second follow-up observation:
 globalpulse_eu_scheduled_staging_canary_second_followup_observation_20260512.md
 ```
 
+EU scheduled staging canary later-run observation:
+
+```text
+globalpulse_eu_scheduled_staging_canary_later_run_observation_20260512.md
+```
+
 Denmark DFSA OAM second scheduled follow-up observation:
 
 ```text
@@ -366,7 +372,7 @@ Europe broad expansion: checkpoint reached
 EU first scheduled staging canary: automated cron success recorded
 EU canary payload review: recorded
 EU canary second follow-up scheduled run: pass, run 25698983703
-EU canary latest scheduled run: pass, run 25712655792
+EU canary later-run observation: pass, latest recorded runs 25718344882 and 25729286004
 Denmark DFSA OAM:
   manual source: registered inactive
   repeated page-1 smoke: pass
@@ -528,7 +534,7 @@ Important runs to know:
 ```text
 EU canary payload review run: 25650523685
 EU canary second follow-up run: 25698983703
-EU canary latest scheduled run: 25712655792
+EU canary latest scheduled run: 25729286004
 India NSE first scheduled run: 25650796284
 India NSE interim observation recent runs: 25694981715, 25699447717, 25703573653, 25713273293, 25719883720, and 25730184956
 Denmark DFSA OAM first automated scheduled run: 25668194957

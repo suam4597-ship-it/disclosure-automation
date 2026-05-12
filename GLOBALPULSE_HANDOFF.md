@@ -134,6 +134,12 @@ For the latest EU scheduled staging canary follow-up observation, read:
 apps/backend/disclosure_api/docs/globalpulse_eu_scheduled_staging_canary_second_followup_observation_20260512.md
 ```
 
+For the latest EU scheduled staging canary later-run observation, read:
+
+```text
+apps/backend/disclosure_api/docs/globalpulse_eu_scheduled_staging_canary_later_run_observation_20260512.md
+```
+
 For the latest Denmark DFSA OAM scheduled follow-up observation, read:
 
 ```text
@@ -363,7 +369,7 @@ public web smoke daily schedule follow-up: resolved by first scheduled pass run 
 public web smoke default-branch schedule review: default_branch=main, workflow file present on main, daily cron marker present
 public web smoke first daily scheduled run: pass, run 25712711038, digest item_count=12, fallback=false, HKEX/EU/India rows observed
 India NSE scheduled observation refresh: pass, recent inspected runs now include 25719883720 and 25730184956
-EU canary follow-up scheduled observation: pass, runs 25680178601, 25698983703, and 25712655792
+EU canary later-run observation: pass, latest recorded runs 25718344882 and 25729286004
 Denmark DFSA OAM follow-up scheduled observation: pass, runs 25680895829, 25699532618, and 25713328609
 HKEX first automated scheduled staging run: pass, run 25684138207
 HKEX scheduled staging observation: 7/10 successful run gate, latest run 25729361512
