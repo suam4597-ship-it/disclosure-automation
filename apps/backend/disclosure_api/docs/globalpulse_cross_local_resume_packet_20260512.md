@@ -14,6 +14,8 @@ primary branch: phase0-foundation
 resume packet baseline head: 68dffc3131cb7fd0109339730ee2c103d5a7e7ba
 resume packet publication PR: #610 Add GlobalPulse cross-local resume packet
 resume packet publication merge commit: 5f46461889f641063c832f6f829071b9baacbd80
+latest refresh PRs after packet: #612 Refresh GlobalPulse regional dashboard mapping; #613 Record refreshed GlobalPulse digest diversity
+latest continuation head after refresh: 8b9d15ad71f9035da0bd0c3d1e454dfcfa4baceb
 last workflow handoff stabilization PR before this packet: #609 Stabilize GlobalPulse public web handoff anchors
 previous result PR: #608 Record GlobalPulse public web smoke workflow hardening
 workflow hardening PR: #607 Harden GlobalPulse public web smoke workflow
@@ -46,7 +48,7 @@ git status --short
 Expected:
 
 ```text
-HEAD: 5f46461889f641063c832f6f829071b9baacbd80 or newer
+HEAD: 8b9d15ad71f9035da0bd0c3d1e454dfcfa4baceb or newer
 git status --short: empty
 ```
 
@@ -64,6 +66,8 @@ apps/backend/disclosure_api/docs/globalpulse_public_web_smoke_workflow_hardening
 apps/backend/disclosure_api/docs/globalpulse_web_deployment_workflow_roadmap.md
 apps/backend/disclosure_api/docs/globalpulse_scheduled_workflow_observation_cookbook.md
 apps/backend/disclosure_api/docs/globalpulse_source_observation_production_readiness_matrix.md
+apps/backend/disclosure_api/docs/globalpulse_regional_frontend_backend_mapping_smoke_results.md
+apps/backend/disclosure_api/docs/globalpulse_public_web_digest_diversity_refresh_20260512.md
 ```
 
 Use this packet as the quick entrypoint, then use the longer docs above for detail.
@@ -88,6 +92,7 @@ $digest = Invoke-RestMethod -Uri 'https://globalpulse-backend-staging.fly.dev/ap
   digest_edition = $digest.edition
   digest_item_count = @($digest.items).Count
   digest_fallback_to_fixture = $digest.metadata.fallback_to_fixture
+  digest_regions = ((@($digest.items) | ForEach-Object { if ($_.regions) { $_.regions[0] } else { 'missing' } } | Group-Object | ForEach-Object { "$($_.Name):$($_.Count)" }) -join ', ')
 } | Format-List
 ```
 
@@ -103,6 +108,7 @@ health_service: disclosure_automation
 digest_edition: breaking
 digest_item_count: non-zero in normal staging state
 digest_fallback_to_fixture: False
+digest_regions: includes non-India rows in the latest 2026-05-12 refresh observation
 ```
 
 Static frontend syntax check:
@@ -125,6 +131,19 @@ print(f'extracted inline scripts: {len(scripts)}')
 node --check $tmp
 Remove-Item -LiteralPath $tmp -Force
 Remove-Item Env:\GLOBALPULSE_INLINE_TMP
+```
+
+If `python` is not installed on the local machine, use this PowerShell-only inline script extraction:
+
+```powershell
+$tmp = Join-Path $env:TEMP 'globalpulse-index-inline-check.js'
+$html = Get-Content -LiteralPath 'apps/web/index.html' -Raw -Encoding UTF8
+$matches = [regex]::Matches($html, '<script>(.*?)</script>', [System.Text.RegularExpressions.RegexOptions]::Singleline)
+$scripts = @()
+foreach ($m in $matches) { $scripts += $m.Groups[1].Value }
+[System.IO.File]::WriteAllText($tmp, ($scripts -join "`n;`n"), [System.Text.Encoding]::UTF8)
+node --check $tmp
+Remove-Item -LiteralPath $tmp -Force
 ```
 
 ## GitHub Actions Check
@@ -166,6 +185,8 @@ Phase 1 backend trace: success
 #608 recorded the #607 result and public surface verification.
 #609 stabilized handoff wording so docs-only PRs do not immediately stale the web deployment review anchor.
 #610 published this cross-local resume packet.
+#612 refreshed the public dashboard regional mapping on the latest phase0-foundation head.
+#613 recorded the refreshed public digest diversity with non-India rows visible in the latest top-N digest.
 ```
 
 Important #607 behavior:
@@ -182,11 +203,12 @@ allow_empty_digest remains false by default.
 Recommended order:
 
 ```text
-1. Wait for the next scheduled public web smoke or staging source poll run.
-2. Record the run result only if it is a real run with matching workflow/source evidence.
-3. Continue scheduled observation windows for HKEX, EU canary, Denmark DFSA OAM, India NSE, and SEC hourly.
-4. If #561/#565 receive approved production values, prepare a production config/smoke PR using the existing templates.
-5. If no approval values exist, keep working on staging-only observation, docs, and source evidence.
+1. Confirm #613 phase0 push checks remain green after merge.
+2. Wait for the next scheduled public web smoke or staging source poll run.
+3. Record the run result only if it is a real run with matching workflow/source evidence.
+4. Continue scheduled observation windows for HKEX, EU canary, Denmark DFSA OAM, India NSE, and SEC hourly.
+5. If #561/#565 receive approved production values, prepare a production config/smoke PR using the existing templates.
+6. If no approval values exist, keep working on staging-only observation, docs, and source evidence.
 ```
 
 Useful result docs/templates:
