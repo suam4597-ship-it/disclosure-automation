@@ -239,8 +239,8 @@ apps/backend/disclosure_api/docs/globalpulse_sec_hourly_scheduled_run_after_live
 Current remote continuation status:
 
 ```text
-current phase0 head: a7ff5a156309abd442fd5172fe6d3ce1113f3db7
-latest merged PR: #593 Record public web smoke default branch schedule review
+current phase0 head: f0cbb4a1733b2e9588e7b1bf22a9d4420ea21914
+latest merged PR: #594 Record first scheduled public web smoke pass
 phase0 public web smoke workflow PR: #544 merged
 main public web smoke activation PR: #545 merged
 workflow id: 274668919

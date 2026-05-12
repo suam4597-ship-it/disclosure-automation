@@ -10,11 +10,11 @@ This is documentation-only. It does not change workflows, source activation, bac
 
 ```text
 HKEX_SCHEDULED_STAGING_FOLLOWUP_OBSERVED
-HKEX_SCHEDULED_STAGING_SUCCESSFUL_RUNS_CONFIRMED_4
+HKEX_SCHEDULED_STAGING_SUCCESSFUL_RUNS_CONFIRMED_5
 HKEX_POLL_FETCH_MODE_LIVE
 HKEX_POLL_FIXTURE_FALLBACK_NOT_USED
 HKEX_DIGEST_FALLBACK_FALSE
-HKEX_DIGEST_TOP_N_VISIBILITY_NOT_GUARANTEED_EVERY_RUN
+HKEX_DIGEST_TOP_N_VISIBILITY_RETURNED
 HKEX_SOURCE_REMAINS_ACTIVE_FALSE
 HKEX_CANDIDATE_STATUS_REMAINS_MANUAL_STAGING_ONLY
 HKEX_PRODUCTION_SCHEDULED_POLLING_NOT_ENABLED
@@ -53,19 +53,20 @@ This follow-up record adds the next observed scheduled HKEX runs. It is still no
 | 25694265118 | 2026-05-11T20:05:31Z | 6928674895 | sha256:d8b611aacb0b1ea9e30712003584e53732801339eb9fe83be4733024da20946b | live | 200 | 5 | 5 | 2026-05-11 | 12 | false | 0 |
 | 25699065657 | 2026-05-11T21:43:00Z | 6930576266 | sha256:20d03d53fbcd7dd38858ff0a74f4acb7b904e667fbf038fe919667ddfc532e6a | live | 200 | 5 | 5 | 2026-05-12 | 9 | false | 0 |
 | 25702861937 | 2026-05-11T23:13:25Z | 6932004754 | sha256:acf10d7ac93b16c450676aa10e85cfd735c041782c0ef63c3bd34f89325f2fc6 | live | 200 | 5 | 5 | 2026-05-12 | 10 | false | 0 |
+| 25712752961 | 2026-05-12T04:08:23Z | 6935438841 | sha256:6f4811bd515462bf50e980fa200bf1d46e619f95b7a6998dfc343fda4831f529 | live | 200 | 5 | 5 | 2026-05-12 | 12 | false | 5 |
 
 Interpretation:
 
 ```text
-all four observed HKEX scheduled runs completed successfully
-all four poll artifacts resolved source_key=hkex_latest_listed_company_information
-all four runs fetched the official HKEX homecat0_e.json live endpoint
-all four runs returned fetch.status_code=200
-all four runs stayed bounded at five parsed latest-submission records
-all four digest artifacts preserved metadata.fallback_to_fixture=false
+all five observed HKEX scheduled runs completed successfully
+all five poll artifacts resolved source_key=hkex_latest_listed_company_information
+all five runs fetched the official HKEX homecat0_e.json live endpoint
+all five runs returned fetch.status_code=200
+all five runs stayed bounded at five parsed latest-submission records
+all five digest artifacts preserved metadata.fallback_to_fixture=false
 ```
 
-The later digest artifacts did not include HKEX in the global top-N list. This is not a poll failure. The digest is a recency-ranked global feed, so SEC, India, EU, and other live rows can push HKEX rows out of the top-N window. HKEX public visibility was already observed on the first scheduled run and manual smoke records, but visibility should continue to be monitored before any promotion.
+Some earlier digest artifacts did not include HKEX in the global top-N list. This is not a poll failure. The digest is a recency-ranked global feed, so SEC, India, EU, and other live rows can push HKEX rows out of the top-N window. The latest inspected HKEX scheduled run returned HKEX to the top-N digest with five rows, while preserving `metadata.fallback_to_fixture=false`.
 
 ## Latest Canonical Window
 
@@ -79,7 +80,7 @@ breaking-2026-05-11-hkex-llci-2026051101741
 breaking-2026-05-11-hkex-llci-2026051101739
 ```
 
-The latest observed run advanced to a newer HKEX latest-five window:
+The fourth observed run advanced to a newer HKEX latest-five window:
 
 ```text
 breaking-2026-05-11-hkex-llci-2026051200177
@@ -87,6 +88,16 @@ breaking-2026-05-11-hkex-llci-2026051200152
 breaking-2026-05-11-hkex-llci-2026051200147
 breaking-2026-05-11-hkex-llci-2026051200145
 breaking-2026-05-11-hkex-llci-2026051200139
+```
+
+The latest observed run advanced again to the current HKEX latest-five window:
+
+```text
+breaking-2026-05-12-hkex-llci-2026051200319
+breaking-2026-05-12-hkex-llci-2026051200313
+breaking-2026-05-12-hkex-llci-2026051200309
+breaking-2026-05-12-hkex-llci-2026051200305
+breaking-2026-05-12-hkex-llci-2026051200303
 ```
 
 This confirms the scheduled workflow can observe a moving HKEX LLCI source window without fetching PDF, HTM, detail, or attachment bodies.
@@ -105,8 +116,8 @@ source_type: api
 parser_key: hkex_latest_listed_company_info_json_v1
 base_url: https://www.hkexnews.hk/ncms/script/eds/homecat0_e.json
 health_status: unknown
-last_success_at: 2026-05-11T23:13:39.851284Z
-last_seen_published_at: 2026-05-11T23:06:00.000000Z
+last_success_at: 2026-05-12T04:08:28.159247Z
+last_seen_published_at: 2026-05-12T04:07:00.000000Z
 last_error: null
 last_failure_at: null
 ```
@@ -124,7 +135,7 @@ health_status remains informational and should be tracked, but it does not chang
 Current HKEX observation progress:
 
 ```text
-successful scheduled HKEX runs observed: 4
+successful scheduled HKEX runs observed: 5
 minimum target before promotion discussion: 10 successful scheduled runs
 minimum duration target: 7 calendar days
 fixture fallback count: 0
