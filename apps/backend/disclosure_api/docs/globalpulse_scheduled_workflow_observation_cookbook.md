@@ -12,20 +12,21 @@ This is documentation-only. It does not change workflows, source activation, bac
 SCHEDULED_WORKFLOW_OBSERVATION_COOKBOOK_RECORDED
 SCHEDULED_WORKFLOW_OBSERVATION_COOKBOOK_REFRESHED
 POWERSHELL_GITHUB_REST_FALLBACK_RECORDED
-PHASE0_AND_PHASE1_CI_GREEN_AFTER_PRODUCTION_APPROVAL_BLOCKER_STATUS
+PHASE0_AND_PHASE1_CI_GREEN_AFTER_REST_FALLBACK_COMMANDS
 HKEX_FIRST_AUTOMATED_SCHEDULED_RUN_PASS_RECORDED
 HKEX_SCHEDULED_FOLLOWUP_OBSERVATION_RECORDED
 LATEST_OBSERVED_STAGING_POLL_RUN_WAS_SEC_HOURLY
+SCHEDULED_STAGING_POLL_NO_NEW_RUN_GAP_OBSERVED
 MANUAL_WORKFLOW_DISPATCH_DOES_NOT_COUNT_AS_SCHEDULED_PASS
 PRODUCTION_SCHEDULED_POLLING_NOT_ENABLED
 ```
 
 ## Current Known Status
 
-The latest `phase0-foundation` CI after the production approval blocker status completed successfully:
+The latest `phase0-foundation` CI after the PowerShell REST observation fallback commands completed successfully:
 
 ```text
-head: 9424366ba476d0d2a72adcf5315c17ad4ac27684
+head: 37ae146f2f938572468929cf7f1bf5669cbfe3a4
 Phase 0 validate: success
 Phase 0 report: success
 Phase 1 backend verify: success
@@ -54,6 +55,8 @@ digest.metadata.fallback_to_fixture: false
 ```
 
 This confirms the staging poll workflow is still running. It is not new evidence for HKEX, EU, Denmark, or India because the resolved source is `sec_press_releases`.
+
+A later wait-state check still observed this run as the latest scheduled staging poll run. That no-new-run gap is recorded in `globalpulse_scheduled_staging_poll_no_new_run_gap_observation_20260512.md`.
 
 Current observation baselines:
 

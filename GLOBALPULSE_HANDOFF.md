@@ -188,11 +188,17 @@ For the scheduled workflow observation command path, read:
 apps/backend/disclosure_api/docs/globalpulse_scheduled_workflow_observation_cookbook.md
 ```
 
+For the latest scheduled staging poll no-new-run gap observation, read:
+
+```text
+apps/backend/disclosure_api/docs/globalpulse_scheduled_staging_poll_no_new_run_gap_observation_20260512.md
+```
+
 Current remote continuation status:
 
 ```text
-current phase0 head: 9424366ba476d0d2a72adcf5315c17ad4ac27684
-latest merged PR: #585 Record GlobalPulse production approval blocker status
+current phase0 head: 37ae146f2f938572468929cf7f1bf5669cbfe3a4
+latest merged PR: #586 Add PowerShell REST observation fallback commands
 phase0 public web smoke workflow PR: #544 merged
 main public web smoke activation PR: #545 merged
 workflow id: 274668919
@@ -217,6 +223,7 @@ source promotion approval issue: https://github.com/suam4597-ship-it/disclosure-
 pipeline format CI recovery: pass, merge commit 34c7d06e0503bcf83f64d35a7c4b59b55b64a69e
 post-recovery docs CI: pass, head 62922a389913b63aa832799a8cade1bc6270fd00
 scheduled workflow observation cookbook: refreshed with PowerShell REST fallback commands
+scheduled staging poll no-new-run gap: latest observed scheduled run remains SEC hourly run 25704707578 at 2026-05-12T00:03:29Z
 India NSE interim scheduled observation: pass, recent runs 25694981715, 25699447717, 25703573653
 EU canary follow-up scheduled observation: pass, runs 25680178601 and 25698983703
 Denmark DFSA OAM follow-up scheduled observation: pass, runs 25680895829 and 25699532618
