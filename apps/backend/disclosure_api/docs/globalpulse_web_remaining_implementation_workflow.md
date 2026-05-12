@@ -147,6 +147,10 @@ rollback check
 
 This can be a docs/contract PR before runtime promotion, but it needs approved origins.
 
+The public web smoke workflow can now be dispatched with production expected config markers while keeping the scheduled staging defaults unchanged.
+
+The Pages deploy workflow also runs static JavaScript syntax checks for `apps/web/config.js`, `apps/web/script.js`, and the inline script extracted from `apps/web/index.html` before uploading the Pages artifact.
+
 ### 5. Create And Smoke Production Backend
 
 Only after approval:

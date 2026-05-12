@@ -126,6 +126,11 @@ workflow run id:
 pages_url:
 backend_url:
 edition:
+expected_environment:
+expected_config_version:
+expected_api_base_url:
+expected_allow_query_param_override:
+allow_empty_digest:
 pages status:
 config status:
 health status:
@@ -135,7 +140,7 @@ fallback_to_fixture:
 artifact name:
 ```
 
-If the workflow cannot represent an approved empty digest, record that limitation and use `globalpulse_production_frontend_empty_state_smoke_checklist.md` for browser evidence.
+Use `allow_empty_digest=true` only when issue #561 explicitly approves the first production empty digest. Otherwise, keep `allow_empty_digest=false`.
 
 ## Scheduled Polling And Source State
 

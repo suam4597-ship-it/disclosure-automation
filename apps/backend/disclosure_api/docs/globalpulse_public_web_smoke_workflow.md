@@ -15,7 +15,9 @@ PUBLIC_PAGES_CONFIG_CONTRACT_CHECK_ADDED
 FLY_STAGING_HEALTH_CHECK_ADDED
 FLY_STAGING_DIGEST_CHECK_ADDED
 PUBLIC_RESPONSE_FORBIDDEN_FRAGMENT_CHECK_ADDED
-WORKFLOW_DISPATCH_ONLY
+WORKFLOW_DISPATCH_AND_DAILY_SCHEDULE
+PRODUCTION_EXPECTED_CONFIG_INPUTS_ADDED
+APPROVED_EMPTY_DIGEST_INPUT_ADDED
 PRODUCTION_DEPLOYMENT_NOT_CHANGED
 ```
 
@@ -31,6 +33,11 @@ Inputs:
 pages_url: https://suam4597-ship-it.github.io/disclosure-automation/
 backend_url: https://globalpulse-backend-staging.fly.dev
 edition: breaking
+expected_environment: staging
+expected_config_version: staging-20260511-1
+expected_api_base_url: https://globalpulse-backend-staging.fly.dev
+expected_allow_query_param_override: true
+allow_empty_digest: false
 ```
 
 Trigger:
@@ -65,7 +72,10 @@ Public Pages config:
 ```text
 GET pages_url/config.js: 2xx
 contains window.DISCLOSURE_API_BASE_URL
-contains https://globalpulse-backend-staging.fly.dev
+contains expected_api_base_url
+contains expected_environment
+contains expected_config_version
+contains expected_allow_query_param_override
 contains greater_china
 contains eu_north/eu_central/eu_south labels
 ```
@@ -83,9 +93,11 @@ Fly staging digest:
 ```text
 GET backend_url/api/feed/digest/latest?edition=breaking: 2xx
 edition: breaking
-items: non-empty
+items: non-empty unless allow_empty_digest=true
 metadata.fallback_to_fixture: false
 ```
+
+The scheduled run keeps the staging defaults and still requires a non-empty digest. The additional inputs allow a future production smoke to verify an approved production configVersion, apiBaseUrl, query-param override policy, and approved bounded empty digest without changing the default staging schedule.
 
 Forbidden public fragments:
 

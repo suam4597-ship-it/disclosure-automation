@@ -123,6 +123,11 @@ workflow: GlobalPulse public web smoke
 pages_url: approved production frontend URL
 backend_url: approved production backend URL
 edition: breaking
+expected_environment: production
+expected_config_version: approved production configVersion
+expected_api_base_url: approved production backend URL
+expected_allow_query_param_override: false
+allow_empty_digest: true
 ```
 
 Record:
@@ -139,7 +144,7 @@ fallback_to_fixture
 artifact name
 ```
 
-If the current smoke workflow requires non-empty items, do not weaken that check silently. Record a separate empty-state smoke result or add an explicit approved-empty mode in a focused workflow PR.
+Use `allow_empty_digest=true` only when issue #561 explicitly approves the first production empty digest. The default scheduled staging smoke keeps `allow_empty_digest=false`.
 
 ## Pass Result
 
