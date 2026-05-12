@@ -87,6 +87,14 @@ If a scheduled run appears and fails, inspect job logs before changing workflow 
 Keep manual public smoke and local public smoke evidence separate from daily scheduled evidence.
 ```
 
+## Later Update
+
+A later follow-up still did not observe an `event=schedule` run for the public web smoke workflow. That follow-up is recorded in:
+
+```text
+globalpulse_public_web_smoke_daily_schedule_followup_pending_20260512.md
+```
+
 ## Guardrails
 
 ```text

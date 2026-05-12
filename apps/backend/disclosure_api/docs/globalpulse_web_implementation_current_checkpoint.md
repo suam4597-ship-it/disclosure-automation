@@ -25,6 +25,7 @@ WEB_REMAINING_IMPLEMENTATION_WORKFLOW_RECORDED
 CURRENT_PUBLIC_WEB_DIGEST_DIVERSITY_OBSERVATION_RECORDED
 SCHEDULED_WORKFLOW_OBSERVATION_COOKBOOK_REFRESHED
 FIRST_DAILY_SCHEDULED_PUBLIC_WEB_SMOKE_PENDING_OBSERVATION_RECORDED
+PUBLIC_WEB_SMOKE_DAILY_SCHEDULE_FOLLOWUP_PENDING_RECORDED
 SOURCE_HEALTH_DRIFT_OBSERVATION_RECORDED
 PRODUCTION_APPROVAL_BLOCKER_STATUS_RECORDED
 POWERSHELL_GITHUB_REST_OBSERVATION_FALLBACK_RECORDED
@@ -42,8 +43,8 @@ REMOTE_HANDOFF_REFRESHED_FOR_MULTI_LOCAL_WORK
 ```text
 repo: suam4597-ship-it/disclosure-automation
 primary working branch: phase0-foundation
-current head: 0194e1313678ddf4f23fd03ba1aec209ee967604
-latest merged PR: #590 Record staging digest transient retry observation
+current head: d5cae187b5aac8de58b132f384c22b257e389407
+latest merged PR: #591 Record SEC hourly scheduled run after liveness gap
 worktree expectation: clean
 ```
 
@@ -97,7 +98,7 @@ This confirms the public website and staging backend are currently connected and
 
 ## Current CI Snapshot
 
-For head `0194e1313678ddf4f23fd03ba1aec209ee967604`, push and pull-request checks completed successfully:
+For head `d5cae187b5aac8de58b132f384c22b257e389407`, push and pull-request checks completed successfully:
 
 ```text
 Phase 0 validate: success
@@ -144,6 +145,8 @@ Scheduled workflow liveness state review: live staging poll and public web smoke
 Staging digest transient retry observation: one digest request returned 500 during wait-time checks, while health stayed 200 ok and digest recovered to 200 on immediate retry with fallback=false.
 
 SEC hourly scheduled run after gap: run 25712461043 passed with source sec_press_releases, SCHEDULE_EXPR 7 * * * *, poll 202, live/200, records_seen=25, records_inserted=25, and digest fallback=false. This confirms live staging poll liveness resumed but is not HKEX/EU/Denmark/India evidence.
+
+Public web smoke daily schedule follow-up: no event=schedule run observed yet; only workflow_dispatch runs 25677329262 and 25676030410 remained visible in the inspected run list.
 ```
 
 HKEX was marked passed only from real `schedule` event artifacts resolving to `source_key=hkex_latest_listed_company_information`. Continue observation before any production schedule decision.
@@ -165,7 +168,7 @@ git status --short
 Expected:
 
 ```text
-HEAD: 0194e1313678ddf4f23fd03ba1aec209ee967604 or newer
+HEAD: d5cae187b5aac8de58b132f384c22b257e389407 or newer
 git status --short: empty
 ```
 

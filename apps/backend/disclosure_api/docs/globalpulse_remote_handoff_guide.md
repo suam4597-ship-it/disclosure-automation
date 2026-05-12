@@ -120,6 +120,12 @@ First daily scheduled public web smoke pending observation:
 globalpulse_public_web_smoke_first_daily_schedule_pending_20260512.md
 ```
 
+Public web smoke daily schedule follow-up pending observation:
+
+```text
+globalpulse_public_web_smoke_daily_schedule_followup_pending_20260512.md
+```
+
 Latest scheduled staging poll no-new-run gap observation:
 
 ```text
@@ -167,8 +173,8 @@ globalpulse_production_deployment_runbook.md
 ```text
 repo: suam4597-ship-it/disclosure-automation
 primary working branch: phase0-foundation
-current anchor commit: 0194e1313678ddf4f23fd03ba1aec209ee967604
-latest phase0 anchor PR: #590 Record staging digest transient retry observation
+current anchor commit: d5cae187b5aac8de58b132f384c22b257e389407
+latest phase0 anchor PR: #591 Record SEC hourly scheduled run after liveness gap
 default-branch schedule activation PR: #541 Activate HKEX staging schedule on main
 main schedule activation commit: 423ca7fa710b04de56a74b0a1ee092b43597b8a1
 default-branch public web smoke activation PR: #545 Activate public web smoke workflow on main
@@ -195,7 +201,7 @@ Expected:
 
 ```text
 git status --short: empty
-HEAD: 0194e1313678ddf4f23fd03ba1aec209ee967604 or a newer origin/phase0-foundation commit
+HEAD: d5cae187b5aac8de58b132f384c22b257e389407 or a newer origin/phase0-foundation commit
 ```
 
 If the local checkout has unrelated uncommitted work, do not overwrite it. Either use a fresh clone or create a new branch and inspect the diff first.
@@ -246,7 +252,7 @@ current public Pages smoke: 200
 current Fly staging health: 200 ok
 current Fly staging digest: 200, item_count=10, fallback=false
 latest digest diversity observation: India-only top-N, india_nse_announcements=10
-first daily scheduled public web smoke run: pending observation, no event=schedule run observed yet
+first daily scheduled public web smoke run: follow-up pending, no event=schedule run observed yet
 source-health drift observation: real source keys reachable; workflow canary aliases are not registered source-health keys
 production approval blocker status: #561 open comments=0, #565 open comments=0
 scheduled staging poll no-new-run gap: latest observed scheduled run remains SEC hourly run 25704707578 at 2026-05-12T00:03:29Z
@@ -254,6 +260,7 @@ scheduled workflow liveness review checklist: use before changing schedules afte
 scheduled workflow liveness state review: live staging poll and public web smoke workflows active on main
 staging digest transient 500 retry observation: one digest 500 recovered to 200, health remained 200 ok
 SEC hourly scheduled run after gap: pass, run 25712461043, source sec_press_releases, poll 202, live/200, records_seen=25, records_inserted=25, digest fallback=false
+public web smoke daily schedule follow-up: still pending, only workflow_dispatch runs observed
 ```
 
 The project is no longer in the "can we find sources?" phase for Europe. Europe now needs observation, promotion gates, digest diversity checks, and rollback evidence.
