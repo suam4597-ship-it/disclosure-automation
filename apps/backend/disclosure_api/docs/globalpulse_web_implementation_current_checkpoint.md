@@ -46,8 +46,8 @@ REMOTE_HANDOFF_REFRESHED_FOR_MULTI_LOCAL_WORK
 ```text
 repo: suam4597-ship-it/disclosure-automation
 primary working branch: phase0-foundation
-current head: 798d3bda7f1431977f7a0af17938c55de6350302
-latest merged PR: #602 Add GlobalPulse production bounded empty digest policy
+current head: 413dc3539c52c3f80fbba018ccdca4f9e337629a
+latest merged PR: #604 Add GlobalPulse production frontend empty-state smoke checklist
 worktree expectation: clean
 ```
 
@@ -101,7 +101,7 @@ This confirms the public website and staging backend are currently connected and
 
 ## Current CI Snapshot
 
-For head `798d3bda7f1431977f7a0af17938c55de6350302`, pull-request checks completed successfully:
+For head `413dc3539c52c3f80fbba018ccdca4f9e337629a`, pull-request checks completed successfully:
 
 ```text
 Phase 0 validate: success
@@ -175,7 +175,7 @@ git status --short
 Expected:
 
 ```text
-HEAD: 798d3bda7f1431977f7a0af17938c55de6350302 or newer
+HEAD: 413dc3539c52c3f80fbba018ccdca4f9e337629a or newer
 git status --short: empty
 ```
 
@@ -274,6 +274,7 @@ Current best sequence:
 13. Use `globalpulse_production_bounded_empty_digest_policy.md` before accepting an empty first production digest.
 14. Use `globalpulse_production_frontend_empty_state_smoke_checklist.md` before accepting an empty first production frontend smoke.
 15. Use `globalpulse_production_rollback_stop_checklist.md` before choosing rollback or forward fix during production promotion.
+16. Use `globalpulse_production_deployment_smoke_record_template.md` when recording future production smoke evidence.
 ```
 
 HKEX pass criteria are recorded in:

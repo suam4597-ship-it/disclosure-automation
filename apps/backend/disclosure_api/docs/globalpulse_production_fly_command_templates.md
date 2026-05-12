@@ -137,6 +137,12 @@ record failure without secrets
 
 ## Backend Smoke
 
+Record future results with:
+
+```text
+globalpulse_production_deployment_smoke_record_template.md
+```
+
 Health:
 
 ```powershell

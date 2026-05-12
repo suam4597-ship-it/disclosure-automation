@@ -212,6 +212,12 @@ For the production rollback stop checklist, read:
 apps/backend/disclosure_api/docs/globalpulse_production_rollback_stop_checklist.md
 ```
 
+For the production deployment smoke record template, read:
+
+```text
+apps/backend/disclosure_api/docs/globalpulse_production_deployment_smoke_record_template.md
+```
+
 For future Fly.io production command templates, read:
 
 ```text
@@ -269,8 +275,8 @@ apps/backend/disclosure_api/docs/globalpulse_sec_hourly_scheduled_run_after_live
 Current remote continuation status:
 
 ```text
-current phase0 head: 798d3bda7f1431977f7a0af17938c55de6350302
-latest merged PR: #602 Add GlobalPulse production bounded empty digest policy
+current phase0 head: 413dc3539c52c3f80fbba018ccdca4f9e337629a
+latest merged PR: #604 Add GlobalPulse production frontend empty-state smoke checklist
 phase0 public web smoke workflow PR: #544 merged
 main public web smoke activation PR: #545 merged
 workflow id: 274668919
@@ -284,6 +290,7 @@ production CORS smoke contract template: added, not executable until origins are
 production bounded empty digest policy: added, fixture fallback is not production data evidence
 production frontend empty-state smoke checklist: added, not executable until empty-state approval exists
 production rollback stop checklist: added, use before production rollback/fix-forward decisions
+production deployment smoke record template: added, not executable until production smoke runs
 HKEX first automated scheduled staging run: pass, run 25684138207
 HKEX scheduled staging follow-up observation: 5 successful scheduled runs recorded, latest run 25712752961
 next HKEX gate: continue scheduled staging observation toward 7-day / 10 successful run gate

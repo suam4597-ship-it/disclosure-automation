@@ -265,6 +265,12 @@ Create a docs-only PR:
 Record GlobalPulse production deployment smoke
 ```
 
+Use the record template:
+
+```text
+globalpulse_production_deployment_smoke_record_template.md
+```
+
 Record:
 
 ```text
