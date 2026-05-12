@@ -50,6 +50,12 @@ Frontend production config templates are recorded in:
 globalpulse_frontend_production_config_templates.md
 ```
 
+The rollback stop checklist is recorded in:
+
+```text
+globalpulse_production_rollback_stop_checklist.md
+```
+
 Secret values must not be pasted into this document, PR descriptions, issue comments, terminal logs, or screenshots.
 
 ## Preflight Checklist
@@ -244,6 +250,12 @@ verify browser smoke
 ```
 
 If a database migration cannot be reversed safely, prefer a documented forward fix and keep frontend pointing at the previous backend/config until the bounded smoke passes.
+
+Before choosing rollback or forward fix, use:
+
+```text
+globalpulse_production_rollback_stop_checklist.md
+```
 
 ## Post-Deployment Record
 

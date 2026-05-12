@@ -46,8 +46,8 @@ REMOTE_HANDOFF_REFRESHED_FOR_MULTI_LOCAL_WORK
 ```text
 repo: suam4597-ship-it/disclosure-automation
 primary working branch: phase0-foundation
-current head: 6c3e4769a8a5100390f8dd994346cfce9b658860
-latest merged PR: #601 Add GlobalPulse production CORS smoke contract template
+current head: 798d3bda7f1431977f7a0af17938c55de6350302
+latest merged PR: #602 Add GlobalPulse production bounded empty digest policy
 worktree expectation: clean
 ```
 
@@ -101,7 +101,7 @@ This confirms the public website and staging backend are currently connected and
 
 ## Current CI Snapshot
 
-For head `6c3e4769a8a5100390f8dd994346cfce9b658860`, pull-request checks completed successfully:
+For head `798d3bda7f1431977f7a0af17938c55de6350302`, pull-request checks completed successfully:
 
 ```text
 Phase 0 validate: success
@@ -175,7 +175,7 @@ git status --short
 Expected:
 
 ```text
-HEAD: 6c3e4769a8a5100390f8dd994346cfce9b658860 or newer
+HEAD: 798d3bda7f1431977f7a0af17938c55de6350302 or newer
 git status --short: empty
 ```
 
@@ -272,6 +272,7 @@ Current best sequence:
 11. Use `globalpulse_operator_approval_intake_packet.md` before interpreting future #561/#565 replies.
 12. Use `globalpulse_production_cors_smoke_contract_template.md` after production origins are approved.
 13. Use `globalpulse_production_bounded_empty_digest_policy.md` before accepting an empty first production digest.
+14. Use `globalpulse_production_rollback_stop_checklist.md` before choosing rollback or forward fix during production promotion.
 ```
 
 HKEX pass criteria are recorded in:
