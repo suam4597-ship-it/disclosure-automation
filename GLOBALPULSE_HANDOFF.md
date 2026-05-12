@@ -287,8 +287,9 @@ apps/backend/disclosure_api/docs/globalpulse_sec_hourly_scheduled_run_after_live
 Current remote continuation status:
 
 ```text
-current phase0 head: 9ff91b8d40cd34c797e7573d1978813294717d57
-latest merged PR: #607 Harden GlobalPulse public web smoke workflow
+web deployment review baseline head: 4955d5e0df91143e2be94dc953561f44b1007f82
+latest web deployment review PR: #608 Record GlobalPulse public web smoke workflow hardening
+workflow hardening PR: #607 Harden GlobalPulse public web smoke workflow
 phase0 public web smoke workflow PR: #544 merged
 main public web smoke activation PR: #545 merged
 workflow id: 274668919
@@ -306,6 +307,7 @@ production deployment smoke record template: added, not executable until product
 source production promotion decision template: added, no source promoted
 public web smoke production-ready inputs: added by #607, default staging schedule unchanged
 Pages deploy static JS syntax check: added by #607 and passed
+public web smoke hardening result: recorded by #608
 HKEX first automated scheduled staging run: pass, run 25684138207
 HKEX scheduled staging follow-up observation: 5 successful scheduled runs recorded, latest run 25712752961
 next HKEX gate: continue scheduled staging observation toward 7-day / 10 successful run gate

@@ -20,8 +20,10 @@ SOURCE_CANDIDATES_NOT_PROMOTED
 ## PR
 
 ```text
-PR: #607 Harden GlobalPulse public web smoke workflow
-merge commit: 9ff91b8d40cd34c797e7573d1978813294717d57
+workflow hardening PR: #607 Harden GlobalPulse public web smoke workflow
+workflow hardening merge commit: 9ff91b8d40cd34c797e7573d1978813294717d57
+result record PR: #608 Record GlobalPulse public web smoke workflow hardening
+result record merge commit: 4955d5e0df91143e2be94dc953561f44b1007f82
 ```
 
 ## What Changed

@@ -46,12 +46,13 @@ REMOTE_HANDOFF_REFRESHED_FOR_MULTI_LOCAL_WORK
 ```text
 repo: suam4597-ship-it/disclosure-automation
 primary working branch: phase0-foundation
-current head: 9ff91b8d40cd34c797e7573d1978813294717d57
-latest merged PR: #607 Harden GlobalPulse public web smoke workflow
+web deployment review baseline head: 4955d5e0df91143e2be94dc953561f44b1007f82
+latest web deployment review PR: #608 Record GlobalPulse public web smoke workflow hardening
+workflow hardening PR: #607 Harden GlobalPulse public web smoke workflow
 worktree expectation: clean
 ```
 
-The head is an anchor for this checkpoint, not a permanent pin. If `origin/phase0-foundation` is newer, use the newer head after reviewing the latest commits and this handoff.
+The review baseline head is an anchor for this checkpoint, not a permanent pin. If `origin/phase0-foundation` is newer, use the newer head after reviewing the latest commits and this handoff.
 
 ## Website Workflow State
 
@@ -101,7 +102,7 @@ This confirms the public website and staging backend are currently connected and
 
 ## Current CI Snapshot
 
-For head `9ff91b8d40cd34c797e7573d1978813294717d57`, pull-request checks completed successfully:
+For head `4955d5e0df91143e2be94dc953561f44b1007f82`, push checks completed successfully:
 
 ```text
 Phase 0 validate: success
@@ -175,7 +176,7 @@ git status --short
 Expected:
 
 ```text
-HEAD: 9ff91b8d40cd34c797e7573d1978813294717d57 or newer
+HEAD: 4955d5e0df91143e2be94dc953561f44b1007f82 or newer
 git status --short: empty
 ```
 
