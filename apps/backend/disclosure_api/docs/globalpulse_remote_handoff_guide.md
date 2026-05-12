@@ -120,6 +120,12 @@ Production CORS smoke contract template:
 globalpulse_production_cors_smoke_contract_template.md
 ```
 
+Production bounded empty digest policy:
+
+```text
+globalpulse_production_bounded_empty_digest_policy.md
+```
+
 Public web smoke daily schedule:
 
 ```text
@@ -197,8 +203,8 @@ globalpulse_production_deployment_runbook.md
 ```text
 repo: suam4597-ship-it/disclosure-automation
 primary working branch: phase0-foundation
-current anchor commit: 66e98ddbd21c8747f0ae4336bbaad9b5ce81ae7e
-latest phase0 anchor PR: #600 Add GlobalPulse operator approval intake packet
+current anchor commit: 6c3e4769a8a5100390f8dd994346cfce9b658860
+latest phase0 anchor PR: #601 Add GlobalPulse production CORS smoke contract template
 default-branch schedule activation PR: #541 Activate HKEX staging schedule on main
 main schedule activation commit: 423ca7fa710b04de56a74b0a1ee092b43597b8a1
 default-branch public web smoke activation PR: #545 Activate public web smoke workflow on main
@@ -225,7 +231,7 @@ Expected:
 
 ```text
 git status --short: empty
-HEAD: 66e98ddbd21c8747f0ae4336bbaad9b5ce81ae7e or a newer origin/phase0-foundation commit
+HEAD: 6c3e4769a8a5100390f8dd994346cfce9b658860 or a newer origin/phase0-foundation commit
 ```
 
 If the local checkout has unrelated uncommitted work, do not overwrite it. Either use a fresh clone or create a new branch and inspect the diff first.

@@ -101,6 +101,7 @@ source promotion issue #565: open, comments 1, approval request posted
 approval blocker status doc: globalpulse_production_approval_blocker_status_20260512.md
 operator approval intake packet: globalpulse_operator_approval_intake_packet.md
 production CORS smoke contract template: globalpulse_production_cors_smoke_contract_template.md
+production bounded empty digest policy: globalpulse_production_bounded_empty_digest_policy.md
 ```
 
 Required values:
