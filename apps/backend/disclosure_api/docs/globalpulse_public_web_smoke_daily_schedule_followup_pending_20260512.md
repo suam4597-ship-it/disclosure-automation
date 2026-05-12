@@ -125,6 +125,23 @@ A later readonly review confirmed the repository default branch is `main` and th
 globalpulse_public_web_smoke_default_branch_schedule_review_20260512.md
 ```
 
+A later scheduled run was observed and passed:
+
+```text
+workflow: GlobalPulse public web smoke
+run id: 25712711038
+event: schedule
+conclusion: success
+created_at: 2026-05-12T04:07:00Z
+artifact: globalpulse-public-web-smoke-25712711038
+```
+
+That successful first daily scheduled run is recorded in:
+
+```text
+globalpulse_public_web_smoke_first_daily_schedule_run_results_20260512.md
+```
+
 ## Guardrails
 
 ```text

@@ -62,6 +62,12 @@ For the public web smoke default-branch schedule review, read:
 apps/backend/disclosure_api/docs/globalpulse_public_web_smoke_default_branch_schedule_review_20260512.md
 ```
 
+For the first successful daily scheduled public web smoke run, read:
+
+```text
+apps/backend/disclosure_api/docs/globalpulse_public_web_smoke_first_daily_schedule_run_results_20260512.md
+```
+
 For frontend runtime config promotion rules, read:
 
 ```text
@@ -233,22 +239,22 @@ apps/backend/disclosure_api/docs/globalpulse_sec_hourly_scheduled_run_after_live
 Current remote continuation status:
 
 ```text
-current phase0 head: 2416b0d0b565e81acb99709857f53b871959e382
-latest merged PR: #592 Record public web smoke daily schedule follow-up pending
+current phase0 head: a7ff5a156309abd442fd5172fe6d3ce1113f3db7
+latest merged PR: #593 Record public web smoke default branch schedule review
 phase0 public web smoke workflow PR: #544 merged
 main public web smoke activation PR: #545 merged
 workflow id: 274668919
 first workflow_dispatch result: pass, run 25676030410
 daily workflow main maintenance verification: pass, run 25677329262
-first daily scheduled public web smoke run: follow-up pending, no event=schedule run observed yet
+first daily scheduled public web smoke run: pass, run 25712711038, event=schedule, public Pages/config/health/digest passed
 source-health drift observation: real source keys reachable, workflow canary aliases are not source-health keys
 production approval blocker status: #561 open comments=0, #565 open comments=0
 HKEX first automated scheduled staging run: pass, run 25684138207
-HKEX scheduled staging follow-up observation: 4 successful scheduled runs recorded, latest run 25702861937
+HKEX scheduled staging follow-up observation: 5 successful scheduled runs recorded, latest run 25712752961
 next HKEX gate: continue scheduled staging observation toward 7-day / 10 successful run gate
 next web deployment gate: decide production backend app/database/frontend URL
 post-expansion next gate: production infrastructure decision values, source promotion approvals, and observation-window continuation
-web implementation next gate: continue scheduled observations and record digest diversity when non-India rows reappear, then production decision values if approved
+web implementation next gate: continue scheduled observations, keep public daily smoke healthy, then production decision values if approved
 production decision record: added, production infra not created
 source observation matrix: added, production source promotion not approved
 basic monitoring incident plan: added, no alerting runtime enabled
@@ -259,23 +265,24 @@ source promotion approval issue: https://github.com/suam4597-ship-it/disclosure-
 pipeline format CI recovery: pass, merge commit 34c7d06e0503bcf83f64d35a7c4b59b55b64a69e
 post-recovery docs CI: pass, head 62922a389913b63aa832799a8cade1bc6270fd00
 scheduled workflow observation cookbook: refreshed with PowerShell REST fallback commands
-scheduled staging poll no-new-run gap: latest observed scheduled run remains SEC hourly run 25704707578 at 2026-05-12T00:03:29Z
+scheduled staging poll no-new-run gap: superseded by later SEC/EU/HKEX scheduled success runs
 scheduled workflow liveness review checklist: recorded, use before changing schedules
 scheduled workflow liveness state review: live staging poll and public web smoke workflows are active on main
 staging digest transient 500 retry observation: one digest 500 recovered to 200, health remained 200 ok
 SEC hourly scheduled run after gap: pass, run 25712461043, source sec_press_releases, poll 202, live/200, records_seen=25, records_inserted=25, digest fallback=false
-public web smoke daily schedule follow-up: still pending, only workflow_dispatch runs observed
+public web smoke daily schedule follow-up: resolved by first scheduled pass run 25712711038
 public web smoke default-branch schedule review: default_branch=main, workflow file present on main, daily cron marker present
+public web smoke first daily scheduled run: pass, run 25712711038, digest item_count=12, fallback=false, HKEX/EU/India rows observed
 India NSE interim scheduled observation: pass, recent runs 25694981715, 25699447717, 25703573653
 EU canary follow-up scheduled observation: pass, runs 25680178601 and 25698983703
 Denmark DFSA OAM follow-up scheduled observation: pass, runs 25680895829 and 25699532618
 HKEX first automated scheduled staging run: pass, run 25684138207
-HKEX scheduled staging follow-up observation: 4/10 successful run gate, latest run 25702861937
+HKEX scheduled staging follow-up observation: 5/10 successful run gate, latest run 25712752961
 public Pages smoke: 200
 public config smoke: 200
 Fly staging health: 200 ok
-Fly staging digest: 200 item_count=10 fallback=false
-latest digest diversity observation: India-only top-N, india_nse_announcements=10
+Fly staging digest: 200 item_count=12 fallback=false
+latest digest diversity observation: public scheduled smoke top-N includes HKEX, EU Euronext, and India
 ```
 
 Current public surfaces:

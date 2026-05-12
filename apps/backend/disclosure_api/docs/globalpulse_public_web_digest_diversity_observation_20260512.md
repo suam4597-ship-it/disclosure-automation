@@ -136,6 +136,27 @@ Record a new digest diversity observation when EU, Denmark, HKEX, SEC, or other 
 Do not promote production config or production scheduled polling from this observation alone.
 ```
 
+## Later Update
+
+A later scheduled public web smoke run observed a live-backed, region-diverse top-N digest:
+
+```text
+workflow: GlobalPulse public web smoke
+run id: 25712711038
+event: schedule
+conclusion: success
+digest item_count: 12
+metadata.fallback_to_fixture: false
+observed sources: hkex_latest_listed_company_information, eu_euronext_company_press_releases, india_nse_announcements
+observed regions: greater_china, eu, india
+```
+
+That recovery is recorded in:
+
+```text
+globalpulse_public_web_smoke_first_daily_schedule_run_results_20260512.md
+```
+
 ## Guardrails
 
 ```text

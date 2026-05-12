@@ -132,6 +132,12 @@ Public web smoke default-branch schedule review:
 globalpulse_public_web_smoke_default_branch_schedule_review_20260512.md
 ```
 
+First successful daily scheduled public web smoke run:
+
+```text
+globalpulse_public_web_smoke_first_daily_schedule_run_results_20260512.md
+```
+
 Latest scheduled staging poll no-new-run gap observation:
 
 ```text
@@ -179,8 +185,8 @@ globalpulse_production_deployment_runbook.md
 ```text
 repo: suam4597-ship-it/disclosure-automation
 primary working branch: phase0-foundation
-current anchor commit: 2416b0d0b565e81acb99709857f53b871959e382
-latest phase0 anchor PR: #592 Record public web smoke daily schedule follow-up pending
+current anchor commit: a7ff5a156309abd442fd5172fe6d3ce1113f3db7
+latest phase0 anchor PR: #593 Record public web smoke default branch schedule review
 default-branch schedule activation PR: #541 Activate HKEX staging schedule on main
 main schedule activation commit: 423ca7fa710b04de56a74b0a1ee092b43597b8a1
 default-branch public web smoke activation PR: #545 Activate public web smoke workflow on main
@@ -207,7 +213,7 @@ Expected:
 
 ```text
 git status --short: empty
-HEAD: 2416b0d0b565e81acb99709857f53b871959e382 or a newer origin/phase0-foundation commit
+HEAD: a7ff5a156309abd442fd5172fe6d3ce1113f3db7 or a newer origin/phase0-foundation commit
 ```
 
 If the local checkout has unrelated uncommitted work, do not overwrite it. Either use a fresh clone or create a new branch and inspect the diff first.
@@ -256,18 +262,19 @@ APAC/CN-TW official listed-company disclosure source verification in progress
 production scheduled polling not approved
 current public Pages smoke: 200
 current Fly staging health: 200 ok
-current Fly staging digest: 200, item_count=10, fallback=false
-latest digest diversity observation: India-only top-N, india_nse_announcements=10
-first daily scheduled public web smoke run: follow-up pending, no event=schedule run observed yet
+current Fly staging digest: 200, item_count=12, fallback=false
+latest digest diversity observation: public scheduled smoke top-N includes HKEX, EU Euronext, and India
+first daily scheduled public web smoke run: pass, run 25712711038, event=schedule
 source-health drift observation: real source keys reachable; workflow canary aliases are not registered source-health keys
 production approval blocker status: #561 open comments=0, #565 open comments=0
-scheduled staging poll no-new-run gap: latest observed scheduled run remains SEC hourly run 25704707578 at 2026-05-12T00:03:29Z
+scheduled staging poll no-new-run gap: superseded by later SEC/EU/HKEX scheduled success runs
 scheduled workflow liveness review checklist: use before changing schedules after a no-new-run gap
 scheduled workflow liveness state review: live staging poll and public web smoke workflows active on main
 staging digest transient 500 retry observation: one digest 500 recovered to 200, health remained 200 ok
 SEC hourly scheduled run after gap: pass, run 25712461043, source sec_press_releases, poll 202, live/200, records_seen=25, records_inserted=25, digest fallback=false
-public web smoke daily schedule follow-up: still pending, only workflow_dispatch runs observed
+public web smoke daily schedule follow-up: resolved by first scheduled pass run 25712711038
 public web smoke default-branch schedule review: default_branch=main, workflow file present on main, daily cron marker present
+public web smoke first daily scheduled run: pass, run 25712711038, digest item_count=12, fallback=false, HKEX/EU/India rows observed
 ```
 
 The project is no longer in the "can we find sources?" phase for Europe. Europe now needs observation, promotion gates, digest diversity checks, and rollback evidence.
@@ -353,7 +360,7 @@ HKEX:
   conservative staging workflow: configured
   default-branch schedule activation: merged to main
   first automated scheduled staging run: pass, run 25684138207
-  follow-up scheduled staging observation: 4 successful runs recorded, latest run 25702861937
+  follow-up scheduled staging observation: 5 successful runs recorded, latest run 25712752961
   next gate: continue scheduled staging observation toward 7-day / 10 successful run gate
 ```
 
@@ -371,8 +378,8 @@ JP live polling: blocked by issue #339 until source authority decision
 3. Continue EU scheduled staging canary observation summaries and digest-diversity checks as runs accumulate.
 4. Continue Denmark DFSA OAM scheduled observation summaries and digest-diversity checks as runs accumulate.
 5. Continue India NSE 7-day staging observation.
-6. Record a new digest diversity observation when non-India rows reappear in the latest top-N digest.
-7. Keep public Pages + Fly staging web smoke workflow healthy.
+6. Keep public Pages + Fly staging web smoke workflow healthy after first scheduled pass run 25712711038.
+7. Record future digest diversity regressions or recoveries as scheduled observations accumulate.
 8. Revisit Taiwan/SET/Vietnam cadence only through staging-only design PRs.
 9. Use production deployment templates only after production backend app/database/CORS choices are approved.
 10. Record production infrastructure decision values only after operator approval in issue #561.
@@ -426,7 +433,7 @@ cadence: not approved
 staging cadence design: recorded
 staging workflow: configured
 first scheduled run: pass, run 25684138207
-follow-up scheduled observation: 4 successful scheduled runs recorded, latest run 25702861937
+follow-up scheduled observation: 5 successful scheduled runs recorded, latest run 25712752961
 next: continue scheduled observation, keep source active=false
 ```
 
@@ -443,12 +450,13 @@ Important runs to know:
 ```text
 EU canary payload review run: 25650523685
 EU canary second follow-up run: 25698983703
+EU canary latest scheduled run: 25712655792
 India NSE first scheduled run: 25650796284
 India NSE interim observation recent runs: 25694981715, 25699447717, 25703573653
 Denmark DFSA OAM first automated scheduled run: 25668194957
 Denmark DFSA OAM second follow-up run: 25699532618
 HKEX first automated scheduled staging run: 25684138207
-HKEX follow-up scheduled staging observation latest run: 25702861937
+HKEX follow-up scheduled staging observation latest run: 25712752961
 HKEX scheduled staging cron: 22 */2 * * 1-5
 HKEX main activation PR: #541
 HKEX main activation commit: 423ca7fa710b04de56a74b0a1ee092b43597b8a1
@@ -457,7 +465,8 @@ Public web smoke phase0 PR: #544
 Public web smoke main activation PR: #545
 Public web smoke workflow id: 274668919
 Public web smoke first workflow_dispatch run: 25676030410 pass
-Latest scheduled staging poll no-new-run gap: latest observed run remains 25704707578
+Public web smoke first event=schedule run: 25712711038 pass
+Latest scheduled staging poll no-new-run gap: superseded by later SEC/EU/HKEX scheduled success runs
 Latest SEC hourly scheduled run after gap: 25712461043
 ```
 
