@@ -7460,9 +7460,13 @@ defmodule DisclosureAutomation.Ingestion do
     issuer = sec_edgar_issuer_name(record, section)
     date = sec_edgar_first_date(section)
     agreement = sec_edgar_agreement_label(section)
+    strategic_signal = sec_edgar_item_101_strategic_contract_signal(section)
 
     headline =
       cond do
+        strategic_signal ->
+          "#{issuer} filed an Item 1.01 strategic contract/order signal: #{strategic_signal}"
+
         date && agreement ->
           "#{issuer}는 #{date}에 #{agreement}을 체결했다고 공시했습니다"
 
@@ -7477,9 +7481,16 @@ defmodule DisclosureAutomation.Ingestion do
 
     details =
       [
-        counterparty && "상대방은 #{counterparty}",
+        strategic_signal && "Signal: #{strategic_signal}",
+        counterparty && "Counterparty: #{counterparty}",
+        sec_edgar_item_101_customer_order_detail(section),
+        sec_edgar_item_101_supply_agreement_detail(section),
+        sec_edgar_item_101_minimum_commitment_detail(section),
+        sec_edgar_item_101_exclusivity_detail(section),
+        sec_edgar_item_101_contract_duration_detail(section),
         sec_edgar_first_money_detail(section),
-        sec_edgar_agreement_purpose(section)
+        sec_edgar_agreement_purpose(section),
+        sec_edgar_order_backlog_detail(section)
       ]
 
     sec_edgar_summary_with_details(headline, details)
@@ -7758,6 +7769,21 @@ defmodule DisclosureAutomation.Ingestion do
 
   defp sec_edgar_agreement_label(section) do
     cond do
+      section =~
+          ~r/customer agreement|customer contract|commercial agreement|master services agreement/i ->
+        "customer/commercial agreement"
+
+      section =~
+          ~r/supply agreement|offtake agreement|manufacturing agreement|production agreement/i ->
+        "supply/offtake agreement"
+
+      section =~ ~r/purchase order|customer order|order backlog|bookings?/i ->
+        "customer order/backlog"
+
+      section =~
+          ~r/strategic partnership|strategic alliance|collaboration agreement|cooperation agreement/i ->
+        "strategic partnership/collaboration agreement"
+
       section =~ ~r/underwriting agreement/i ->
         "인수계약"
 
@@ -7788,19 +7814,13 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp sec_edgar_counterparty(section) do
-    case Regex.run(
-           ~r/(?:agreement|contract)[^.]{0,180}?\s+with\s+([^.;]+?)(?:,|\sto\s|\sfor\s|\.|$)/i,
-           section
-         ) do
-      [_match, counterparty] ->
-        counterparty
-        |> sec_edgar_clean_phrase()
-        |> String.slice(0, 140)
-        |> String.trim()
-
-      _match ->
-        nil
-    end
+    [
+      ~r/(?:agreement|contract|order|arrangement|partnership|collaboration)[^.]{0,180}?\s+with\s+([^.;]+?)(?:,|\sto\s|\sfor\s|\.|$)/i,
+      ~r/entered into (?:a|an|the)?[^.]{0,180}?\s+with\s+([^.;]+?)(?:,|\sto\s|\sfor\s|\.|$)/i,
+      ~r/(?:between|by and among)\s+[^.;]{0,160}?\s+and\s+([^.;]+?)(?:,|\.|$)/i,
+      ~r/(?:customer|client|counterparty)\s+(?:is|was|will be)\s+([^.;]+?)(?:,|\.|$)/i
+    ]
+    |> sec_edgar_first_capture(section)
   end
 
   defp sec_edgar_agreement_purpose(section) do
@@ -7820,6 +7840,81 @@ defmodule DisclosureAutomation.Ingestion do
       true ->
         nil
     end
+  end
+
+  defp sec_edgar_item_101_strategic_contract_signal(section) do
+    cond do
+      section =~
+          ~r/order backlog|backlog|purchase order|customer order|awarded (?:a )?contract|bookings?/i ->
+        "customer order/backlog"
+
+      section =~
+          ~r/minimum (?:purchase|volume|revenue|commitment|annual)|take-or-pay|committed to purchase|must purchase/i ->
+        "minimum purchase/volume commitment"
+
+      section =~
+          ~r/customer agreement|customer contract|master services agreement|commercial agreement/i ->
+        "customer/commercial agreement"
+
+      section =~
+          ~r/supply agreement|offtake agreement|manufacturing agreement|production agreement|long-term supply/i ->
+        "supply/offtake agreement"
+
+      section =~
+          ~r/strategic partnership|strategic alliance|collaboration agreement|cooperation agreement/i ->
+        "strategic partnership/collaboration"
+
+      section =~ ~r/exclusive|sole supplier|preferred supplier|right of first refusal/i ->
+        "exclusive/preferred supplier terms"
+
+      true ->
+        nil
+    end
+  end
+
+  defp sec_edgar_item_101_customer_order_detail(section) do
+    section
+    |> sec_edgar_sentence_matching(
+      ~r/(customer agreement|customer contract|customer order|purchase order|awarded (?:a )?contract|bookings?|master services agreement|commercial agreement)/i,
+      420
+    )
+    |> sec_edgar_labeled_detail("Customer/order")
+  end
+
+  defp sec_edgar_item_101_supply_agreement_detail(section) do
+    section
+    |> sec_edgar_sentence_matching(
+      ~r/(supply agreement|offtake agreement|manufacturing agreement|production agreement|long-term supply|commercial supply)/i,
+      420
+    )
+    |> sec_edgar_labeled_detail("Supply/offtake")
+  end
+
+  defp sec_edgar_item_101_minimum_commitment_detail(section) do
+    section
+    |> sec_edgar_sentence_matching(
+      ~r/(minimum (?:purchase|volume|revenue|commitment|annual)|take-or-pay|committed to purchase|must purchase|at least\s+\$[\d,.]+\s*(?:million|billion)?)/i,
+      420
+    )
+    |> sec_edgar_labeled_detail("Minimum commitment")
+  end
+
+  defp sec_edgar_item_101_exclusivity_detail(section) do
+    section
+    |> sec_edgar_sentence_matching(
+      ~r/(exclusive|sole supplier|preferred supplier|right of first refusal|non-exclusive|territory|global rights)/i,
+      420
+    )
+    |> sec_edgar_labeled_detail("Exclusivity/preferred terms")
+  end
+
+  defp sec_edgar_item_101_contract_duration_detail(section) do
+    section
+    |> sec_edgar_sentence_matching(
+      ~r/(multi-year|long-term|initial term|term of|expires|through|until|renewal|renewable|\d+\s+year|\d+\s+month)/i,
+      420
+    )
+    |> sec_edgar_labeled_detail("Duration/term")
   end
 
   defp sec_edgar_transaction_label(section) do

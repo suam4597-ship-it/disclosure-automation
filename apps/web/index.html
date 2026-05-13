@@ -1036,6 +1036,10 @@ function isSecEdgarBodySummary(rawSummary) {
   return /^원문 본문 기준[,，]/.test(cleanText(rawSummary));
 }
 
+function isSecStrategicContractSummary(rawSummary) {
+  return /Item 1\.01 strategic contract\/order signal|Customer\/order|Supply\/offtake|Minimum commitment|Exclusivity\/preferred terms|Duration\/term/i.test(rawSummary || "");
+}
+
 function tdnetSummary(title) {
   const [companyPart, subjectPart] = title.split(/\s+-\s+/, 2);
   const company = cleanText(companyPart);
@@ -1264,6 +1268,7 @@ function detailTarget(item) {
 
 function detailCategoryLabel(item) {
   const source = itemSourceKey(item).toLowerCase();
+  const rawSummary = rawSummaryText(item);
   if (source.includes("form4")) return "SEC Form 4 내부자 매수 클러스터";
   if (source.includes("13f_institutional")) return "SEC 13F 기관 포트폴리오 누적 매수";
   if (source.includes("10q")) return "SEC 10-Q 정기보고서";
@@ -1275,6 +1280,9 @@ function detailCategoryLabel(item) {
   if (source.includes("s4_merger")) return "SEC S-4 합병/교환 등록서";
   if (source.includes("f4_merger")) return "SEC F-4 합병/교환 등록서";
   if (source.includes("schedule_to")) return "SEC Schedule TO 공개매수";
+  if (source.includes("sec_edgar") && isSecStrategicContractSummary(rawSummary)) {
+    return "SEC 8-K 전략적 계약/수주";
+  }
   if (source.includes("sec_edgar")) return "SEC 8-K 상장사 공시";
   if (source.includes("jp_tdnet")) return "일본 TDnet 상장사 공시";
   if (source.includes("hkex")) return "홍콩거래소 상장사 공시";
@@ -1407,6 +1415,9 @@ function detailBullets(item) {
   }
 
   if (source.includes("sec_edgar")) {
+    if (isSecStrategicContractSummary(rawSummary)) {
+      bullets.push("확인 항목: 고객/공급 계약, 대형 주문·백로그, 최소구매 조건, 독점/우선공급 조건, 계약 기간");
+    }
     const secItems = secItemDetails(rawSummary);
     if (secItems.length) bullets.push(`SEC 항목: ${secItems.join(" / ")}`);
     const accNo = accNoFromSummary(rawSummary);
