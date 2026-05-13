@@ -387,6 +387,7 @@ sources:
       live_method: post
       live_content_type: application/json
       live_timeout_ms: 30000
+      disable_live_fixture_fallback: true
       live_headers:
         accept: application/json
       live_body:

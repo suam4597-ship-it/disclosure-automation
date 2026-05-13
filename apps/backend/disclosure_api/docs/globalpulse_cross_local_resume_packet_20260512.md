@@ -15,7 +15,7 @@ resume packet baseline head: 68dffc3131cb7fd0109339730ee2c103d5a7e7ba
 resume packet publication PR: #610 Add GlobalPulse cross-local resume packet
 resume packet publication merge commit: 5f46461889f641063c832f6f829071b9baacbd80
 latest refresh PRs after packet: #612 Refresh GlobalPulse regional dashboard mapping; #613 Record refreshed GlobalPulse digest diversity
-latest continuation head after refresh: 8b9d15ad71f9035da0bd0c3d1e454dfcfa4baceb
+latest continuation head after refresh: 21693761cadcef0169d97f6c42eb3d368fd35125 or newer
 last workflow handoff stabilization PR before this packet: #609 Stabilize GlobalPulse public web handoff anchors
 previous result PR: #608 Record GlobalPulse public web smoke workflow hardening
 workflow hardening PR: #607 Harden GlobalPulse public web smoke workflow
@@ -48,7 +48,7 @@ git status --short
 Expected:
 
 ```text
-HEAD: 8b9d15ad71f9035da0bd0c3d1e454dfcfa4baceb or newer
+HEAD: 21693761cadcef0169d97f6c42eb3d368fd35125 or newer
 git status --short: empty
 ```
 
@@ -188,6 +188,8 @@ Phase 1 backend trace: success
 #612 refreshed the public dashboard regional mapping on the latest phase0-foundation head.
 #613 recorded the refreshed public digest diversity with non-India rows visible in the latest top-N digest.
 #614 refreshed the handoff docs after the mapping/digest updates.
+#621 recorded the latest scheduled staging rollup through SEC, EU canary, HKEX, India NSE, and Denmark DFSA OAM runs.
+Post-rollup EU canary observation recorded failed run 25753561055 where Belgium FSMA returned fixture mode, followed by recovery run 25763799894 where Belgium FSMA returned live/200.
 #277 through #311 and #2 through #20 were closed as superseded stale/historical PRs; see globalpulse_stale_stacked_pr_cleanup_20260512.md.
 #1 remains open as the separate phase0-foundation to main integration decision.
 ```
@@ -210,12 +212,12 @@ Recommended order:
 2. Wait for the next scheduled public web smoke or staging source poll run.
 3. Record the run result only if it is a real run with matching workflow/source evidence.
 4. Continue scheduled observation windows for HKEX, EU canary, Denmark DFSA OAM, India NSE, and SEC hourly.
-5. HKEX has reached 7 observed successful scheduled staging runs through run `25729361512`; keep observing toward the 7-day / 10-run gate without enabling production polling.
-6. India NSE has 6 inspected recent successful scheduled staging runs through run `25730184956`; keep observing toward the 7-day window without enabling production polling.
-7. EU canary later-run observation is recorded through run `25729286004`; keep the first EU canary list unchanged unless a dedicated PR says otherwise.
+5. HKEX has reached 8 observed successful scheduled staging runs through run `25743490299`; a later scheduled HKEX run `25767950060` has also been observed as live/200 and should be recorded in the next rollup.
+6. India NSE has 7 inspected recent successful scheduled staging runs through run `25744353562`; a later scheduled India run `25768648399` has also been observed as live/200 and should be recorded in the next rollup.
+7. EU canary later-run observation includes the post-rollup Belgium FSMA fixture fallback failure `25753561055` and recovery pass `25763799894`; keep the first EU canary list unchanged unless a dedicated PR says otherwise.
 8. Denmark DFSA OAM later scheduled observation is recorded through run `25730389870`; keep it staging-only and inactive.
 9. Latest scheduled staging rollup is recorded through runs `25741580440`, `25742257297`, `25743490299`, `25744353562`, and `25744795173`.
-10. HKEX is now at 8 observed successful scheduled staging runs; keep observing toward the 7-day / 10-run gate.
+10. Belgium FSMA source config is being hardened with `disable_live_fixture_fallback=true` so scheduled live canary failures do not insert fixture-backed outputs.
 11. If #561/#565 receive approved production values, prepare a production config/smoke PR using the existing templates.
 12. If no approval values exist, keep working on staging-only observation, docs, and source evidence.
 ```

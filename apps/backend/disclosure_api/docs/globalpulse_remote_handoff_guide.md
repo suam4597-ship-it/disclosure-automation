@@ -1,6 +1,6 @@
 # GlobalPulse Remote Handoff Guide
 
-Last updated: 2026-05-12 KST
+Last updated: 2026-05-13 KST
 
 This guide is the remote source of truth for continuing GlobalPulse work across multiple local machines.
 
@@ -100,6 +100,12 @@ Latest scheduled staging rollup:
 
 ```text
 globalpulse_latest_scheduled_staging_rollup_20260513.md
+```
+
+Post-rollup EU canary Belgium fixture fallback and recovery:
+
+```text
+globalpulse_eu_canary_belgium_fixture_fallback_recovery_20260513.md
 ```
 
 India NSE interim scheduled observation:
@@ -547,7 +553,9 @@ Important runs to know:
 ```text
 EU canary payload review run: 25650523685
 EU canary second follow-up run: 25698983703
-EU canary latest scheduled run: 25729286004
+EU canary latest scheduled rollup run: 25742257297
+EU canary post-rollup Belgium fixture fallback failure: 25753561055
+EU canary post-rollup recovery run: 25763799894
 India NSE first scheduled run: 25650796284
 India NSE interim observation recent runs: 25694981715, 25699447717, 25703573653, 25713273293, 25719883720, and 25730184956
 Denmark DFSA OAM first automated scheduled run: 25668194957
@@ -556,6 +564,7 @@ Denmark DFSA OAM latest scheduled run: 25730389870
 HKEX first automated scheduled staging run: 25684138207
 HKEX follow-up scheduled staging observation latest run: 25743490299
 latest scheduled staging rollup: 25741580440, 25742257297, 25743490299, 25744353562, and 25744795173
+post-rollup EU canary fallback/recovery doc: globalpulse_eu_canary_belgium_fixture_fallback_recovery_20260513.md
 HKEX scheduled staging cron: 22 */2 * * 1-5
 HKEX main activation PR: #541
 HKEX main activation commit: 423ca7fa710b04de56a74b0a1ee092b43597b8a1
