@@ -96,7 +96,7 @@ defmodule DisclosureAutomationWeb.FeedDigestController do
   def latest(conn, %{"edition" => edition} = params) do
     timezone = Map.get(params, "timezone", "UTC")
 
-    case Digest.get_latest_digest(edition, timezone: timezone, fallback_to_fixture: true) do
+    case Digest.get_latest_digest(edition, digest_opts(params, timezone)) do
       {:ok, digest} -> json(conn, FeedDigestJSON.show(%{digest: digest}))
       {:error, :not_found} -> render_error(conn, :not_found, "not_found", "digest not found")
       {:error, reason} -> render_error(conn, :bad_request, "invalid_request", inspect(reason))
@@ -107,10 +107,33 @@ defmodule DisclosureAutomationWeb.FeedDigestController do
     do: render_error(conn, :bad_request, "missing_edition", "edition is required")
 
   def show(conn, %{"digest_date" => digest_date, "edition" => edition}) do
-    case Digest.get_digest_by_date_and_edition(digest_date, edition, fallback_to_fixture: true) do
+    case Digest.get_digest_by_date_and_edition(
+           digest_date,
+           edition,
+           digest_opts(conn.params, "UTC")
+         ) do
       {:ok, digest} -> json(conn, FeedDigestJSON.show(%{digest: digest}))
       {:error, :not_found} -> render_error(conn, :not_found, "not_found", "digest not found")
       {:error, reason} -> render_error(conn, :bad_request, "invalid_request", inspect(reason))
+    end
+  end
+
+  defp digest_opts(params, timezone) do
+    [
+      timezone: timezone,
+      fallback_to_fixture: true,
+      limit: bounded_positive_int(Map.get(params, "limit"), 100),
+      region_scope: Map.get(params, "region")
+    ]
+    |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+  end
+
+  defp bounded_positive_int(nil, _max), do: nil
+
+  defp bounded_positive_int(value, max) when is_binary(value) do
+    case Integer.parse(value) do
+      {parsed, ""} when parsed > 0 -> min(parsed, max)
+      _ -> nil
     end
   end
 
