@@ -7745,8 +7745,7 @@ defmodule DisclosureAutomation.Digest do
 
         regions ->
           from([item, source] in query,
-            where: fragment("? && ?", item.regions, ^regions),
-            select: {item, source}
+            where: fragment("? && ?", item.regions, ^regions)
           )
       end
 
