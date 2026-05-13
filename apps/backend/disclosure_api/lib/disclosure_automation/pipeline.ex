@@ -5186,6 +5186,10 @@ defmodule DisclosureAutomation.Ingestion do
   @tdnet_public_list_url_template "https://www.release.tdnet.info/inbs/I_list_001_{date}.html"
   @blse_ticker_url "https://services.blberza.com/blse/ticker.ashx?LangId=3&TickerTypeId=1&filter=all&ct=xml"
   @blse_issuer_news_url_template "https://www.blberza.com/pages/IssuerNewsRss.aspx?Code={code}&LangId=3"
+  @sec_edgar_current_8k_source_key "sec_edgar_current_8k_filings"
+  @sec_edgar_detail_fetch_default_limit 10
+  @sec_edgar_detail_fetch_default_timeout_ms 8_000
+  @sec_edgar_item_heading_regex ~r/\bItem\s+[1-9]\.\d{2}\b/i
 
   def poll_source(source_key, opts \\ []) when is_binary(source_key) do
     trigger_kind = Keyword.get(opts, :trigger_kind, "manual")
@@ -5199,6 +5203,8 @@ defmodule DisclosureAutomation.Ingestion do
              cache: parser_cache(),
              max_items_per_poll: source_max_items_per_poll(source)
            ) do
+      records = maybe_enrich_live_records(source, records, payload.fetch_info)
+
       result =
         Repo.transaction(fn ->
           {:ok, run} =
@@ -5309,6 +5315,476 @@ defmodule DisclosureAutomation.Ingestion do
   defp handle_failure(source, reason) do
     _ = Sources.mark_poll_failure(source, reason)
     {:error, reason}
+  end
+
+  defp maybe_enrich_live_records(
+         %SourceRegistry{source_key: @sec_edgar_current_8k_source_key} = source,
+         records,
+         %{"mode" => "live"}
+       )
+       when is_list(records) do
+    limit = sec_edgar_detail_fetch_limit(source)
+
+    records
+    |> Enum.with_index(1)
+    |> Enum.map(fn {record, index} ->
+      if index <= limit do
+        enrich_sec_edgar_8k_record(source, record)
+      else
+        record
+      end
+    end)
+  end
+
+  defp maybe_enrich_live_records(_source, records, _fetch_info), do: records
+
+  defp enrich_sec_edgar_8k_record(source, record) when is_map(record) do
+    with url when is_binary(url) <- sec_edgar_complete_submission_text_url(record),
+         {:ok, response} <-
+           Http.fetch(url,
+             headers: source_live_headers(source),
+             timeout: sec_edgar_detail_fetch_timeout(source)
+           ),
+         status when status in 200..299 <- response.status_code,
+         {:ok, summary} <- sec_edgar_filing_body_summary(response.body, record) do
+      Map.put(record, :summary, summary)
+    else
+      _reason -> record
+    end
+  end
+
+  defp enrich_sec_edgar_8k_record(_source, record), do: record
+
+  defp sec_edgar_complete_submission_text_url(%{url: url}) when is_binary(url) do
+    normalized_url =
+      url
+      |> String.split("?", parts: 2)
+      |> List.first()
+
+    case Regex.run(
+           ~r|^(https://www\.sec\.gov/Archives/edgar/data/\d+/\d+)/([^/]+?)-index\.html?$|i,
+           normalized_url
+         ) do
+      [_, base_url, accession_number] -> "#{base_url}/#{accession_number}.txt"
+      _match -> nil
+    end
+  end
+
+  defp sec_edgar_complete_submission_text_url(_record), do: nil
+
+  defp sec_edgar_filing_body_summary(raw_submission, record) when is_binary(raw_submission) do
+    plain = sec_edgar_plain_text(raw_submission)
+
+    with section when is_binary(section) <- sec_edgar_preferred_item_section(plain, record),
+         summary when is_binary(summary) <- sec_edgar_section_summary(section, record) do
+      {:ok, summary}
+    else
+      _reason -> {:error, :sec_edgar_summary_unavailable}
+    end
+  end
+
+  defp sec_edgar_filing_body_summary(_raw_submission, _record) do
+    {:error, :sec_edgar_summary_unavailable}
+  end
+
+  defp sec_edgar_plain_text(raw_submission) do
+    raw_submission
+    |> String.replace(~r/<ix:header[\s\S]*?<\/ix:header>/i, " ")
+    |> String.replace(~r/<script[\s\S]*?<\/script>/i, " ")
+    |> String.replace(~r/<style[\s\S]*?<\/style>/i, " ")
+    |> String.replace(~r/<[^>]+>/, " ")
+    |> sec_edgar_decode_entities()
+    |> String.replace(~r/\s+/u, " ")
+    |> String.trim()
+  end
+
+  defp sec_edgar_preferred_item_section(plain, record) do
+    preferred_items =
+      record
+      |> sec_edgar_item_codes_from_record()
+      |> Enum.reject(&(&1 == "9.01"))
+
+    preferred_items
+    |> Enum.find_value(&sec_edgar_section_for_item(plain, &1))
+    |> case do
+      nil -> sec_edgar_first_item_section(plain)
+      section -> section
+    end
+  end
+
+  defp sec_edgar_item_codes_from_record(record) do
+    [Map.get(record, :title), Map.get(record, :summary), Map.get(record, :category)]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.join(" ")
+    |> then(&Regex.scan(~r/\b(?:Item\s*)?([1-9]\.\d{2})\b/i, &1))
+    |> Enum.map(fn [_match, code] -> code end)
+    |> Enum.uniq()
+  end
+
+  defp sec_edgar_first_item_section(plain) do
+    case Regex.run(@sec_edgar_item_heading_regex, plain, return: :index) do
+      [{start, _length}] -> sec_edgar_section_from_offset(plain, start, 0)
+      _match -> nil
+    end
+  end
+
+  defp sec_edgar_section_for_item(plain, item_code) do
+    item_pattern = Regex.compile!("\\bItem\\s+#{Regex.escape(item_code)}\\b", "i")
+
+    case Regex.run(item_pattern, plain, return: :index) do
+      [{start, _length}] ->
+        sec_edgar_section_from_offset(plain, start, String.length(item_code) + 6)
+
+      _match ->
+        nil
+    end
+  end
+
+  defp sec_edgar_section_from_offset(plain, start, skip_bytes) do
+    tail = binary_part(plain, start, byte_size(plain) - start)
+    search_offset = min(max(skip_bytes, 24), byte_size(tail))
+    searchable = binary_part(tail, search_offset, byte_size(tail) - search_offset)
+
+    end_offset =
+      case Regex.run(@sec_edgar_item_heading_regex, searchable, return: :index) do
+        [{next_start, _length}] -> search_offset + next_start
+        _match -> min(byte_size(tail), 6_000)
+      end
+
+    tail
+    |> binary_part(0, min(end_offset, 6_000))
+    |> String.replace(~r/\s+/u, " ")
+    |> String.trim()
+  end
+
+  defp sec_edgar_section_summary(section, record) do
+    cond do
+      Regex.match?(~r/\bItem\s+3\.02\b/i, section) ->
+        sec_edgar_item_302_summary(section, record) ||
+          sec_edgar_generic_body_summary(section, record)
+
+      true ->
+        sec_edgar_generic_body_summary(section, record)
+    end
+  end
+
+  defp sec_edgar_item_302_summary(section, record) do
+    issuer = sec_edgar_issuer_name(record, section)
+    date = sec_edgar_first_date(section)
+    offering = sec_edgar_offering_terms(section)
+    security = sec_edgar_security_description(section)
+    par_value = sec_edgar_per_share_value(section, ~r/par value of\s+\$([\d,.]+)/i)
+    liquidation = sec_edgar_per_share_value(section, ~r/liquidation preference of\s+\$([\d,.]+)/i)
+    net_proceeds = sec_edgar_net_proceeds(section)
+    settlement = sec_edgar_settlement_date(section)
+
+    main_parts =
+      [
+        date && "#{date}에",
+        offering.amount && "#{offering.amount} 규모",
+        offering.shares && "(#{offering.shares})",
+        security
+      ]
+      |> Enum.reject(&is_nil/1)
+      |> Enum.join(" ")
+
+    detail_parts =
+      [
+        par_value && "주당 액면가는 #{par_value}",
+        liquidation && "청산 우선권은 주당 #{liquidation}",
+        net_proceeds && "비용 차감 전 예상 순수익은 #{net_proceeds}",
+        sec_edgar_general_corporate_purposes?(section) && "순수익은 일반적인 기업 운영 자금으로 사용할 예정",
+        sec_edgar_non_convertible?(section) && "다른 주식으로 전환 또는 교환되지 않음",
+        settlement && "결제 예정일은 #{settlement}",
+        sec_edgar_section_3a2_exemption?(section) && "증권법 3(a)(2) 등록 면제를 근거로 발행"
+      ]
+      |> Enum.reject(&is_nil/1)
+
+    cond do
+      main_parts != "" and detail_parts != [] ->
+        "원문 본문 기준, #{issuer}는 #{main_parts} 발행 가격을 확정했다고 공시했습니다. #{Enum.join(detail_parts, "; ")}."
+
+      main_parts != "" ->
+        "원문 본문 기준, #{issuer}는 #{main_parts} 발행 가격을 확정했다고 공시했습니다."
+
+      true ->
+        nil
+    end
+  end
+
+  defp sec_edgar_generic_body_summary(section, record) do
+    issuer = sec_edgar_issuer_name(record, section)
+
+    excerpt =
+      section
+      |> String.replace(@sec_edgar_item_heading_regex, "")
+      |> String.split(~r/(?<=[.!?])\s+/u)
+      |> Enum.reject(&(String.trim(&1) == ""))
+      |> Enum.take(2)
+      |> Enum.join(" ")
+      |> String.slice(0, 520)
+      |> String.trim()
+
+    case excerpt do
+      "" -> nil
+      value -> "원문 본문 기준, #{issuer}의 8-K에서 확인된 핵심 내용입니다: #{value}"
+    end
+  end
+
+  defp sec_edgar_issuer_name(record, section) do
+    title = Map.get(record, :title) || ""
+
+    cond do
+      match = Regex.run(~r/8-K\s*-\s*(.+?)\s+\(\d{6,10}\)/i, title) ->
+        match |> Enum.at(1) |> sec_edgar_title_case()
+
+      match = Regex.run(~r/EntityRegistrantName\s+([A-Z0-9 .,&'-]+?)(?:\s|Exact name)/i, section) ->
+        match |> Enum.at(1) |> sec_edgar_title_case()
+
+      true ->
+        "해당 회사"
+    end
+  end
+
+  defp sec_edgar_first_date(section) do
+    case Regex.run(
+           ~r/\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2}),\s+(\d{4})\b/i,
+           section
+         ) do
+      [_, month, day, year] -> "#{year}년 #{sec_edgar_month_number(month)}월 #{day}일"
+      _match -> nil
+    end
+  end
+
+  defp sec_edgar_settlement_date(section) do
+    case Regex.run(
+           ~r/settlement date[^.]*?(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2}),\s+(\d{4})/i,
+           section
+         ) do
+      [_, month, day, year] -> "#{year}년 #{sec_edgar_month_number(month)}월 #{day}일"
+      _match -> nil
+    end
+  end
+
+  defp sec_edgar_month_number(month) do
+    %{
+      "january" => 1,
+      "february" => 2,
+      "march" => 3,
+      "april" => 4,
+      "may" => 5,
+      "june" => 6,
+      "july" => 7,
+      "august" => 8,
+      "september" => 9,
+      "october" => 10,
+      "november" => 11,
+      "december" => 12
+    }
+    |> Map.fetch!(String.downcase(month))
+  end
+
+  defp sec_edgar_offering_terms(section) do
+    case Regex.run(
+           ~r/offering of\s+\$([\d,.]+)\s*(million|billion)?(?:\s+\(([\d,]+)\s+shares\))?/i,
+           section
+         ) do
+      [_match, amount, scale, shares] ->
+        %{
+          amount: sec_edgar_money_label(amount, scale),
+          shares: sec_edgar_share_label(shares)
+        }
+
+      [_match, amount, scale] ->
+        %{amount: sec_edgar_money_label(amount, scale), shares: nil}
+
+      _match ->
+        %{amount: nil, shares: nil}
+    end
+  end
+
+  defp sec_edgar_security_description(section) do
+    case Regex.run(~r/\)\s+of\s+([\d.]+%\s+[^.]*?Preferred Stock[^.]*?)(?:\s+\(|\.)/i, section) do
+      [_match, security] ->
+        security
+        |> String.replace(~r/\s+/, " ")
+        |> String.replace(~r/\s+the\s+$/i, "")
+        |> String.replace(~r/Non-Cumulative Preferred Stock/i, "비누적 우선주")
+        |> String.replace(~r/Preferred Stock/i, "우선주")
+        |> String.replace(~r/Series\s+([A-Z])/i, "시리즈 \\1")
+        |> String.trim()
+
+      _match ->
+        nil
+    end
+  end
+
+  defp sec_edgar_per_share_value(section, pattern) do
+    case Regex.run(pattern, section) do
+      [_match, value] -> sec_edgar_money_label(value, nil)
+      _match -> nil
+    end
+  end
+
+  defp sec_edgar_net_proceeds(section) do
+    case Regex.run(
+           ~r/net proceeds[^.]*?approximately\s+\$([\d,.]+)\s*(million|billion)?/i,
+           section
+         ) do
+      [_match, amount, scale] -> sec_edgar_money_label(amount, scale)
+      [_match, amount] -> sec_edgar_money_label(amount, nil)
+      _match -> nil
+    end
+  end
+
+  defp sec_edgar_general_corporate_purposes?(section) do
+    section =~ ~r/general corporate purposes/i
+  end
+
+  defp sec_edgar_non_convertible?(section) do
+    section =~ ~r/not convertible or exchangeable/i
+  end
+
+  defp sec_edgar_section_3a2_exemption?(section) do
+    section =~ ~r/Section\s+3\(a\)\(2\)/i
+  end
+
+  defp sec_edgar_money_label(amount, scale) when is_binary(amount) do
+    normalized_amount = String.replace(amount, ",", "")
+
+    english_scale =
+      if is_binary(scale) and scale != "", do: " #{String.downcase(scale)}", else: ""
+
+    case Float.parse(normalized_amount) do
+      {parsed, _rest} when english_scale == " million" ->
+        "#{sec_edgar_kr_million_usd(parsed)}($#{amount}#{english_scale})"
+
+      {parsed, _rest} when english_scale == " billion" ->
+        "#{sec_edgar_kr_billion_usd(parsed)}($#{amount}#{english_scale})"
+
+      {parsed, _rest} ->
+        "#{sec_edgar_trim_number(parsed)}달러"
+
+      _error ->
+        "$#{amount}#{english_scale}"
+    end
+  end
+
+  defp sec_edgar_money_label(_amount, _scale), do: nil
+
+  defp sec_edgar_kr_million_usd(value) when value >= 100 do
+    "#{sec_edgar_trim_number(value / 100)}억 달러"
+  end
+
+  defp sec_edgar_kr_million_usd(value) do
+    "#{sec_edgar_trim_number(value * 100)}만 달러"
+  end
+
+  defp sec_edgar_kr_billion_usd(value) do
+    "#{sec_edgar_trim_number(value * 10)}억 달러"
+  end
+
+  defp sec_edgar_share_label(nil), do: nil
+  defp sec_edgar_share_label(""), do: nil
+
+  defp sec_edgar_share_label(value) do
+    parsed =
+      value
+      |> String.replace(",", "")
+      |> Integer.parse()
+
+    case parsed do
+      {shares, _rest} when shares >= 10_000 ->
+        "#{sec_edgar_trim_number(shares / 10_000)}만 주"
+
+      {shares, _rest} ->
+        "#{shares}주"
+
+      _error ->
+        "#{value}주"
+    end
+  end
+
+  defp sec_edgar_title_case(value) do
+    value
+    |> String.downcase()
+    |> String.split(" ", trim: true)
+    |> Enum.map(fn word ->
+      case word do
+        "corp" -> "Corp"
+        "corporation" -> "Corporation"
+        "inc" -> "Inc"
+        "llc" -> "LLC"
+        "ltd" -> "Ltd"
+        _ -> String.capitalize(word)
+      end
+    end)
+    |> Enum.join(" ")
+  end
+
+  defp sec_edgar_trim_number(value) when is_float(value) do
+    if value == Float.round(value, 0) do
+      value |> round() |> Integer.to_string()
+    else
+      value
+      |> Float.round(2)
+      |> :erlang.float_to_binary(decimals: 2)
+      |> String.trim_trailing("0")
+      |> String.trim_trailing(".")
+    end
+  end
+
+  defp sec_edgar_decode_entities(value) do
+    value
+    |> String.replace("&quot;", "\"")
+    |> String.replace("&apos;", "'")
+    |> String.replace("&#039;", "'")
+    |> String.replace("&amp;", "&")
+    |> String.replace("&nbsp;", " ")
+    |> String.replace("&lt;", "<")
+    |> String.replace("&gt;", ">")
+    |> then(
+      &Regex.replace(~r/&#(\d+);/, &1, fn _match, codepoint ->
+        sec_edgar_codepoint_to_string(codepoint, 10)
+      end)
+    )
+    |> then(
+      &Regex.replace(~r/&#x([0-9a-f]+);/i, &1, fn _match, codepoint ->
+        sec_edgar_codepoint_to_string(codepoint, 16)
+      end)
+    )
+  end
+
+  defp sec_edgar_codepoint_to_string(codepoint, base) do
+    case Integer.parse(codepoint, base) do
+      {value, ""} ->
+        try do
+          <<value::utf8>>
+        rescue
+          _error -> " "
+        end
+
+      _error ->
+        " "
+    end
+  end
+
+  defp sec_edgar_detail_fetch_limit(source) do
+    source_config_positive_integer(
+      source,
+      "detail_fetch_limit",
+      :detail_fetch_limit,
+      @sec_edgar_detail_fetch_default_limit
+    )
+  end
+
+  defp sec_edgar_detail_fetch_timeout(source) do
+    source_config_positive_integer(
+      source,
+      "detail_fetch_timeout_ms",
+      :detail_fetch_timeout_ms,
+      @sec_edgar_detail_fetch_default_timeout_ms
+    )
   end
 
   defp load_payload(source, opts) do
