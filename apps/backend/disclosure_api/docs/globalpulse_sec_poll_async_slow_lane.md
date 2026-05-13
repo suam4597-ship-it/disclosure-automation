@@ -56,3 +56,46 @@ job.queue=source_polling_slow
 ```
 
 Then check Fly logs and digest freshness. The first success criterion is that the HTTP request returns quickly and does not trigger a Fly proxy timeout or OOM kill.
+
+## Fly Staging Smoke
+
+Date: 2026-05-13 UTC
+
+Deployment:
+
+```text
+app=globalpulse-backend-staging
+image=globalpulse-backend-staging:deployment-01KRH16RTYXPR1DN7JS0HDEYD0
+machine=9080d12db6d338
+state=started
+```
+
+Validation:
+
+```text
+GET /api/health -> 200
+POST /api/admin/sources/sec_edgar_current_schedule_to_tender_offers/poll?use_live_fetch=true&edition=breaking -> 202
+response.status=accepted
+response.operation=source_poll
+response.job.queue=source_polling_slow
+response.job.worker=DisclosureAutomation.Workers.PollSourceWorker
+```
+
+Observed job result:
+
+```text
+source_key=sec_edgar_current_schedule_to_tender_offers
+fetch.mode=live
+canonical rows inserted/updated=5
+largest observed feed item size=12 MB
+app health after job=200
+Fly machine state after job=started
+```
+
+Important behavior:
+
+```text
+The 12 MB Schedule TO item remained visible with feed-level summary metadata.
+The HTTP poll request did not wait for detail parsing.
+No Fly proxy timeout or OOM kill was observed during this smoke.
+```
