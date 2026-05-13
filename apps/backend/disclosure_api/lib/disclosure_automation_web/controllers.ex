@@ -124,7 +124,9 @@ defmodule DisclosureAutomationWeb.FeedDigestController do
       fallback_to_fixture: true,
       limit: bounded_positive_int(Map.get(params, "limit"), 100),
       recent_date_limit: bounded_positive_int(Map.get(params, "recent_date_limit"), 90),
-      region_scope: Map.get(params, "region")
+      region_scope: Map.get(params, "region"),
+      source_scope: source_key_list(Map.get(params, "source_keys")),
+      excluded_source_keys: source_key_list(Map.get(params, "exclude_source_keys"))
     ]
     |> Enum.reject(fn {_key, value} -> is_nil(value) end)
   end
@@ -135,6 +137,21 @@ defmodule DisclosureAutomationWeb.FeedDigestController do
     case Integer.parse(value) do
       {parsed, ""} when parsed > 0 -> min(parsed, max)
       _ -> nil
+    end
+  end
+
+  defp source_key_list(nil), do: nil
+  defp source_key_list(""), do: nil
+
+  defp source_key_list(value) when is_binary(value) do
+    value
+    |> String.split(",", trim: true)
+    |> Enum.map(&String.trim/1)
+    |> Enum.filter(&Regex.match?(~r/^[a-z0-9_:-]+$/, &1))
+    |> Enum.uniq()
+    |> case do
+      [] -> nil
+      keys -> keys
     end
   end
 

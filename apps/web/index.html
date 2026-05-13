@@ -486,6 +486,7 @@ const TAG_LABELS = {
 
 const SOURCE_LABELS = {
   sec_press_releases: "SEC 보도자료",
+  sec_edgar_current_8k_filings: "SEC EDGAR 8-K 공시",
   jp_tdnet_disclosures: "일본 TDnet 공시",
   india_nse_announcements: "인도 NSE 공시",
   hkex_latest_listed_company_information: "홍콩거래소 상장사 공시",
@@ -496,6 +497,11 @@ const SOURCE_LABELS = {
   uk_fca_nsm_regulated_information: "영국 FCA NSM",
   ch_six_ser_official_notices: "스위스 SIX 공시",
   dk_dfsa_oam_company_announcements: "덴마크 DFSA OAM"
+};
+
+const DEFAULT_EXCLUDED_SOURCE_KEYS = ["sec_press_releases"];
+const REGION_SOURCE_KEYS = {
+  us: ["sec_edgar_current_8k_filings"]
 };
 
 const STATIC_ITEMS = [
@@ -594,10 +600,20 @@ function digestPath() {
   const params = new URLSearchParams({ edition: digestEdition() });
   const region = selectedRegionFromUrl();
 
+  if (DEFAULT_EXCLUDED_SOURCE_KEYS.length) {
+    params.set("exclude_source_keys", DEFAULT_EXCLUDED_SOURCE_KEYS.join(","));
+  }
+
   if (region) {
     params.set("region", region);
     params.set("limit", "100");
     params.set("recent_date_limit", "60");
+
+    const sourceKeys = REGION_SOURCE_KEYS[region] || [];
+    if (sourceKeys.length) {
+      params.set("source_keys", sourceKeys.join(","));
+      params.delete("exclude_source_keys");
+    }
   }
 
   return `/api/feed/digest/latest?${params.toString()}`;

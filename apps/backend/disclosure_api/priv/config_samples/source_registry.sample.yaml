@@ -27,6 +27,31 @@ sources:
       category_bias: high_signal
       fixture_path: source_payloads/sec_press_releases.xml
 
+  - source_key: sec_edgar_current_8k_filings
+    display_name: SEC EDGAR Current 8-K Filings
+    source_type: atom
+    base_url: "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=8-K&owner=include&count=100&output=atom"
+    healthcheck_url: https://www.sec.gov/edgar
+    parser_key: rss_v1
+    poll_cron: "*/10 * * * *"
+    ranking_weight: 1.45
+    coverage_tags:
+      - us
+      - disclosure
+      - filing
+      - sec_edgar
+      - markets
+    active: true
+    config:
+      canonical_domain: sec.gov
+      dedupe_strategy: accession_number
+      summary_mode: filing_summary
+      category_bias: company_filings
+      disable_live_fixture_fallback: true
+      max_items_per_poll: 50
+      live_headers:
+        user-agent: disclosure-automation-phase1 contact@example.com
+
   - source_key: kr_dart_disclosures
     display_name: Korea DART Disclosures
     source_type: rss

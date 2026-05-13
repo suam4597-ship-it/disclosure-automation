@@ -415,7 +415,8 @@ defmodule DisclosureAutomation.Parser do
       ~c"/rss/channel/item",
       ~c"/rss/Channel/item",
       ~c"/rss/channel/Item",
-      ~c"/rss/Channel/Item"
+      ~c"/rss/Channel/Item",
+      ~c"/*[local-name()='feed']/*[local-name()='entry']"
     ]
     |> Enum.flat_map(&:xmerl_xpath.string(&1, document))
   end
@@ -4944,12 +4945,39 @@ defmodule DisclosureAutomation.Parser do
   end
 
   defp parse_item(item) do
-    link = xpath_string_any(item, [~c"string(link)", ~c"string(Link)"])
-    title = xpath_string_any(item, [~c"string(title)", ~c"string(Title)"])
-    summary = xpath_string_any(item, [~c"string(description)", ~c"string(Description)"])
+    link =
+      xpath_string_any(item, [
+        ~c"string(link)",
+        ~c"string(Link)",
+        ~c"string(link/@href)",
+        ~c"string(*[local-name()='link']/@href)"
+      ])
+
+    title =
+      xpath_string_any(item, [
+        ~c"string(title)",
+        ~c"string(Title)",
+        ~c"string(*[local-name()='title'])"
+      ])
+
+    summary =
+      xpath_string_any(item, [
+        ~c"string(description)",
+        ~c"string(Description)",
+        ~c"string(summary)",
+        ~c"string(content)",
+        ~c"string(*[local-name()='summary'])",
+        ~c"string(*[local-name()='content'])"
+      ])
 
     %{
-      external_id: xpath_string_any(item, [~c"string(guid)", ~c"string(Guid)"]) || link,
+      external_id:
+        xpath_string_any(item, [
+          ~c"string(guid)",
+          ~c"string(Guid)",
+          ~c"string(id)",
+          ~c"string(*[local-name()='id'])"
+        ]) || link,
       title: clean_html(title),
       url: link,
       summary: clean_html(summary),
@@ -4966,7 +4994,15 @@ defmodule DisclosureAutomation.Parser do
           ~c"string(*[local-name()='updated'])",
           ~c"string(*[local-name()='published'])"
         ]),
-      category: xpath_string_any(item, [~c"string(category)", ~c"string(Category)"])
+      category:
+        xpath_string_any(item, [
+          ~c"string(category)",
+          ~c"string(Category)",
+          ~c"string(category/@term)",
+          ~c"string(category/@label)",
+          ~c"string(*[local-name()='category']/@term)",
+          ~c"string(*[local-name()='category']/@label)"
+        ])
     }
   end
 
@@ -7932,6 +7968,8 @@ defmodule DisclosureAutomation.Digest do
     limit = Keyword.get(opts, :limit, 12)
     candidate_limit = max(positive_int(Keyword.get(opts, :candidate_limit)) || limit * 8, limit)
     region_scope = normalize_region_scope(Keyword.get(opts, :region_scope))
+    source_scope = normalize_source_scope(Keyword.get(opts, :source_scope))
+    excluded_source_keys = normalize_source_scope(Keyword.get(opts, :excluded_source_keys))
 
     max_per_source =
       positive_int(Keyword.get(opts, :max_per_source)) || default_max_per_source(limit)
@@ -7959,6 +7997,24 @@ defmodule DisclosureAutomation.Digest do
           from([item, source] in query,
             where: fragment("? && ?", item.regions, ^regions)
           )
+      end
+
+    query =
+      case source_scope do
+        [] ->
+          query
+
+        source_keys ->
+          from([item, source] in query, where: source.source_key in ^source_keys)
+      end
+
+    query =
+      case excluded_source_keys do
+        [] ->
+          query
+
+        source_keys ->
+          from([item, source] in query, where: source.source_key not in ^source_keys)
       end
 
     candidates =
@@ -8080,6 +8136,25 @@ defmodule DisclosureAutomation.Digest do
 
   defp normalize_region_scope(_value), do: []
 
+  defp normalize_source_scope(nil), do: []
+  defp normalize_source_scope(""), do: []
+
+  defp normalize_source_scope(source_key) when is_binary(source_key) do
+    source_key
+    |> String.split(",", trim: true)
+    |> Enum.map(&String.trim/1)
+    |> Enum.filter(&Regex.match?(~r/^[a-z0-9_:-]+$/, &1))
+    |> Enum.uniq()
+  end
+
+  defp normalize_source_scope(source_keys) when is_list(source_keys) do
+    source_keys
+    |> Enum.flat_map(&normalize_source_scope/1)
+    |> Enum.uniq()
+  end
+
+  defp normalize_source_scope(_value), do: []
+
   defp canonical_region(region) do
     region
     |> String.trim()
@@ -8127,6 +8202,14 @@ defmodule DisclosureAutomation.Digest do
   end
 
   defp fallback_to_fixture(edition, digest_date, opts) do
+    if filtered_digest_query?(opts) do
+      {:error, :not_found}
+    else
+      maybe_fallback_to_fixture(edition, digest_date, opts)
+    end
+  end
+
+  defp maybe_fallback_to_fixture(edition, digest_date, opts) do
     if Keyword.get(opts, :fallback_to_fixture, false) do
       with {:ok, digest} <- Fixtures.load_daily_digest(),
            true <- digest["edition"] == edition,
@@ -8138,6 +8221,11 @@ defmodule DisclosureAutomation.Digest do
     else
       {:error, :not_found}
     end
+  end
+
+  defp filtered_digest_query?(opts) do
+    normalize_source_scope(Keyword.get(opts, :source_scope)) != [] or
+      normalize_source_scope(Keyword.get(opts, :excluded_source_keys)) != []
   end
 
   defp present_item({item, source}) do
