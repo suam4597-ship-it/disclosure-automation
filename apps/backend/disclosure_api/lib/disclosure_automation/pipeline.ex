@@ -5190,9 +5190,15 @@ defmodule DisclosureAutomation.Ingestion do
   @sec_edgar_form4_cluster_source_key "sec_edgar_form4_clustered_insider_buys"
   @sec_edgar_current_10q_source_key "sec_edgar_current_10q_reports"
   @sec_edgar_current_10k_source_key "sec_edgar_current_10k_reports"
+  @sec_edgar_current_s1_source_key "sec_edgar_current_s1_registration_statements"
+  @sec_edgar_current_f1_source_key "sec_edgar_current_f1_registration_statements"
   @sec_edgar_periodic_report_source_keys [
     @sec_edgar_current_10q_source_key,
     @sec_edgar_current_10k_source_key
+  ]
+  @sec_edgar_registration_source_keys [
+    @sec_edgar_current_s1_source_key,
+    @sec_edgar_current_f1_source_key
   ]
   @sec_edgar_detail_fetch_default_limit 10
   @sec_edgar_detail_fetch_default_timeout_ms 8_000
@@ -5383,6 +5389,25 @@ defmodule DisclosureAutomation.Ingestion do
     end)
   end
 
+  defp maybe_enrich_live_records(
+         %SourceRegistry{source_key: source_key} = source,
+         records,
+         %{"mode" => "live"}
+       )
+       when source_key in @sec_edgar_registration_source_keys and is_list(records) do
+    limit = sec_edgar_detail_fetch_limit(source)
+
+    records
+    |> Enum.with_index(1)
+    |> Enum.map(fn {record, index} ->
+      if index <= limit do
+        enrich_sec_edgar_registration_record(source, record)
+      else
+        record
+      end
+    end)
+  end
+
   defp maybe_enrich_live_records(_source, records, _fetch_info), do: records
 
   defp enrich_sec_edgar_8k_record(source, record) when is_map(record) do
@@ -5418,6 +5443,23 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp enrich_sec_edgar_periodic_report_record(_source, record), do: record
+
+  defp enrich_sec_edgar_registration_record(source, record) when is_map(record) do
+    with url when is_binary(url) <- sec_edgar_complete_submission_text_url(record),
+         {:ok, response} <-
+           Http.fetch(url,
+             headers: source_live_headers(source),
+             timeout: sec_edgar_detail_fetch_timeout(source)
+           ),
+         status when status in 200..299 <- response.status_code,
+         {:ok, summary} <- sec_edgar_registration_statement_summary(response.body, record) do
+      Map.put(record, :summary, summary)
+    else
+      _reason -> record
+    end
+  end
+
+  defp enrich_sec_edgar_registration_record(_source, record), do: record
 
   defp sec_edgar_periodic_form_type(record) do
     category = String.upcase(to_string(Map.get(record, :category) || ""))
@@ -5664,6 +5706,147 @@ defmodule DisclosureAutomation.Ingestion do
         |> String.trim()
         |> then(&"가이던스/전망 문구: #{&1}")
     end
+  end
+
+  defp sec_edgar_registration_form_type(record) do
+    category = String.upcase(to_string(Map.get(record, :category) || ""))
+    title = String.upcase(to_string(Map.get(record, :title) || ""))
+
+    cond do
+      category in ["S-1", "S-1/A"] or String.starts_with?(title, "S-1") -> "S-1"
+      category in ["F-1", "F-1/A"] or String.starts_with?(title, "F-1") -> "F-1"
+      true -> category
+    end
+  end
+
+  defp sec_edgar_registration_business_detail(plain) do
+    plain
+    |> String.slice(0, 35_000)
+    |> then(fn excerpt ->
+      Regex.run(
+        ~r/\b(We are|We operate|We provide|We develop|We offer|Our company is|Our business is)\b[^.!?]{40,360}[.!?]/i,
+        excerpt
+      )
+    end)
+    |> case do
+      [_match, _lead] = match ->
+        match
+        |> List.first()
+        |> sec_edgar_clean_sentence()
+        |> then(&"사업 설명: #{&1}")
+
+      _match ->
+        nil
+    end
+  end
+
+  defp sec_edgar_registration_amount_detail(plain) do
+    patterns = [
+      ~r/(?:proposed maximum aggregate offering price|maximum aggregate offering price|aggregate offering price)[^$]{0,120}\$([\d,.]+)\s*(million|billion)?/i,
+      ~r/(?:gross proceeds|net proceeds)[^$]{0,120}\$([\d,.]+)\s*(million|billion)?/i,
+      ~r/(?:offering of|public offering of)[^$]{0,120}\$([\d,.]+)\s*(million|billion)?/i
+    ]
+
+    case sec_edgar_money_capture(patterns, plain) do
+      nil -> nil
+      value -> "상장/공모 조달 규모: #{value}"
+    end
+  end
+
+  defp sec_edgar_registration_use_of_proceeds_detail(plain) do
+    plain
+    |> sec_edgar_section_after_heading("Use of Proceeds", 1_200)
+    |> case do
+      nil ->
+        sec_edgar_sentence_matching(plain, ~r/use the (?:net )?proceeds/i, 360)
+
+      section ->
+        sec_edgar_sentence_matching(section, ~r/(use|intend|plan|expect).{0,80}proceeds/i, 360) ||
+          section
+    end
+    |> case do
+      nil ->
+        nil
+
+      value ->
+        value
+        |> sec_edgar_clean_sentence()
+        |> String.slice(0, 360)
+        |> then(&"조달자금 사용 목적: #{&1}")
+    end
+  end
+
+  defp sec_edgar_registration_price_detail(plain) do
+    patterns = [
+      ~r/(?:initial public offering price|public offering price|offering price|price per share)[^$]{0,120}\$([\d,.]+)/i,
+      ~r/\$([\d,.]+)\s+per\s+(?:ordinary\s+)?share/i,
+      ~r/\$([\d,.]+)\s+per\s+ADS/i
+    ]
+
+    case sec_edgar_money_capture(patterns, plain) do
+      nil -> nil
+      value -> "주당/ADS 공모 가격: #{value}"
+    end
+  end
+
+  defp sec_edgar_registration_overhang_detail(plain) do
+    plain
+    |> sec_edgar_sentence_matching(
+      ~r/(lock-up|lockup|restricted shares|may be sold|eligible for sale|days after this offering)/i,
+      420
+    )
+    |> case do
+      nil ->
+        nil
+
+      value ->
+        value
+        |> sec_edgar_clean_sentence()
+        |> then(&"오버행/lock-up 일정: #{&1}")
+    end
+  end
+
+  defp sec_edgar_section_after_heading(plain, heading, length) do
+    pattern = Regex.compile!("\\b#{Regex.escape(heading)}\\b", "i")
+
+    case Regex.run(pattern, plain, return: :index) do
+      [{start, _size}] ->
+        plain
+        |> binary_part(start, min(length, byte_size(plain) - start))
+        |> String.replace(~r/\s+/u, " ")
+        |> String.trim()
+
+      _match ->
+        nil
+    end
+  end
+
+  defp sec_edgar_sentence_matching(plain, pattern, max_length) do
+    plain
+    |> String.split(~r/(?<=[.!?])\s+/u)
+    |> Enum.find(&Regex.match?(pattern, &1))
+    |> case do
+      nil -> nil
+      sentence -> sentence |> String.slice(0, max_length) |> String.trim()
+    end
+  end
+
+  defp sec_edgar_money_capture(patterns, plain) do
+    patterns
+    |> Enum.find_value(fn pattern ->
+      case Regex.run(pattern, plain) do
+        [_match, amount, scale] -> sec_edgar_money_label(amount, scale)
+        [_match, amount] -> sec_edgar_money_label(amount, nil)
+        _match -> nil
+      end
+    end)
+  end
+
+  defp sec_edgar_clean_sentence(value) do
+    value
+    |> String.replace(~r/\s+/u, " ")
+    |> String.replace(~r/^[\s:;,-]+/u, "")
+    |> String.trim()
   end
 
   defp sec_edgar_form4_buy_reports(source, records) do
@@ -6153,6 +6336,35 @@ defmodule DisclosureAutomation.Ingestion do
 
   defp sec_edgar_periodic_report_summary(_raw_submission, _record) do
     {:error, :sec_edgar_periodic_summary_unavailable}
+  end
+
+  defp sec_edgar_registration_statement_summary(raw_submission, record)
+       when is_binary(raw_submission) do
+    plain = sec_edgar_plain_text(raw_submission)
+    issuer = sec_edgar_issuer_name(record, plain)
+    form_type = sec_edgar_registration_form_type(record)
+
+    headline =
+      case form_type do
+        "F-1" -> "#{issuer}의 F-1 신규상장/IPO 등록서 핵심 조건을 확인했습니다"
+        "S-1" -> "#{issuer}의 S-1 신규상장/IPO 등록서 핵심 조건을 확인했습니다"
+        _form_type -> "#{issuer}의 SEC 신규상장 등록서 핵심 조건을 확인했습니다"
+      end
+
+    details =
+      [
+        sec_edgar_registration_business_detail(plain),
+        sec_edgar_registration_amount_detail(plain),
+        sec_edgar_registration_use_of_proceeds_detail(plain),
+        sec_edgar_registration_price_detail(plain),
+        sec_edgar_registration_overhang_detail(plain)
+      ]
+
+    sec_edgar_summary_with_details(headline, details)
+  end
+
+  defp sec_edgar_registration_statement_summary(_raw_submission, _record) do
+    {:error, :sec_edgar_registration_summary_unavailable}
   end
 
   defp sec_edgar_plain_text(raw_submission) do

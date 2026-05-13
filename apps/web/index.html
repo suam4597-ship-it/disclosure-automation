@@ -512,6 +512,8 @@ const SOURCE_LABELS = {
   sec_edgar_form4_clustered_insider_buys: "SEC Form 4 내부자 매수 클러스터",
   sec_edgar_current_10q_reports: "SEC 10-Q 분기보고서",
   sec_edgar_current_10k_reports: "SEC 10-K 연차보고서",
+  sec_edgar_current_s1_registration_statements: "SEC S-1 IPO 등록서",
+  sec_edgar_current_f1_registration_statements: "SEC F-1 IPO 등록서",
   jp_tdnet_disclosures: "일본 TDnet 공시",
   india_nse_announcements: "인도 NSE 공시",
   hkex_latest_listed_company_information: "홍콩거래소 상장사 공시",
@@ -530,7 +532,9 @@ const REGION_SOURCE_KEYS = {
     "sec_edgar_current_8k_filings",
     "sec_edgar_form4_clustered_insider_buys",
     "sec_edgar_current_10q_reports",
-    "sec_edgar_current_10k_reports"
+    "sec_edgar_current_10k_reports",
+    "sec_edgar_current_s1_registration_statements",
+    "sec_edgar_current_f1_registration_statements"
   ]
 };
 const DASHBOARD_SUPPLEMENT_REGIONS = ["us"];
@@ -941,6 +945,10 @@ function simpleSummary(item, title, kind, category) {
     return rawSummary || "SEC 정기보고서에서 매출, 순이익/순손실, EPS와 가이던스 문구를 요약한 항목입니다.";
   }
 
+  if (source.includes("s1_registration") || source.includes("f1_registration") || combined.includes(" ipo ")) {
+    return rawSummary || "SEC IPO/신규상장 등록서에서 사업 설명, 조달 규모, 자금 사용 목적, 공모 가격과 lock-up 문구를 요약한 항목입니다.";
+  }
+
   if (source.includes("sec_edgar") || combined.includes("8-k") || combined.includes("item ")) {
     return secEdgarSummary(headline, rawSummary);
   }
@@ -1227,6 +1235,8 @@ function detailCategoryLabel(item) {
   if (source.includes("form4")) return "SEC Form 4 내부자 매수 클러스터";
   if (source.includes("10q")) return "SEC 10-Q 정기보고서";
   if (source.includes("10k")) return "SEC 10-K 연차보고서";
+  if (source.includes("s1_registration")) return "SEC S-1 IPO 등록서";
+  if (source.includes("f1_registration")) return "SEC F-1 IPO 등록서";
   if (source.includes("sec_edgar")) return "SEC 8-K 상장사 공시";
   if (source.includes("jp_tdnet")) return "일본 TDnet 상장사 공시";
   if (source.includes("hkex")) return "홍콩거래소 상장사 공시";
@@ -1248,6 +1258,10 @@ function detailNarrative(item) {
 
   if (source.includes("10q") || source.includes("10k")) {
     return rawSummary || `${target}의 SEC 정기보고서에서 매출, 순이익/순손실, EPS와 가이던스 문구를 확인하는 항목입니다.`;
+  }
+
+  if (source.includes("s1_registration") || source.includes("f1_registration")) {
+    return rawSummary || `${target}의 SEC IPO/신규상장 등록서에서 사업 설명, 조달 규모, 자금 사용 목적, 공모 가격과 lock-up 문구를 확인하는 항목입니다.`;
   }
 
   if (source.includes("sec_edgar")) {
@@ -1308,6 +1322,10 @@ function detailBullets(item) {
 
   if (source.includes("10q") || source.includes("10k")) {
     bullets.push("확인 항목: 매출, 순이익/순손실, EPS, 매출/이익 가이던스 문구");
+  }
+
+  if (source.includes("s1_registration") || source.includes("f1_registration")) {
+    bullets.push("확인 항목: 사업 설명, 조달 규모, 자금 사용 목적, 주당/ADS 공모 가격, lock-up/오버행 일정");
   }
 
   if (source.includes("sec_edgar")) {

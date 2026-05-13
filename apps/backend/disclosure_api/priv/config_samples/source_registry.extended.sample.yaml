@@ -94,6 +94,42 @@ sources:
       live_headers:
         user-agent: disclosure-automation-phase1 suam4597@gmail.com
 
+  - source_key: sec_edgar_current_s1_registration_statements
+    display_name: SEC EDGAR Current S-1 Registration Statements
+    source_type: atom
+    base_url: "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=S-1&owner=include&count=100&output=atom"
+    healthcheck_url: https://www.sec.gov/edgar
+    parser_key: rss_v1
+    poll_cron: "0 * * * *"
+    ranking_weight: 1.55
+    coverage_tags: [us, disclosure, filing, sec_edgar, ipo, registration_statement, markets]
+    active: true
+    config:
+      disable_live_fixture_fallback: true
+      max_items_per_poll: 50
+      detail_fetch_limit: 6
+      detail_fetch_timeout_ms: 10000
+      live_headers:
+        user-agent: disclosure-automation-phase1 suam4597@gmail.com
+
+  - source_key: sec_edgar_current_f1_registration_statements
+    display_name: SEC EDGAR Current F-1 Registration Statements
+    source_type: atom
+    base_url: "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=F-1&owner=include&count=100&output=atom"
+    healthcheck_url: https://www.sec.gov/edgar
+    parser_key: rss_v1
+    poll_cron: "0 * * * *"
+    ranking_weight: 1.55
+    coverage_tags: [us, disclosure, filing, sec_edgar, ipo, registration_statement, foreign_issuer, markets]
+    active: true
+    config:
+      disable_live_fixture_fallback: true
+      max_items_per_poll: 50
+      detail_fetch_limit: 6
+      detail_fetch_timeout_ms: 10000
+      live_headers:
+        user-agent: disclosure-automation-phase1 suam4597@gmail.com
+
   - source_key: fed_press_releases
     display_name: Federal Reserve Press Releases
     source_type: rss
