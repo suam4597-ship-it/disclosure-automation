@@ -5459,13 +5459,80 @@ defmodule DisclosureAutomation.Ingestion do
 
   defp sec_edgar_section_summary(section, record) do
     cond do
+      Regex.match?(~r/\bItem\s+1\.01\b/i, section) ->
+        sec_edgar_item_101_summary(section, record) ||
+          sec_edgar_generic_body_summary(section, record)
+
+      Regex.match?(~r/\bItem\s+2\.02\b/i, section) ->
+        sec_edgar_item_202_summary(section, record) ||
+          sec_edgar_generic_body_summary(section, record)
+
       Regex.match?(~r/\bItem\s+3\.02\b/i, section) ->
         sec_edgar_item_302_summary(section, record) ||
+          sec_edgar_generic_body_summary(section, record)
+
+      Regex.match?(~r/\bItem\s+5\.02\b/i, section) ->
+        sec_edgar_item_502_summary(section, record) ||
+          sec_edgar_generic_body_summary(section, record)
+
+      Regex.match?(~r/\bItem\s+8\.01\b/i, section) ->
+        sec_edgar_item_801_summary(section, record) ||
           sec_edgar_generic_body_summary(section, record)
 
       true ->
         sec_edgar_generic_body_summary(section, record)
     end
+  end
+
+  defp sec_edgar_item_101_summary(section, record) do
+    issuer = sec_edgar_issuer_name(record, section)
+    date = sec_edgar_first_date(section)
+    agreement = sec_edgar_agreement_label(section)
+
+    headline =
+      cond do
+        date && agreement ->
+          "#{issuer}는 #{date}에 #{agreement}을 체결했다고 공시했습니다"
+
+        agreement ->
+          "#{issuer}는 #{agreement}을 체결했다고 공시했습니다"
+
+        true ->
+          "#{issuer}는 중요한 계약 체결 사항을 공시했습니다"
+      end
+
+    counterparty = sec_edgar_counterparty(section)
+
+    details =
+      [
+        counterparty && "상대방은 #{counterparty}",
+        sec_edgar_first_money_detail(section),
+        sec_edgar_agreement_purpose(section)
+      ]
+
+    sec_edgar_summary_with_details(headline, details)
+  end
+
+  defp sec_edgar_item_202_summary(section, record) do
+    issuer = sec_edgar_issuer_name(record, section)
+    period = sec_edgar_results_period(section)
+
+    headline =
+      if period do
+        "#{issuer}는 #{period} 실적과 재무상태를 발표했습니다"
+      else
+        "#{issuer}는 실적과 재무상태 관련 자료를 발표했습니다"
+      end
+
+    details =
+      [
+        sec_edgar_metric_detail(section, "매출", ~r/(?:total\s+)?revenues?[^$]{0,80}\$([\d,.]+)\s*(million|billion)?/i),
+        sec_edgar_net_income_detail(section),
+        sec_edgar_eps_detail(section),
+        sec_edgar_earnings_release_detail(section)
+      ]
+
+    sec_edgar_summary_with_details(headline, details)
   end
 
   defp sec_edgar_item_302_summary(section, record) do
@@ -5512,6 +5579,52 @@ defmodule DisclosureAutomation.Ingestion do
     end
   end
 
+  defp sec_edgar_item_502_summary(section, record) do
+    issuer = sec_edgar_issuer_name(record, section)
+    actions = sec_edgar_governance_actions(section)
+    people = sec_edgar_named_people(section)
+    roles = sec_edgar_roles(section)
+
+    headline =
+      cond do
+        actions != [] ->
+          "#{issuer}는 임원/이사회 관련 #{Enum.join(actions, ", ")} 사항을 공시했습니다"
+
+        true ->
+          "#{issuer}는 임원, 이사회 또는 보상계약 관련 변동을 공시했습니다"
+      end
+
+    details =
+      [
+        people != [] && "관련 인물은 #{Enum.join(people, ", ")}",
+        roles != [] && "관련 직책은 #{Enum.join(roles, ", ")}",
+        sec_edgar_compensation_detail(section)
+      ]
+
+    sec_edgar_summary_with_details(headline, details)
+  end
+
+  defp sec_edgar_item_801_summary(section, record) do
+    issuer = sec_edgar_issuer_name(record, section)
+    topic = sec_edgar_other_event_topic(section)
+    date = sec_edgar_first_date(section)
+
+    headline =
+      if topic do
+        "#{issuer}는 기타 주요 사건으로 #{topic}을 공시했습니다"
+      else
+        "#{issuer}는 기타 주요 사건을 공시했습니다"
+      end
+
+    details =
+      [
+        date && "본문 기준일은 #{date}",
+        sec_edgar_first_money_detail(section)
+      ]
+
+    sec_edgar_summary_with_details(headline, details)
+  end
+
   defp sec_edgar_generic_body_summary(section, record) do
     issuer = sec_edgar_issuer_name(record, section)
 
@@ -5529,6 +5642,197 @@ defmodule DisclosureAutomation.Ingestion do
       "" -> nil
       value -> "원문 본문 기준, #{issuer}의 8-K에서 확인된 핵심 내용입니다: #{value}"
     end
+  end
+
+  defp sec_edgar_summary_with_details(headline, details) do
+    details =
+      details
+      |> Enum.reject(&is_nil/1)
+      |> Enum.map(&String.trim/1)
+      |> Enum.reject(&(&1 == ""))
+
+    case details do
+      [] -> "원문 본문 기준, #{headline}."
+      values -> "원문 본문 기준, #{headline}. #{Enum.join(values, "; ")}."
+    end
+  end
+
+  defp sec_edgar_agreement_label(section) do
+    cond do
+      section =~ ~r/underwriting agreement/i -> "인수계약"
+      section =~ ~r/merger agreement|business combination agreement/i -> "합병 또는 사업결합 계약"
+      section =~ ~r/credit agreement|loan agreement|financing agreement/i -> "신용공여 또는 대출계약"
+      section =~ ~r/purchase agreement|securities purchase agreement|asset purchase agreement/i -> "매매계약"
+      section =~ ~r/employment agreement|consulting agreement/i -> "고용 또는 자문계약"
+      section =~ ~r/license agreement|collaboration agreement|cooperation agreement/i -> "라이선스 또는 협력계약"
+      section =~ ~r/material definitive agreement/i -> "중요한 확정계약"
+      section =~ ~r/\bagreement\b/i -> "중요한 계약"
+      true -> nil
+    end
+  end
+
+  defp sec_edgar_counterparty(section) do
+    case Regex.run(
+           ~r/(?:agreement|contract)[^.]{0,180}?\s+with\s+([^.;]+?)(?:,|\sto\s|\sfor\s|\.|$)/i,
+           section
+         ) do
+      [_match, counterparty] ->
+        counterparty
+        |> sec_edgar_clean_phrase()
+        |> String.slice(0, 140)
+        |> String.trim()
+
+      _match ->
+        nil
+    end
+  end
+
+  defp sec_edgar_agreement_purpose(section) do
+    cond do
+      section =~ ~r/acquisition|acquire|purchase of assets|asset purchase/i ->
+        "주요 목적은 인수 또는 자산 매입"
+
+      section =~ ~r/sale of assets|disposition|divestiture/i ->
+        "주요 목적은 자산 매각 또는 처분"
+
+      section =~ ~r/financing|credit facility|loan|borrowings/i ->
+        "주요 목적은 자금 조달 또는 신용공여 확보"
+
+      section =~ ~r/license|commercialization|collaboration/i ->
+        "주요 목적은 라이선스, 상업화 또는 협력"
+
+      true ->
+        nil
+    end
+  end
+
+  defp sec_edgar_results_period(section) do
+    case Regex.run(
+           ~r/\b(quarter|three months|six months|nine months|year|fiscal year)[^.]{0,90}?ended\s+(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2}),\s+(\d{4})/i,
+           section
+         ) do
+      [_match, period, month, day, year] ->
+        date = "#{year}년 #{sec_edgar_month_number(month)}월 #{day}일"
+
+        if period =~ ~r/year/i do
+          "#{date} 종료 회계연도"
+        else
+          "#{date} 종료 기간"
+        end
+
+      _match ->
+        nil
+    end
+  end
+
+  defp sec_edgar_metric_detail(section, label, pattern) do
+    case Regex.run(pattern, section) do
+      [_match, amount, scale] -> "#{label}은 #{sec_edgar_money_label(amount, scale)}"
+      [_match, amount] -> "#{label}은 #{sec_edgar_money_label(amount, nil)}"
+      _match -> nil
+    end
+  end
+
+  defp sec_edgar_net_income_detail(section) do
+    case Regex.run(~r/net\s+(income|loss)[^$]{0,90}\$([\d,.]+)\s*(million|billion)?/i, section) do
+      [_match, kind, amount, scale] ->
+        sec_edgar_income_or_loss_detail(kind, amount, scale)
+
+      [_match, kind, amount] ->
+        sec_edgar_income_or_loss_detail(kind, amount, nil)
+
+      _match ->
+        nil
+    end
+  end
+
+  defp sec_edgar_income_or_loss_detail(kind, amount, scale) do
+    if String.downcase(kind) == "loss" do
+      "순손실은 #{sec_edgar_money_label(amount, scale)}"
+    else
+      "순이익은 #{sec_edgar_money_label(amount, scale)}"
+    end
+  end
+
+  defp sec_edgar_eps_detail(section) do
+    case Regex.run(
+           ~r/(?:diluted\s+)?(?:earnings|loss|income)\s+per\s+(?:common\s+)?share[^$]{0,60}\$([\d,.]+)/i,
+           section
+         ) do
+      [_match, value] -> "주당 지표는 #{sec_edgar_money_label(value, nil)}"
+      _match -> nil
+    end
+  end
+
+  defp sec_edgar_earnings_release_detail(section) do
+    if section =~ ~r/earnings release|press release/i do
+      "관련 실적 보도자료 또는 첨부자료가 함께 제공됨"
+    end
+  end
+
+  defp sec_edgar_governance_actions(section) do
+    [
+      {~r/resign|resignation|departure/i, "사임/퇴임"},
+      {~r/appoint|appointment|elected|election/i, "선임/임명"},
+      {~r/terminate|termination|dismiss/i, "해임 또는 계약 종료"},
+      {~r/compensatory|compensation|employment agreement|equity award|bonus/i, "보상 또는 고용조건 변경"}
+    ]
+    |> Enum.filter(fn {pattern, _label} -> section =~ pattern end)
+    |> Enum.map(fn {_pattern, label} -> label end)
+  end
+
+  defp sec_edgar_named_people(section) do
+    ~r/\b(?:Mr\.|Ms\.|Mrs\.|Dr\.)\s+[A-Z][A-Za-z'.-]+(?:\s+[A-Z][A-Za-z'.-]+){0,3}/
+    |> Regex.scan(section)
+    |> Enum.map(fn [name] -> sec_edgar_clean_phrase(name) end)
+    |> Enum.uniq()
+    |> Enum.take(3)
+  end
+
+  defp sec_edgar_roles(section) do
+    [
+      {~r/Chief Executive Officer|\bCEO\b/i, "CEO"},
+      {~r/Chief Financial Officer|\bCFO\b/i, "CFO"},
+      {~r/Chief Operating Officer|\bCOO\b/i, "COO"},
+      {~r/President/i, "President"},
+      {~r/director|board of directors/i, "이사/이사회"},
+      {~r/principal accounting officer/i, "회계책임자"}
+    ]
+    |> Enum.filter(fn {pattern, _label} -> section =~ pattern end)
+    |> Enum.map(fn {_pattern, label} -> label end)
+  end
+
+  defp sec_edgar_compensation_detail(section) do
+    if section =~ ~r/compensatory|compensation|employment agreement|equity award|bonus|salary/i do
+      "보상, 고용계약 또는 주식보상 조건이 언급됨"
+    end
+  end
+
+  defp sec_edgar_other_event_topic(section) do
+    cond do
+      section =~ ~r/dividend|distribution/i -> "배당 또는 분배 관련 사항"
+      section =~ ~r/offering|underwriting|senior notes|convertible notes|debentures/i -> "증권 발행 또는 자금 조달 관련 사항"
+      section =~ ~r/acquisition|merger|business combination|strategic transaction/i -> "인수합병 또는 전략적 거래 관련 사항"
+      section =~ ~r/litigation|settlement|regulatory|investigation/i -> "소송, 합의 또는 규제 관련 사항"
+      section =~ ~r/press release/i -> "보도자료 공개"
+      section =~ ~r/shareholder|stockholder|annual meeting|special meeting/i -> "주주총회 또는 주주 관련 사항"
+      true -> nil
+    end
+  end
+
+  defp sec_edgar_first_money_detail(section) do
+    case Regex.run(~r/\$([\d,.]+)\s*(million|billion)?/i, section) do
+      [_match, amount, scale] -> "본문에 언급된 금액/규모는 #{sec_edgar_money_label(amount, scale)}"
+      [_match, amount] -> "본문에 언급된 금액/규모는 #{sec_edgar_money_label(amount, nil)}"
+      _match -> nil
+    end
+  end
+
+  defp sec_edgar_clean_phrase(value) do
+    value
+    |> String.replace(~r/\s+/u, " ")
+    |> String.replace(~r/^\s*(?:the|a|an)\s+/i, "")
+    |> String.trim(" ,.;:")
   end
 
   defp sec_edgar_issuer_name(record, section) do
