@@ -34,6 +34,22 @@ defmodule DisclosureAutomationWeb.SourceHealthJSON do
   def accepted_job(%{job: job}), do: job
   def poll_result(%{result: result}), do: result
 
+  def poll_accepted(%{
+        job: job,
+        source_key: source_key,
+        edition: edition,
+        use_live_fetch: use_live_fetch
+      }) do
+    %{
+      status: "accepted",
+      operation: "source_poll",
+      source_key: source_key,
+      edition: edition,
+      use_live_fetch: use_live_fetch,
+      job: job
+    }
+  end
+
   def error(%{code: code, message: message}) do
     %{error: %{code: code, message: message}}
   end
@@ -207,12 +223,71 @@ defmodule DisclosureAutomationWeb.AdminSourcePollController do
   use DisclosureAutomationWeb, :controller
 
   alias DisclosureAutomation.Ingestion
+  alias DisclosureAutomation.Jobs
+  alias DisclosureAutomation.Schema.SourceRegistry
+  alias DisclosureAutomation.Sources
+  alias DisclosureAutomation.Workers.PollSourceWorker
   alias DisclosureAutomationWeb.SourceHealthJSON
 
   def create(conn, %{"source_key" => source_key} = params) do
     edition = Map.get(params, "edition", "breaking")
     use_live_fetch = parse_bool(Map.get(params, "use_live_fetch", "true"))
 
+    with {:ok, %SourceRegistry{} = source} <- Sources.get_source_by_key(source_key) do
+      if async_poll?(params, source) do
+        enqueue_poll(conn, source, edition, use_live_fetch)
+      else
+        poll_source(conn, source.source_key, edition, use_live_fetch)
+      end
+    else
+      {:error, :not_found} -> render_error(conn, :not_found, "not_found", "source not found")
+      {:error, reason} -> render_error(conn, :bad_request, "poll_failed", inspect(reason))
+    end
+  end
+
+  defp parse_bool(value) when value in [true, "true", "1", 1], do: true
+  defp parse_bool(_value), do: false
+
+  defp async_poll?(params, source) do
+    case Map.get(params, "async") do
+      value when value in [true, "true", "1", 1] ->
+        true
+
+      value when value in [false, "false", "0", 0] ->
+        false
+
+      _value ->
+        source_config_boolean(source, "poll_async_default", :poll_async_default, false)
+    end
+  end
+
+  defp enqueue_poll(conn, source, edition, use_live_fetch) do
+    args = %{
+      "source_key" => source.source_key,
+      "trigger_kind" => "manual",
+      "edition" => edition,
+      "use_live_fetch" => use_live_fetch
+    }
+
+    case Jobs.enqueue(PollSourceWorker, args, queue: poll_queue(source)) do
+      {:ok, %{job: job}} ->
+        conn
+        |> put_status(:accepted)
+        |> json(
+          SourceHealthJSON.poll_accepted(%{
+            job: job,
+            source_key: source.source_key,
+            edition: edition,
+            use_live_fetch: use_live_fetch
+          })
+        )
+
+      {:error, reason} ->
+        render_error(conn, :bad_request, "enqueue_failed", inspect(reason))
+    end
+  end
+
+  defp poll_source(conn, source_key, edition, use_live_fetch) do
     case Ingestion.poll_source(source_key,
            trigger_kind: "manual",
            edition: edition,
@@ -231,8 +306,27 @@ defmodule DisclosureAutomationWeb.AdminSourcePollController do
     end
   end
 
-  defp parse_bool(value) when value in [true, "true", "1", 1], do: true
-  defp parse_bool(_value), do: false
+  defp poll_queue(source) do
+    case source_config_value(source, "poll_queue", :poll_queue, "source_polling") do
+      value when value in ["source_polling_slow", :source_polling_slow] -> :source_polling_slow
+      _value -> :source_polling
+    end
+  end
+
+  defp source_config_boolean(source, string_key, atom_key, default) do
+    case source_config_value(source, string_key, atom_key, default) do
+      value when is_boolean(value) -> value
+      value when is_binary(value) -> String.downcase(value) == "true"
+      _value -> default
+    end
+  end
+
+  defp source_config_value(%SourceRegistry{config: config}, string_key, atom_key, default)
+       when is_map(config) do
+    Map.get(config, string_key) || Map.get(config, atom_key) || default
+  end
+
+  defp source_config_value(_source, _string_key, _atom_key, default), do: default
 
   defp render_error(conn, status, code, message) do
     conn

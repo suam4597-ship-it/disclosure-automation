@@ -109,9 +109,12 @@ sources:
       summary_mode: institutional_accumulation_summary
       category_bias: institutional_accumulation
       disable_live_fixture_fallback: true
-      max_items_per_poll: 100
-      detail_fetch_limit: 25
-      detail_fetch_timeout_ms: 12000
+      poll_async_default: true
+      poll_queue: source_polling_slow
+      max_items_per_poll: 25
+      detail_fetch_limit: 3
+      detail_fetch_timeout_ms: 8000
+      detail_fetch_max_bytes: 1500000
       increase_min_percent: 25
       positions_per_manager: 5
       emit_limit: 40
@@ -142,9 +145,10 @@ sources:
       summary_mode: xbrl_financial_summary
       category_bias: periodic_financials
       disable_live_fixture_fallback: true
-      max_items_per_poll: 50
-      detail_fetch_limit: 8
-      detail_fetch_timeout_ms: 10000
+      max_items_per_poll: 20
+      detail_fetch_limit: 1
+      detail_fetch_timeout_ms: 6000
+      detail_fetch_max_bytes: 2000000
       live_headers:
         user-agent: disclosure-automation-phase1 suam4597@gmail.com
 
@@ -172,9 +176,12 @@ sources:
       summary_mode: xbrl_financial_summary
       category_bias: periodic_financials
       disable_live_fixture_fallback: true
-      max_items_per_poll: 50
-      detail_fetch_limit: 6
-      detail_fetch_timeout_ms: 10000
+      poll_async_default: true
+      poll_queue: source_polling_slow
+      max_items_per_poll: 10
+      detail_fetch_limit: 1
+      detail_fetch_timeout_ms: 6000
+      detail_fetch_max_bytes: 1500000
       live_headers:
         user-agent: disclosure-automation-phase1 suam4597@gmail.com
 
@@ -201,9 +208,12 @@ sources:
       summary_mode: ipo_registration_summary
       category_bias: ipo_registration
       disable_live_fixture_fallback: true
-      max_items_per_poll: 50
-      detail_fetch_limit: 6
-      detail_fetch_timeout_ms: 10000
+      poll_async_default: true
+      poll_queue: source_polling_slow
+      max_items_per_poll: 10
+      detail_fetch_limit: 1
+      detail_fetch_timeout_ms: 6000
+      detail_fetch_max_bytes: 1500000
       live_headers:
         user-agent: disclosure-automation-phase1 suam4597@gmail.com
 
@@ -231,9 +241,12 @@ sources:
       summary_mode: ipo_registration_summary
       category_bias: ipo_registration
       disable_live_fixture_fallback: true
-      max_items_per_poll: 50
-      detail_fetch_limit: 6
-      detail_fetch_timeout_ms: 10000
+      poll_async_default: true
+      poll_queue: source_polling_slow
+      max_items_per_poll: 10
+      detail_fetch_limit: 1
+      detail_fetch_timeout_ms: 6000
+      detail_fetch_max_bytes: 1500000
       live_headers:
         user-agent: disclosure-automation-phase1 suam4597@gmail.com
 
@@ -261,9 +274,12 @@ sources:
       summary_mode: strategic_ownership_summary
       category_bias: activist_ownership
       disable_live_fixture_fallback: true
-      max_items_per_poll: 50
-      detail_fetch_limit: 10
-      detail_fetch_timeout_ms: 10000
+      poll_async_default: true
+      poll_queue: source_polling_slow
+      max_items_per_poll: 10
+      detail_fetch_limit: 1
+      detail_fetch_timeout_ms: 6000
+      detail_fetch_max_bytes: 1500000
       live_headers:
         user-agent: disclosure-automation-phase1 suam4597@gmail.com
 
@@ -291,9 +307,12 @@ sources:
       summary_mode: increased_ownership_summary
       category_bias: increased_ownership
       disable_live_fixture_fallback: true
-      max_items_per_poll: 50
-      detail_fetch_limit: 12
-      detail_fetch_timeout_ms: 10000
+      poll_async_default: true
+      poll_queue: source_polling_slow
+      max_items_per_poll: 10
+      detail_fetch_limit: 1
+      detail_fetch_timeout_ms: 6000
+      detail_fetch_max_bytes: 1500000
       increase_only: true
       live_headers:
         user-agent: disclosure-automation-phase1 suam4597@gmail.com
@@ -322,9 +341,12 @@ sources:
       summary_mode: merger_registration_summary
       category_bias: merger_registration
       disable_live_fixture_fallback: true
-      max_items_per_poll: 50
-      detail_fetch_limit: 6
-      detail_fetch_timeout_ms: 10000
+      poll_async_default: true
+      poll_queue: source_polling_slow
+      max_items_per_poll: 10
+      detail_fetch_limit: 1
+      detail_fetch_timeout_ms: 6000
+      detail_fetch_max_bytes: 1500000
       live_headers:
         user-agent: disclosure-automation-phase1 suam4597@gmail.com
 
@@ -353,9 +375,12 @@ sources:
       summary_mode: merger_registration_summary
       category_bias: merger_registration
       disable_live_fixture_fallback: true
-      max_items_per_poll: 50
-      detail_fetch_limit: 6
-      detail_fetch_timeout_ms: 10000
+      poll_async_default: true
+      poll_queue: source_polling_slow
+      max_items_per_poll: 10
+      detail_fetch_limit: 1
+      detail_fetch_timeout_ms: 6000
+      detail_fetch_max_bytes: 1500000
       live_headers:
         user-agent: disclosure-automation-phase1 suam4597@gmail.com
 
@@ -383,9 +408,12 @@ sources:
       summary_mode: tender_offer_summary
       category_bias: tender_offer
       disable_live_fixture_fallback: true
-      max_items_per_poll: 50
-      detail_fetch_limit: 8
-      detail_fetch_timeout_ms: 10000
+      poll_async_default: true
+      poll_queue: source_polling_slow
+      max_items_per_poll: 5
+      detail_fetch_limit: 1
+      detail_fetch_timeout_ms: 6000
+      detail_fetch_max_bytes: 750000
       live_headers:
         user-agent: disclosure-automation-phase1 suam4597@gmail.com
 
