@@ -5986,7 +5986,7 @@ defmodule DisclosureAutomation.Ingestion do
       ]
 
     sec_edgar_summary_with_details(
-      "#{issuer} filed Schedule 13D showing a 5%+ strategic or activist ownership position",
+      "#{issuer}의 Schedule 13D에서 5% 이상 전략적/행동주의 보유지분 신호가 확인됐습니다",
       details
     )
   end
@@ -6011,7 +6011,7 @@ defmodule DisclosureAutomation.Ingestion do
         ]
 
       sec_edgar_summary_with_details(
-        "#{issuer} filed Schedule 13G with a new or increased 5%+ beneficial ownership signal",
+        "#{issuer}의 Schedule 13G에서 신규 또는 증가한 5% 이상 보유지분 신호가 확인됐습니다",
         details
       )
     else
@@ -6038,7 +6038,7 @@ defmodule DisclosureAutomation.Ingestion do
       ]
 
     sec_edgar_summary_with_details(
-      "#{issuer} filed #{form_type} for a stock-exchange, merger, or business-combination registration",
+      "#{issuer}의 #{form_type} 주식교환/합병 등록서 핵심 조건을 확인했습니다",
       details
     )
   end
@@ -6062,7 +6062,7 @@ defmodule DisclosureAutomation.Ingestion do
       ]
 
     sec_edgar_summary_with_details(
-      "#{issuer} filed Schedule TO for a tender offer or buyout-style transaction",
+      "#{issuer}의 Schedule TO 공개매수 또는 인수성 거래 조건을 확인했습니다",
       details
     )
   end
@@ -6077,7 +6077,7 @@ defmodule DisclosureAutomation.Ingestion do
       ~r/(?:filed by|joint filing agreement by)\s+([^.;]{3,160})(?:\.|;|,|$)/i
     ]
     |> sec_edgar_first_capture(plain)
-    |> sec_edgar_labeled_detail("Reporting owner")
+    |> sec_edgar_labeled_detail("신고자/보유자")
   end
 
   defp sec_edgar_beneficial_ownership_amount_detail(plain) do
@@ -6086,7 +6086,7 @@ defmodule DisclosureAutomation.Ingestion do
       ~r/beneficially owned[^.]{0,120}?([\d,]+)\s+shares/i
     ]
     |> sec_edgar_first_capture(plain)
-    |> sec_edgar_labeled_detail("Beneficially owned shares")
+    |> sec_edgar_labeled_detail("보유 주식 수")
   end
 
   defp sec_edgar_beneficial_ownership_percent_detail(plain) do
@@ -6097,7 +6097,7 @@ defmodule DisclosureAutomation.Ingestion do
     |> sec_edgar_first_capture(plain)
     |> case do
       nil -> nil
-      value -> "Beneficial ownership: #{value}%"
+      value -> "보유 지분율: #{value}%"
     end
   end
 
@@ -6115,20 +6115,20 @@ defmodule DisclosureAutomation.Ingestion do
       ~r/(intend|plan|seek|engage|discuss|propose|strategic|board|management|acquire|merger|maximize|undervalued|shareholder value)/i,
       420
     )
-    |> sec_edgar_labeled_detail("Purpose/engagement")
+    |> sec_edgar_labeled_detail("목적/관여")
   end
 
   defp sec_edgar_13d_activism_signal_detail(plain) do
     cond do
       plain =~
           ~r/\b(board|director|management|strategic alternatives|undervalued|maximize stockholder value|maximize shareholder value|activist|proxy|proposal)\b/i ->
-        "Signal focus: potential activist or strategic engagement"
+        "신호 초점: 행동주의 또는 전략적 관여 가능성"
 
       plain =~ ~r/\b(control|merger|business combination|acquisition|takeover|tender offer)\b/i ->
-        "Signal focus: potential control, M&A, or ownership-change angle"
+        "신호 초점: 지배권, M&A 또는 보유지분 변화 가능성"
 
       true ->
-        "Signal focus: 13D is treated as active/strategic ownership, not a passive 13G holding"
+        "신호 초점: 13D는 단순 패시브 13G 보유가 아닌 적극적/전략적 지분으로 분류"
     end
   end
 
@@ -6143,7 +6143,7 @@ defmodule DisclosureAutomation.Ingestion do
   defp sec_edgar_13g_increase_detail(plain, record) do
     cond do
       sec_edgar_schedule_form_type(record) == "SC 13G" ->
-        "Increase filter: initial 13G treated as a newly disclosed 5%+ ownership position"
+        "필터 조건: 최초 13G는 신규 5% 이상 보유지분 공시로 간주"
 
       detail =
           sec_edgar_sentence_matching(
@@ -6151,7 +6151,7 @@ defmodule DisclosureAutomation.Ingestion do
             ~r/(increase[sd]?|acquired|purchased|additional shares|beneficial ownership[^.]{0,80}increased|became the beneficial owner)/i,
             360
           ) ->
-        "Increase filter: #{sec_edgar_clean_sentence(detail)}"
+        "필터 조건: #{sec_edgar_clean_sentence(detail)}"
 
       true ->
         nil
@@ -6198,7 +6198,7 @@ defmodule DisclosureAutomation.Ingestion do
       ~r/(?:target company|company being acquired)\s+(?:is|:)?\s*([^.;]{3,180})(?:\.|;|,|$)/i
     ]
     |> sec_edgar_first_capture(plain)
-    |> sec_edgar_labeled_detail("Merger/exchange target")
+    |> sec_edgar_labeled_detail("교환/합병 대상")
   end
 
   defp sec_edgar_ma_exchange_ratio_detail(plain) do
@@ -6207,7 +6207,7 @@ defmodule DisclosureAutomation.Ingestion do
       ~r/(exchange ratio|for each share|converted into the right to receive|receive [\d.]+|stock[- ]for[- ]stock|ordinary shares|ADSs?)/i,
       440
     )
-    |> sec_edgar_labeled_detail("Exchange/merger ratio")
+    |> sec_edgar_labeled_detail("교환/합병 비율")
   end
 
   defp sec_edgar_ma_consideration_detail(plain) do
@@ -6216,7 +6216,7 @@ defmodule DisclosureAutomation.Ingestion do
       ~r/(?:cash consideration|stock consideration)[^$]{0,160}\$([\d,.]+)\s*(million|billion)?/i
     ]
     |> sec_edgar_money_capture(plain)
-    |> sec_edgar_labeled_detail("Transaction value/consideration")
+    |> sec_edgar_labeled_detail("거래가치/대가")
   end
 
   defp sec_edgar_ma_purpose_detail(plain) do
@@ -6238,7 +6238,7 @@ defmodule DisclosureAutomation.Ingestion do
       ~r/(strategic|combine|combination|expected to|believe|enhance|accelerate|expand|scale|shareholder value|stockholder value)/i,
       420
     )
-    |> sec_edgar_labeled_detail("Strategic purpose")
+    |> sec_edgar_labeled_detail("전략적 목적")
   end
 
   defp sec_edgar_tender_offeror_detail(plain) do
@@ -6247,7 +6247,7 @@ defmodule DisclosureAutomation.Ingestion do
       ~r/(?:commenced|announced)\s+(?:a\s+)?(?:cash\s+)?tender offer\s+(?:by|for|to acquire)?\s*([^.;]{3,160})(?:\.|;|,|$)/i
     ]
     |> sec_edgar_first_capture(plain)
-    |> sec_edgar_labeled_detail("Offeror/buyer")
+    |> sec_edgar_labeled_detail("공개매수자/인수자")
   end
 
   defp sec_edgar_tender_price_detail(plain) do
@@ -6256,13 +6256,13 @@ defmodule DisclosureAutomation.Ingestion do
       ~r/\$([\d,.]+)\s+per\s+(?:share|ADS|unit)/i
     ]
     |> sec_edgar_money_capture(plain)
-    |> sec_edgar_labeled_detail("Tender price per share")
+    |> sec_edgar_labeled_detail("주당 공개매수가")
   end
 
   defp sec_edgar_tender_quantity_detail(plain) do
     cond do
       plain =~ ~r/\bany and all\b/i ->
-        "Tender quantity: any and all outstanding shares/securities"
+        "공개매수 수량: 발행주식/증권 전부"
 
       quantity =
           sec_edgar_first_capture(
@@ -6272,7 +6272,7 @@ defmodule DisclosureAutomation.Ingestion do
             ],
             plain
           ) ->
-        "Tender quantity: #{quantity} shares/ADSs/units"
+        "공개매수 수량: #{quantity}주/ADS/units"
 
       true ->
         nil
@@ -6290,7 +6290,7 @@ defmodule DisclosureAutomation.Ingestion do
       ~r/(expire|expiration|condition|tendered|withdrawal|minimum condition|closing)/i,
       380
     )
-    |> sec_edgar_labeled_detail("Tender terms")
+    |> sec_edgar_labeled_detail("공개매수 조건")
   end
 
   defp sec_edgar_tender_purpose_detail(plain) do
@@ -6307,7 +6307,7 @@ defmodule DisclosureAutomation.Ingestion do
       ~r/(purpose|acquire|purchase|ownership|going private|business combination|strategic)/i,
       380
     )
-    |> sec_edgar_labeled_detail("Tender purpose")
+    |> sec_edgar_labeled_detail("공개매수 목적")
   end
 
   defp sec_edgar_section_after_any_heading(plain, headings, length) do
