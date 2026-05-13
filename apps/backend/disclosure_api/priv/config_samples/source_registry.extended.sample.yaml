@@ -34,7 +34,7 @@ sources:
       disable_live_fixture_fallback: true
       max_items_per_poll: 50
       live_headers:
-        user-agent: disclosure-automation-phase1 contact@example.com
+        user-agent: disclosure-automation-phase1 suam4597@gmail.com
 
   - source_key: fed_press_releases
     display_name: Federal Reserve Press Releases

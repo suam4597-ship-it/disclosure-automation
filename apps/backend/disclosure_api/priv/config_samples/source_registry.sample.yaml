@@ -50,7 +50,7 @@ sources:
       disable_live_fixture_fallback: true
       max_items_per_poll: 50
       live_headers:
-        user-agent: disclosure-automation-phase1 contact@example.com
+        user-agent: disclosure-automation-phase1 suam4597@gmail.com
 
   - source_key: kr_dart_disclosures
     display_name: Korea DART Disclosures
