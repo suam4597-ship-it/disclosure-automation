@@ -834,6 +834,109 @@ function categoryKey(item, kind, importance) {
   return kind;
 }
 
+const SEC_8K_ITEM_LABELS = {
+  "1.01": "중요 계약 체결",
+  "1.02": "중요 계약 종료",
+  "2.01": "인수/처분 완료",
+  "2.02": "실적 발표",
+  "2.03": "부채 또는 차입",
+  "2.05": "구조조정 비용",
+  "2.06": "자산 손상",
+  "3.01": "상장 기준 미준수",
+  "3.02": "증권 발행",
+  "3.03": "주주권 변동",
+  "4.01": "회계법인 변경",
+  "4.02": "재무제표 신뢰성 문제",
+  "5.01": "지배권 변경",
+  "5.02": "임원/이사회 변경",
+  "5.03": "정관 변경",
+  "5.07": "주주총회 표결 결과",
+  "7.01": "투자자 대상 주요 정보 공개",
+  "8.01": "기타 중요 이벤트",
+  "9.01": "재무제표 또는 첨부자료"
+};
+
+function simpleSummary(item, title, kind, category) {
+  const source = sourceKey(item.source || item.source_key || item.provider).toLowerCase();
+  const rawSummary = cleanText(item.summary || item.description || "");
+  const headline = cleanText(title);
+  const combined = `${headline} ${rawSummary}`.toLowerCase();
+
+  if (source.includes("sec_edgar") || combined.includes("8-k") || combined.includes("item ")) {
+    return secEdgarSummary(headline, rawSummary);
+  }
+
+  if (source.includes("jp_tdnet") || combined.includes("tdnet")) {
+    return tdnetSummary(headline);
+  }
+
+  const patternSummary = disclosurePatternSummary(headline, rawSummary);
+  if (patternSummary) return patternSummary;
+
+  if (rawSummary) return conciseSentence(rawSummary);
+  if (kind === "disclosure") return category === "markets" ? "시장에 영향을 줄 수 있는 상장사 공시입니다." : "상장사가 공개한 최신 공시입니다.";
+  return "시장 흐름을 확인할 수 있는 최신 뉴스입니다.";
+}
+
+function secEdgarSummary(title, rawSummary) {
+  const company = title
+    .replace(/^8-K\s*-\s*/i, "")
+    .replace(/\s*\(\d+\)\s*\(Filer\).*$/i, "")
+    .trim();
+  const codes = unique([...rawSummary.matchAll(/Item\s+([0-9]+\.[0-9]+)/gi)].map(match => match[1]));
+  const primaryCodes = codes.filter(code => code !== "9.01");
+  const labels = (primaryCodes.length ? primaryCodes : codes)
+    .map(code => SEC_8K_ITEM_LABELS[code] || `SEC Item ${code}`)
+    .slice(0, 2);
+
+  if (labels.length) {
+    return `${company || "해당 회사"}의 ${labels.join(", ")} 관련 8-K 공시입니다.`;
+  }
+
+  return `${company || "해당 회사"}가 SEC에 제출한 최신 8-K 공시입니다.`;
+}
+
+function tdnetSummary(title) {
+  const [companyPart, subjectPart] = title.split(/\s+-\s+/, 2);
+  const company = cleanText(companyPart);
+  const subject = cleanText(subjectPart || title);
+
+  if (/決算短信|決算説明|financial results|earnings/i.test(subject)) return `${company}의 실적/결산 발표 공시입니다.`;
+  if (/配当|dividend/i.test(subject)) return `${company}의 배당 관련 공시입니다.`;
+  if (/業績予想|forecast|guidance/i.test(subject)) return `${company}의 실적 전망 관련 공시입니다.`;
+  if (/自己株式|share buyback|treasury/i.test(subject)) return `${company}의 자사주 관련 공시입니다.`;
+  if (/役員|取締役|director|officer|人事/i.test(subject)) return `${company}의 임원/이사회 관련 공시입니다.`;
+  if (/株式取得|acquisition|取得|譲渡/i.test(subject)) return `${company}의 지분 취득 또는 자산 거래 관련 공시입니다.`;
+
+  return `${company || "해당 회사"}의 TDnet 상장사 공시입니다.`;
+}
+
+function disclosurePatternSummary(title, rawSummary) {
+  const text = `${title} ${rawSummary}`.toLowerCase();
+
+  if (/dividend|配当|배당/.test(text)) return "배당 지급 또는 배당 기준일 관련 공시입니다.";
+  if (/appointment|director|officer|auditor|kmp|役員|取締役|감사|임원/.test(text)) return "임원, 이사회 또는 감사인 변경 관련 공시입니다.";
+  if (/investor presentation|presentation|설명자료/.test(text)) return "투자자 설명 자료 또는 IR 관련 공시입니다.";
+  if (/shareholder|general meeting|postal ballot|agm|주주총회/.test(text)) return "주주총회 또는 주주 의사결정 관련 공시입니다.";
+  if (/financial result|earnings|annual report|quarterly|決算|실적|재무/.test(text)) return "실적 또는 재무 결과 관련 공시입니다.";
+  if (/acquisition|disposal|merger|合併|取得|처분|인수/.test(text)) return "인수, 처분 또는 지분 거래 관련 공시입니다.";
+
+  return null;
+}
+
+function cleanText(value) {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function conciseSentence(value) {
+  const text = cleanText(value);
+  if (!text) return "공시 요약이 아직 제공되지 않았습니다.";
+  const sentence = text.split(/(?<=[.!?。])\s+/)[0] || text;
+  return truncate(sentence, 120);
+}
+
 function normalizeItem(item, index) {
   const regions = (Array.isArray(item.regions) && item.regions.length ? item.regions : [item.region_code || item.region || "global"])
     .map(canonicalRegion);
@@ -844,11 +947,12 @@ function normalizeItem(item, index) {
   const kind = itemKind(item);
   const category = categoryKey(item, kind, importance);
   const url = item.canonical_url || item.url || item.link || item.href || "";
+  const title = item.headline || item.title || item.display_title || "Untitled";
 
   return {
     raw: item,
-    title: item.headline || item.title || item.display_title || "Untitled",
-    summary: item.summary || item.description || "요약이 아직 제공되지 않았습니다.",
+    title,
+    summary: simpleSummary(item, title, kind, category),
     source: sourceLabel(item.source || item.source_key || item.provider),
     regions,
     displayRegions,
