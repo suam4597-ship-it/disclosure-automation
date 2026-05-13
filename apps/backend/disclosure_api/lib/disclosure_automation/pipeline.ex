@@ -5467,8 +5467,20 @@ defmodule DisclosureAutomation.Ingestion do
         sec_edgar_item_202_summary(section, record) ||
           sec_edgar_generic_body_summary(section, record)
 
+      Regex.match?(~r/\bItem\s+2\.01\b/i, section) ->
+        sec_edgar_item_201_summary(section, record) ||
+          sec_edgar_generic_body_summary(section, record)
+
+      Regex.match?(~r/\bItem\s+2\.03\b/i, section) ->
+        sec_edgar_item_203_summary(section, record) ||
+          sec_edgar_generic_body_summary(section, record)
+
       Regex.match?(~r/\bItem\s+3\.02\b/i, section) ->
         sec_edgar_item_302_summary(section, record) ||
+          sec_edgar_generic_body_summary(section, record)
+
+      Regex.match?(~r/\bItem\s+5\.01\b/i, section) ->
+        sec_edgar_item_501_summary(section, record) ||
           sec_edgar_generic_body_summary(section, record)
 
       Regex.match?(~r/\bItem\s+5\.02\b/i, section) ->
@@ -5513,6 +5525,29 @@ defmodule DisclosureAutomation.Ingestion do
     sec_edgar_summary_with_details(headline, details)
   end
 
+  defp sec_edgar_item_201_summary(section, record) do
+    issuer = sec_edgar_issuer_name(record, section)
+    transaction = sec_edgar_transaction_label(section)
+    target = sec_edgar_transaction_target(section)
+    counterparty = sec_edgar_transaction_counterparty(section)
+
+    headline =
+      case transaction do
+        nil -> "#{issuer}는 자산 인수 또는 처분 완료 사항을 공시했습니다"
+        label -> "#{issuer}는 #{label} 완료 사항을 공시했습니다"
+      end
+
+    details =
+      [
+        target && "거래 대상은 #{target}",
+        counterparty && "거래 상대방은 #{counterparty}",
+        sec_edgar_first_money_detail(section),
+        sec_edgar_transaction_terms_detail(section)
+      ]
+
+    sec_edgar_summary_with_details(headline, details)
+  end
+
   defp sec_edgar_item_202_summary(section, record) do
     issuer = sec_edgar_issuer_name(record, section)
     period = sec_edgar_results_period(section)
@@ -5534,6 +5569,28 @@ defmodule DisclosureAutomation.Ingestion do
         sec_edgar_net_income_detail(section),
         sec_edgar_eps_detail(section),
         sec_edgar_earnings_release_detail(section)
+      ]
+
+    sec_edgar_summary_with_details(headline, details)
+  end
+
+  defp sec_edgar_item_203_summary(section, record) do
+    issuer = sec_edgar_issuer_name(record, section)
+    contract = sec_edgar_debt_contract_label(section)
+
+    headline =
+      if contract do
+        "#{issuer}는 #{contract}에 따른 직접 금융부채 또는 부외부채 발생을 공시했습니다"
+      else
+        "#{issuer}는 직접 금융부채 또는 부외부채 발생을 공시했습니다"
+      end
+
+    details =
+      [
+        sec_edgar_debt_amount_detail(section),
+        sec_edgar_interest_rate_detail(section),
+        sec_edgar_maturity_detail(section),
+        sec_edgar_debt_security_detail(section)
       ]
 
     sec_edgar_summary_with_details(headline, details)
@@ -5581,6 +5638,33 @@ defmodule DisclosureAutomation.Ingestion do
       true ->
         nil
     end
+  end
+
+  defp sec_edgar_item_501_summary(section, record) do
+    issuer = sec_edgar_issuer_name(record, section)
+    acquirer = sec_edgar_control_acquirer(section)
+    mechanism = sec_edgar_control_mechanism(section)
+
+    headline =
+      cond do
+        acquirer && mechanism ->
+          "#{issuer}는 #{mechanism}을 통해 지배권이 #{acquirer}에게 이전됐다고 공시했습니다"
+
+        acquirer ->
+          "#{issuer}는 지배권이 #{acquirer}에게 이전됐다고 공시했습니다"
+
+        true ->
+          "#{issuer}는 지배권 변경 사항을 공시했습니다"
+      end
+
+    details =
+      [
+        sec_edgar_control_percentage_detail(section),
+        sec_edgar_control_consideration_detail(section),
+        sec_edgar_control_terms_detail(section)
+      ]
+
+    sec_edgar_summary_with_details(headline, details)
   end
 
   defp sec_edgar_item_502_summary(section, record) do
@@ -5727,6 +5811,198 @@ defmodule DisclosureAutomation.Ingestion do
     end
   end
 
+  defp sec_edgar_transaction_label(section) do
+    cond do
+      section =~ ~r/business combination|merger/i ->
+        "사업결합 또는 합병 거래"
+
+      section =~ ~r/acquisition|acquired|purchase of/i ->
+        "자산 또는 사업 인수 거래"
+
+      section =~ ~r/disposition|divestiture|sale of|sold substantially/i ->
+        "자산 또는 사업 처분 거래"
+
+      true ->
+        nil
+    end
+  end
+
+  defp sec_edgar_transaction_target(section) do
+    [
+      ~r/(?:acquisition|purchase)\s+of\s+([^.;]+?)(?:,|\sfrom\s|\sfor\s|\.|$)/i,
+      ~r/(?:sale|disposition|divestiture)\s+of\s+([^.;]+?)(?:,|\sto\s|\sfor\s|\.|$)/i,
+      ~r/(?:merged\s+with|business combination\s+with)\s+([^.;]+?)(?:,|\.|$)/i
+    ]
+    |> sec_edgar_first_capture(section)
+  end
+
+  defp sec_edgar_transaction_counterparty(section) do
+    sec_edgar_counterparty(section) ||
+      [
+        ~r/(?:acquisition|purchase)[^.]{0,180}?\s+from\s+([^.;]+?)(?:,|\sfor\s|\.|$)/i,
+        ~r/(?:sale|disposition|divestiture)[^.]{0,180}?\s+to\s+([^.;]+?)(?:,|\sfor\s|\.|$)/i,
+        ~r/(?:merger|business combination)[^.]{0,180}?\s+with\s+([^.;]+?)(?:,|\.|$)/i
+      ]
+      |> sec_edgar_first_capture(section)
+  end
+
+  defp sec_edgar_transaction_terms_detail(section) do
+    cond do
+      section =~ ~r/cash consideration|cash purchase price|paid in cash/i ->
+        "거래 조건에는 현금 대가가 포함됨"
+
+      section =~ ~r/stock consideration|shares of common stock|equity consideration/i ->
+        "거래 조건에는 주식 또는 지분 대가가 포함됨"
+
+      section =~ ~r/subject to customary closing conditions|closing conditions/i ->
+        "거래는 통상적인 종결 조건을 전제로 함"
+
+      true ->
+        nil
+    end
+  end
+
+  defp sec_edgar_debt_contract_label(section) do
+    cond do
+      section =~ ~r/revolving credit agreement|revolving credit facility/i ->
+        "회전 신용공여 계약"
+
+      section =~ ~r/credit agreement|credit facility/i ->
+        "신용공여 계약"
+
+      section =~ ~r/loan agreement|term loan/i ->
+        "대출계약"
+
+      section =~ ~r/indenture|supplemental indenture/i ->
+        "사채 발행 관련 신탁계약"
+
+      section =~ ~r/note purchase agreement|promissory note/i ->
+        "어음 또는 노트 매입계약"
+
+      section =~ ~r/convertible notes?|senior notes?|debentures/i ->
+        "전환사채, 선순위채 또는 회사채 계약"
+
+      true ->
+        nil
+    end
+  end
+
+  defp sec_edgar_debt_amount_detail(section) do
+    case Regex.run(
+           ~r/(?:principal amount|aggregate principal amount|commitment|facility)[^$]{0,120}\$([\d,.]+)\s*(million|billion)?/i,
+           section
+         ) do
+      [_match, amount, scale] ->
+        "계약 또는 부채 규모는 #{sec_edgar_money_label(amount, scale)}"
+
+      [_match, amount] ->
+        "계약 또는 부채 규모는 #{sec_edgar_money_label(amount, nil)}"
+
+      _match ->
+        sec_edgar_first_money_detail(section)
+    end
+  end
+
+  defp sec_edgar_interest_rate_detail(section) do
+    case Regex.run(~r/(?:interest|bears interest)[^.]{0,100}?(\d+(?:\.\d+)?)%/i, section) do
+      [_match, rate] -> "이자율은 #{rate}%로 언급됨"
+      _match -> nil
+    end
+  end
+
+  defp sec_edgar_maturity_detail(section) do
+    case Regex.run(
+           ~r/(?:maturity date|matures|due)[^.]{0,80}?(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2}),\s+(\d{4})/i,
+           section
+         ) do
+      [_match, month, day, year] ->
+        "만기 또는 상환 예정일은 #{year}년 #{sec_edgar_month_number(month)}월 #{day}일"
+
+      _match ->
+        nil
+    end
+  end
+
+  defp sec_edgar_debt_security_detail(section) do
+    cond do
+      section =~ ~r/secured by|collateral/i ->
+        "담보 또는 collateral 조건이 언급됨"
+
+      section =~ ~r/unsecured/i ->
+        "무담보 조건이 언급됨"
+
+      section =~ ~r/covenants|financial covenant/i ->
+        "재무약정 또는 covenant 조건이 언급됨"
+
+      true ->
+        nil
+    end
+  end
+
+  defp sec_edgar_control_acquirer(section) do
+    [
+      ~r/(?:control|controlling interest)[^.]{0,160}?\s+(?:was|were)?\s*(?:acquired by|transferred to|obtained by)\s+([^.;]+?)(?:,|\.|$)/i,
+      ~r/([^.;]+?)\s+(?:acquired|obtained)\s+(?:control|a controlling interest)[^.]{0,80}(?:,|\.|$)/i,
+      ~r/(?:became|become)\s+the\s+beneficial\s+owner[^.]{0,180}?\s+of\s+([^.;]+?)(?:,|\.|$)/i
+    ]
+    |> sec_edgar_first_capture(section)
+  end
+
+  defp sec_edgar_control_mechanism(section) do
+    cond do
+      section =~ ~r/stock purchase agreement|share purchase agreement/i ->
+        "주식매매계약"
+
+      section =~ ~r/voting agreement|voting power|proxy/i ->
+        "의결권 또는 위임계약"
+
+      section =~ ~r/tender offer/i ->
+        "공개매수"
+
+      section =~ ~r/merger|business combination/i ->
+        "합병 또는 사업결합"
+
+      section =~ ~r/private placement|securities purchase agreement/i ->
+        "사모 발행 또는 증권매매계약"
+
+      true ->
+        nil
+    end
+  end
+
+  defp sec_edgar_control_percentage_detail(section) do
+    case Regex.run(
+           ~r/(\d+(?:\.\d+)?)%\s+(?:of\s+)?(?:the\s+)?(?:voting power|outstanding|common stock|equity)/i,
+           section
+         ) do
+      [_match, percent] -> "변경 후 지분 또는 의결권 비율은 #{percent}%로 언급됨"
+      _match -> nil
+    end
+  end
+
+  defp sec_edgar_control_consideration_detail(section) do
+    case sec_edgar_first_money_detail(section) do
+      nil -> nil
+      value -> String.replace(value, "본문에 언급된 금액/규모는", "거래 대가 또는 관련 금액은")
+    end
+  end
+
+  defp sec_edgar_control_terms_detail(section) do
+    cond do
+      section =~ ~r/board of directors|director designee|nominate/i ->
+        "이사회 구성 또는 지명권 변화가 언급됨"
+
+      section =~ ~r/rights agreement|shareholder agreement|stockholders agreement/i ->
+        "주주권리 또는 주주계약 조건이 언급됨"
+
+      section =~ ~r/change in control/i ->
+        "본문이 명시적으로 change in control을 언급함"
+
+      true ->
+        nil
+    end
+  end
+
   defp sec_edgar_results_period(section) do
     case Regex.run(
            ~r/\b(quarter|three months|six months|nine months|year|fiscal year)[^.]{0,90}?ended\s+(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2}),\s+(\d{4})/i,
@@ -5860,6 +6136,26 @@ defmodule DisclosureAutomation.Ingestion do
       [_match, amount] -> "본문에 언급된 금액/규모는 #{sec_edgar_money_label(amount, nil)}"
       _match -> nil
     end
+  end
+
+  defp sec_edgar_first_capture(patterns, section) when is_list(patterns) do
+    patterns
+    |> Enum.find_value(fn pattern ->
+      case Regex.run(pattern, section) do
+        [_match, value] ->
+          value
+          |> sec_edgar_clean_phrase()
+          |> String.slice(0, 140)
+          |> String.trim()
+          |> case do
+            "" -> nil
+            cleaned -> cleaned
+          end
+
+        _match ->
+          nil
+      end
+    end)
   end
 
   defp sec_edgar_clean_phrase(value) do
