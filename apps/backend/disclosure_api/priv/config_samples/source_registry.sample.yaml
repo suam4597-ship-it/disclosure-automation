@@ -54,6 +54,37 @@ sources:
       live_headers:
         user-agent: disclosure-automation-phase1 suam4597@gmail.com
 
+  - source_key: sec_edgar_form4_clustered_insider_buys
+    display_name: SEC EDGAR Form 4 Clustered Insider Buys
+    source_type: atom
+    base_url: "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=4&owner=include&count=100&output=atom"
+    healthcheck_url: https://www.sec.gov/edgar
+    parser_key: rss_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.5
+    coverage_tags:
+      - us
+      - disclosure
+      - filing
+      - sec_edgar
+      - form4
+      - insider_buy
+      - markets
+    active: true
+    config:
+      canonical_domain: sec.gov
+      dedupe_strategy: issuer_week_cluster
+      summary_mode: insider_buy_cluster
+      category_bias: insider_buy_cluster
+      disable_live_fixture_fallback: true
+      max_items_per_poll: 100
+      detail_fetch_limit: 60
+      detail_fetch_timeout_ms: 8000
+      cluster_window_days: 7
+      cluster_min_reporting_owners: 3
+      live_headers:
+        user-agent: disclosure-automation-phase1 suam4597@gmail.com
+
   - source_key: kr_dart_disclosures
     display_name: Korea DART Disclosures
     source_type: rss
