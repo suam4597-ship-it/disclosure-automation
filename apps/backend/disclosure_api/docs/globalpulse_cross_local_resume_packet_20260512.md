@@ -189,7 +189,8 @@ Phase 1 backend trace: success
 #613 recorded the refreshed public digest diversity with non-India rows visible in the latest top-N digest.
 #614 refreshed the handoff docs after the mapping/digest updates.
 #621 recorded the latest scheduled staging rollup through SEC, EU canary, HKEX, India NSE, and Denmark DFSA OAM runs.
-Post-rollup EU canary observation recorded failed run 25753561055 where Belgium FSMA returned fixture mode, followed by recovery run 25763799894 where Belgium FSMA returned live/200.
+#622 recorded post-rollup EU canary run 25753561055 where Belgium FSMA returned fixture mode, followed by recovery run 25763799894 where Belgium FSMA returned live/200; it also added disable_live_fixture_fallback=true for eu_belgium_fsma_stori.
+Post-rollup HKEX/India scheduled observation recorded HKEX run 25767950060 and India NSE run 25768648399 as live/200 scheduled staging passes.
 #277 through #311 and #2 through #20 were closed as superseded stale/historical PRs; see globalpulse_stale_stacked_pr_cleanup_20260512.md.
 #1 remains open as the separate phase0-foundation to main integration decision.
 ```
@@ -212,12 +213,12 @@ Recommended order:
 2. Wait for the next scheduled public web smoke or staging source poll run.
 3. Record the run result only if it is a real run with matching workflow/source evidence.
 4. Continue scheduled observation windows for HKEX, EU canary, Denmark DFSA OAM, India NSE, and SEC hourly.
-5. HKEX has reached 8 observed successful scheduled staging runs through run `25743490299`; a later scheduled HKEX run `25767950060` has also been observed as live/200 and should be recorded in the next rollup.
-6. India NSE has 7 inspected recent successful scheduled staging runs through run `25744353562`; a later scheduled India run `25768648399` has also been observed as live/200 and should be recorded in the next rollup.
+5. HKEX has reached 9 observed successful scheduled staging runs through run `25767950060`; continue toward the 7-day / 10 successful run gate.
+6. India NSE has 8 inspected recent successful scheduled staging runs through run `25768648399`; continue the 7-day observation window and final scheduled run summary.
 7. EU canary later-run observation includes the post-rollup Belgium FSMA fixture fallback failure `25753561055` and recovery pass `25763799894`; keep the first EU canary list unchanged unless a dedicated PR says otherwise.
 8. Denmark DFSA OAM later scheduled observation is recorded through run `25730389870`; keep it staging-only and inactive.
 9. Latest scheduled staging rollup is recorded through runs `25741580440`, `25742257297`, `25743490299`, `25744353562`, and `25744795173`.
-10. Belgium FSMA source config is being hardened with `disable_live_fixture_fallback=true` so scheduled live canary failures do not insert fixture-backed outputs.
+10. Belgium FSMA source config has `disable_live_fixture_fallback=true` so scheduled live canary failures do not insert fixture-backed outputs.
 11. If #561/#565 receive approved production values, prepare a production config/smoke PR using the existing templates.
 12. If no approval values exist, keep working on staging-only observation, docs, and source evidence.
 ```

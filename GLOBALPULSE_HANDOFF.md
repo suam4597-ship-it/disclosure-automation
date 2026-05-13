@@ -164,6 +164,12 @@ For the post-rollup EU canary Belgium fixture fallback and recovery observation,
 apps/backend/disclosure_api/docs/globalpulse_eu_canary_belgium_fixture_fallback_recovery_20260513.md
 ```
 
+For the HKEX and India post-rollup scheduled observation, read:
+
+```text
+apps/backend/disclosure_api/docs/globalpulse_hkex_india_post_rollup_scheduled_observation_20260513.md
+```
+
 For the India NSE interim scheduled observation, read:
 
 ```text
@@ -394,7 +400,8 @@ post-rollup EU canary Belgium fixture fallback: run 25753561055 failed as expect
 post-rollup EU canary recovery: run 25763799894 passed, eu_belgium_fsma_stori recovered to live/200
 Belgium FSMA source-config hardening: disable_live_fixture_fallback=true added for scheduled live canary safety
 HKEX first automated scheduled staging run: pass, run 25684138207
-HKEX scheduled staging observation: 8/10 successful run gate, latest run 25743490299
+HKEX scheduled staging observation: 9/10 successful run gate, latest recorded run 25767950060
+India NSE post-rollup scheduled observation: pass, latest recorded run 25768648399; inspected recent scheduled run count advanced to 8
 public Pages smoke: 200
 public config smoke: 200
 Fly staging health: 200 ok
