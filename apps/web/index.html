@@ -1120,7 +1120,8 @@ function localizeSecSummaryText(rawText) {
 }
 
 function detailSummaryLines(item) {
-  const localized = localizeSecSummaryText(detailNarrative(item));
+  const localized = localizeSecSummaryText(detailNarrative(item))
+    .replace(/\.\s+(기관|신호|CUSIP|현재 13F 평가액|전략 업데이트|파트너십|가이던스\/전망|수주\/백로그|고객\/수주|공급\/오프테이크|최소 약정|독점\/우선공급 조건|계약 기간|상대방):/g, "; $1:");
   if (!localized) return [];
   return localized.split(/\s*;\s*/).map(part => cleanText(part)).filter(Boolean);
 }
