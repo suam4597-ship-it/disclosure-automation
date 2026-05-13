@@ -870,10 +870,25 @@ function simpleSummary(item, title, kind, category) {
     return tdnetSummary(headline);
   }
 
+  if (source.includes("hkex_latest")) {
+    return hkexSummary(headline, rawSummary);
+  }
+
+  if (source.includes("tw_mops")) {
+    return taiwanMopsSummary(headline, rawSummary);
+  }
+
+  if (source.includes("india_nse")) {
+    return indiaNseSummary(headline, rawSummary);
+  }
+
+  if (isEuropeSource(source, item)) {
+    return europeSummary(headline, rawSummary, item);
+  }
+
   const patternSummary = disclosurePatternSummary(headline, rawSummary);
   if (patternSummary) return patternSummary;
 
-  if (rawSummary) return conciseSentence(rawSummary);
   if (kind === "disclosure") return category === "markets" ? "시장에 영향을 줄 수 있는 상장사 공시입니다." : "상장사가 공개한 최신 공시입니다.";
   return "시장 흐름을 확인할 수 있는 최신 뉴스입니다.";
 }
@@ -911,6 +926,88 @@ function tdnetSummary(title) {
   return `${company || "해당 회사"}의 TDnet 상장사 공시입니다.`;
 }
 
+function hkexSummary(title, rawSummary) {
+  const issuer = issuerFromSummary(rawSummary) || companyFromTitle(title);
+  const topic = textAfter(rawSummary, "Category:") || title;
+  const text = `${title} ${topic}`.toLowerCase();
+
+  if (/profit warning|positive profit|inside information|trading/.test(text)) return `${issuer}의 실적 전망 또는 내부정보 관련 홍콩거래소 공시입니다.`;
+  if (/connected transaction/.test(text)) return `${issuer}의 특수관계자 거래 관련 홍콩거래소 공시입니다.`;
+  if (/change in directors|list of directors|director/.test(text)) return `${issuer}의 이사회 또는 임원 구성 관련 홍콩거래소 공시입니다.`;
+  if (/change in auditors|auditor/.test(text)) return `${issuer}의 감사인 변경 관련 홍콩거래소 공시입니다.`;
+  if (/notice of egm|notice of agm|general meeting|proxy forms|form of proxy/.test(text)) return `${issuer}의 주주총회 또는 위임장 관련 홍콩거래소 공시입니다.`;
+  if (/circular|notification letter|documents on display/.test(text)) return `${issuer}의 주주 안내문 또는 참고문서 공시입니다.`;
+  if (/overseas regulatory announcement/.test(text)) return `${issuer}의 해외 규제 공시 또는 참고 공시입니다.`;
+  if (/constitutional documents|amendment/.test(text)) return `${issuer}의 정관 또는 회사 문서 변경 관련 공시입니다.`;
+
+  return `${issuer}의 홍콩거래소 상장사 공시입니다.`;
+}
+
+function taiwanMopsSummary(title, rawSummary) {
+  const company = issuerFromSummary(rawSummary) || companyFromTitle(title);
+  const text = `${title} ${rawSummary}`.toLowerCase();
+
+  if (/澄清|clarif/.test(text)) return `${company}의 언론 보도 해명 또는 정정 관련 대만 MOPS 공시입니다.`;
+  if (/解除|終止|termination|cancel/.test(text)) return `${company}의 계약 해지 또는 거래 조건 변경 관련 대만 MOPS 공시입니다.`;
+  if (/股權|acquisition|transfer|取得|讓與/.test(text)) return `${company}의 지분 거래 또는 자산 거래 관련 대만 MOPS 공시입니다.`;
+
+  return `${company}의 중요사항 관련 대만 MOPS 공시입니다.`;
+}
+
+function indiaNseSummary(title, rawSummary) {
+  const company = companyFromTitle(title);
+  const subject = subjectFromSummary(rawSummary);
+  const text = `${title} ${rawSummary} ${subject}`.toLowerCase();
+
+  if (/newspaper publication/.test(text)) return `${company}의 신문 공고 게재 관련 NSE 공시입니다.`;
+  if (/resignation|appointment|director|kmp|smp|auditor|rta|secretarial auditor|cost auditor|tax and gst auditor/.test(text)) return `${company}의 임원, KMP 또는 감사인 변경 관련 NSE 공시입니다.`;
+  if (/press release/.test(text) && /financial results|audited|quarter|year ended/.test(text)) return `${company}의 실적 발표 보도자료 관련 NSE 공시입니다.`;
+  if (/press release/.test(text)) return `${company}의 보도자료 공개 관련 NSE 공시입니다.`;
+  if (/annual disclosure/.test(text)) return `${company}의 연례 공시 자료 제출 관련 NSE 공시입니다.`;
+  if (/credit rating|rating/.test(text)) return `${company}의 신용등급 변경 또는 평가 관련 NSE 공시입니다.`;
+  if (/product launch|launch of product/.test(text)) return `${company}의 신제품 출시 관련 NSE 공시입니다.`;
+  if (/investor presentation|analysts|institutional investor|con\. call|recording|schedule of meet/.test(text)) return `${company}의 IR 자료 또는 투자자 미팅 관련 NSE 공시입니다.`;
+  if (/acquisition|completion|merger|sale|disposal/.test(text)) return `${company}의 인수, 매각 또는 거래 완료 관련 NSE 공시입니다.`;
+  if (/corrigendum/.test(text)) return `${company}의 기존 공시 정정 관련 NSE 공시입니다.`;
+  if (/dividend|record date/.test(text)) return `${company}의 배당 또는 기준일 관련 NSE 공시입니다.`;
+  if (/shareholders meeting|postal ballot|general meeting|agm/.test(text)) return `${company}의 주주총회 또는 주주 의사결정 관련 NSE 공시입니다.`;
+  if (/monitoring agency report|ipo proceeds/.test(text)) return `${company}의 IPO 자금 사용 점검 보고 관련 NSE 공시입니다.`;
+  if (/regulation 30|general updates|updates/.test(text)) return `${company}의 일반 업데이트 또는 규정상 수시공시입니다.`;
+
+  return `${company}의 NSE 상장사 공시입니다.`;
+}
+
+function europeSummary(title, rawSummary, item) {
+  const source = sourceKey(item.source || item.source_key || item.provider).toLowerCase();
+  const issuer = issuerFromSummary(rawSummary) || companyFromTitle(title);
+  const category = cleanText(item.metadata?.category || textAfter(rawSummary, "Category:"));
+  const disclosure = cleanText(textAfter(rawSummary, "Disclosure:"));
+  const topic = `${title} ${rawSummary} ${category} ${disclosure}`.toLowerCase();
+
+  if (/annual financial report|annual report|quarterly information|financial statements|operating revenues|operating profit|strong profitability|rapport annuel/.test(topic)) return `${issuer}의 실적 또는 재무보고 관련 유럽 공시입니다.`;
+  if (/final terms|covered bond|new bonds|notes due|bond issue|issuance of new bonds|issue size|senior secured/.test(topic)) return `${issuer}의 채권 또는 증권 발행 조건 관련 유럽 공시입니다.`;
+  if (/own shares|share buyback|rachat|acquisition or disposal of the issuer/.test(topic)) return `${issuer}의 자사주 취득 또는 처분 관련 유럽 공시입니다.`;
+  if (/dividend/.test(topic)) return `${issuer}의 배당 지급 또는 배당 절차 관련 유럽 공시입니다.`;
+  if (/capital increase|warrant exercise/.test(topic)) return `${issuer}의 자본금 증가 또는 워런트 행사 관련 유럽 공시입니다.`;
+  if (/general meeting|extraordinary general meeting|notice of.*meeting|written resolution|agm|egm/.test(topic)) return `${issuer}의 주주총회 또는 서면결의 관련 유럽 공시입니다.`;
+  if (/share investment program|share options|option grants/.test(topic)) return `${issuer}의 임직원 주식보상 또는 옵션 부여 관련 유럽 공시입니다.`;
+  if (/form 8\.3|form 8\.5|holding\(s\)|public offer|ofertas públicas/.test(topic)) return `${issuer}의 지분 보유 또는 공개매수 관련 유럽 공시입니다.`;
+  if (/rating upgrade|ratings by one notch|calificaciones crediticias|fitch|dbrs/.test(topic)) return `${issuer}의 신용등급 변경 관련 유럽 공시입니다.`;
+  if (/strategic partnership|partnership/.test(topic)) return `${issuer}의 전략적 제휴 또는 사업 협력 관련 유럽 공시입니다.`;
+  if (/acquisition|sold|disposal|completion|merger|fusiones|adquisiciones|cessão|cession/.test(topic)) return `${issuer}의 인수, 매각 또는 자산 거래 관련 유럽 공시입니다.`;
+  if (/voting rights|capital|derechos de voto|article 223-16/.test(topic)) return `${issuer}의 의결권 또는 자본 현황 관련 유럽 공시입니다.`;
+  if (/rule based parameter adjustment|official notice/.test(topic)) return `${issuer}의 상장 상품 조건 또는 거래소 공식 공지입니다.`;
+  if (/inside information|material information|regulated information|informacion privilegiada|información privilegiada/.test(topic)) return `${issuer}의 내부정보 또는 중요정보 관련 유럽 공시입니다.`;
+  if (source.includes("fca_nsm")) return `${issuer}의 영국 FCA NSM 규제공시입니다.`;
+  if (source.includes("cmvm")) return `${issuer}의 포르투갈 CMVM 중요정보 공시입니다.`;
+  if (source.includes("cnmv")) return `${issuer}의 스페인 CNMV 중요정보 공시입니다.`;
+  if (source.includes("fsma")) return `${issuer}의 벨기에 FSMA 규제정보 공시입니다.`;
+  if (source.includes("dfsa")) return `${issuer}의 덴마크 DFSA OAM 회사공시입니다.`;
+  if (source.includes("euronext")) return `${issuer}의 Euronext 상장사 공시입니다.`;
+
+  return `${issuer}의 유럽 상장사 공시입니다.`;
+}
+
 function disclosurePatternSummary(title, rawSummary) {
   const text = `${title} ${rawSummary}`.toLowerCase();
 
@@ -920,8 +1017,57 @@ function disclosurePatternSummary(title, rawSummary) {
   if (/shareholder|general meeting|postal ballot|agm|주주총회/.test(text)) return "주주총회 또는 주주 의사결정 관련 공시입니다.";
   if (/financial result|earnings|annual report|quarterly|決算|실적|재무/.test(text)) return "실적 또는 재무 결과 관련 공시입니다.";
   if (/acquisition|disposal|merger|合併|取得|처분|인수/.test(text)) return "인수, 처분 또는 지분 거래 관련 공시입니다.";
+  if (/credit rating|rating upgrade|신용/.test(text)) return "신용등급 변경 또는 평가 관련 공시입니다.";
+  if (/bond|notes|final terms|채권/.test(text)) return "채권 또는 증권 발행 조건 관련 공시입니다.";
 
   return null;
+}
+
+function isEuropeSource(source, item) {
+  const regions = item.regions || [];
+  const tags = item.metadata?.coverage_tags || item.coverage_tags || [];
+  const haystack = [source, ...regions, ...tags].join(" ").toLowerCase();
+  return /\beu\b|europe|euronext|fca|cnmv|cmvm|fsma|dfsa|six|france|spain|portugal|belgium|denmark|switzerland|uk/.test(haystack);
+}
+
+function issuerFromSummary(rawSummary) {
+  const issuer = rawSummary.match(/\bIssuer:\s*([^|]+)/i)?.[1] ||
+    rawSummary.match(/\bCompany:\s*([^|]+)/i)?.[1] ||
+    rawSummary.match(/^([^|]+?)\s+-\s+/)?.[1];
+
+  return issuer ? cleanIssuer(issuer) : "";
+}
+
+function subjectFromSummary(rawSummary) {
+  return cleanText(rawSummary.match(/\|SUBJECT:\s*([^|]+)/i)?.[1] || "");
+}
+
+function textAfter(value, label) {
+  const index = String(value || "").toLowerCase().indexOf(label.toLowerCase());
+  if (index === -1) return "";
+  return cleanText(String(value).slice(index + label.length).split("|")[0]);
+}
+
+function companyFromTitle(title) {
+  const cleaned = cleanText(title)
+    .replace(/^8-K\s*-\s*/i, "")
+    .replace(/\s*\(\d+\)\s*\(Filer\).*$/i, "");
+  const parts = cleaned.split(/\s+-\s+/).map(cleanText).filter(Boolean);
+
+  if (parts.length >= 2 && /^\d{3,6}[A-Z]*$/i.test(parts[0])) return cleanIssuer(parts[1]);
+  if (parts.length >= 2) return cleanIssuer(parts[0]);
+
+  const colonParts = cleaned.split(/\s*:\s+/).map(cleanText).filter(Boolean);
+  if (colonParts.length >= 2 && colonParts[0].length <= 40) return cleanIssuer(colonParts[0]);
+
+  return cleanIssuer(parts[0] || cleaned || "해당 회사");
+}
+
+function cleanIssuer(value) {
+  return cleanText(value || "해당 회사")
+    .replace(/\s+/g, " ")
+    .replace(/\s*;\s*$/, "")
+    .trim() || "해당 회사";
 }
 
 function cleanText(value) {
