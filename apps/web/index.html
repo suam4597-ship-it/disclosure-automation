@@ -119,6 +119,9 @@
       font-size: 13px;
     }
 
+    a.chip { display: inline-flex; align-items: center; }
+    a.chip:hover, a.chip.active { border-color: rgba(59, 130, 246, 0.6); color: #bfdbfe; background: rgba(59, 130, 246, 0.12); }
+
     .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 7px; }
     .done { background: var(--muted); }
     .live { background: var(--green); }
@@ -154,6 +157,32 @@
     }
 
     .insight strong { color: #93c5fd; }
+    .region-page {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 24px;
+      padding: 16px 24px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+
+    .region-page.open { display: flex; }
+    .region-page h2 { margin: 0; font-size: 20px; letter-spacing: -0.02em; }
+    .region-page p { margin: 2px 0 0; color: var(--sub); font-size: 13px; }
+    .back-link, .region-link {
+      border: 1px solid rgba(59, 130, 246, 0.45);
+      border-radius: 999px;
+      padding: 4px 10px;
+      color: #93c5fd;
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .region-link:hover, .back-link:hover { background: rgba(59, 130, 246, 0.12); }
     .grid { display: grid; grid-template-columns: minmax(0, 61.8%) minmax(320px, 1fr); gap: 40px; }
     .feed { display: flex; flex-direction: column; gap: 24px; }
     .region, .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
@@ -279,6 +308,7 @@
       <span>[LIVE]</span>
       <span>백엔드 digest를 불러와 지역별 공시와 뉴스를 <strong>중요도 순</strong>으로 정리합니다.</span>
     </div>
+    <div class="region-page" id="regionDetailHeader"></div>
 
     <div class="grid">
       <section class="feed" id="feed"></section>
@@ -408,14 +438,10 @@ const REGION_ORDER = window.GLOBALPULSE_REGION_ORDER || [
   "india",
   "anz",
   "eu",
-  "eu_north",
-  "eu_central",
-  "eu_south",
-  "uk",
-  "ch",
-  "tr",
   "other"
 ];
+
+const EUROPE_DISPLAY_REGIONS = new Set(["eu", "eu_north", "eu_central", "eu_south", "uk", "ch", "tr"]);
 const FILTERS = [
   ["all", "전체"],
   ["disclosure", "공시"],
@@ -430,12 +456,12 @@ const TAG_LABELS = {
   us: "미국",
   americas: "미국",
   eu: "유럽",
-  eu_north: "북유럽",
-  eu_central: "중부 유럽",
-  eu_south: "남유럽",
-  uk: "영국",
-  ch: "스위스",
-  tr: "튀르키예",
+  eu_north: "유럽",
+  eu_central: "유럽",
+  eu_south: "유럽",
+  uk: "유럽",
+  ch: "유럽",
+  tr: "유럽",
   kr: "한국",
   jp: "일본",
   greater_china: "중국/대만",
@@ -540,6 +566,40 @@ function apiBaseUrl() {
 
 const API_BASE_URL = apiBaseUrl();
 
+function digestEdition() {
+  return new URLSearchParams(location.search).get("edition") || "breaking";
+}
+
+function selectedRegionFromUrl() {
+  const region = new URLSearchParams(location.search).get("region");
+  return region ? displayRegion(canonicalRegion(region)) : null;
+}
+
+function regionPageUrl(region) {
+  const url = new URL(location.href);
+  url.searchParams.set("region", displayRegion(region));
+  url.searchParams.set("edition", digestEdition());
+  return `${url.pathname}${url.search}${url.hash}`;
+}
+
+function dashboardUrl() {
+  const url = new URL(location.href);
+  url.searchParams.delete("region");
+  return `${url.pathname}${url.search}${url.hash}`;
+}
+
+function digestPath() {
+  const params = new URLSearchParams({ edition: digestEdition() });
+  const region = selectedRegionFromUrl();
+
+  if (region) {
+    params.set("region", region);
+    params.set("limit", "100");
+  }
+
+  return `/api/feed/digest/latest?${params.toString()}`;
+}
+
 function setOperatorLink() {
   const link = document.getElementById("operator-source-health-link");
   link.href = `${API_BASE_URL || location.origin}/api/admin/source-health`;
@@ -589,8 +649,13 @@ function canonicalRegion(value) {
   return REGION_LABELS[raw] ? raw : "other";
 }
 
+function displayRegion(value) {
+  const region = canonicalRegion(value);
+  return EUROPE_DISPLAY_REGIONS.has(region) ? "eu" : region;
+}
+
 function regionLabel(code) {
-  return REGION_LABELS[code] || "기타 지역";
+  return REGION_LABELS[displayRegion(code)] || "기타 지역";
 }
 
 function itemKind(item) {
@@ -626,6 +691,7 @@ function categoryKey(item, kind, importance) {
 function normalizeItem(item, index) {
   const regions = (Array.isArray(item.regions) && item.regions.length ? item.regions : [item.region_code || item.region || "global"])
     .map(canonicalRegion);
+  const displayRegions = unique(regions.map(displayRegion));
   const relevance = Number(item.relevance_score ?? item.importance_score ?? item.score ?? 0);
   const importance = Math.round((relevance <= 1 ? relevance * 100 : relevance) || 0);
   const priority = Number(item.priority_rank ?? item.priority ?? index + 1);
@@ -638,7 +704,8 @@ function normalizeItem(item, index) {
     summary: item.summary || item.description || "요약이 아직 제공되지 않았습니다.",
     source: sourceLabel(item.source || item.source_key || item.provider),
     regions,
-    primaryRegion: regions[0] || "global",
+    displayRegions,
+    primaryRegion: displayRegions[0] || "global",
     relevance: Number.isFinite(relevance) ? relevance : 0,
     importance,
     priority,
@@ -681,6 +748,12 @@ function filterItems(items) {
   if (currentFilter === "all") return items;
   if (currentFilter === "high") return items.filter(item => item.importance >= 85 || item.category === "high");
   return items.filter(item => item.kind === currentFilter || item.category === currentFilter);
+}
+
+function regionScopedItems(items) {
+  const region = selectedRegionFromUrl();
+  if (!region) return items;
+  return items.filter(item => item.displayRegions.includes(region));
 }
 
 function groupedByRegion(items) {
@@ -726,16 +799,17 @@ function switchTab(key) {
 
 function renderStatusRail(items, mode) {
   const groups = groupedByRegion(items);
+  const selected = selectedRegionFromUrl();
   const chips = groups.map(([region, values]) => {
     const avg = average(values.map(item => item.importance));
-    return `<span class="chip"><i class="dot live"></i>${escapeHtml(regionLabel(region))} <span class="time">${values.length}건 / 평균 ${avg}</span></span>`;
+    return `<a class="chip ${selected === region ? "active" : ""}" href="${escapeHtml(regionPageUrl(region))}"><i class="dot live"></i>${escapeHtml(regionLabel(region))} <span class="time">${values.length}건 / 평균 ${avg}</span></a>`;
   });
 
   if (!chips.length) {
     chips.push(`<span class="chip"><i class="dot pending"></i>표시할 백엔드 항목 없음</span>`);
   }
 
-  chips.unshift(`<span class="chip"><i class="dot ${mode === "backend" ? "live" : "pending"}"></i>${mode === "backend" ? "백엔드 digest 연결됨" : "정적 데모 모드"}</span>`);
+  chips.unshift(`<a class="chip ${selected ? "" : "active"}" href="${escapeHtml(dashboardUrl())}"><i class="dot ${mode === "backend" ? "live" : "pending"}"></i>${mode === "backend" ? "백엔드 digest 연결됨" : "정적 데모 모드"}</a>`);
   document.getElementById("statusRail").innerHTML = chips.join("");
 }
 
@@ -743,6 +817,7 @@ function renderFeed(items) {
   const filtered = filterItems(items);
   const groups = groupedByRegion(filtered);
   const feed = document.getElementById("feed");
+  const selected = selectedRegionFromUrl();
 
   if (!groups.length) {
     feed.innerHTML = `
@@ -756,11 +831,14 @@ function renderFeed(items) {
 
   feed.innerHTML = groups.map(([region, values]) => {
     const avg = average(values.map(item => item.importance));
+    const detailLink = selected
+      ? ""
+      : `<a class="region-link" href="${escapeHtml(regionPageUrl(region))}" onclick="event.stopPropagation()">전체 보기</a>`;
     return `
       <article class="region" data-region="${escapeHtml(region)}">
         <div class="region-head" onclick="toggleRegion(this)">
           <span class="region-title">${escapeHtml(regionLabel(region))}</span>
-          <span class="region-meta"><span class="delivery live">백엔드 연결</span><span>${values.length}건</span><span>평균 중요도 ${avg}</span></span>
+          <span class="region-meta"><span class="delivery live">백엔드 연결</span><span>${values.length}건</span><span>평균 중요도 ${avg}</span>${detailLink}</span>
         </div>
         <div class="region-body">${values.map(renderItem).join("")}</div>
       </article>
@@ -814,8 +892,10 @@ function renderSidebar(items, digest, mode) {
 
 function renderInsight(items, digest, mode) {
   const top = sortedItems(items)[0];
+  const selected = selectedRegionFromUrl();
+  const scope = selected ? `${regionLabel(selected)} 전체 화면에서 ` : "";
   const message = mode === "backend"
-    ? `Fly 백엔드 digest ${digest?.digest_date || "latest"} 기준, ${items.length}개 공시/뉴스를 지역별로 묶고 priority_rank와 relevance_score로 정렬했습니다.`
+    ? `${scope}Fly 백엔드 digest ${digest?.digest_date || "latest"} 기준, ${items.length}개 공시/뉴스를 지역별로 묶고 priority_rank와 relevance_score로 정렬했습니다.`
     : "백엔드에 연결할 수 없어 정적 데모 데이터를 같은 UI 구조로 표시합니다.";
 
   document.getElementById("insightBanner").innerHTML = `
@@ -824,14 +904,36 @@ function renderInsight(items, digest, mode) {
   `;
 }
 
+function renderRegionDetailHeader(items) {
+  const selected = selectedRegionFromUrl();
+  const el = document.getElementById("regionDetailHeader");
+
+  if (!selected) {
+    el.classList.remove("open");
+    el.innerHTML = "";
+    return;
+  }
+
+  el.classList.add("open");
+  el.innerHTML = `
+    <div>
+      <h2>${escapeHtml(regionLabel(selected))} 전체</h2>
+      <p>이 지역 상세 화면은 최신 digest에서 ${items.length}건을 표시합니다. 유럽은 영국, 스위스, 북유럽, 중부 유럽, 남유럽을 한 화면으로 합칩니다.</p>
+    </div>
+    <a class="back-link" href="${escapeHtml(dashboardUrl())}">전체 대시보드</a>
+  `;
+}
+
 function renderDashboard(items, digest, mode = "backend") {
   currentItems = sortedItems(items);
   currentDigest = digest;
-  renderTabs(currentItems);
-  renderStatusRail(currentItems, mode);
-  renderFeed(currentItems);
-  renderSidebar(currentItems, digest, mode);
-  renderInsight(currentItems, digest, mode);
+  const visibleItems = regionScopedItems(currentItems);
+  renderTabs(visibleItems);
+  renderStatusRail(visibleItems, mode);
+  renderRegionDetailHeader(visibleItems);
+  renderFeed(visibleItems);
+  renderSidebar(visibleItems, digest, mode);
+  renderInsight(visibleItems, digest, mode);
 }
 
 async function loadBackend() {
@@ -846,7 +948,7 @@ async function loadBackend() {
   }
 
   try {
-    const digest = await fetchJson("/api/feed/digest/latest?edition=breaking");
+    const digest = await fetchJson(digestPath());
     const items = digestItems(digest).map(normalizeItem);
     if (items.length) {
       renderDashboard(items, digest, "backend");
@@ -866,6 +968,10 @@ function row(label, value) {
 function average(values) {
   if (!values.length) return 0;
   return Math.round(values.reduce((sum, value) => sum + value, 0) / values.length);
+}
+
+function unique(values) {
+  return Array.from(new Set(values));
 }
 
 function truncate(value, max) {

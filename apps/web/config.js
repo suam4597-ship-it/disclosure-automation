@@ -10,7 +10,7 @@
 window.GLOBALPULSE_RUNTIME_CONFIG = Object.freeze({
   environment: "staging",
   apiBaseUrl: "https://globalpulse-backend-staging.fly.dev",
-  configVersion: "staging-20260511-1",
+  configVersion: "staging-20260513-region-detail-1",
   allowQueryParamOverride: true
 });
 
@@ -99,11 +99,5 @@ window.GLOBALPULSE_REGION_ORDER =
     "india",
     "anz",
     "eu",
-    "eu_north",
-    "eu_central",
-    "eu_south",
-    "uk",
-    "ch",
-    "tr",
     "other"
   ];

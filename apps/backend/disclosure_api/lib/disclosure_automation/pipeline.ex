@@ -7719,6 +7719,7 @@ defmodule DisclosureAutomation.Digest do
     timezone = Keyword.get(opts, :timezone, "UTC")
     limit = Keyword.get(opts, :limit, 12)
     candidate_limit = max(positive_int(Keyword.get(opts, :candidate_limit)) || limit * 8, limit)
+    region_scope = normalize_region_scope(Keyword.get(opts, :region_scope))
 
     max_per_source =
       positive_int(Keyword.get(opts, :max_per_source)) || default_max_per_source(limit)
@@ -7726,7 +7727,7 @@ defmodule DisclosureAutomation.Digest do
     max_per_region =
       positive_int(Keyword.get(opts, :max_per_region)) || default_max_per_region(limit)
 
-    candidates =
+    query =
       from(item in CanonicalFeedItem,
         join: source in assoc(item, :source),
         where:
@@ -7736,6 +7737,21 @@ defmodule DisclosureAutomation.Digest do
         limit: ^candidate_limit,
         select: {item, source}
       )
+
+    query =
+      case region_scope do
+        [] ->
+          query
+
+        regions ->
+          from([item, source] in query,
+            where: fragment("? && ?", item.regions, ^regions),
+            select: {item, source}
+          )
+      end
+
+    candidates =
+      query
       |> Repo.all()
 
     items = select_diverse_items(candidates, limit, max_per_source, max_per_region)
@@ -7835,6 +7851,58 @@ defmodule DisclosureAutomation.Digest do
   end
 
   defp positive_int(_value), do: nil
+
+  defp normalize_region_scope(nil), do: []
+  defp normalize_region_scope(""), do: []
+
+  defp normalize_region_scope(region) when is_binary(region) do
+    region
+    |> canonical_region()
+    |> expand_region_scope()
+  end
+
+  defp normalize_region_scope(regions) when is_list(regions) do
+    regions
+    |> Enum.flat_map(&normalize_region_scope/1)
+    |> Enum.uniq()
+  end
+
+  defp normalize_region_scope(_value), do: []
+
+  defp canonical_region(region) do
+    region
+    |> String.trim()
+    |> String.downcase()
+    |> String.replace(~r/[\s-]+/, "_")
+    |> case do
+      "europe" -> "eu"
+      "europe_north" -> "eu_north"
+      "northern_europe" -> "eu_north"
+      "europe_central" -> "eu_central"
+      "central_europe" -> "eu_central"
+      "europe_south" -> "eu_south"
+      "southern_europe" -> "eu_south"
+      "gb" -> "uk"
+      "great_britain" -> "uk"
+      "united_kingdom" -> "uk"
+      "switzerland" -> "ch"
+      "turkey" -> "tr"
+      "turkiye" -> "tr"
+      "americas" -> "us"
+      "usa" -> "us"
+      "united_states" -> "us"
+      "united_states_of_america" -> "us"
+      "cn_tw" -> "greater_china"
+      "greaterchina" -> "greater_china"
+      "hong_kong" -> "hk"
+      "hongkong" -> "hk"
+      "in" -> "india"
+      value -> value
+    end
+  end
+
+  defp expand_region_scope("eu"), do: ~w(eu eu_north eu_central eu_south uk ch tr)
+  defp expand_region_scope(region), do: [region]
 
   defp recent_digest_dates_for_edition(edition, limit) do
     from(item in CanonicalFeedItem,
