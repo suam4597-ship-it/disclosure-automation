@@ -108,6 +108,12 @@ Post-rollup EU canary Belgium fixture fallback and recovery:
 globalpulse_eu_canary_belgium_fixture_fallback_recovery_20260513.md
 ```
 
+HKEX and India post-rollup scheduled observation:
+
+```text
+globalpulse_hkex_india_post_rollup_scheduled_observation_20260513.md
+```
+
 India NSE interim scheduled observation:
 
 ```text
@@ -424,6 +430,7 @@ staging schedule: configured
 first automated scheduled staging run: pass
 interim scheduled observation: pass, recent runs 25694981715, 25699447717, 25703573653, and 25713273293
 scheduled observation refresh: pass, later runs 25719883720 and 25730184956
+post-rollup scheduled observation: pass, run 25768648399; inspected recent scheduled run count advanced to 8
 next gate: 7-day observation window and final scheduled run summary
 production scheduled polling: not enabled
 ```
@@ -463,7 +470,7 @@ HKEX:
   conservative staging workflow: configured
   default-branch schedule activation: merged to main
   first automated scheduled staging run: pass, run 25684138207
-  follow-up scheduled staging observation: 8 successful runs recorded, latest run 25743490299
+  follow-up scheduled staging observation: 9 successful runs recorded, latest run 25767950060
   next gate: continue scheduled staging observation toward 7-day / 10 successful run gate
 ```
 
@@ -536,7 +543,7 @@ cadence: not approved
 staging cadence design: recorded
 staging workflow: configured
 first scheduled run: pass, run 25684138207
-follow-up scheduled observation: 8 successful scheduled runs recorded, latest run 25743490299
+follow-up scheduled observation: 9 successful scheduled runs recorded, latest run 25767950060
 next: continue scheduled observation, keep source active=false
 ```
 
@@ -557,14 +564,15 @@ EU canary latest scheduled rollup run: 25742257297
 EU canary post-rollup Belgium fixture fallback failure: 25753561055
 EU canary post-rollup recovery run: 25763799894
 India NSE first scheduled run: 25650796284
-India NSE interim observation recent runs: 25694981715, 25699447717, 25703573653, 25713273293, 25719883720, and 25730184956
+India NSE interim observation recent runs: 25694981715, 25699447717, 25703573653, 25713273293, 25719883720, 25730184956, 25744353562, and 25768648399
 Denmark DFSA OAM first automated scheduled run: 25668194957
 Denmark DFSA OAM second follow-up run: 25699532618
 Denmark DFSA OAM latest scheduled run: 25730389870
 HKEX first automated scheduled staging run: 25684138207
-HKEX follow-up scheduled staging observation latest run: 25743490299
+HKEX follow-up scheduled staging observation latest run: 25767950060
 latest scheduled staging rollup: 25741580440, 25742257297, 25743490299, 25744353562, and 25744795173
 post-rollup EU canary fallback/recovery doc: globalpulse_eu_canary_belgium_fixture_fallback_recovery_20260513.md
+HKEX/India post-rollup scheduled observation doc: globalpulse_hkex_india_post_rollup_scheduled_observation_20260513.md
 HKEX scheduled staging cron: 22 */2 * * 1-5
 HKEX main activation PR: #541
 HKEX main activation commit: 423ca7fa710b04de56a74b0a1ee092b43597b8a1
