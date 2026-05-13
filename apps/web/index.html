@@ -959,21 +959,6 @@ function categoryKey(item, kind, importance) {
   return kind;
 }
 
-function positiveSignalFromMetadata(metadata) {
-  const score = Number(metadata?.positive_signal_score ?? metadata?.positiveSignalScore ?? 0);
-  const label = cleanText(metadata?.positive_signal_label || metadata?.positiveSignalLabel || "");
-  const rawReasons = metadata?.positive_signal_reasons || metadata?.positiveSignalReasons || [];
-  const reasons = (Array.isArray(rawReasons) ? rawReasons : [rawReasons])
-    .map(cleanText)
-    .filter(Boolean);
-
-  return {
-    score: Number.isFinite(score) && score > 0 ? Math.round(score) : 0,
-    label,
-    reasons
-  };
-}
-
 function isSecItem(item) {
   const source = itemSourceKey(item).toLowerCase();
   const url = String(item.url || item.raw?.canonical_url || item.raw?.url || "").toLowerCase();
@@ -990,8 +975,6 @@ function secSignalHaystack(item) {
     item.title,
     item.summary,
     rawSummaryText(item),
-    item.signalLabel,
-    ...(item.signalReasons || []),
     item.metadata?.category,
     ...(item.metadata?.coverage_tags || [])
   ].filter(Boolean).join(" ").toLowerCase();
@@ -1004,13 +987,13 @@ function secSignalBuckets(item) {
   const text = secSignalHaystack(item);
   const buckets = new Set();
 
-  if (item.signalScore > 0) buckets.add("sec_positive");
   if (source.includes("form4")) buckets.add("sec_insider");
   if (source.includes("13f") || source.includes("13d") || source.includes("13g")) buckets.add("sec_ownership");
   if (source.includes("10q") || source.includes("10k") || /item 2\.02|revenue|net income|eps|guidance/.test(text)) buckets.add("sec_financials");
   if (source.includes("s1_registration") || source.includes("f1_registration") || /ipo|initial public offering|use of proceeds|price range/.test(text)) buckets.add("sec_ipo");
   if (source.includes("schedule_to") || source.includes("s4_merger") || source.includes("f4_merger") || /item 2\.01|item 5\.01|merger|tender offer|exchange ratio|change in control|acquisition/.test(text)) buckets.add("sec_mna");
   if (source.includes("8k") || /item 1\.01|item 3\.02|item 7\.01|item 8\.01|strategic|partnership|collaboration|customer|backlog|contract|order/.test(text)) buckets.add("sec_strategy");
+  if (buckets.size > 0) buckets.add("sec_positive");
 
   return [...buckets];
 }
@@ -1023,24 +1006,24 @@ function itemFilterKeys(item) {
 }
 
 function signalLabelText(item) {
-  if (!item.signalScore) return "";
-  return secSignalLabel(item.signalLabel || "positive signal");
+  if (!secSignalBuckets(item).includes("sec_positive")) return "";
+  return secSignalLabel(secCompositeCategory(item) || "SEC signal");
 }
 
 function signalPillHtml(item) {
-  if (!item.signalScore) return "";
   const label = signalLabelText(item);
-  const text = label ? `투자 시그널 ${item.signalScore} · ${label}` : `투자 시그널 ${item.signalScore}`;
+  if (!label) return "";
+  const text = `투자 시그널 · ${label}`;
   return `<span class="signal-pill">${escapeHtml(text)}</span>`;
 }
 
 function signalDetailBoxHtml(item) {
-  if (!item.signalScore) return "";
-  const label = signalLabelText(item) || "긍정 시그널";
+  const label = signalLabelText(item);
+  if (!label) return "";
   return `
     <div class="detail-box signal-box">
       <b>투자 시그널</b>
-      <span>${escapeHtml(`${item.signalScore}점 · ${label}`)}</span>
+      <span>${escapeHtml(label)}</span>
     </div>
   `;
 }
@@ -1074,7 +1057,7 @@ function compositeIssuerKey(item) {
 }
 
 function applyCompositeSignals(items) {
-  const decorated = items.map(item => ({ ...item, compositeSignals: [], compositeScore: 0 }));
+  const decorated = items.map(item => ({ ...item, compositeSignals: [] }));
   const groups = new Map();
 
   for (const item of decorated) {
@@ -1089,10 +1072,8 @@ function applyCompositeSignals(items) {
   for (const group of groups.values()) {
     if (group.categories.size < 2) continue;
     const categories = [...group.categories];
-    const score = Math.min(99, 88 + Math.max(0, categories.length - 2) * 3);
     for (const item of group.items) {
       item.compositeSignals = categories;
-      item.compositeScore = score;
     }
   }
 
@@ -1835,7 +1816,6 @@ function normalizeItem(item, index) {
   const url = item.canonical_url || item.url || item.link || item.href || "";
   const title = item.headline || item.title || item.display_title || "Untitled";
   const rawSourceKey = sourceKey(item.source || item.source_key || item.provider);
-  const signal = positiveSignalFromMetadata(metadata);
 
   return {
     raw: item,
@@ -1855,17 +1835,13 @@ function normalizeItem(item, index) {
     url,
     publishedAt: item.published_at || item.date || item.digest_date || null,
     storyKey: item.story_key || url || item.duplicate_group_key || `${index}`,
-    signalScore: signal.score,
-    signalLabel: signal.label,
-    signalReasons: signal.reasons,
-    tags: tagList(item, kind, category, importance, signal)
+    tags: tagList(item, kind, category, importance)
   };
 }
 
-function tagList(item, kind, category, importance, signal = { score: 0 }) {
+function tagList(item, kind, category, importance) {
   const tags = [];
   tags.push(kind === "disclosure" ? ["disclosure", "공시"] : ["news", "뉴스"]);
-  if (signal.score > 0) tags.push(["signal", `시그널 ${signal.score}`]);
   if (category === "regulatory") tags.push(["regulatory", "규제"]);
   if (category === "markets") tags.push(["markets", "시장"]);
   if (category === "high" || importance >= 85) tags.push(["high", "중요"]);
@@ -1884,8 +1860,8 @@ function tagLabel(tag) {
 
 function sortedItems(items) {
   return items.slice().sort((a, b) =>
-    ((b.compositeScore || 0) - (a.compositeScore || 0)) ||
-    ((b.signalScore || 0) - (a.signalScore || 0)) ||
+    ((b.compositeSignals?.length || 0) - (a.compositeSignals?.length || 0)) ||
+    (Number(secSignalBuckets(b).includes("sec_positive")) - Number(secSignalBuckets(a).includes("sec_positive"))) ||
     (b.importance - a.importance) ||
     (a.priority - b.priority) ||
     String(b.publishedAt || "").localeCompare(String(a.publishedAt || ""))
@@ -2118,7 +2094,7 @@ function renderSidebar(items, digest, mode) {
   ).join("") || row("지역 없음", "0");
 
   document.getElementById("topPriority").innerHTML = sorted.slice(0, 5).map(item =>
-    row(truncate(item.title, 56), item.compositeScore ? `복합 ${item.compositeSignals.length}개` : item.signalScore ? `시그널 ${item.signalScore}` : `#${item.priority} / ${item.importance}`)
+    row(truncate(item.title, 56), item.compositeSignals?.length ? `복합 ${item.compositeSignals.length}개` : secSignalBuckets(item).includes("sec_positive") ? "투자 시그널" : `#${item.priority} / ${item.importance}`)
   ).join("") || row("중요 항목 없음", "n/a");
 }
 
@@ -2126,10 +2102,10 @@ function renderInsight(items, digest, mode) {
   const top = sortedItems(items)[0];
   const selected = selectedRegionFromUrl();
   const scope = selected ? `${regionLabel(selected)} 전체 화면에서 ` : "";
-  const signalCount = items.filter(item => item.signalScore > 0).length;
-  const compositeCount = items.filter(item => item.compositeScore > 0).length;
+  const signalCount = items.filter(item => secSignalBuckets(item).includes("sec_positive")).length;
+  const compositeCount = items.filter(item => item.compositeSignals?.length).length;
   const message = mode === "backend"
-    ? `${scope}Fly 백엔드 digest ${digest?.digest_date || "latest"} 기준, ${items.length}개 공시/뉴스를 지역별로 묶고 ${signalCount}개 투자 시그널, ${compositeCount}개 복합 시그널을 우선 정렬했습니다.`
+    ? `${scope}Fly 백엔드 digest ${digest?.digest_date || "latest"} 기준, ${items.length}개 공시/뉴스를 지역별로 묶고 ${signalCount}개 투자 시그널, ${compositeCount}개 복합 시그널을 표시합니다.`
     : "백엔드에 연결할 수 없어 정적 데모 데이터를 같은 UI 구조로 표시합니다.";
 
   document.getElementById("insightBanner").innerHTML = `
