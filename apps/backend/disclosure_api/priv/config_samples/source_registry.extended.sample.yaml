@@ -71,7 +71,7 @@ sources:
     config:
       disable_live_fixture_fallback: true
       max_items_per_poll: 100
-      detail_fetch_limit: 12
+      detail_fetch_limit: 25
       detail_fetch_timeout_ms: 12000
       increase_min_percent: 25
       positions_per_manager: 5
