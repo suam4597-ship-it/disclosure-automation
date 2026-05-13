@@ -49,6 +49,8 @@ sources:
       category_bias: company_filings
       disable_live_fixture_fallback: true
       max_items_per_poll: 50
+      detail_fetch_limit: 10
+      detail_fetch_timeout_ms: 8000
       live_headers:
         user-agent: disclosure-automation-phase1 suam4597@gmail.com
 

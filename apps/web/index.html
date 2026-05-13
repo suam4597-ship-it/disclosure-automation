@@ -957,6 +957,8 @@ function simpleSummary(item, title, kind, category) {
 }
 
 function secEdgarSummary(title, rawSummary) {
+  if (isSecEdgarBodySummary(rawSummary)) return rawSummary;
+
   const company = title
     .replace(/^8-K\s*-\s*/i, "")
     .replace(/\s*\(\d+\)\s*\(Filer\).*$/i, "")
@@ -972,6 +974,10 @@ function secEdgarSummary(title, rawSummary) {
   }
 
   return `${company || "해당 회사"}가 SEC에 제출한 최신 8-K 공시입니다.`;
+}
+
+function isSecEdgarBodySummary(rawSummary) {
+  return /^원문 본문 기준[,，]/.test(cleanText(rawSummary));
 }
 
 function tdnetSummary(title) {
@@ -1218,6 +1224,8 @@ function detailNarrative(item) {
   const values = extractDetailValues(item);
 
   if (source.includes("sec_edgar")) {
+    if (isSecEdgarBodySummary(rawSummary)) return rawSummary;
+
     const items = secItemDetails(rawSummary);
     const filed = filedDateFromSummary(rawSummary);
     const accNo = accNoFromSummary(rawSummary);
@@ -1538,7 +1546,7 @@ function renderItemDetail(items, itemKey) {
           ${originalLink}
           <a class="detail-action" href="${escapeHtml(itemBackUrl())}">목록으로 돌아가기</a>
         </div>
-        <p class="detail-note">이 상세 요약은 현재 digest의 제목, 원문 요약, 공시 메타데이터에서 규칙 기반으로 추출한 내용입니다. 최종 판단은 반드시 원문 공시에서 확인하세요.</p>
+        <p class="detail-note">이 상세 요약은 현재 digest, 원문 본문 추출값, 공시 메타데이터에서 규칙 기반으로 정리한 내용입니다. 최종 판단은 반드시 원문 공시에서 확인하세요.</p>
       </div>
     </article>
   `;
