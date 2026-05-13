@@ -441,6 +441,7 @@ const REGION_ORDER = window.GLOBALPULSE_REGION_ORDER || [
   "other"
 ];
 
+const REGION_SHORTCUTS = window.GLOBALPULSE_REGION_SHORTCUTS || ["us", "jp", "greater_china", "india", "eu"];
 const EUROPE_DISPLAY_REGIONS = new Set(["eu", "eu_north", "eu_central", "eu_south", "uk", "ch", "tr"]);
 const FILTERS = [
   ["all", "전체"],
@@ -595,6 +596,7 @@ function digestPath() {
   if (region) {
     params.set("region", region);
     params.set("limit", "100");
+    params.set("recent_date_limit", "60");
   }
 
   return `/api/feed/digest/latest?${params.toString()}`;
@@ -800,10 +802,17 @@ function switchTab(key) {
 function renderStatusRail(items, mode) {
   const groups = groupedByRegion(items);
   const selected = selectedRegionFromUrl();
+  const presentRegions = new Set(groups.map(([region]) => region));
   const chips = groups.map(([region, values]) => {
     const avg = average(values.map(item => item.importance));
     return `<a class="chip ${selected === region ? "active" : ""}" href="${escapeHtml(regionPageUrl(region))}"><i class="dot live"></i>${escapeHtml(regionLabel(region))} <span class="time">${values.length}건 / 평균 ${avg}</span></a>`;
   });
+  const shortcuts = unique(REGION_SHORTCUTS.map(displayRegion))
+    .filter(region => !presentRegions.has(region))
+    .filter(region => !selected || selected === region)
+    .map(region => `<a class="chip ${selected === region ? "active" : ""}" href="${escapeHtml(regionPageUrl(region))}"><i class="dot pending"></i>${escapeHtml(regionLabel(region))} 전체 보기</a>`);
+
+  chips.push(...shortcuts);
 
   if (!chips.length) {
     chips.push(`<span class="chip"><i class="dot pending"></i>표시할 백엔드 항목 없음</span>`);
