@@ -148,6 +148,7 @@ defmodule DisclosureAutomation.Parser do
   @sase_profile_base_url "https://www.sase.ba/v1/en-us/Market/Issuers-Securities/Issuer-profile/symbol/"
   @set_thailand_base_url "https://www.set.or.th"
   @tw_mops_material_info_base_url "https://mops.twse.com.tw/mops"
+  @tdnet_public_base_url "https://www.release.tdnet.info/inbs/"
 
   def parse(parser_key, raw_payload, opts \\ [])
       when is_binary(parser_key) and is_binary(raw_payload) do
@@ -266,6 +267,9 @@ defmodule DisclosureAutomation.Parser do
 
   defp parse_by_key("tw_mops_daily_material_info_json_v1", raw_payload),
     do: parse_tw_mops_daily_material_info(raw_payload)
+
+  defp parse_by_key("tdnet_public_list_html_v1", raw_payload),
+    do: parse_tdnet_public_list(raw_payload)
 
   defp parse_by_key("hkex_latest_listed_company_info_json_v1", raw_payload),
     do: parse_hkex_latest_listed_company_info(raw_payload)
@@ -4217,6 +4221,117 @@ defmodule DisclosureAutomation.Parser do
     end
   end
 
+  defp parse_tdnet_public_list(raw_payload) do
+    disclosure_date = tdnet_public_list_disclosure_date(raw_payload)
+
+    items =
+      ~r/<tr>\s*<td[^>]*\bkjTime\b[^>]*>(.*?)<\/td>\s*<td[^>]*\bkjCode\b[^>]*>(.*?)<\/td>\s*<td[^>]*\bkjName\b[^>]*>(.*?)<\/td>\s*<td[^>]*\bkjTitle\b[^>]*>\s*<a\s+href="([^"]+)"[^>]*>(.*?)<\/a>\s*<\/td>\s*<td[^>]*\bkjXbrl\b[^>]*>(.*?)<\/td>\s*<td[^>]*\bkjPlace\b[^>]*>(.*?)<\/td>/su
+      |> Regex.scan(raw_payload, capture: :all_but_first)
+      |> Enum.map(&parse_tdnet_public_list_row(&1, disclosure_date))
+      |> Enum.filter(&(&1.url && &1.title && &1.published_at))
+
+    {:ok, items}
+  end
+
+  defp parse_tdnet_public_list_row(
+         [time_text, code_html, company_html, href, title_html, xbrl_html, place_html],
+         disclosure_date
+       ) do
+    code = clean_html(code_html)
+    company = clean_html(company_html)
+    title = clean_html(title_html)
+    url = tdnet_public_list_absolute_url(href)
+    exchange = clean_html(place_html)
+
+    %{
+      external_id: tdnet_public_list_external_id(url),
+      title: join_non_empty([company, title], " - "),
+      url: url,
+      summary:
+        join_non_empty(
+          [
+            "TDnet official timely disclosure",
+            prefixed("Code", code),
+            prefixed("Company", company),
+            prefixed("Exchange", exchange),
+            prefixed("XBRL", tdnet_public_list_xbrl(xbrl_html))
+          ],
+          " | "
+        ),
+      published_at: tdnet_public_list_datetime(disclosure_date, time_text),
+      category: "disclosure"
+    }
+  end
+
+  defp parse_tdnet_public_list_row(_row, _disclosure_date) do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: nil,
+      category: nil
+    }
+  end
+
+  defp tdnet_public_list_disclosure_date(raw_payload) do
+    with [_, year_text, month_text, day_text] <-
+           Regex.run(~r/id="kaiji-date-1">\s*(\d{4})年(\d{2})月(\d{2})日\s*<\/div>/u, raw_payload),
+         {year, ""} <- Integer.parse(year_text),
+         {month, ""} <- Integer.parse(month_text),
+         {day, ""} <- Integer.parse(day_text),
+         {:ok, date} <- Date.new(year, month, day) do
+      date
+    else
+      _ -> Date.utc_today()
+    end
+  end
+
+  defp tdnet_public_list_datetime(%Date{} = date, time_text) do
+    with {hour, minute, second} <- parse_tdnet_public_time(time_text),
+         {:ok, time} <- Time.new(hour, minute, second),
+         {:ok, naive} <- NaiveDateTime.new(date, time) do
+      naive
+      |> DateTime.from_naive!("Etc/UTC")
+      |> DateTime.add(-9 * 60 * 60, :second)
+    else
+      _ -> DateTime.utc_now()
+    end
+  end
+
+  defp parse_tdnet_public_time(time_text) do
+    with value when is_binary(value) <- to_clean_string(time_text),
+         [_, hour_text, minute_text] <- Regex.run(~r/^(\d{1,2}):(\d{2})$/, value),
+         {hour, ""} <- Integer.parse(hour_text),
+         {minute, ""} <- Integer.parse(minute_text) do
+      {hour, minute, 0}
+    else
+      _ -> parse_hms(time_text)
+    end
+  end
+
+  defp tdnet_public_list_absolute_url(href) do
+    @tdnet_public_base_url
+    |> URI.merge(decode_html_entities(href))
+    |> URI.to_string()
+  end
+
+  defp tdnet_public_list_external_id(url) do
+    url
+    |> URI.parse()
+    |> Map.get(:path, "")
+    |> Path.basename()
+    |> String.replace_suffix(".pdf", "")
+  end
+
+  defp tdnet_public_list_xbrl(xbrl_html) do
+    case clean_html(xbrl_html) do
+      nil -> nil
+      "" -> nil
+      value -> value
+    end
+  end
+
   defp parse_hkex_latest_listed_company_info(raw_payload) do
     with {:ok, %{"newsInfo" => records}} <- Jason.decode(raw_payload),
          true <- is_list(records) do
@@ -5031,6 +5146,8 @@ defmodule DisclosureAutomation.Ingestion do
   @blse_strategy "blse_multi_issuer_news_rss_v1"
   @sase_strategy "sase_multi_issuer_announcements_xml_v1"
   @tw_mops_material_info_strategy "tw_mops_daily_material_info_json_v1"
+  @tdnet_public_list_strategy "tdnet_public_list_html_v1"
+  @tdnet_public_list_url_template "https://www.release.tdnet.info/inbs/I_list_001_{date}.html"
   @blse_ticker_url "https://services.blberza.com/blse/ticker.ashx?LangId=3&TickerTypeId=1&filter=all&ct=xml"
   @blse_issuer_news_url_template "https://www.blberza.com/pages/IssuerNewsRss.aspx?Code={code}&LangId=3"
 
@@ -5441,6 +5558,41 @@ defmodule DisclosureAutomation.Ingestion do
            "month" => Map.fetch!(request_body, "month"),
            "day" => Map.fetch!(request_body, "day"),
            "records_seen" => tw_mops_daily_material_info_records_seen(response.body),
+           "fixture_fallback" => false
+         }
+       }}
+    else
+      false -> {:error, :unexpected_status}
+      {:error, _reason} = error -> error
+    end
+  end
+
+  defp maybe_load_live_payload(
+         %SourceRegistry{parser_key: "tdnet_public_list_html_v1"} = source,
+         true
+       ) do
+    url = tdnet_public_list_url(source)
+
+    with {:ok, response} <-
+           Http.fetch(url,
+             timeout: source_live_timeout(source),
+             headers: source_live_headers(source)
+           ),
+         true <- response.status_code in 200..299,
+         :ok <- validate_live_payload(source, response) do
+      {:ok,
+       %{
+         raw_payload: response.body,
+         http_status: response.status_code,
+         fetch_info: %{
+           "mode" => "live",
+           "loaded" => true,
+           "strategy" => @tdnet_public_list_strategy,
+           "url" => url,
+           "status_code" => response.status_code,
+           "bytes" => response.bytes,
+           "query_date" => tdnet_public_query_date(source) |> Date.to_iso8601(),
+           "records_seen" => tdnet_public_list_records_seen(response.body),
            "fixture_fallback" => false
          }
        }}
@@ -6001,6 +6153,12 @@ defmodule DisclosureAutomation.Ingestion do
 
   defp tw_mops_daily_material_info_records_seen(_body), do: 0
 
+  defp tdnet_public_list_records_seen(body) when is_binary(body) do
+    Regex.scan(~r/<td[^>]*\bkjTime\b[^>]*>/u, body) |> length()
+  end
+
+  defp tdnet_public_list_records_seen(_body), do: 0
+
   defp tw_mops_query_date(source) do
     case source_config_value(source, "live_query_date", :live_query_date, nil) do
       value when is_binary(value) ->
@@ -6429,6 +6587,35 @@ defmodule DisclosureAutomation.Ingestion do
       :max_calendar_items_per_issuer,
       8
     )
+  end
+
+  defp tdnet_public_list_url(source) do
+    source
+    |> source_config_value(
+      "list_url_template",
+      :list_url_template,
+      @tdnet_public_list_url_template
+    )
+    |> String.replace("{date}", tdnet_public_query_date(source) |> Calendar.strftime("%Y%m%d"))
+  end
+
+  defp tdnet_public_query_date(source) do
+    case source_config_value(source, "query_date", :query_date, nil) do
+      value when is_binary(value) ->
+        case Date.from_iso8601(value) do
+          {:ok, date} -> date
+          {:error, _reason} -> tdnet_public_today_jst()
+        end
+
+      _value ->
+        tdnet_public_today_jst()
+    end
+  end
+
+  defp tdnet_public_today_jst do
+    DateTime.utc_now()
+    |> DateTime.add(9 * 60 * 60, :second)
+    |> DateTime.to_date()
   end
 
   defp disable_live_fixture_fallback?(source) do
@@ -7105,6 +7292,24 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp validate_live_payload(
+         %SourceRegistry{parser_key: "tdnet_public_list_html_v1"},
+         response
+       ) do
+    cond do
+      not html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "tdnet_public_list_html_v1",
+          content_type(response.headers)}}
+
+      not tdnet_public_list_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "tdnet_public_list_html_v1", :unexpected_html}}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_live_payload(
          %SourceRegistry{parser_key: "hkex_latest_listed_company_info_json_v1"},
          response
        ) do
@@ -7521,6 +7726,13 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp tw_mops_daily_material_info_payload?(_body), do: false
+
+  defp tdnet_public_list_payload?(body) when is_binary(body) do
+    body =~ "適時開示情報閲覧サービス" and body =~ "id=\"kaiji-date-1\"" and
+      body =~ "id=\"main-list-table\""
+  end
+
+  defp tdnet_public_list_payload?(_body), do: false
 
   defp hkex_latest_listed_company_info_payload?(body) when is_binary(body) do
     with {:ok, %{"newsInfo" => records}} when is_list(records) <- Jason.decode(body) do

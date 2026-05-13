@@ -58,9 +58,9 @@ Current sample registry entry:
 ```text
 source_key: jp_tdnet_disclosures
 display_name: Japan TDnet Disclosures
-current base_url: https://www.release.tdnet.info/
-current parser_key: rss_v1
-current fixture: source_payloads/jp_tdnet_disclosures.xml
+current base_url: https://www.release.tdnet.info/inbs/I_list_001_{date}.html
+current parser_key: tdnet_public_list_html_v1
+current fixture: source_payloads/jp_tdnet_disclosures.html
 ```
 
 Observed quick smoke on 2026-05-08:
@@ -71,6 +71,17 @@ HTTP status: 200
 content_type: text/html
 result: public web shell, not an RSS feed
 decision: do not live-poll this URL with rss_v1
+```
+
+Accepted official public HTML candidate:
+
+```text
+URL template: https://www.release.tdnet.info/inbs/I_list_001_{YYYYMMDD}.html
+observed URL: https://www.release.tdnet.info/inbs/I_list_001_20260513.html
+HTTP status: 200
+content_type: text/html
+rows observed: 88
+decision: allow manual staging live poll through tdnet_public_list_html_v1
 ```
 
 Official JPX/TDnet facts to preserve:
@@ -98,9 +109,9 @@ Decision:
 
 ```text
 Do not replace jp_tdnet_disclosures.base_url with Yanoshin RSS by default.
-Do not schedule JP live polling until official-vs-third-party authority is decided.
+Do not schedule JP live polling until repeated official HTML staging smoke passes.
 Do not treat the existing release.tdnet.info root URL as an RSS live source.
-Keep JP fixture-backed behavior separate from live-source readiness.
+Keep fixture-backed behavior separate from live-source readiness.
 ```
 
 ## JP Next PR Options
@@ -108,10 +119,10 @@ Keep JP fixture-backed behavior separate from live-source readiness.
 Safe implementation options, in preferred order:
 
 ```text
-1. Add a JP source verification contract that rejects HTML root URLs for rss_v1 live polling.
-2. Add a disabled/manual JP candidate source only after source authority is accepted.
-3. Add a bounded parser or adapter for an official JPX TDnet API only after credentials/terms are available.
-4. Add a staging-only manual workflow input example for JP after a live endpoint is accepted.
+1. Run manual staging live smoke for jp_tdnet_disclosures with use_live_fetch=true.
+2. Record JP official HTML staging smoke only if fetch.mode=live and fallback_to_fixture=false.
+3. Keep scheduled JP live polling disabled until repeated smoke evidence exists.
+4. Add an official JPX TDnet API adapter later only if credentials/terms are available.
 ```
 
 JP live success should only be recorded after a staging run proves:
