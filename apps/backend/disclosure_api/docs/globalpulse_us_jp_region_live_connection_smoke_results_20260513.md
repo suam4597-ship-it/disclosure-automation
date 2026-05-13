@@ -144,6 +144,5 @@ fixture fallback not claimed as JP live success
 ```text
 1. Repeat JP TDnet official HTML live smoke in a later observation window.
 2. Record repeated JP smoke before considering scheduled JP polling.
-3. Consider adding source display normalization from "Japan TDnet Disclosures" to a Korean label in the static shell.
-4. Consider a compact per-item live/fixture badge only if it can be done without changing public digest JSON shape.
+3. Consider a compact per-item live/fixture badge only if it can be done without changing public digest JSON shape.
 ```
