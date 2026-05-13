@@ -144,6 +144,12 @@ Latest public web digest diversity refresh:
 globalpulse_public_web_digest_diversity_refresh_20260512.md
 ```
 
+Public dashboard Korean locale and latest digest diversity fix:
+
+```text
+globalpulse_public_dashboard_locale_and_digest_diversity_fix_20260513.md
+```
+
 Latest frontend/backend regional dashboard mapping refresh:
 
 ```text
@@ -375,6 +381,7 @@ current public Pages smoke: 200
 current Fly staging health: 200 ok
 current Fly staging digest: 200, item_count=12, fallback=false
 latest digest diversity refresh: public top-N includes India, Switzerland, UK, EU generic/subregions, and Greater China
+public dashboard locale/diversity fix: Korean chrome labels added; latest digest now uses recent-date candidate backfill while preserving JSON shape
 latest regional mapping refresh: config.js exposes region labels/aliases/order before dashboard render; load-time double-fetch adapter removed
 first daily scheduled public web smoke run: pass, run 25712711038, event=schedule
 source-health drift observation: real source keys reachable; workflow canary aliases are not registered source-health keys

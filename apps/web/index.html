@@ -90,7 +90,7 @@
       cursor: pointer;
     }
 
-    .icon { width: 36px; height: 36px; }
+    .icon { min-width: 36px; width: auto; height: 36px; padding: 0 10px; }
     .toggle { width: 52px; height: 28px; border-radius: 999px; position: relative; }
     .toggle::after {
       content: "";
@@ -107,7 +107,8 @@
     html[data-theme="light"] .toggle::after { transform: translateX(24px); }
 
     .main { max-width: 1440px; margin: 0 auto; padding: 24px; }
-    .status, .tabs { display: flex; gap: 8px; overflow: auto; margin-bottom: 24px; }
+    .status, .tabs { display: flex; gap: 8px; margin-bottom: 24px; }
+    .status { flex-wrap: wrap; }
     .chip, .tab {
       white-space: nowrap;
       border: 1px solid var(--border);
@@ -123,7 +124,7 @@
     .live { background: var(--green); }
     .pending { background: var(--amber); }
 
-    .tabs { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 4px; }
+    .tabs { overflow: auto; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 4px; }
     .tab { border: 0; border-radius: 8px; cursor: pointer; }
     .tab.active { background: rgba(59, 130, 246, 0.14); color: #93c5fd; font-weight: 700; }
     .badge {
@@ -264,10 +265,10 @@
     </div>
     <div class="actions">
       <span class="time" id="currentTime">KST</span>
-      <span class="api" id="backendStatus">Backend checking</span>
-      <a class="link-pill" id="operator-source-health-link" href="/api/admin/source-health" target="_blank" rel="noopener">Source Health</a>
-      <button class="icon" onclick="openSettings()" aria-label="Open delivery settings">SET</button>
-      <button class="toggle" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme"></button>
+      <span class="api" id="backendStatus">백엔드 확인 중</span>
+      <a class="link-pill" id="operator-source-health-link" href="/api/admin/source-health" target="_blank" rel="noopener">소스 상태</a>
+      <button class="icon" onclick="openSettings()" aria-label="전송 시간 설정 열기">설정</button>
+      <button class="toggle" onclick="toggleTheme()" title="테마 전환" aria-label="테마 전환"></button>
     </div>
   </header>
 
@@ -276,7 +277,7 @@
     <div class="tabs" id="tabs"></div>
     <div class="insight" id="insightBanner">
       <span>[LIVE]</span>
-      <span>Backend digest를 불러와 지역별 공시와 뉴스를 <strong>중요도 순</strong>으로 정리합니다.</span>
+      <span>백엔드 digest를 불러와 지역별 공시와 뉴스를 <strong>중요도 순</strong>으로 정리합니다.</span>
     </div>
 
     <div class="grid">
@@ -284,28 +285,28 @@
 
       <aside class="sidebar">
         <div class="card">
-          <h3>Backend Snapshot</h3>
+          <h3>백엔드 상태</h3>
           <div class="card-body" id="backendSnapshot"></div>
         </div>
 
         <div class="card">
-          <h3>Region Mix</h3>
+          <h3>지역 구성</h3>
           <div class="card-body" id="regionSummary"></div>
         </div>
 
         <div class="card">
-          <h3>Top Importance</h3>
+          <h3>중요도 상위</h3>
           <div class="card-body" id="topPriority"></div>
         </div>
 
         <div class="card">
-          <h3>Delivery Schedule (KST)</h3>
+          <h3>전송 일정 (KST)</h3>
           <div class="card-body">
-            <div class="row"><b>JP Japan</b><span><span class="blue">18:30</span> <span class="time">JST</span></span></div>
-            <div class="row"><b>CN/TW Greater China</b><span><span class="blue">20:00</span> <span class="time">KST</span></span></div>
-            <div class="row"><b>KR Korea</b><span><span class="blue">20:45</span></span></div>
-            <div class="row"><b>EU Europe</b><span><span class="blue">04:30+1</span></span></div>
-            <div class="row"><b>US Americas</b><span><span class="blue">11:00+1</span></span></div>
+            <div class="row"><b>일본</b><span><span class="blue">18:30</span> <span class="time">JST</span></span></div>
+            <div class="row"><b>중국/대만</b><span><span class="blue">20:00</span> <span class="time">KST</span></span></div>
+            <div class="row"><b>한국</b><span><span class="blue">20:45</span></span></div>
+            <div class="row"><b>유럽</b><span><span class="blue">04:30+1</span></span></div>
+            <div class="row"><b>미국</b><span><span class="blue">11:00+1</span></span></div>
           </div>
         </div>
       </aside>
@@ -316,45 +317,45 @@
 <div class="modal" id="settingsModal">
   <div class="modal-box">
     <header>
-      <h2>Delivery Settings</h2>
-      <button class="icon" onclick="closeSettings()" aria-label="Close settings">X</button>
+      <h2>전송 시간 설정</h2>
+      <button class="icon" onclick="closeSettings()" aria-label="설정 닫기">X</button>
     </header>
     <section>
-      <div class="setting"><span>KR Korea (KST)</span><input type="time" value="20:45"></div>
-      <div class="setting"><span>JP Japan (JST)</span><input type="time" value="18:30"></div>
-      <div class="setting"><span>CN/TW Greater China</span><input type="time" value="20:00"></div>
-      <div class="setting"><span>EU Europe</span><input type="time" value="04:30"></div>
-      <div class="setting"><span>US Americas</span><input type="time" value="11:00"></div>
+      <div class="setting"><span>한국 (KST)</span><input type="time" value="20:45"></div>
+      <div class="setting"><span>일본 (JST)</span><input type="time" value="18:30"></div>
+      <div class="setting"><span>중국/대만</span><input type="time" value="20:00"></div>
+      <div class="setting"><span>유럽</span><input type="time" value="04:30"></div>
+      <div class="setting"><span>미국</span><input type="time" value="11:00"></div>
     </section>
   </div>
 </div>
 
 <script>
 const REGION_LABELS = Object.assign({
-  global: "Global",
-  us: "US Americas",
-  americas: "US Americas",
-  eu: "EU Europe",
-  europe: "EU Europe",
-  eu_north: "Northern Europe",
-  eu_central: "Central Europe",
-  eu_south: "Southern Europe",
-  uk: "United Kingdom",
-  ch: "Switzerland",
-  tr: "Turkey",
-  kr: "KR Korea",
-  korea: "KR Korea",
-  jp: "JP Japan",
-  japan: "JP Japan",
-  greater_china: "CN/TW Greater China",
-  cn: "Mainland China",
-  tw: "Taiwan",
-  hk: "Hong Kong",
-  apac: "Asia-Pacific",
+  global: "전체",
+  us: "미국",
+  americas: "미국",
+  eu: "유럽",
+  europe: "유럽",
+  eu_north: "북유럽",
+  eu_central: "중부 유럽",
+  eu_south: "남유럽",
+  uk: "영국",
+  ch: "스위스",
+  tr: "튀르키예",
+  kr: "한국",
+  korea: "한국",
+  jp: "일본",
+  japan: "일본",
+  greater_china: "중국/대만",
+  cn: "중국 본토",
+  tw: "대만",
+  hk: "홍콩",
+  apac: "아시아/태평양",
   asean: "ASEAN",
-  india: "India",
-  anz: "Australia/NZ",
-  other: "Other Regions"
+  india: "인도",
+  anz: "호주/뉴질랜드",
+  other: "기타 지역"
 }, window.GLOBALPULSE_REGION_LABELS || {});
 
 const REGION_ALIASES = Object.assign({
@@ -416,18 +417,63 @@ const REGION_ORDER = window.GLOBALPULSE_REGION_ORDER || [
   "other"
 ];
 const FILTERS = [
-  ["all", "All"],
+  ["all", "전체"],
   ["disclosure", "공시"],
   ["news", "뉴스"],
-  ["regulatory", "Regulatory"],
-  ["markets", "Markets"],
-  ["high", "High Importance"]
+  ["regulatory", "규제"],
+  ["markets", "시장"],
+  ["high", "중요"]
 ];
+
+const TAG_LABELS = {
+  global: "전체",
+  us: "미국",
+  americas: "미국",
+  eu: "유럽",
+  eu_north: "북유럽",
+  eu_central: "중부 유럽",
+  eu_south: "남유럽",
+  uk: "영국",
+  ch: "스위스",
+  tr: "튀르키예",
+  kr: "한국",
+  jp: "일본",
+  greater_china: "중국/대만",
+  cn: "중국",
+  tw: "대만",
+  hk: "홍콩",
+  apac: "아시아",
+  asean: "ASEAN",
+  india: "인도",
+  anz: "호주/NZ",
+  disclosure: "공시",
+  exchange: "거래소",
+  listed_companies: "상장사",
+  issuer_announcement: "발행사 공시",
+  latest_submissions: "최신 제출",
+  markets: "시장",
+  regulatory: "규제",
+  rss: "RSS",
+  api: "API"
+};
+
+const SOURCE_LABELS = {
+  sec_press_releases: "SEC 보도자료",
+  india_nse_announcements: "인도 NSE 공시",
+  hkex_latest_listed_company_information: "홍콩거래소 상장사 공시",
+  eu_belgium_fsma_stori: "벨기에 FSMA STORI",
+  eu_france_info_financiere_oam: "프랑스 OAM 공시",
+  eu_spain_cnmv_inside_information: "스페인 CNMV 내부정보",
+  eu_spain_cnmv_other_relevant_information: "스페인 CNMV 기타 중요정보",
+  uk_fca_nsm_regulated_information: "영국 FCA NSM",
+  ch_six_ser_official_notices: "스위스 SIX 공시",
+  dk_dfsa_oam_company_announcements: "덴마크 DFSA OAM"
+};
 
 const STATIC_ITEMS = [
   {
     headline: "Broadcom Nears $85B Deal to Acquire Cloud Software Giant VMware",
-    summary: "Static demo story shown when the backend is unavailable.",
+    summary: "백엔드가 연결되지 않았을 때 표시하는 정적 데모 항목입니다.",
     source: "Reuters",
     regions: ["us"],
     relevance_score: 0.82,
@@ -438,7 +484,7 @@ const STATIC_ITEMS = [
   },
   {
     headline: "ASML Reports Record Backlog as Advanced EUV Demand Exceeds Capacity",
-    summary: "Static demo story shown when the backend is unavailable.",
+    summary: "백엔드가 연결되지 않았을 때 표시하는 정적 데모 항목입니다.",
     source: "Financial Times",
     regions: ["eu"],
     relevance_score: 0.78,
@@ -523,9 +569,9 @@ function digestItems(payload) {
 }
 
 function sourceLabel(source) {
-  if (!source) return "Backend";
-  if (typeof source === "string") return source;
-  return source.display_name || source.source_key || "Backend";
+  if (!source) return "백엔드";
+  if (typeof source === "string") return SOURCE_LABELS[source] || source;
+  return SOURCE_LABELS[source.source_key] || source.display_name || source.source_key || "백엔드";
 }
 
 function sourceKey(source) {
@@ -544,7 +590,7 @@ function canonicalRegion(value) {
 }
 
 function regionLabel(code) {
-  return REGION_LABELS[code] || "Other Regions";
+  return REGION_LABELS[code] || "기타 지역";
 }
 
 function itemKind(item) {
@@ -612,10 +658,15 @@ function tagList(item, kind, category, importance) {
   if (category === "high" || importance >= 85) tags.push(["high", "중요"]);
   for (const tag of item.metadata?.coverage_tags || []) {
     const lower = String(tag).toLowerCase();
-    if (lower !== "regulatory" && lower !== "markets") tags.push(["news", String(tag)]);
+    if (lower !== "regulatory" && lower !== "markets") tags.push(["news", tagLabel(tag)]);
     if (tags.length >= 4) break;
   }
   return tags;
+}
+
+function tagLabel(tag) {
+  const key = String(tag || "").toLowerCase().replace(/[\s-]+/g, "_");
+  return TAG_LABELS[key] || String(tag);
 }
 
 function sortedItems(items) {
@@ -677,14 +728,14 @@ function renderStatusRail(items, mode) {
   const groups = groupedByRegion(items);
   const chips = groups.map(([region, values]) => {
     const avg = average(values.map(item => item.importance));
-    return `<span class="chip"><i class="dot live"></i>${escapeHtml(regionLabel(region))} <span class="time">${values.length} items / avg ${avg}</span></span>`;
+    return `<span class="chip"><i class="dot live"></i>${escapeHtml(regionLabel(region))} <span class="time">${values.length}건 / 평균 ${avg}</span></span>`;
   });
 
   if (!chips.length) {
-    chips.push(`<span class="chip"><i class="dot pending"></i>No backend items yet</span>`);
+    chips.push(`<span class="chip"><i class="dot pending"></i>표시할 백엔드 항목 없음</span>`);
   }
 
-  chips.unshift(`<span class="chip"><i class="dot ${mode === "backend" ? "live" : "pending"}"></i>${mode === "backend" ? "Backend digest live" : "Static demo mode"}</span>`);
+  chips.unshift(`<span class="chip"><i class="dot ${mode === "backend" ? "live" : "pending"}"></i>${mode === "backend" ? "백엔드 digest 연결됨" : "정적 데모 모드"}</span>`);
   document.getElementById("statusRail").innerHTML = chips.join("");
 }
 
@@ -696,7 +747,7 @@ function renderFeed(items) {
   if (!groups.length) {
     feed.innerHTML = `
       <article class="region">
-        <div class="region-head"><span class="region-title">No matching items</span><span class="region-meta"><span class="delivery">Filter empty</span></span></div>
+        <div class="region-head"><span class="region-title">조건에 맞는 항목 없음</span><span class="region-meta"><span class="delivery">필터 결과 없음</span></span></div>
         <div class="region-body"><div class="item"><i class="bar"></i><div><div class="headline">이 필터에 해당하는 backend item이 아직 없습니다.</div><div class="summary">다른 탭을 선택하거나 다음 poll 이후 다시 확인하세요.</div></div></div></div>
       </article>
     `;
@@ -709,7 +760,7 @@ function renderFeed(items) {
       <article class="region" data-region="${escapeHtml(region)}">
         <div class="region-head" onclick="toggleRegion(this)">
           <span class="region-title">${escapeHtml(regionLabel(region))}</span>
-          <span class="region-meta"><span class="delivery live">Backend Connected</span><span>${values.length} items</span><span>avg importance ${avg}</span></span>
+          <span class="region-meta"><span class="delivery live">백엔드 연결</span><span>${values.length}건</span><span>평균 중요도 ${avg}</span></span>
         </div>
         <div class="region-body">${values.map(renderItem).join("")}</div>
       </article>
@@ -729,8 +780,8 @@ function renderItem(item) {
         <div class="meta">
           <span class="source">${escapeHtml(item.source)}</span>
           <span>${escapeHtml(date)}</span>
-          <span>Priority #${escapeHtml(String(item.priority))}</span>
-          <span>Importance ${escapeHtml(String(item.importance))}</span>
+          <span>우선순위 #${escapeHtml(String(item.priority))}</span>
+          <span>중요도 ${escapeHtml(String(item.importance))}</span>
           ${item.tags.map(([klass, label]) => `<span class="tag ${escapeHtml(klass)}">${escapeHtml(label)}</span>`).join("")}
         </div>
       </div>
@@ -745,27 +796,27 @@ function renderSidebar(items, digest, mode) {
   const newsCount = items.filter(item => item.kind === "news").length;
 
   document.getElementById("backendSnapshot").innerHTML = [
-    row("Mode", mode === "backend" ? "Fly staging" : "Static demo"),
-    row("Digest", digest?.digest_date || "n/a"),
-    row("Edition", digest?.edition || "breaking"),
-    row("Items", String(items.length)),
+    row("모드", mode === "backend" ? "Fly staging" : "정적 데모"),
+    row("Digest 날짜", digest?.digest_date || "n/a"),
+    row("에디션", digest?.edition || "breaking"),
+    row("항목", String(items.length)),
     row("공시 / 뉴스", `${disclosureCount} / ${newsCount}`)
   ].join("");
 
   document.getElementById("regionSummary").innerHTML = regions.map(([region, values]) =>
-    row(regionLabel(region), `${values.length} items / avg ${average(values.map(item => item.importance))}`)
-  ).join("") || row("No regions", "0");
+    row(regionLabel(region), `${values.length}건 / 평균 ${average(values.map(item => item.importance))}`)
+  ).join("") || row("지역 없음", "0");
 
   document.getElementById("topPriority").innerHTML = sorted.slice(0, 5).map(item =>
     row(truncate(item.title, 56), `#${item.priority} / ${item.importance}`)
-  ).join("") || row("No priority items", "n/a");
+  ).join("") || row("중요 항목 없음", "n/a");
 }
 
 function renderInsight(items, digest, mode) {
   const top = sortedItems(items)[0];
   const message = mode === "backend"
-    ? `Fly backend digest ${digest?.digest_date || "latest"} 기준, ${items.length}개 공시/뉴스를 지역별로 묶고 priority_rank와 relevance_score로 정렬했습니다.`
-    : "Backend unavailable. Static demo data를 같은 UI 구조로 표시합니다.";
+    ? `Fly 백엔드 digest ${digest?.digest_date || "latest"} 기준, ${items.length}개 공시/뉴스를 지역별로 묶고 priority_rank와 relevance_score로 정렬했습니다.`
+    : "백엔드에 연결할 수 없어 정적 데모 데이터를 같은 UI 구조로 표시합니다.";
 
   document.getElementById("insightBanner").innerHTML = `
     <span>${mode === "backend" ? "[LIVE]" : "[DEMO]"}</span>
@@ -788,10 +839,10 @@ async function loadBackend() {
 
   try {
     const health = await fetchJson("/api/health");
-    setBackend(`Backend ${health.status || "ok"}`, "online");
+    setBackend(`백엔드 ${health.status || "ok"}`, "online");
     healthOk = true;
   } catch (_error) {
-    setBackend("Static demo mode", "offline");
+    setBackend("정적 데모 모드", "offline");
   }
 
   try {
@@ -802,7 +853,7 @@ async function loadBackend() {
       return;
     }
   } catch (_error) {
-    if (healthOk) setBackend("Backend ok / digest pending", "online");
+    if (healthOk) setBackend("백엔드 ok / digest 대기 중", "online");
   }
 
   renderDashboard(STATIC_ITEMS.map(normalizeItem), { edition: "demo", digest_date: "static" }, "demo");

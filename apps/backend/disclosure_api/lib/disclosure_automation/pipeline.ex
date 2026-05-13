@@ -7695,17 +7695,27 @@ defmodule DisclosureAutomation.Digest do
   alias DisclosureAutomation.Schema.CanonicalFeedItem
 
   def get_latest_digest(edition, opts \\ []) when is_binary(edition) do
-    case latest_digest_date_for_edition(edition) do
-      nil ->
+    recent_date_limit = positive_int(Keyword.get(opts, :recent_date_limit)) || 5
+
+    case recent_digest_dates_for_edition(edition, recent_date_limit) do
+      [] ->
         fallback_to_fixture(edition, nil, opts)
 
-      digest_date ->
-        get_digest_by_date_and_edition(Date.to_iso8601(digest_date), edition, opts)
+      [digest_date | _rest] = digest_dates ->
+        get_digest_from_dates(digest_dates, digest_date, edition, opts)
     end
   end
 
   def get_digest_by_date_and_edition(digest_date, edition, opts \\ [])
       when is_binary(digest_date) and is_binary(edition) do
+    with {:ok, digest_date} <- Date.from_iso8601(digest_date) do
+      get_digest_from_dates([digest_date], digest_date, edition, opts)
+    else
+      {:error, _reason} -> {:error, :not_found}
+    end
+  end
+
+  defp get_digest_from_dates(digest_dates, digest_date, edition, opts) do
     timezone = Keyword.get(opts, :timezone, "UTC")
     limit = Keyword.get(opts, :limit, 12)
     candidate_limit = max(positive_int(Keyword.get(opts, :candidate_limit)) || limit * 8, limit)
@@ -7716,42 +7726,38 @@ defmodule DisclosureAutomation.Digest do
     max_per_region =
       positive_int(Keyword.get(opts, :max_per_region)) || default_max_per_region(limit)
 
-    with {:ok, digest_date} <- Date.from_iso8601(digest_date) do
-      candidates =
-        from(item in CanonicalFeedItem,
-          join: source in assoc(item, :source),
-          where:
-            item.digest_date == ^digest_date and item.edition == ^edition and
-              item.status in ["ready", "published"],
-          order_by: [asc: item.priority_rank, desc: item.published_at],
-          limit: ^candidate_limit,
-          select: {item, source}
-        )
-        |> Repo.all()
+    candidates =
+      from(item in CanonicalFeedItem,
+        join: source in assoc(item, :source),
+        where:
+          item.digest_date in ^digest_dates and item.edition == ^edition and
+            item.status in ["ready", "published"],
+        order_by: [desc: item.digest_date, asc: item.priority_rank, desc: item.published_at],
+        limit: ^candidate_limit,
+        select: {item, source}
+      )
+      |> Repo.all()
 
-      items = select_diverse_items(candidates, limit, max_per_source, max_per_region)
+    items = select_diverse_items(candidates, limit, max_per_source, max_per_region)
 
-      if items == [] do
-        fallback_to_fixture(edition, digest_date, opts)
-      else
-        {:ok,
-         %{
-           "digest_date" => Date.to_iso8601(digest_date),
-           "edition" => edition,
-           "timezone" => timezone,
-           "generated_at" =>
-             DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.to_iso8601(),
-           "generated_by" => "repo",
-           "item_count" => length(items),
-           "items" => Enum.map(items, &present_item/1),
-           "metadata" => %{
-             "fallback_to_fixture" => false,
-             "top_n" => limit
-           }
-         }}
-      end
+    if items == [] do
+      fallback_to_fixture(edition, digest_date, opts)
     else
-      {:error, _reason} -> {:error, :not_found}
+      {:ok,
+       %{
+         "digest_date" => Date.to_iso8601(digest_date),
+         "edition" => edition,
+         "timezone" => timezone,
+         "generated_at" =>
+           DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.to_iso8601(),
+         "generated_by" => "repo",
+         "item_count" => length(items),
+         "items" => Enum.map(items, &present_item/1),
+         "metadata" => %{
+           "fallback_to_fixture" => false,
+           "top_n" => limit
+         }
+       }}
     end
   end
 
@@ -7830,12 +7836,15 @@ defmodule DisclosureAutomation.Digest do
 
   defp positive_int(_value), do: nil
 
-  defp latest_digest_date_for_edition(edition) do
+  defp recent_digest_dates_for_edition(edition, limit) do
     from(item in CanonicalFeedItem,
       where: item.edition == ^edition and item.status in ["ready", "published"],
-      select: max(item.digest_date)
+      group_by: item.digest_date,
+      order_by: [desc: item.digest_date],
+      limit: ^limit,
+      select: item.digest_date
     )
-    |> Repo.one()
+    |> Repo.all()
   end
 
   defp fallback_to_fixture(edition, digest_date, opts) do
