@@ -504,6 +504,8 @@ const DEFAULT_EXCLUDED_SOURCE_KEYS = ["sec_press_releases"];
 const REGION_SOURCE_KEYS = {
   us: ["sec_edgar_current_8k_filings"]
 };
+const DASHBOARD_SUPPLEMENT_REGIONS = ["us"];
+const DASHBOARD_SUPPLEMENT_LIMIT = 5;
 
 const STATIC_ITEMS = [
   {
@@ -618,6 +620,25 @@ function digestPath() {
       params.set("source_keys", sourceKeys.join(","));
       params.delete("exclude_source_keys");
     }
+  }
+
+  return `/api/feed/digest/latest?${params.toString()}`;
+}
+
+function regionDigestPath(region, limit = "100") {
+  const display = displayRegion(region);
+  const params = new URLSearchParams({
+    edition: digestEdition(),
+    region: display,
+    limit: String(limit),
+    recent_date_limit: "60"
+  });
+  const sourceKeys = REGION_SOURCE_KEYS[display] || [];
+
+  if (sourceKeys.length) {
+    params.set("source_keys", sourceKeys.join(","));
+  } else if (DEFAULT_EXCLUDED_SOURCE_KEYS.length) {
+    params.set("exclude_source_keys", DEFAULT_EXCLUDED_SOURCE_KEYS.join(","));
   }
 
   return `/api/feed/digest/latest?${params.toString()}`;
@@ -1357,6 +1378,36 @@ function renderDashboard(items, digest, mode = "backend") {
   renderInsight(visibleItems, digest, mode);
 }
 
+function mergeItemsByStoryKey(baseItems, extraItems) {
+  const seen = new Set();
+  const merged = [];
+
+  for (const item of [...baseItems, ...extraItems]) {
+    const key = item.storyKey || `${item.primaryRegion}:${item.title}:${item.publishedAt || ""}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    merged.push(item);
+  }
+
+  return merged;
+}
+
+async function supplementDashboardItems(items) {
+  if (selectedRegionFromUrl()) return items;
+
+  const responses = await Promise.allSettled(
+    DASHBOARD_SUPPLEMENT_REGIONS.map(region =>
+      fetchJson(regionDigestPath(region, DASHBOARD_SUPPLEMENT_LIMIT))
+    )
+  );
+
+  const supplements = responses
+    .filter(result => result.status === "fulfilled")
+    .flatMap(result => digestItems(result.value).map(normalizeItem));
+
+  return mergeItemsByStoryKey(items, supplements);
+}
+
 async function loadBackend() {
   let healthOk = false;
 
@@ -1370,7 +1421,7 @@ async function loadBackend() {
 
   try {
     const digest = await fetchJson(digestPath());
-    const items = digestItems(digest).map(normalizeItem);
+    const items = await supplementDashboardItems(digestItems(digest).map(normalizeItem));
     if (items.length) {
       renderDashboard(items, digest, "backend");
       return;
