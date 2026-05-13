@@ -1305,7 +1305,40 @@ function detailSummaryLineHtml(line, index) {
     return `<li><b>${escapeHtml(match[1])}:</b> ${escapeHtml(match[2])}</li>`;
   }
 
+  const sentenceMatch = secDetailSentenceLabel(line);
+  if (sentenceMatch) {
+    return `<li><b>${escapeHtml(sentenceMatch.label)}</b> ${escapeHtml(sentenceMatch.value)}</li>`;
+  }
+
   return `<li>${escapeHtml(line)}</li>`;
+}
+
+function secDetailSentenceLabel(line) {
+  const patterns = [
+    [/^(거래 대상은)\s+(.+)$/, "거래 대상:"],
+    [/^(거래 상대방은)\s+(.+)$/, "거래 상대방:"],
+    [/^(계약 또는 부채 규모는)\s+(.+)$/, "계약/부채 규모:"],
+    [/^(이자율은)\s+(.+)$/, "이자율:"],
+    [/^(만기 또는 상환 예정일은)\s+(.+)$/, "만기/상환 예정일:"],
+    [/^(담보 또는 collateral 조건이)\s+(.+)$/, "담보 조건:"],
+    [/^(무담보 조건이)\s+(.+)$/, "담보 조건:"],
+    [/^(재무약정 또는 covenant 조건이)\s+(.+)$/, "재무약정:"],
+    [/^(변경 후 지분 또는 의결권 비율은)\s+(.+)$/, "변경 후 지분/의결권:"],
+    [/^(거래 대가 또는 관련 금액은)\s+(.+)$/, "거래 대가:"],
+    [/^(거래 조건에는)\s+(.+)$/, "거래 조건:"],
+    [/^(거래는)\s+(.+)$/, "거래 조건:"],
+    [/^(이사회 구성 또는 지명권 변화가)\s+(.+)$/, "이사회/지명권:"],
+    [/^(주주권리 또는 주주계약 조건이)\s+(.+)$/, "주주계약:"],
+    [/^(본문이 명시적으로)\s+(.+)$/, "본문 신호:"],
+    [/^(관련 실적 보도자료 또는 첨부자료가)\s+(.+)$/, "첨부자료:"]
+  ];
+
+  for (const [pattern, label] of patterns) {
+    const match = line.match(pattern);
+    if (match) return { label, value: match[2] };
+  }
+
+  return null;
 }
 
 function detailSummaryHtml(item) {
