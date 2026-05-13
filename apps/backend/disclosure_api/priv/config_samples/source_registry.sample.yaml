@@ -47,26 +47,6 @@ sources:
       dedupe_strategy: accession_number
       summary_mode: filing_summary
       category_bias: company_filings
-      positive_signal_score:
-        version: sec_positive_signal_v1
-        label: sec_8k_positive_catalyst
-        base: 80
-        max: 98
-        keyword_scores:
-          item 1.01: 8
-          item 2.01: 9
-          item 3.02: 10
-          item 5.01: 10
-          item 7.01: 6
-          item 8.01: 7
-          strategic: 5
-          partnership: 5
-          collaboration: 5
-          contract: 4
-          customer: 5
-          backlog: 6
-          guidance raise: 8
-          order: 4
       disable_live_fixture_fallback: true
       max_items_per_poll: 50
       detail_fetch_limit: 10
@@ -96,13 +76,6 @@ sources:
       dedupe_strategy: issuer_week_cluster
       summary_mode: insider_buy_cluster
       category_bias: insider_buy_cluster
-      positive_signal_score:
-        version: sec_positive_signal_v1
-        label: insider_buy_cluster
-        base: 96
-        max: 99
-        category_scores:
-          Form 4 insider purchase cluster: 96
       disable_live_fixture_fallback: true
       max_items_per_poll: 100
       detail_fetch_limit: 60
@@ -135,16 +108,6 @@ sources:
       dedupe_strategy: institution_position_change
       summary_mode: institutional_accumulation_summary
       category_bias: institutional_accumulation
-      positive_signal_score:
-        version: sec_positive_signal_v1
-        label: institutional_accumulation
-        base: 88
-        max: 96
-        keyword_scores:
-          신규 편입: 6
-          보유지분 증가: 4
-          multiple institutions: 6
-          simultaneous accumulation: 8
       disable_live_fixture_fallback: true
       poll_async_default: true
       poll_queue: source_polling_slow
@@ -181,18 +144,6 @@ sources:
       dedupe_strategy: accession_number
       summary_mode: xbrl_financial_summary
       category_bias: periodic_financials
-      positive_signal_score:
-        version: sec_positive_signal_v1
-        label: quarterly_financials
-        base: 74
-        max: 92
-        keyword_scores:
-          revenue: 3
-          net income: 3
-          eps: 3
-          guidance: 5
-          raises guidance: 8
-          record revenue: 6
       disable_live_fixture_fallback: true
       max_items_per_poll: 20
       detail_fetch_limit: 1
@@ -224,18 +175,6 @@ sources:
       dedupe_strategy: accession_number
       summary_mode: xbrl_financial_summary
       category_bias: periodic_financials
-      positive_signal_score:
-        version: sec_positive_signal_v1
-        label: annual_financials
-        base: 70
-        max: 90
-        keyword_scores:
-          revenue: 3
-          net income: 3
-          eps: 3
-          guidance: 5
-          raises guidance: 8
-          record revenue: 6
       disable_live_fixture_fallback: true
       poll_async_default: true
       poll_queue: source_polling_slow
@@ -268,18 +207,6 @@ sources:
       dedupe_strategy: accession_number
       summary_mode: ipo_registration_summary
       category_bias: ipo_registration
-      positive_signal_score:
-        version: sec_positive_signal_v1
-        label: ipo_registration
-        base: 86
-        max: 96
-        keyword_scores:
-          initial public offering: 5
-          proposed offering: 4
-          use of proceeds: 3
-          price range: 4
-          nasdaq: 3
-          nyse: 3
       disable_live_fixture_fallback: true
       poll_async_default: true
       poll_queue: source_polling_slow
@@ -313,18 +240,6 @@ sources:
       dedupe_strategy: accession_number
       summary_mode: ipo_registration_summary
       category_bias: ipo_registration
-      positive_signal_score:
-        version: sec_positive_signal_v1
-        label: foreign_issuer_ipo_registration
-        base: 84
-        max: 95
-        keyword_scores:
-          initial public offering: 5
-          proposed offering: 4
-          use of proceeds: 3
-          price range: 4
-          nasdaq: 3
-          nyse: 3
       disable_live_fixture_fallback: true
       poll_async_default: true
       poll_queue: source_polling_slow
@@ -358,17 +273,6 @@ sources:
       dedupe_strategy: accession_number
       summary_mode: strategic_ownership_summary
       category_bias: activist_ownership
-      positive_signal_score:
-        version: sec_positive_signal_v1
-        label: strategic_ownership
-        base: 92
-        max: 98
-        keyword_scores:
-          purpose of transaction: 5
-          board: 3
-          strategic alternatives: 6
-          change in control: 8
-          activist: 6
       disable_live_fixture_fallback: true
       poll_async_default: true
       poll_queue: source_polling_slow
@@ -402,15 +306,6 @@ sources:
       dedupe_strategy: accession_number
       summary_mode: increased_ownership_summary
       category_bias: increased_ownership
-      positive_signal_score:
-        version: sec_positive_signal_v1
-        label: increased_ownership
-        base: 84
-        max: 94
-        keyword_scores:
-          percent: 2
-          beneficial ownership: 3
-          increased: 5
       disable_live_fixture_fallback: true
       poll_async_default: true
       poll_queue: source_polling_slow
@@ -445,17 +340,6 @@ sources:
       dedupe_strategy: accession_number
       summary_mode: merger_registration_summary
       category_bias: merger_registration
-      positive_signal_score:
-        version: sec_positive_signal_v1
-        label: merger_exchange_registration
-        base: 90
-        max: 98
-        keyword_scores:
-          merger: 6
-          exchange ratio: 7
-          business combination: 6
-          acquisition: 5
-          strategic combination: 5
       disable_live_fixture_fallback: true
       poll_async_default: true
       poll_queue: source_polling_slow
@@ -490,17 +374,6 @@ sources:
       dedupe_strategy: accession_number
       summary_mode: merger_registration_summary
       category_bias: merger_registration
-      positive_signal_score:
-        version: sec_positive_signal_v1
-        label: foreign_merger_exchange_registration
-        base: 88
-        max: 97
-        keyword_scores:
-          merger: 6
-          exchange ratio: 7
-          business combination: 6
-          acquisition: 5
-          strategic combination: 5
       disable_live_fixture_fallback: true
       poll_async_default: true
       poll_queue: source_polling_slow
@@ -534,18 +407,6 @@ sources:
       dedupe_strategy: accession_number
       summary_mode: tender_offer_summary
       category_bias: tender_offer
-      positive_signal_score:
-        version: sec_positive_signal_v1
-        label: tender_offer
-        base: 94
-        max: 99
-        keyword_scores:
-          tender offer: 5
-          offer price: 4
-          purchase price: 4
-          premium: 5
-          all cash: 5
-          acquisition: 4
       disable_live_fixture_fallback: true
       poll_async_default: true
       poll_queue: source_polling_slow

@@ -23,7 +23,7 @@ SEC source poll
 - Do not add public Source Health UI.
 - Do not change backend digest JSON response shape.
 - Prefer async polling for heavy SEC sources.
-- Treat scores and summaries as idea-discovery aids, not investment recommendations.
+- Treat SEC labels and summaries as idea-discovery aids, not investment recommendations.
 
 ## Current Staging Endpoints
 
@@ -108,8 +108,7 @@ For the digest:
 ```text
 GET /api/feed/digest/latest?edition=breaking&region=us -> 200
 items include U.S. SEC sources
-positive_signal_score metadata appears when scoring config applies
-public UI shows SEC tabs and signal badges after Pages deploy
+public UI shows SEC tabs and non-numeric signal badges after Pages deploy
 raw filings, cookies, tokens, headers, or private auth material are not exposed
 ```
 
@@ -133,7 +132,7 @@ M&A/공개매수 tab visible
 내부자 tab visible
 실적 tab visible
 IPO tab visible
-signal badges visible for scored SEC items
+non-numeric signal badges visible for SEC idea items
 복합 시그널 badge visible when the same issuer has multiple SEC signal types in the current digest
 detail page keeps Korean label/value summary rows
 browser console has no fatal fetch/CORS errors
@@ -157,7 +156,7 @@ Recommended next SEC improvements:
 
 ```text
 1. Add a bounded operator command/script around this runbook if manual refresh becomes frequent.
-2. Tune positive_signal_score values after observing false positives and missed ideas.
+2. Observe false positives and missed ideas before considering any future score reintroduction.
 3. Add source-specific smoke records for the first successful refresh of each newly added SEC source.
 4. Consider backend-side composite signal materialization after the UI grouping proves useful.
 5. Add optional stale-digest alerting for U.S. SEC region if public digest freshness becomes important.

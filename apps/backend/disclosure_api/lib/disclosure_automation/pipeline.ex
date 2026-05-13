@@ -11229,7 +11229,6 @@ defmodule DisclosureAutomation.Ingestion do
         source_registry_id: source.id,
         priority_rank: priority_rank
       })
-      |> apply_positive_signal_score(source, record, priority_rank)
 
     changeset = CanonicalFeedItem.changeset(%CanonicalFeedItem{}, canonical_attrs)
 
@@ -11272,181 +11271,11 @@ defmodule DisclosureAutomation.Ingestion do
     Application.get_env(:disclosure_automation, :parser_capabilities_cache, %{})
   end
 
-  defp apply_positive_signal_score(canonical_attrs, source, record, fallback_rank) do
-    case positive_signal_score(source, record, canonical_attrs) do
-      %{score: score} = signal when score > 0 ->
-        canonical_attrs
-        |> Map.update!(:metadata, &Map.merge(&1 || %{}, positive_signal_metadata(signal)))
-        |> Map.put(:relevance_score, positive_signal_relevance_score(score))
-        |> Map.put(:priority_rank, positive_signal_priority_rank(score, fallback_rank))
-
-      _signal ->
-        canonical_attrs
-    end
-  end
-
-  defp positive_signal_score(source, record, canonical_attrs) do
-    config = source_config_map(source, "positive_signal_score", :positive_signal_score)
-
-    if config == %{} do
-      %{score: 0, reasons: []}
-    else
-      text = positive_signal_text(record, canonical_attrs)
-      category = positive_signal_category(record, canonical_attrs)
-      base = config_number(config, "base", 0)
-      max_score = config_number(config, "max", 100)
-      category_score = category_score(config, category)
-      keyword_matches = keyword_score_matches(config, text)
-
-      keyword_total =
-        keyword_matches
-        |> Enum.map(& &1.score)
-        |> Enum.sum()
-
-      score =
-        [base, category_score]
-        |> Enum.max()
-        |> Kernel.+(keyword_total)
-        |> min(max_score)
-        |> max(0)
-
-      %{
-        score: score,
-        label: config_string(config, "label", "positive_signal"),
-        version: config_string(config, "version", "sec_positive_signal_v1"),
-        category: category,
-        reasons: positive_signal_reasons(base, category_score, keyword_matches)
-      }
-    end
-  end
-
-  defp positive_signal_text(record, canonical_attrs) do
-    [
-      Map.get(record, :title),
-      Map.get(record, :summary),
-      Map.get(record, :category),
-      canonical_attrs.headline,
-      canonical_attrs.summary
-    ]
-    |> Enum.reject(&is_nil/1)
-    |> Enum.join(" ")
-    |> String.downcase()
-  end
-
-  defp positive_signal_category(record, canonical_attrs) do
-    Map.get(record, :category) ||
-      get_in(canonical_attrs, [:metadata, "category"]) ||
-      get_in(canonical_attrs, [:metadata, :category])
-  end
-
-  defp category_score(config, category) when is_binary(category) do
-    scores = config_map(config, "category_scores")
-    normalized = String.downcase(category)
-
-    scores
-    |> Enum.find_value(0, fn {key, score} ->
-      key = String.downcase(to_string(key))
-
-      if key == normalized or String.contains?(normalized, key) do
-        normalized_number(score, 0)
-      end
-    end)
-  end
-
-  defp category_score(_config, _category), do: 0
-
-  defp keyword_score_matches(config, text) do
-    config
-    |> config_map("keyword_scores")
-    |> Enum.flat_map(fn {keyword, score} ->
-      keyword = keyword |> to_string() |> String.downcase() |> String.trim()
-
-      if keyword != "" and String.contains?(text, keyword) do
-        [%{keyword: keyword, score: normalized_number(score, 0)}]
-      else
-        []
-      end
-    end)
-  end
-
-  defp positive_signal_reasons(base, category_score, keyword_matches) do
-    [
-      base > 0 && "base=#{base}",
-      category_score > 0 && "category=#{category_score}"
-      | Enum.map(keyword_matches, &"keyword:#{&1.keyword}=#{&1.score}")
-    ]
-    |> Enum.reject(&(&1 in [nil, false]))
-  end
-
-  defp positive_signal_metadata(signal) do
-    %{
-      "positive_signal_score" => signal.score,
-      "positive_signal_label" => signal.label,
-      "positive_signal_category" => signal.category,
-      "positive_signal_reasons" => signal.reasons,
-      "positive_signal_version" => signal.version
-    }
-  end
-
-  defp positive_signal_relevance_score(score) do
-    score
-    |> Kernel./(100)
-    |> :erlang.float_to_binary(decimals: 3)
-    |> Decimal.new()
-  end
-
-  defp positive_signal_priority_rank(score, fallback_rank) do
-    score_rank = max(1, 100 - round(score))
-    min(score_rank, positive_int_rank(fallback_rank))
-  end
-
-  defp positive_int_rank(value) when is_integer(value) and value > 0, do: value
-  defp positive_int_rank(_value), do: 999
-
   defp source_max_items_per_poll(%SourceRegistry{config: config}) when is_map(config) do
     config["max_items_per_poll"] || config[:max_items_per_poll]
   end
 
   defp source_max_items_per_poll(_source), do: nil
-
-  defp source_config_map(source, string_key, atom_key) do
-    case source_config_value(source, string_key, atom_key, %{}) do
-      value when is_map(value) -> value
-      _value -> %{}
-    end
-  end
-
-  defp config_map(config, key) when is_map(config) do
-    case Map.get(config, key) || Map.get(config, String.to_atom(key)) do
-      value when is_map(value) -> value
-      _value -> %{}
-    end
-  end
-
-  defp config_number(config, key, default) when is_map(config) do
-    config
-    |> Map.get(key, Map.get(config, String.to_atom(key), default))
-    |> normalized_number(default)
-  end
-
-  defp normalized_number(value, _default) when is_integer(value), do: value
-  defp normalized_number(value, _default) when is_float(value), do: value
-
-  defp normalized_number(value, default) when is_binary(value) do
-    case Float.parse(value) do
-      {parsed, ""} -> parsed
-      _error -> default
-    end
-  end
-
-  defp normalized_number(_value, default), do: default
-
-  defp config_string(config, key, default) when is_map(config) do
-    case Map.get(config, key) || Map.get(config, String.to_atom(key)) do
-      value when is_binary(value) and value != "" -> value
-      _value -> default
-    end
-  end
 end
 
 defmodule DisclosureAutomation.Digest do
