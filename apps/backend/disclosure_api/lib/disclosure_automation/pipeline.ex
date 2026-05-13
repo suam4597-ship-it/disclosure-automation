@@ -5187,8 +5187,11 @@ defmodule DisclosureAutomation.Ingestion do
   @blse_ticker_url "https://services.blberza.com/blse/ticker.ashx?LangId=3&TickerTypeId=1&filter=all&ct=xml"
   @blse_issuer_news_url_template "https://www.blberza.com/pages/IssuerNewsRss.aspx?Code={code}&LangId=3"
   @sec_edgar_current_8k_source_key "sec_edgar_current_8k_filings"
+  @sec_edgar_form4_cluster_source_key "sec_edgar_form4_clustered_insider_buys"
   @sec_edgar_detail_fetch_default_limit 10
   @sec_edgar_detail_fetch_default_timeout_ms 8_000
+  @sec_edgar_form4_cluster_min_owners 3
+  @sec_edgar_form4_cluster_window_days 7
   @sec_edgar_item_heading_regex ~r/\bItem\s+[1-9]\.\d{2}\b/i
 
   def poll_source(source_key, opts \\ []) when is_binary(source_key) do
@@ -5336,6 +5339,25 @@ defmodule DisclosureAutomation.Ingestion do
     end)
   end
 
+  defp maybe_enrich_live_records(
+         %SourceRegistry{source_key: @sec_edgar_form4_cluster_source_key} = source,
+         records,
+         %{"mode" => "live"}
+       )
+       when is_list(records) do
+    source
+    |> sec_edgar_form4_buy_reports(records)
+    |> sec_edgar_form4_cluster_records(source)
+  end
+
+  defp maybe_enrich_live_records(
+         %SourceRegistry{source_key: @sec_edgar_form4_cluster_source_key},
+         _records,
+         _fetch_info
+       ) do
+    []
+  end
+
   defp maybe_enrich_live_records(_source, records, _fetch_info), do: records
 
   defp enrich_sec_edgar_8k_record(source, record) when is_map(record) do
@@ -5354,6 +5376,393 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp enrich_sec_edgar_8k_record(_source, record), do: record
+
+  defp sec_edgar_form4_buy_reports(source, records) do
+    records
+    |> Enum.filter(&sec_edgar_form4_record?/1)
+    |> Enum.uniq_by(&(sec_edgar_accession_number(&1) || Map.get(&1, :url)))
+    |> Enum.take(sec_edgar_detail_fetch_limit(source))
+    |> Enum.map(&sec_edgar_form4_buy_report(source, &1))
+    |> Enum.reject(&is_nil/1)
+  end
+
+  defp sec_edgar_form4_record?(record) when is_map(record) do
+    String.upcase(to_string(Map.get(record, :category) || "")) == "4" or
+      to_string(Map.get(record, :title) || "") =~ ~r/^4\s+-/i
+  end
+
+  defp sec_edgar_form4_record?(_record), do: false
+
+  defp sec_edgar_form4_buy_report(source, record) do
+    with url when is_binary(url) <- sec_edgar_complete_submission_text_url(record),
+         {:ok, response} <-
+           Http.fetch(url,
+             headers: source_live_headers(source),
+             timeout: sec_edgar_detail_fetch_timeout(source)
+           ),
+         status when status in 200..299 <- response.status_code,
+         {:ok, ownership_xml} <- sec_edgar_form4_ownership_xml(response.body),
+         {:ok, report} <- sec_edgar_form4_report_from_xml(ownership_xml, record, url) do
+      report
+    else
+      _reason -> nil
+    end
+  end
+
+  defp sec_edgar_form4_ownership_xml(raw_submission) when is_binary(raw_submission) do
+    case Regex.run(~r/<ownershipDocument[\s\S]*?<\/ownershipDocument>/i, raw_submission) do
+      [ownership_xml] -> {:ok, ownership_xml}
+      _match -> {:error, :ownership_document_not_found}
+    end
+  end
+
+  defp sec_edgar_form4_ownership_xml(_raw_submission), do: {:error, :ownership_document_not_found}
+
+  defp sec_edgar_form4_report_from_xml(xml, record, detail_url) do
+    issuer_name = sec_edgar_form4_tag_value(xml, "issuerName")
+    issuer_cik = sec_edgar_form4_tag_value(xml, "issuerCik")
+    ticker = sec_edgar_form4_tag_value(xml, "issuerTradingSymbol")
+    owner_name = sec_edgar_form4_tag_value(xml, "rptOwnerName")
+    roles = sec_edgar_form4_owner_roles(xml)
+    buy_transactions = sec_edgar_form4_buy_transactions(xml)
+
+    cond do
+      issuer_name in [nil, ""] ->
+        {:error, :issuer_missing}
+
+      owner_name in [nil, ""] ->
+        {:error, :reporting_owner_missing}
+
+      roles == [] ->
+        {:error, :insider_relationship_missing}
+
+      buy_transactions == [] ->
+        {:error, :purchase_transaction_missing}
+
+      true ->
+        {:ok,
+         %{
+           accession: sec_edgar_accession_number(record),
+           issuer_name: issuer_name,
+           issuer_cik: issuer_cik,
+           ticker: ticker,
+           owner_name: owner_name,
+           roles: roles,
+           transactions: buy_transactions,
+           latest_transaction_date: sec_edgar_form4_latest_transaction_date(buy_transactions),
+           total_shares: sec_edgar_form4_total_shares(buy_transactions),
+           total_value: sec_edgar_form4_total_value(buy_transactions),
+           url: detail_url,
+           published_at: Map.get(record, :published_at) || DateTime.utc_now()
+         }}
+    end
+  end
+
+  defp sec_edgar_form4_cluster_records(reports, source) do
+    reports
+    |> Enum.reject(&is_nil(&1.latest_transaction_date))
+    |> Enum.group_by(&(&1.issuer_cik || &1.issuer_name))
+    |> Enum.flat_map(fn {_issuer_key, issuer_reports} ->
+      issuer_reports
+      |> sec_edgar_form4_cluster_window(source)
+      |> case do
+        [] -> []
+        window_reports -> sec_edgar_form4_cluster_record(window_reports)
+      end
+    end)
+    |> Enum.sort_by(&DateTime.to_unix(&1.published_at), :desc)
+  end
+
+  defp sec_edgar_form4_cluster_window(issuer_reports, source) do
+    window_days =
+      source_config_positive_integer(
+        source,
+        "cluster_window_days",
+        :cluster_window_days,
+        @sec_edgar_form4_cluster_window_days
+      )
+
+    min_owners =
+      source_config_positive_integer(
+        source,
+        "cluster_min_reporting_owners",
+        :cluster_min_reporting_owners,
+        @sec_edgar_form4_cluster_min_owners
+      )
+
+    latest_date =
+      issuer_reports
+      |> Enum.map(& &1.latest_transaction_date)
+      |> Enum.max_by(&Date.to_gregorian_days/1, fn -> nil end)
+
+    if latest_date do
+      window =
+        Enum.filter(issuer_reports, fn report ->
+          Date.diff(latest_date, report.latest_transaction_date) < window_days
+        end)
+
+      owner_count =
+        window
+        |> Enum.map(& &1.owner_name)
+        |> Enum.uniq()
+        |> length()
+
+      if owner_count >= min_owners, do: window, else: []
+    else
+      []
+    end
+  end
+
+  defp sec_edgar_form4_cluster_record([]), do: []
+
+  defp sec_edgar_form4_cluster_record([first | _rest] = reports) do
+    latest_date =
+      reports
+      |> Enum.map(& &1.latest_transaction_date)
+      |> Enum.max_by(&Date.to_gregorian_days/1)
+
+    earliest_date =
+      reports
+      |> Enum.map(& &1.latest_transaction_date)
+      |> Enum.min_by(&Date.to_gregorian_days/1)
+
+    owners =
+      reports
+      |> Enum.map(& &1.owner_name)
+      |> Enum.uniq()
+
+    total_shares =
+      reports
+      |> Enum.map(& &1.total_shares)
+      |> Enum.reject(&is_nil/1)
+      |> Enum.reduce(Decimal.new("0"), &Decimal.add/2)
+
+    total_value =
+      reports
+      |> Enum.map(& &1.total_value)
+      |> Enum.reject(&is_nil/1)
+      |> Enum.reduce(Decimal.new("0"), &Decimal.add/2)
+
+    ticker = first.ticker && String.trim(first.ticker)
+    issuer = sec_edgar_form4_issuer_label(first.issuer_name, ticker)
+    owner_count = length(owners)
+    accession_seed = reports |> Enum.map(& &1.accession) |> Enum.reject(&is_nil/1) |> Enum.sort()
+
+    summary =
+      [
+        "#{Date.to_iso8601(earliest_date)}~#{Date.to_iso8601(latest_date)} 7일 창에서 #{owner_count}명의 내부자/임원/10% 이상 보유자가 Form 4 매수(P/A)를 신고했습니다",
+        "신고자: #{owners |> Enum.take(5) |> Enum.join(", ")}",
+        Decimal.compare(total_shares, Decimal.new("0")) == :gt &&
+          "합산 매수 주식 수: #{sec_edgar_decimal_share_label(total_shares)}",
+        Decimal.compare(total_value, Decimal.new("0")) == :gt &&
+          "가격이 확인된 거래 기준 추정 매수 규모: #{sec_edgar_decimal_money_label(total_value)}"
+      ]
+      |> Enum.reject(&(&1 in [nil, false, ""]))
+      |> Enum.join("; ")
+
+    [
+      %{
+        external_id:
+          "sec-form4-buy-cluster:" <>
+            Enum.join(
+              [
+                first.issuer_cik || sec_edgar_slug(first.issuer_name),
+                Date.to_iso8601(earliest_date),
+                Date.to_iso8601(latest_date),
+                sec_edgar_short_hash(Enum.join(accession_seed, "|"))
+              ],
+              ":"
+            ),
+        title: "Form 4 insider buy cluster - #{issuer}",
+        url: first.url,
+        summary: summary,
+        published_at: Enum.max_by(reports, &DateTime.to_unix(&1.published_at)).published_at,
+        category: "Form 4 insider purchase cluster"
+      }
+    ]
+  end
+
+  defp sec_edgar_form4_tag_value(xml, tag) do
+    pattern =
+      Regex.compile!(
+        "<#{Regex.escape(tag)}[^>]*>\\s*(?:<value[^>]*>)?\\s*([^<]+?)\\s*(?:</value>)?\\s*</#{Regex.escape(tag)}>",
+        "i"
+      )
+
+    case Regex.run(pattern, xml) do
+      [_match, value] ->
+        value
+        |> sec_edgar_decode_entities()
+        |> sec_edgar_clean_phrase()
+        |> case do
+          "" -> nil
+          cleaned -> cleaned
+        end
+
+      _match ->
+        nil
+    end
+  end
+
+  defp sec_edgar_form4_owner_roles(xml) do
+    [
+      sec_edgar_form4_truthy_tag?(xml, "isDirector") && "director",
+      sec_edgar_form4_truthy_tag?(xml, "isOfficer") &&
+        sec_edgar_form4_officer_role(xml),
+      sec_edgar_form4_truthy_tag?(xml, "isTenPercentOwner") && "10%+ holder",
+      sec_edgar_form4_truthy_tag?(xml, "isOther") && "other insider"
+    ]
+    |> Enum.reject(&(&1 in [nil, false, ""]))
+    |> Enum.uniq()
+  end
+
+  defp sec_edgar_form4_officer_role(xml) do
+    case sec_edgar_form4_tag_value(xml, "officerTitle") do
+      nil -> "officer"
+      title -> title
+    end
+  end
+
+  defp sec_edgar_form4_truthy_tag?(xml, tag) do
+    case sec_edgar_form4_tag_value(xml, tag) do
+      value when is_binary(value) -> String.downcase(value) in ["1", "true", "yes"]
+      _value -> false
+    end
+  end
+
+  defp sec_edgar_form4_buy_transactions(xml) do
+    ~r/<nonDerivativeTransaction[\s\S]*?<\/nonDerivativeTransaction>/i
+    |> Regex.scan(xml)
+    |> Enum.map(fn [transaction] -> sec_edgar_form4_buy_transaction(transaction) end)
+    |> Enum.reject(&is_nil/1)
+  end
+
+  defp sec_edgar_form4_buy_transaction(transaction) do
+    code = sec_edgar_form4_tag_value(transaction, "transactionCode")
+    acquired_disposed = sec_edgar_form4_tag_value(transaction, "transactionAcquiredDisposedCode")
+    date = sec_edgar_form4_date_value(transaction, "transactionDate")
+
+    if String.upcase(to_string(code)) == "P" and
+         String.upcase(to_string(acquired_disposed)) == "A" and date do
+      %{
+        date: date,
+        shares: sec_edgar_form4_decimal_value(transaction, "transactionShares"),
+        price: sec_edgar_form4_decimal_value(transaction, "transactionPricePerShare"),
+        security: sec_edgar_form4_tag_value(transaction, "securityTitle")
+      }
+    end
+  end
+
+  defp sec_edgar_form4_date_value(xml, tag) do
+    with value when is_binary(value) <- sec_edgar_form4_tag_value(xml, tag),
+         {:ok, date} <- Date.from_iso8601(value) do
+      date
+    else
+      _reason -> nil
+    end
+  end
+
+  defp sec_edgar_form4_decimal_value(xml, tag) do
+    with value when is_binary(value) <- sec_edgar_form4_tag_value(xml, tag) do
+      value
+      |> String.replace(",", "")
+      |> Decimal.parse()
+      |> case do
+        {decimal, ""} -> decimal
+        _error -> nil
+      end
+    end
+  end
+
+  defp sec_edgar_form4_latest_transaction_date(transactions) do
+    transactions
+    |> Enum.map(& &1.date)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.max_by(&Date.to_gregorian_days/1, fn -> nil end)
+  end
+
+  defp sec_edgar_form4_total_shares(transactions) do
+    transactions
+    |> Enum.map(& &1.shares)
+    |> Enum.reject(&is_nil/1)
+    |> case do
+      [] -> nil
+      values -> Enum.reduce(values, Decimal.new("0"), &Decimal.add/2)
+    end
+  end
+
+  defp sec_edgar_form4_total_value(transactions) do
+    values =
+      transactions
+      |> Enum.map(fn transaction ->
+        if transaction.shares && transaction.price do
+          Decimal.mult(transaction.shares, transaction.price)
+        end
+      end)
+      |> Enum.reject(&is_nil/1)
+
+    case values do
+      [] -> nil
+      values -> Enum.reduce(values, Decimal.new("0"), &Decimal.add/2)
+    end
+  end
+
+  defp sec_edgar_form4_issuer_label(issuer_name, ticker) do
+    cond do
+      is_binary(ticker) and ticker != "" -> "#{issuer_name} (#{ticker})"
+      true -> issuer_name
+    end
+  end
+
+  defp sec_edgar_decimal_share_label(decimal) do
+    decimal
+    |> Decimal.round(0)
+    |> Decimal.to_integer()
+    |> Integer.to_string()
+    |> sec_edgar_share_label()
+  end
+
+  defp sec_edgar_decimal_money_label(decimal) do
+    decimal
+    |> Decimal.round(2)
+    |> Decimal.to_string(:normal)
+    |> sec_edgar_money_label(nil)
+  end
+
+  defp sec_edgar_accession_number(record) when is_map(record) do
+    [
+      Map.get(record, :external_id),
+      Map.get(record, :summary),
+      Map.get(record, :url)
+    ]
+    |> Enum.find_value(fn value ->
+      case Regex.run(~r/(\d{10}-\d{2}-\d{6})/, to_string(value || "")) do
+        [_match, accession] -> accession
+        _match -> nil
+      end
+    end)
+  end
+
+  defp sec_edgar_accession_number(_record), do: nil
+
+  defp sec_edgar_short_hash(value) do
+    :sha256
+    |> :crypto.hash(value)
+    |> Base.encode16(case: :lower)
+    |> binary_part(0, 12)
+  end
+
+  defp sec_edgar_slug(value) do
+    value
+    |> to_string()
+    |> String.downcase()
+    |> String.replace(~r/[^a-z0-9]+/u, "-")
+    |> String.trim("-")
+    |> case do
+      "" -> "unknown"
+      slug -> slug
+    end
+  end
 
   defp sec_edgar_complete_submission_text_url(%{url: url}) when is_binary(url) do
     normalized_url =
