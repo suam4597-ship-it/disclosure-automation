@@ -17,6 +17,7 @@ POST_EXPANSION_NEXT_STEP_PLAN_RECORDED
 CURRENT_PUBLIC_WEB_DIGEST_DIVERSITY_OBSERVATION_RECORDED
 CURRENT_PUBLIC_WEB_DIGEST_DIVERSITY_REFRESH_RECORDED
 SOURCE_HEALTH_DRIFT_OBSERVATION_RECORDED
+SOURCE_HEALTH_POST_ROLLUP_SNAPSHOT_RECORDED
 PRODUCTION_APPROVAL_BLOCKER_STATUS_RECORDED
 LATEST_SCHEDULED_STAGING_ROLLUP_RECORDED
 EU_CANARY_BELGIUM_FIXTURE_FALLBACK_OBSERVED
@@ -90,6 +91,16 @@ real source keys checked: sec_press_releases, india_nse_announcements, hkex_late
 real source key route status: 200
 candidate active flags: false for checked non-SEC candidates
 workflow canary aliases: eu_scheduled_staging_canary and denmark_dfsa_oam_staging_canary are not registered source-health keys
+```
+
+Post-rollup source-health snapshot:
+
+```text
+doc: globalpulse_source_health_post_rollup_snapshot_20260513.md
+real source keys checked: sec_press_releases, india_nse_announcements, hkex_latest_listed_company_information, eu_belgium_fsma_stori, eu_france_info_financiere_oam, eu_spain_cnmv_inside_information, eu_spain_cnmv_other_relevant_information, uk_fca_nsm_regulated_information, ch_six_ser_official_notices, dk_dfsa_oam_company_announcements
+route status: 200 for all checked keys
+last_error: null for all checked keys
+candidate active flags: false for checked non-SEC candidates
 ```
 
 ## Readiness Matrix

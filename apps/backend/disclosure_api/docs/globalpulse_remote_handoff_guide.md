@@ -156,6 +156,12 @@ Latest source-health drift observation:
 globalpulse_source_health_drift_observation_20260512.md
 ```
 
+Post-rollup source-health snapshot:
+
+```text
+globalpulse_source_health_post_rollup_snapshot_20260513.md
+```
+
 Latest production approval blocker status:
 
 ```text
@@ -372,6 +378,7 @@ latest digest diversity refresh: public top-N includes India, Switzerland, UK, E
 latest regional mapping refresh: config.js exposes region labels/aliases/order before dashboard render; load-time double-fetch adapter removed
 first daily scheduled public web smoke run: pass, run 25712711038, event=schedule
 source-health drift observation: real source keys reachable; workflow canary aliases are not registered source-health keys
+source-health post-rollup snapshot: checked real source keys returned HTTP 200 with last_error=null; candidate sources remain active=false
 production approval blocker status: #561 open comments=1 approval request posted, #565 open comments=1 approval request posted
 scheduled staging poll no-new-run gap: superseded by later SEC/EU/HKEX scheduled success runs
 scheduled workflow liveness review checklist: use before changing schedules after a no-new-run gap
