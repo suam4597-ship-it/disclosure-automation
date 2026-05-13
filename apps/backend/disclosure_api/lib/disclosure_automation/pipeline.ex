@@ -7817,7 +7817,6 @@ defmodule DisclosureAutomation.Ingestion do
     [
       ~r/(?:agreement|contract|order|arrangement|partnership|collaboration)[^.]{0,180}?\s+with\s+([^.;]+?)(?:,|\sto\s|\sfor\s|\.|$)/i,
       ~r/entered into (?:a|an|the)?[^.]{0,180}?\s+with\s+([^.;]+?)(?:,|\sto\s|\sfor\s|\.|$)/i,
-      ~r/(?:between|by and among)\s+[^.;]{0,160}?\s+and\s+([^.;]+?)(?:,|\.|$)/i,
       ~r/(?:customer|client|counterparty)\s+(?:is|was|will be)\s+([^.;]+?)(?:,|\.|$)/i
     ]
     |> sec_edgar_first_capture(section)
