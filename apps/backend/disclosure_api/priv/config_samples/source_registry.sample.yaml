@@ -85,6 +85,40 @@ sources:
       live_headers:
         user-agent: disclosure-automation-phase1 suam4597@gmail.com
 
+  - source_key: sec_edgar_13f_institutional_accumulation
+    display_name: SEC EDGAR 13F Institutional Accumulation
+    source_type: atom
+    base_url: "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=13F-HR&owner=include&count=100&output=atom"
+    healthcheck_url: https://www.sec.gov/edgar
+    parser_key: rss_v1
+    poll_cron: "0 * * * *"
+    ranking_weight: 1.48
+    coverage_tags:
+      - us
+      - disclosure
+      - filing
+      - sec_edgar
+      - 13f
+      - institutional_buy
+      - portfolio
+      - markets
+    active: true
+    config:
+      canonical_domain: sec.gov
+      dedupe_strategy: institution_position_change
+      summary_mode: institutional_accumulation_summary
+      category_bias: institutional_accumulation
+      disable_live_fixture_fallback: true
+      max_items_per_poll: 100
+      detail_fetch_limit: 12
+      detail_fetch_timeout_ms: 12000
+      increase_min_percent: 25
+      positions_per_manager: 5
+      emit_limit: 40
+      notable_manager_only: true
+      live_headers:
+        user-agent: disclosure-automation-phase1 suam4597@gmail.com
+
   - source_key: sec_edgar_current_10q_reports
     display_name: SEC EDGAR Current 10-Q Reports
     source_type: atom
