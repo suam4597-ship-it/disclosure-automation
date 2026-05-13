@@ -5526,7 +5526,11 @@ defmodule DisclosureAutomation.Ingestion do
 
     details =
       [
-        sec_edgar_metric_detail(section, "매출", ~r/(?:total\s+)?revenues?[^$]{0,80}\$([\d,.]+)\s*(million|billion)?/i),
+        sec_edgar_metric_detail(
+          section,
+          "매출",
+          ~r/(?:total\s+)?revenues?[^$]{0,80}\$([\d,.]+)\s*(million|billion)?/i
+        ),
         sec_edgar_net_income_detail(section),
         sec_edgar_eps_detail(section),
         sec_edgar_earnings_release_detail(section)
@@ -5659,15 +5663,32 @@ defmodule DisclosureAutomation.Ingestion do
 
   defp sec_edgar_agreement_label(section) do
     cond do
-      section =~ ~r/underwriting agreement/i -> "인수계약"
-      section =~ ~r/merger agreement|business combination agreement/i -> "합병 또는 사업결합 계약"
-      section =~ ~r/credit agreement|loan agreement|financing agreement/i -> "신용공여 또는 대출계약"
-      section =~ ~r/purchase agreement|securities purchase agreement|asset purchase agreement/i -> "매매계약"
-      section =~ ~r/employment agreement|consulting agreement/i -> "고용 또는 자문계약"
-      section =~ ~r/license agreement|collaboration agreement|cooperation agreement/i -> "라이선스 또는 협력계약"
-      section =~ ~r/material definitive agreement/i -> "중요한 확정계약"
-      section =~ ~r/\bagreement\b/i -> "중요한 계약"
-      true -> nil
+      section =~ ~r/underwriting agreement/i ->
+        "인수계약"
+
+      section =~ ~r/merger agreement|business combination agreement/i ->
+        "합병 또는 사업결합 계약"
+
+      section =~ ~r/credit agreement|loan agreement|financing agreement/i ->
+        "신용공여 또는 대출계약"
+
+      section =~ ~r/purchase agreement|securities purchase agreement|asset purchase agreement/i ->
+        "매매계약"
+
+      section =~ ~r/employment agreement|consulting agreement/i ->
+        "고용 또는 자문계약"
+
+      section =~ ~r/license agreement|collaboration agreement|cooperation agreement/i ->
+        "라이선스 또는 협력계약"
+
+      section =~ ~r/material definitive agreement/i ->
+        "중요한 확정계약"
+
+      section =~ ~r/\bagreement\b/i ->
+        "중요한 계약"
+
+      true ->
+        nil
     end
   end
 
@@ -5810,13 +5831,26 @@ defmodule DisclosureAutomation.Ingestion do
 
   defp sec_edgar_other_event_topic(section) do
     cond do
-      section =~ ~r/dividend|distribution/i -> "배당 또는 분배 관련 사항"
-      section =~ ~r/offering|underwriting|senior notes|convertible notes|debentures/i -> "증권 발행 또는 자금 조달 관련 사항"
-      section =~ ~r/acquisition|merger|business combination|strategic transaction/i -> "인수합병 또는 전략적 거래 관련 사항"
-      section =~ ~r/litigation|settlement|regulatory|investigation/i -> "소송, 합의 또는 규제 관련 사항"
-      section =~ ~r/press release/i -> "보도자료 공개"
-      section =~ ~r/shareholder|stockholder|annual meeting|special meeting/i -> "주주총회 또는 주주 관련 사항"
-      true -> nil
+      section =~ ~r/dividend|distribution/i ->
+        "배당 또는 분배 관련 사항"
+
+      section =~ ~r/offering|underwriting|senior notes|convertible notes|debentures/i ->
+        "증권 발행 또는 자금 조달 관련 사항"
+
+      section =~ ~r/acquisition|merger|business combination|strategic transaction/i ->
+        "인수합병 또는 전략적 거래 관련 사항"
+
+      section =~ ~r/litigation|settlement|regulatory|investigation/i ->
+        "소송, 합의 또는 규제 관련 사항"
+
+      section =~ ~r/press release/i ->
+        "보도자료 공개"
+
+      section =~ ~r/shareholder|stockholder|annual meeting|special meeting/i ->
+        "주주총회 또는 주주 관련 사항"
+
+      true ->
+        nil
     end
   end
 
