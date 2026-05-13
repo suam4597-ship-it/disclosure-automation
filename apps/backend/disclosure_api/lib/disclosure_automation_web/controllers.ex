@@ -123,6 +123,7 @@ defmodule DisclosureAutomationWeb.FeedDigestController do
       timezone: timezone,
       fallback_to_fixture: true,
       limit: bounded_positive_int(Map.get(params, "limit"), 100),
+      recent_date_limit: bounded_positive_int(Map.get(params, "recent_date_limit"), 90),
       region_scope: Map.get(params, "region")
     ]
     |> Enum.reject(fn {_key, value} -> is_nil(value) end)
