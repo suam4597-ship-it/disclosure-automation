@@ -5192,6 +5192,11 @@ defmodule DisclosureAutomation.Ingestion do
   @sec_edgar_current_10k_source_key "sec_edgar_current_10k_reports"
   @sec_edgar_current_s1_source_key "sec_edgar_current_s1_registration_statements"
   @sec_edgar_current_f1_source_key "sec_edgar_current_f1_registration_statements"
+  @sec_edgar_current_13d_source_key "sec_edgar_current_13d_activist_ownership"
+  @sec_edgar_current_13g_source_key "sec_edgar_current_13g_increased_ownership"
+  @sec_edgar_current_s4_source_key "sec_edgar_current_s4_merger_registration_statements"
+  @sec_edgar_current_f4_source_key "sec_edgar_current_f4_merger_registration_statements"
+  @sec_edgar_current_schedule_to_source_key "sec_edgar_current_schedule_to_tender_offers"
   @sec_edgar_periodic_report_source_keys [
     @sec_edgar_current_10q_source_key,
     @sec_edgar_current_10k_source_key
@@ -5199,6 +5204,10 @@ defmodule DisclosureAutomation.Ingestion do
   @sec_edgar_registration_source_keys [
     @sec_edgar_current_s1_source_key,
     @sec_edgar_current_f1_source_key
+  ]
+  @sec_edgar_ma_registration_source_keys [
+    @sec_edgar_current_s4_source_key,
+    @sec_edgar_current_f4_source_key
   ]
   @sec_edgar_detail_fetch_default_limit 10
   @sec_edgar_detail_fetch_default_timeout_ms 8_000
@@ -5408,6 +5417,85 @@ defmodule DisclosureAutomation.Ingestion do
     end)
   end
 
+  defp maybe_enrich_live_records(
+         %SourceRegistry{source_key: @sec_edgar_current_13d_source_key} = source,
+         records,
+         %{"mode" => "live"}
+       )
+       when is_list(records) do
+    limit = sec_edgar_detail_fetch_limit(source)
+
+    records
+    |> Enum.with_index(1)
+    |> Enum.map(fn {record, index} ->
+      if index <= limit do
+        enrich_sec_edgar_13d_record(source, record)
+      else
+        record
+      end
+    end)
+  end
+
+  defp maybe_enrich_live_records(
+         %SourceRegistry{source_key: @sec_edgar_current_13g_source_key} = source,
+         records,
+         %{"mode" => "live"}
+       )
+       when is_list(records) do
+    limit = sec_edgar_detail_fetch_limit(source)
+
+    records
+    |> Enum.with_index(1)
+    |> Enum.flat_map(fn {record, index} ->
+      if index <= limit do
+        case enrich_sec_edgar_13g_record(source, record) do
+          nil -> []
+          enriched -> [enriched]
+        end
+      else
+        []
+      end
+    end)
+  end
+
+  defp maybe_enrich_live_records(
+         %SourceRegistry{source_key: source_key} = source,
+         records,
+         %{"mode" => "live"}
+       )
+       when source_key in @sec_edgar_ma_registration_source_keys and is_list(records) do
+    limit = sec_edgar_detail_fetch_limit(source)
+
+    records
+    |> Enum.with_index(1)
+    |> Enum.map(fn {record, index} ->
+      if index <= limit do
+        enrich_sec_edgar_ma_registration_record(source, record)
+      else
+        record
+      end
+    end)
+  end
+
+  defp maybe_enrich_live_records(
+         %SourceRegistry{source_key: @sec_edgar_current_schedule_to_source_key} = source,
+         records,
+         %{"mode" => "live"}
+       )
+       when is_list(records) do
+    limit = sec_edgar_detail_fetch_limit(source)
+
+    records
+    |> Enum.with_index(1)
+    |> Enum.map(fn {record, index} ->
+      if index <= limit do
+        enrich_sec_edgar_tender_offer_record(source, record)
+      else
+        record
+      end
+    end)
+  end
+
   defp maybe_enrich_live_records(_source, records, _fetch_info), do: records
 
   defp enrich_sec_edgar_8k_record(source, record) when is_map(record) do
@@ -5460,6 +5548,65 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp enrich_sec_edgar_registration_record(_source, record), do: record
+
+  defp enrich_sec_edgar_13d_record(source, record) when is_map(record) do
+    with {:ok, raw_submission} <- sec_edgar_fetch_submission_text(source, record),
+         {:ok, summary} <- sec_edgar_schedule_13d_summary(raw_submission, record) do
+      Map.put(record, :summary, summary)
+    else
+      _reason -> record
+    end
+  end
+
+  defp enrich_sec_edgar_13d_record(_source, record), do: record
+
+  defp enrich_sec_edgar_13g_record(source, record) when is_map(record) do
+    with {:ok, raw_submission} <- sec_edgar_fetch_submission_text(source, record),
+         {:ok, summary} <- sec_edgar_schedule_13g_increase_summary(raw_submission, record) do
+      Map.put(record, :summary, summary)
+    else
+      _reason -> nil
+    end
+  end
+
+  defp enrich_sec_edgar_13g_record(_source, _record), do: nil
+
+  defp enrich_sec_edgar_ma_registration_record(source, record) when is_map(record) do
+    with {:ok, raw_submission} <- sec_edgar_fetch_submission_text(source, record),
+         {:ok, summary} <- sec_edgar_ma_registration_summary(raw_submission, record) do
+      Map.put(record, :summary, summary)
+    else
+      _reason -> record
+    end
+  end
+
+  defp enrich_sec_edgar_ma_registration_record(_source, record), do: record
+
+  defp enrich_sec_edgar_tender_offer_record(source, record) when is_map(record) do
+    with {:ok, raw_submission} <- sec_edgar_fetch_submission_text(source, record),
+         {:ok, summary} <- sec_edgar_tender_offer_summary(raw_submission, record) do
+      Map.put(record, :summary, summary)
+    else
+      _reason -> record
+    end
+  end
+
+  defp enrich_sec_edgar_tender_offer_record(_source, record), do: record
+
+  defp sec_edgar_fetch_submission_text(source, record) do
+    with url when is_binary(url) <- sec_edgar_complete_submission_text_url(record),
+         {:ok, response} <-
+           Http.fetch(url,
+             headers: source_live_headers(source),
+             timeout: sec_edgar_detail_fetch_timeout(source)
+           ),
+         status when status in 200..299 <- response.status_code,
+         body when is_binary(body) <- response.body do
+      {:ok, body}
+    else
+      _reason -> {:error, :sec_edgar_submission_fetch_failed}
+    end
+  end
 
   defp sec_edgar_periodic_form_type(record) do
     category = String.upcase(to_string(Map.get(record, :category) || ""))
@@ -5804,6 +5951,356 @@ defmodule DisclosureAutomation.Ingestion do
         |> sec_edgar_clean_sentence()
         |> then(&"오버행/lock-up 일정: #{&1}")
     end
+  end
+
+  defp sec_edgar_schedule_13d_summary(raw_submission, record)
+       when is_binary(raw_submission) do
+    plain = sec_edgar_plain_text(raw_submission)
+    issuer = sec_edgar_issuer_name(record, plain)
+
+    details =
+      [
+        sec_edgar_reporting_owner_detail(plain),
+        sec_edgar_beneficial_ownership_amount_detail(plain),
+        sec_edgar_beneficial_ownership_percent_detail(plain),
+        sec_edgar_13d_purpose_detail(plain),
+        sec_edgar_13d_activism_signal_detail(plain)
+      ]
+
+    sec_edgar_summary_with_details(
+      "#{issuer} filed Schedule 13D showing a 5%+ strategic or activist ownership position",
+      details
+    )
+  end
+
+  defp sec_edgar_schedule_13d_summary(_raw_submission, _record) do
+    {:error, :sec_edgar_13d_summary_unavailable}
+  end
+
+  defp sec_edgar_schedule_13g_increase_summary(raw_submission, record)
+       when is_binary(raw_submission) do
+    plain = sec_edgar_plain_text(raw_submission)
+
+    if sec_edgar_13g_increase_signal?(plain, record) do
+      issuer = sec_edgar_issuer_name(record, plain)
+
+      details =
+        [
+          sec_edgar_reporting_owner_detail(plain),
+          sec_edgar_beneficial_ownership_amount_detail(plain),
+          sec_edgar_beneficial_ownership_percent_detail(plain),
+          sec_edgar_13g_increase_detail(plain, record)
+        ]
+
+      sec_edgar_summary_with_details(
+        "#{issuer} filed Schedule 13G with a new or increased 5%+ beneficial ownership signal",
+        details
+      )
+    else
+      {:error, :sec_edgar_13g_without_increase_signal}
+    end
+  end
+
+  defp sec_edgar_schedule_13g_increase_summary(_raw_submission, _record) do
+    {:error, :sec_edgar_13g_summary_unavailable}
+  end
+
+  defp sec_edgar_ma_registration_summary(raw_submission, record)
+       when is_binary(raw_submission) do
+    plain = sec_edgar_plain_text(raw_submission)
+    issuer = sec_edgar_issuer_name(record, plain)
+    form_type = sec_edgar_ma_registration_form_type(record)
+
+    details =
+      [
+        sec_edgar_ma_target_detail(plain),
+        sec_edgar_ma_exchange_ratio_detail(plain),
+        sec_edgar_ma_consideration_detail(plain),
+        sec_edgar_ma_purpose_detail(plain)
+      ]
+
+    sec_edgar_summary_with_details(
+      "#{issuer} filed #{form_type} for a stock-exchange, merger, or business-combination registration",
+      details
+    )
+  end
+
+  defp sec_edgar_ma_registration_summary(_raw_submission, _record) do
+    {:error, :sec_edgar_ma_registration_summary_unavailable}
+  end
+
+  defp sec_edgar_tender_offer_summary(raw_submission, record)
+       when is_binary(raw_submission) do
+    plain = sec_edgar_plain_text(raw_submission)
+    issuer = sec_edgar_issuer_name(record, plain)
+
+    details =
+      [
+        sec_edgar_tender_offeror_detail(plain),
+        sec_edgar_tender_price_detail(plain),
+        sec_edgar_tender_quantity_detail(plain),
+        sec_edgar_tender_terms_detail(plain),
+        sec_edgar_tender_purpose_detail(plain)
+      ]
+
+    sec_edgar_summary_with_details(
+      "#{issuer} filed Schedule TO for a tender offer or buyout-style transaction",
+      details
+    )
+  end
+
+  defp sec_edgar_tender_offer_summary(_raw_submission, _record) do
+    {:error, :sec_edgar_tender_offer_summary_unavailable}
+  end
+
+  defp sec_edgar_reporting_owner_detail(plain) do
+    [
+      ~r/(?:name(?:s)? of reporting person(?:s)?|reporting person)\s+([A-Z0-9 .,&'()\/-]{3,160})/i,
+      ~r/(?:filed by|joint filing agreement by)\s+([^.;]{3,160})(?:\.|;|,|$)/i
+    ]
+    |> sec_edgar_first_capture(plain)
+    |> sec_edgar_labeled_detail("Reporting owner")
+  end
+
+  defp sec_edgar_beneficial_ownership_amount_detail(plain) do
+    [
+      ~r/(?:aggregate amount beneficially owned|amount beneficially owned)[^\d]{0,100}([\d,]+(?:\.\d+)?)/i,
+      ~r/beneficially owned[^.]{0,120}?([\d,]+)\s+shares/i
+    ]
+    |> sec_edgar_first_capture(plain)
+    |> sec_edgar_labeled_detail("Beneficially owned shares")
+  end
+
+  defp sec_edgar_beneficial_ownership_percent_detail(plain) do
+    [
+      ~r/(?:percent of class|percentage of class|percent of the class)[^%]{0,160}?(\d+(?:\.\d+)?)\s*%/i,
+      ~r/(\d+(?:\.\d+)?)\s*%\s+of\s+(?:the\s+)?(?:outstanding\s+)?(?:class|common stock|ordinary shares)/i
+    ]
+    |> sec_edgar_first_capture(plain)
+    |> case do
+      nil -> nil
+      value -> "Beneficial ownership: #{value}%"
+    end
+  end
+
+  defp sec_edgar_13d_purpose_detail(plain) do
+    plain
+    |> sec_edgar_section_after_any_heading(
+      ["Purpose of Transaction", "Purpose of the Transaction"],
+      1_800
+    )
+    |> case do
+      nil -> plain
+      section -> section
+    end
+    |> sec_edgar_sentence_matching(
+      ~r/(intend|plan|seek|engage|discuss|propose|strategic|board|management|acquire|merger|maximize|undervalued|shareholder value)/i,
+      420
+    )
+    |> sec_edgar_labeled_detail("Purpose/engagement")
+  end
+
+  defp sec_edgar_13d_activism_signal_detail(plain) do
+    cond do
+      plain =~
+          ~r/\b(board|director|management|strategic alternatives|undervalued|maximize stockholder value|maximize shareholder value|activist|proxy|proposal)\b/i ->
+        "Signal focus: potential activist or strategic engagement"
+
+      plain =~ ~r/\b(control|merger|business combination|acquisition|takeover|tender offer)\b/i ->
+        "Signal focus: potential control, M&A, or ownership-change angle"
+
+      true ->
+        "Signal focus: 13D is treated as active/strategic ownership, not a passive 13G holding"
+    end
+  end
+
+  defp sec_edgar_13g_increase_signal?(plain, record) do
+    form_type = sec_edgar_schedule_form_type(record)
+
+    form_type == "SC 13G" or
+      plain =~
+        ~r/\b(increase[sd]?|increasing|acquired|acquisition|purchased|additional shares|beneficial ownership[^.]{0,80}increased|newly reporting|became the beneficial owner)\b/i
+  end
+
+  defp sec_edgar_13g_increase_detail(plain, record) do
+    cond do
+      sec_edgar_schedule_form_type(record) == "SC 13G" ->
+        "Increase filter: initial 13G treated as a newly disclosed 5%+ ownership position"
+
+      detail =
+          sec_edgar_sentence_matching(
+            plain,
+            ~r/(increase[sd]?|acquired|purchased|additional shares|beneficial ownership[^.]{0,80}increased|became the beneficial owner)/i,
+            360
+          ) ->
+        "Increase filter: #{sec_edgar_clean_sentence(detail)}"
+
+      true ->
+        nil
+    end
+  end
+
+  defp sec_edgar_schedule_form_type(record) do
+    category = String.upcase(to_string(Map.get(record, :category) || ""))
+    title = String.upcase(to_string(Map.get(record, :title) || ""))
+
+    cond do
+      String.contains?(category, "SC 13G/A") or String.starts_with?(title, "SC 13G/A") ->
+        "SC 13G/A"
+
+      String.contains?(category, "SC 13G") or String.starts_with?(title, "SC 13G") ->
+        "SC 13G"
+
+      String.contains?(category, "SC 13D/A") or String.starts_with?(title, "SC 13D/A") ->
+        "SC 13D/A"
+
+      String.contains?(category, "SC 13D") or String.starts_with?(title, "SC 13D") ->
+        "SC 13D"
+
+      true ->
+        category
+    end
+  end
+
+  defp sec_edgar_ma_registration_form_type(record) do
+    category = String.upcase(to_string(Map.get(record, :category) || ""))
+    title = String.upcase(to_string(Map.get(record, :title) || ""))
+
+    cond do
+      String.starts_with?(category, "F-4") or String.starts_with?(title, "F-4") -> "F-4"
+      String.starts_with?(category, "S-4") or String.starts_with?(title, "S-4") -> "S-4"
+      true -> category
+    end
+  end
+
+  defp sec_edgar_ma_target_detail(plain) do
+    [
+      ~r/(?:merger with|merge with|merged with|business combination with|combine with|combination with)\s+([^.;]{3,180})(?:\.|;|,|$)/i,
+      ~r/(?:acquisition of|acquire|acquiring)\s+([^.;]{3,180})(?:\.|;|,|$)/i,
+      ~r/(?:target company|company being acquired)\s+(?:is|:)?\s*([^.;]{3,180})(?:\.|;|,|$)/i
+    ]
+    |> sec_edgar_first_capture(plain)
+    |> sec_edgar_labeled_detail("Merger/exchange target")
+  end
+
+  defp sec_edgar_ma_exchange_ratio_detail(plain) do
+    plain
+    |> sec_edgar_sentence_matching(
+      ~r/(exchange ratio|for each share|converted into the right to receive|receive [\d.]+|stock[- ]for[- ]stock|ordinary shares|ADSs?)/i,
+      440
+    )
+    |> sec_edgar_labeled_detail("Exchange/merger ratio")
+  end
+
+  defp sec_edgar_ma_consideration_detail(plain) do
+    [
+      ~r/(?:aggregate merger consideration|transaction value|equity value|enterprise value)[^$]{0,160}\$([\d,.]+)\s*(million|billion)?/i,
+      ~r/(?:cash consideration|stock consideration)[^$]{0,160}\$([\d,.]+)\s*(million|billion)?/i
+    ]
+    |> sec_edgar_money_capture(plain)
+    |> sec_edgar_labeled_detail("Transaction value/consideration")
+  end
+
+  defp sec_edgar_ma_purpose_detail(plain) do
+    plain
+    |> sec_edgar_section_after_any_heading(
+      [
+        "Reasons for the Merger",
+        "Purpose of the Merger",
+        "Reasons for the Business Combination",
+        "Purpose of the Business Combination"
+      ],
+      1_800
+    )
+    |> case do
+      nil -> plain
+      section -> section
+    end
+    |> sec_edgar_sentence_matching(
+      ~r/(strategic|combine|combination|expected to|believe|enhance|accelerate|expand|scale|shareholder value|stockholder value)/i,
+      420
+    )
+    |> sec_edgar_labeled_detail("Strategic purpose")
+  end
+
+  defp sec_edgar_tender_offeror_detail(plain) do
+    [
+      ~r/(?:offeror|purchaser|bidder)\s+(?:is|:)?\s*([^.;]{3,160})(?:\.|;|,|$)/i,
+      ~r/(?:commenced|announced)\s+(?:a\s+)?(?:cash\s+)?tender offer\s+(?:by|for|to acquire)?\s*([^.;]{3,160})(?:\.|;|,|$)/i
+    ]
+    |> sec_edgar_first_capture(plain)
+    |> sec_edgar_labeled_detail("Offeror/buyer")
+  end
+
+  defp sec_edgar_tender_price_detail(plain) do
+    [
+      ~r/(?:offer price|purchase price|tender offer price|price per share)[^$]{0,140}\$([\d,.]+)/i,
+      ~r/\$([\d,.]+)\s+per\s+(?:share|ADS|unit)/i
+    ]
+    |> sec_edgar_money_capture(plain)
+    |> sec_edgar_labeled_detail("Tender price per share")
+  end
+
+  defp sec_edgar_tender_quantity_detail(plain) do
+    cond do
+      plain =~ ~r/\bany and all\b/i ->
+        "Tender quantity: any and all outstanding shares/securities"
+
+      quantity =
+          sec_edgar_first_capture(
+            [
+              ~r/(?:up to|for)\s+([\d,]+(?:\.\d+)?)\s+(?:shares|ADSs?|units)/i,
+              ~r/(?:maximum number of|maximum amount of)\s+([\d,]+(?:\.\d+)?)\s+(?:shares|ADSs?|units)/i
+            ],
+            plain
+          ) ->
+        "Tender quantity: #{quantity} shares/ADSs/units"
+
+      true ->
+        nil
+    end
+  end
+
+  defp sec_edgar_tender_terms_detail(plain) do
+    plain
+    |> sec_edgar_section_after_any_heading(["Summary Term Sheet", "Terms of the Offer"], 1_600)
+    |> case do
+      nil -> plain
+      section -> section
+    end
+    |> sec_edgar_sentence_matching(
+      ~r/(expire|expiration|condition|tendered|withdrawal|minimum condition|closing)/i,
+      380
+    )
+    |> sec_edgar_labeled_detail("Tender terms")
+  end
+
+  defp sec_edgar_tender_purpose_detail(plain) do
+    plain
+    |> sec_edgar_section_after_any_heading(
+      ["Purpose of the Offer", "Purpose of the Transaction"],
+      1_500
+    )
+    |> case do
+      nil -> plain
+      section -> section
+    end
+    |> sec_edgar_sentence_matching(
+      ~r/(purpose|acquire|purchase|ownership|going private|business combination|strategic)/i,
+      380
+    )
+    |> sec_edgar_labeled_detail("Tender purpose")
+  end
+
+  defp sec_edgar_section_after_any_heading(plain, headings, length) do
+    Enum.find_value(headings, &sec_edgar_section_after_heading(plain, &1, length))
+  end
+
+  defp sec_edgar_labeled_detail(nil, _label), do: nil
+  defp sec_edgar_labeled_detail("", _label), do: nil
+
+  defp sec_edgar_labeled_detail(value, label) when is_binary(value) do
+    "#{label}: #{sec_edgar_clean_sentence(value)}"
   end
 
   defp sec_edgar_section_after_heading(plain, heading, length) do
@@ -7150,6 +7647,13 @@ defmodule DisclosureAutomation.Ingestion do
 
     cond do
       match = Regex.run(~r/8-K\s*-\s*(.+?)\s+\(\d{6,10}\)/i, title) ->
+        match |> Enum.at(1) |> sec_edgar_title_case()
+
+      match =
+          Regex.run(
+            ~r/^(?:SC\s+13D(?:\/A)?|SC\s+13G(?:\/A)?|S-4(?:\/A)?|F-4(?:\/A)?|SC\s+TO(?:-[A-Z])?(?:\/A)?)\s*-\s*(.+?)\s+\(\d{6,10}\)\s+\((?:Subject|Filer)\)/i,
+            title
+          ) ->
         match |> Enum.at(1) |> sec_edgar_title_case()
 
       match = Regex.run(~r/EntityRegistrantName\s+([A-Z0-9 .,&'-]+?)(?:\s|Exact name)/i, section) ->

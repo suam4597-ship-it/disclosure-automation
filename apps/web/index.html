@@ -514,6 +514,11 @@ const SOURCE_LABELS = {
   sec_edgar_current_10k_reports: "SEC 10-K 연차보고서",
   sec_edgar_current_s1_registration_statements: "SEC S-1 IPO 등록서",
   sec_edgar_current_f1_registration_statements: "SEC F-1 IPO 등록서",
+  sec_edgar_current_13d_activist_ownership: "SEC 13D 전략/행동주의 지분",
+  sec_edgar_current_13g_increased_ownership: "SEC 13G 지분 증가",
+  sec_edgar_current_s4_merger_registration_statements: "SEC S-4 합병/교환 등록서",
+  sec_edgar_current_f4_merger_registration_statements: "SEC F-4 합병/교환 등록서",
+  sec_edgar_current_schedule_to_tender_offers: "SEC Schedule TO 공개매수",
   jp_tdnet_disclosures: "일본 TDnet 공시",
   india_nse_announcements: "인도 NSE 공시",
   hkex_latest_listed_company_information: "홍콩거래소 상장사 공시",
@@ -534,7 +539,12 @@ const REGION_SOURCE_KEYS = {
     "sec_edgar_current_10q_reports",
     "sec_edgar_current_10k_reports",
     "sec_edgar_current_s1_registration_statements",
-    "sec_edgar_current_f1_registration_statements"
+    "sec_edgar_current_f1_registration_statements",
+    "sec_edgar_current_13d_activist_ownership",
+    "sec_edgar_current_13g_increased_ownership",
+    "sec_edgar_current_s4_merger_registration_statements",
+    "sec_edgar_current_f4_merger_registration_statements",
+    "sec_edgar_current_schedule_to_tender_offers"
   ]
 };
 const DASHBOARD_SUPPLEMENT_REGIONS = ["us"];
@@ -949,6 +959,22 @@ function simpleSummary(item, title, kind, category) {
     return rawSummary || "SEC IPO/신규상장 등록서에서 사업 설명, 조달 규모, 자금 사용 목적, 공모 가격과 lock-up 문구를 요약한 항목입니다.";
   }
 
+  if (source.includes("13d_activist")) {
+    return rawSummary || "SEC Schedule 13D에서 5% 이상 전략 지분, 행동주의 가능성, 목적 문구를 요약한 항목입니다.";
+  }
+
+  if (source.includes("13g_increased")) {
+    return rawSummary || "SEC Schedule 13G에서 신규 또는 증가한 5% 이상 보유지분 신호만 추린 항목입니다.";
+  }
+
+  if (source.includes("s4_merger") || source.includes("f4_merger")) {
+    return rawSummary || "SEC S-4/F-4에서 주식교환·합병 대상, 교환/합병 비율과 전략적 목적을 요약한 항목입니다.";
+  }
+
+  if (source.includes("schedule_to")) {
+    return rawSummary || "SEC Schedule TO에서 공개매수 조건, 수량, 주당 가액과 공개매수 목적을 요약한 항목입니다.";
+  }
+
   if (source.includes("sec_edgar") || combined.includes("8-k") || combined.includes("item ")) {
     return secEdgarSummary(headline, rawSummary);
   }
@@ -1237,6 +1263,11 @@ function detailCategoryLabel(item) {
   if (source.includes("10k")) return "SEC 10-K 연차보고서";
   if (source.includes("s1_registration")) return "SEC S-1 IPO 등록서";
   if (source.includes("f1_registration")) return "SEC F-1 IPO 등록서";
+  if (source.includes("13d_activist")) return "SEC 13D 전략/행동주의 지분";
+  if (source.includes("13g_increased")) return "SEC 13G 지분 증가";
+  if (source.includes("s4_merger")) return "SEC S-4 합병/교환 등록서";
+  if (source.includes("f4_merger")) return "SEC F-4 합병/교환 등록서";
+  if (source.includes("schedule_to")) return "SEC Schedule TO 공개매수";
   if (source.includes("sec_edgar")) return "SEC 8-K 상장사 공시";
   if (source.includes("jp_tdnet")) return "일본 TDnet 상장사 공시";
   if (source.includes("hkex")) return "홍콩거래소 상장사 공시";
@@ -1262,6 +1293,22 @@ function detailNarrative(item) {
 
   if (source.includes("s1_registration") || source.includes("f1_registration")) {
     return rawSummary || `${target}의 SEC IPO/신규상장 등록서에서 사업 설명, 조달 규모, 자금 사용 목적, 공모 가격과 lock-up 문구를 확인하는 항목입니다.`;
+  }
+
+  if (source.includes("13d_activist")) {
+    return rawSummary || `${target}의 SEC Schedule 13D에서 5% 이상 전략 지분, 행동주의 가능성, 목적 문구를 확인하는 항목입니다.`;
+  }
+
+  if (source.includes("13g_increased")) {
+    return rawSummary || `${target}의 SEC Schedule 13G에서 신규 또는 증가한 5% 이상 보유지분 신호만 확인하는 항목입니다.`;
+  }
+
+  if (source.includes("s4_merger") || source.includes("f4_merger")) {
+    return rawSummary || `${target}의 SEC S-4/F-4에서 주식교환·합병 대상, 교환/합병 비율과 전략적 목적을 확인하는 항목입니다.`;
+  }
+
+  if (source.includes("schedule_to")) {
+    return rawSummary || `${target}의 SEC Schedule TO에서 공개매수 조건, 수량, 주당 가액과 공개매수 목적을 확인하는 항목입니다.`;
   }
 
   if (source.includes("sec_edgar")) {
@@ -1326,6 +1373,22 @@ function detailBullets(item) {
 
   if (source.includes("s1_registration") || source.includes("f1_registration")) {
     bullets.push("확인 항목: 사업 설명, 조달 규모, 자금 사용 목적, 주당/ADS 공모 가격, lock-up/오버행 일정");
+  }
+
+  if (source.includes("13d_activist")) {
+    bullets.push("확인 항목: 5% 이상 보유자, 보유지분/지분율, 목적 문구, 행동주의·전략적 관여 가능성");
+  }
+
+  if (source.includes("13g_increased")) {
+    bullets.push("필터 조건: 신규 5% 이상 보유 또는 보유지분 증가 문구가 확인된 13G/13G-A만 표시");
+  }
+
+  if (source.includes("s4_merger") || source.includes("f4_merger")) {
+    bullets.push("확인 항목: 교환/합병 대상, 교환·합병 비율, 거래가치/대가, 전략적 목적");
+  }
+
+  if (source.includes("schedule_to")) {
+    bullets.push("확인 항목: 공개매수 조건, 수량, 주당/ADS 매수가격, 공개매수 목적");
   }
 
   if (source.includes("sec_edgar")) {
