@@ -10,7 +10,7 @@ on:
       source_key:
         description: "Source key to poll live"
         required: false
-        default: "sec_press_releases"
+        default: "sec_edgar_current_8k_filings"
       edition:
         description: "Digest edition to verify after poll"
         required: false
@@ -79,7 +79,7 @@ jobs:
             resolved_source="hkex_latest_listed_company_information"
             run_mode="single_source"
           else
-            resolved_source="sec_press_releases"
+            resolved_source="sec_edgar_current_8k_filings"
             run_mode="single_source"
           fi
 
