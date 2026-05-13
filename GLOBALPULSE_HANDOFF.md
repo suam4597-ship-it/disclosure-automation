@@ -5,6 +5,12 @@ This file is the repo-root pointer for continuing GlobalPulse work across local 
 For the full current state, next work queue, verification commands, and guardrails, read:
 
 ```text
+apps/backend/disclosure_api/docs/globalpulse_cross_local_resume_packet_20260513_sec_body_summary.md
+```
+
+For the longer remote handoff guide, read:
+
+```text
 apps/backend/disclosure_api/docs/globalpulse_remote_handoff_guide.md
 ```
 
