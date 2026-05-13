@@ -85,6 +85,65 @@ sources:
       live_headers:
         user-agent: disclosure-automation-phase1 suam4597@gmail.com
 
+  - source_key: sec_edgar_current_10q_reports
+    display_name: SEC EDGAR Current 10-Q Reports
+    source_type: atom
+    base_url: "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=10-Q&owner=include&count=100&output=atom"
+    healthcheck_url: https://www.sec.gov/edgar
+    parser_key: rss_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.42
+    coverage_tags:
+      - us
+      - disclosure
+      - filing
+      - sec_edgar
+      - periodic_report
+      - earnings
+      - markets
+    active: true
+    config:
+      canonical_domain: sec.gov
+      dedupe_strategy: accession_number
+      summary_mode: xbrl_financial_summary
+      category_bias: periodic_financials
+      disable_live_fixture_fallback: true
+      max_items_per_poll: 50
+      detail_fetch_limit: 8
+      detail_fetch_timeout_ms: 10000
+      live_headers:
+        user-agent: disclosure-automation-phase1 suam4597@gmail.com
+
+  - source_key: sec_edgar_current_10k_reports
+    display_name: SEC EDGAR Current 10-K Reports
+    source_type: atom
+    base_url: "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=10-K&owner=include&count=100&output=atom"
+    healthcheck_url: https://www.sec.gov/edgar
+    parser_key: rss_v1
+    poll_cron: "0 * * * *"
+    ranking_weight: 1.42
+    coverage_tags:
+      - us
+      - disclosure
+      - filing
+      - sec_edgar
+      - periodic_report
+      - annual_report
+      - earnings
+      - markets
+    active: true
+    config:
+      canonical_domain: sec.gov
+      dedupe_strategy: accession_number
+      summary_mode: xbrl_financial_summary
+      category_bias: periodic_financials
+      disable_live_fixture_fallback: true
+      max_items_per_poll: 50
+      detail_fetch_limit: 6
+      detail_fetch_timeout_ms: 10000
+      live_headers:
+        user-agent: disclosure-automation-phase1 suam4597@gmail.com
+
   - source_key: kr_dart_disclosures
     display_name: Korea DART Disclosures
     source_type: rss

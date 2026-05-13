@@ -510,6 +510,8 @@ const SOURCE_LABELS = {
   sec_press_releases: "SEC 보도자료",
   sec_edgar_current_8k_filings: "SEC EDGAR 8-K 공시",
   sec_edgar_form4_clustered_insider_buys: "SEC Form 4 내부자 매수 클러스터",
+  sec_edgar_current_10q_reports: "SEC 10-Q 분기보고서",
+  sec_edgar_current_10k_reports: "SEC 10-K 연차보고서",
   jp_tdnet_disclosures: "일본 TDnet 공시",
   india_nse_announcements: "인도 NSE 공시",
   hkex_latest_listed_company_information: "홍콩거래소 상장사 공시",
@@ -524,7 +526,12 @@ const SOURCE_LABELS = {
 
 const DEFAULT_EXCLUDED_SOURCE_KEYS = ["sec_press_releases"];
 const REGION_SOURCE_KEYS = {
-  us: ["sec_edgar_current_8k_filings", "sec_edgar_form4_clustered_insider_buys"]
+  us: [
+    "sec_edgar_current_8k_filings",
+    "sec_edgar_form4_clustered_insider_buys",
+    "sec_edgar_current_10q_reports",
+    "sec_edgar_current_10k_reports"
+  ]
 };
 const DASHBOARD_SUPPLEMENT_REGIONS = ["us"];
 const DASHBOARD_SUPPLEMENT_LIMIT = 5;
@@ -930,6 +937,10 @@ function simpleSummary(item, title, kind, category) {
     return rawSummary || "1주일 이내 여러 내부자/대주주 매수가 겹친 Form 4 클러스터입니다.";
   }
 
+  if (source.includes("10q") || source.includes("10k") || combined.includes("10-q") || combined.includes("10-k")) {
+    return rawSummary || "SEC 정기보고서에서 매출, 순이익/순손실, EPS와 가이던스 문구를 요약한 항목입니다.";
+  }
+
   if (source.includes("sec_edgar") || combined.includes("8-k") || combined.includes("item ")) {
     return secEdgarSummary(headline, rawSummary);
   }
@@ -1214,6 +1225,8 @@ function detailTarget(item) {
 function detailCategoryLabel(item) {
   const source = itemSourceKey(item).toLowerCase();
   if (source.includes("form4")) return "SEC Form 4 내부자 매수 클러스터";
+  if (source.includes("10q")) return "SEC 10-Q 정기보고서";
+  if (source.includes("10k")) return "SEC 10-K 연차보고서";
   if (source.includes("sec_edgar")) return "SEC 8-K 상장사 공시";
   if (source.includes("jp_tdnet")) return "일본 TDnet 상장사 공시";
   if (source.includes("hkex")) return "홍콩거래소 상장사 공시";
@@ -1231,6 +1244,10 @@ function detailNarrative(item) {
 
   if (source.includes("form4")) {
     return rawSummary || `${target}에서 1주일 이내 여러 내부자/임원/10% 이상 보유자의 Form 4 매수가 겹친 클러스터입니다.`;
+  }
+
+  if (source.includes("10q") || source.includes("10k")) {
+    return rawSummary || `${target}의 SEC 정기보고서에서 매출, 순이익/순손실, EPS와 가이던스 문구를 확인하는 항목입니다.`;
   }
 
   if (source.includes("sec_edgar")) {
@@ -1287,6 +1304,10 @@ function detailBullets(item) {
 
   if (source.includes("form4")) {
     bullets.push("조건: 7일 이내 서로 다른 신고자 3명 이상이 P/A 매수 신고");
+  }
+
+  if (source.includes("10q") || source.includes("10k")) {
+    bullets.push("확인 항목: 매출, 순이익/순손실, EPS, 매출/이익 가이던스 문구");
   }
 
   if (source.includes("sec_edgar")) {

@@ -5188,6 +5188,12 @@ defmodule DisclosureAutomation.Ingestion do
   @blse_issuer_news_url_template "https://www.blberza.com/pages/IssuerNewsRss.aspx?Code={code}&LangId=3"
   @sec_edgar_current_8k_source_key "sec_edgar_current_8k_filings"
   @sec_edgar_form4_cluster_source_key "sec_edgar_form4_clustered_insider_buys"
+  @sec_edgar_current_10q_source_key "sec_edgar_current_10q_reports"
+  @sec_edgar_current_10k_source_key "sec_edgar_current_10k_reports"
+  @sec_edgar_periodic_report_source_keys [
+    @sec_edgar_current_10q_source_key,
+    @sec_edgar_current_10k_source_key
+  ]
   @sec_edgar_detail_fetch_default_limit 10
   @sec_edgar_detail_fetch_default_timeout_ms 8_000
   @sec_edgar_form4_cluster_min_owners 3
@@ -5358,6 +5364,25 @@ defmodule DisclosureAutomation.Ingestion do
     []
   end
 
+  defp maybe_enrich_live_records(
+         %SourceRegistry{source_key: source_key} = source,
+         records,
+         %{"mode" => "live"}
+       )
+       when source_key in @sec_edgar_periodic_report_source_keys and is_list(records) do
+    limit = sec_edgar_detail_fetch_limit(source)
+
+    records
+    |> Enum.with_index(1)
+    |> Enum.map(fn {record, index} ->
+      if index <= limit do
+        enrich_sec_edgar_periodic_report_record(source, record)
+      else
+        record
+      end
+    end)
+  end
+
   defp maybe_enrich_live_records(_source, records, _fetch_info), do: records
 
   defp enrich_sec_edgar_8k_record(source, record) when is_map(record) do
@@ -5376,6 +5401,270 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp enrich_sec_edgar_8k_record(_source, record), do: record
+
+  defp enrich_sec_edgar_periodic_report_record(source, record) when is_map(record) do
+    with url when is_binary(url) <- sec_edgar_complete_submission_text_url(record),
+         {:ok, response} <-
+           Http.fetch(url,
+             headers: source_live_headers(source),
+             timeout: sec_edgar_detail_fetch_timeout(source)
+           ),
+         status when status in 200..299 <- response.status_code,
+         {:ok, summary} <- sec_edgar_periodic_report_summary(response.body, record) do
+      Map.put(record, :summary, summary)
+    else
+      _reason -> record
+    end
+  end
+
+  defp enrich_sec_edgar_periodic_report_record(_source, record), do: record
+
+  defp sec_edgar_periodic_form_type(record) do
+    category = String.upcase(to_string(Map.get(record, :category) || ""))
+    title = String.upcase(to_string(Map.get(record, :title) || ""))
+
+    cond do
+      category in ["10-Q", "10-Q/A"] or String.starts_with?(title, "10-Q") -> "10-Q"
+      category in ["10-K", "10-K/A"] or String.starts_with?(title, "10-K") -> "10-K"
+      true -> category
+    end
+  end
+
+  defp sec_edgar_periodic_report_period(raw_submission, form_type) do
+    period_end =
+      case Regex.run(~r/CONFORMED PERIOD OF REPORT:\s*(\d{8})/i, raw_submission) do
+        [_match, <<year::binary-size(4), month::binary-size(2), day::binary-size(2)>>] ->
+          "#{year}-#{month}-#{day}"
+
+        _match ->
+          nil
+      end
+
+    with value when is_binary(value) <- period_end,
+         {:ok, date} <- Date.from_iso8601(value) do
+      suffix =
+        case form_type do
+          "10-K" -> "종료 회계연도"
+          "10-Q" -> "종료 분기"
+          _form_type -> "종료 기간"
+        end
+
+      "#{date.year}년 #{date.month}월 #{date.day}일 #{suffix}"
+    else
+      _reason -> nil
+    end
+  end
+
+  defp sec_edgar_xbrl_money_metric_detail(raw_submission, label, tag_names, form_type) do
+    raw_submission
+    |> sec_edgar_xbrl_metric_values(tag_names, form_type)
+    |> sec_edgar_preferred_xbrl_metric(form_type)
+    |> case do
+      nil -> nil
+      metric -> "#{label}은 #{sec_edgar_decimal_money_label(metric.value)}"
+    end
+  end
+
+  defp sec_edgar_xbrl_eps_detail(raw_submission, form_type) do
+    raw_submission
+    |> sec_edgar_xbrl_metric_values(
+      [
+        "EarningsPerShareDiluted",
+        "EarningsPerShareBasic",
+        "EarningsPerShareBasicAndDiluted"
+      ],
+      form_type
+    )
+    |> sec_edgar_preferred_xbrl_metric(form_type)
+    |> case do
+      nil -> nil
+      metric -> "EPS는 주당 #{sec_edgar_decimal_per_share_label(metric.value)}"
+    end
+  end
+
+  defp sec_edgar_xbrl_metric_values(raw_submission, tag_names, _form_type)
+       when is_binary(raw_submission) do
+    contexts = sec_edgar_xbrl_contexts(raw_submission)
+    tag_names = MapSet.new(tag_names)
+
+    ~r/<(?:\w+:)?nonFraction\b([^>]*)>([\s\S]*?)<\/(?:\w+:)?nonFraction>/i
+    |> Regex.scan(raw_submission)
+    |> Enum.map(fn [_match, attrs, body] ->
+      local_name = sec_edgar_xbrl_local_name(attrs)
+
+      if local_name && MapSet.member?(tag_names, local_name) do
+        context_ref = sec_edgar_xbrl_attr(attrs, "contextRef")
+        scale = sec_edgar_xbrl_scale(attrs)
+
+        with decimal when not is_nil(decimal) <- sec_edgar_xbrl_decimal(body),
+             context <- Map.get(contexts, context_ref, %{}) do
+          %{
+            tag: local_name,
+            value: sec_edgar_apply_xbrl_scale(decimal, scale),
+            context_ref: context_ref,
+            duration_days: Map.get(context, :duration_days),
+            end_date: Map.get(context, :end_date)
+          }
+        end
+      end
+    end)
+    |> Enum.reject(&is_nil/1)
+  end
+
+  defp sec_edgar_xbrl_metric_values(_raw_submission, _tag_names, _form_type), do: []
+
+  defp sec_edgar_preferred_xbrl_metric([], _form_type), do: nil
+
+  defp sec_edgar_preferred_xbrl_metric(metrics, form_type) do
+    metrics
+    |> Enum.max_by(fn metric ->
+      end_date_score =
+        case metric.end_date do
+          %Date{} = date -> Date.to_gregorian_days(date)
+          _date -> 0
+        end
+
+      {
+        sec_edgar_periodic_duration_score(metric.duration_days, form_type),
+        end_date_score,
+        metric.value |> Decimal.abs() |> Decimal.to_float()
+      }
+    end)
+  end
+
+  defp sec_edgar_periodic_duration_score(days, "10-Q") when is_integer(days) do
+    cond do
+      days in 80..100 -> 3
+      days in 1..110 -> 2
+      days > 110 -> 1
+      true -> 0
+    end
+  end
+
+  defp sec_edgar_periodic_duration_score(days, "10-K") when is_integer(days) do
+    cond do
+      days in 330..370 -> 3
+      days > 250 -> 2
+      true -> 1
+    end
+  end
+
+  defp sec_edgar_periodic_duration_score(_days, _form_type), do: 0
+
+  defp sec_edgar_xbrl_contexts(raw_submission) do
+    ~r/<(?:\w+:)?context\b([^>]*)>([\s\S]*?)<\/(?:\w+:)?context>/i
+    |> Regex.scan(raw_submission)
+    |> Enum.reduce(%{}, fn [_match, attrs, body], acc ->
+      with id when is_binary(id) <- sec_edgar_xbrl_attr(attrs, "id") do
+        Map.put(acc, id, sec_edgar_xbrl_context_period(body))
+      else
+        _reason -> acc
+      end
+    end)
+  end
+
+  defp sec_edgar_xbrl_context_period(body) do
+    start_date = sec_edgar_xbrl_date_tag(body, "startDate")
+
+    end_date =
+      sec_edgar_xbrl_date_tag(body, "endDate") || sec_edgar_xbrl_date_tag(body, "instant")
+
+    duration_days =
+      if start_date && end_date do
+        Date.diff(end_date, start_date) + 1
+      end
+
+    %{start_date: start_date, end_date: end_date, duration_days: duration_days}
+  end
+
+  defp sec_edgar_xbrl_date_tag(body, tag) do
+    pattern = Regex.compile!("<(?:\\w+:)?#{Regex.escape(tag)}>(\\d{4}-\\d{2}-\\d{2})</", "i")
+
+    with [_match, value] <- Regex.run(pattern, body),
+         {:ok, date} <- Date.from_iso8601(value) do
+      date
+    else
+      _reason -> nil
+    end
+  end
+
+  defp sec_edgar_xbrl_local_name(attrs) do
+    case sec_edgar_xbrl_attr(attrs, "name") do
+      nil -> nil
+      value -> value |> String.split(":") |> List.last()
+    end
+  end
+
+  defp sec_edgar_xbrl_attr(attrs, name) do
+    pattern = Regex.compile!("\\b#{Regex.escape(name)}=[\"']([^\"']+)[\"']", "i")
+
+    case Regex.run(pattern, attrs) do
+      [_match, value] -> value
+      _match -> nil
+    end
+  end
+
+  defp sec_edgar_xbrl_scale(attrs) do
+    attrs
+    |> sec_edgar_xbrl_attr("scale")
+    |> case do
+      nil -> 0
+      value -> value
+    end
+    |> to_string()
+    |> Integer.parse()
+    |> case do
+      {scale, ""} -> scale
+      _error -> 0
+    end
+  end
+
+  defp sec_edgar_xbrl_decimal(body) do
+    text =
+      body
+      |> String.replace(~r/<[^>]+>/, "")
+      |> sec_edgar_decode_entities()
+      |> String.trim()
+
+    negative? = String.starts_with?(text, "(") and String.ends_with?(text, ")")
+
+    normalized =
+      text
+      |> String.replace(~r/[,$()\s]/, "")
+      |> String.replace(~r/[^\d.\-]/, "")
+
+    case Decimal.parse(normalized) do
+      {decimal, ""} when negative? -> Decimal.mult(decimal, Decimal.new("-1"))
+      {decimal, ""} -> decimal
+      _error -> nil
+    end
+  end
+
+  defp sec_edgar_apply_xbrl_scale(decimal, 0), do: decimal
+
+  defp sec_edgar_apply_xbrl_scale(decimal, scale) do
+    factor = Decimal.from_float(:math.pow(10, scale))
+    Decimal.mult(decimal, factor)
+  end
+
+  defp sec_edgar_guidance_detail(plain) do
+    plain
+    |> String.split(~r/(?<=[.!?])\s+/u)
+    |> Enum.find(fn sentence ->
+      sentence =~ ~r/\b(guidance|outlook|expect|expects|forecast|full[- ]year|raises?|lowers?)\b/i and
+        sentence =~ ~r/\b(revenue|sales|income|earnings|EPS|margin|profit)\b/i
+    end)
+    |> case do
+      nil ->
+        "매출/이익 가이던스 문구는 본문에서 명확히 확인되지 않음"
+
+      sentence ->
+        sentence
+        |> String.slice(0, 260)
+        |> String.trim()
+        |> then(&"가이던스/전망 문구: #{&1}")
+    end
+  end
 
   defp sec_edgar_form4_buy_reports(source, records) do
     records
@@ -5723,10 +6012,26 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp sec_edgar_decimal_money_label(decimal) do
+    value = Decimal.to_float(decimal)
+    absolute_value = abs(value)
+
+    cond do
+      absolute_value >= 1_000_000_000 ->
+        "#{sec_edgar_trim_number(value / 100_000_000)}억 달러"
+
+      absolute_value >= 1_000_000 ->
+        "#{sec_edgar_trim_number(value / 1_000_000)}백만 달러"
+
+      true ->
+        "#{sec_edgar_trim_number(value)}달러"
+    end
+  end
+
+  defp sec_edgar_decimal_per_share_label(decimal) do
     decimal
     |> Decimal.round(2)
     |> Decimal.to_string(:normal)
-    |> sec_edgar_money_label(nil)
+    |> Kernel.<>("달러")
   end
 
   defp sec_edgar_accession_number(record) when is_map(record) do
@@ -5794,6 +6099,60 @@ defmodule DisclosureAutomation.Ingestion do
 
   defp sec_edgar_filing_body_summary(_raw_submission, _record) do
     {:error, :sec_edgar_summary_unavailable}
+  end
+
+  defp sec_edgar_periodic_report_summary(raw_submission, record)
+       when is_binary(raw_submission) do
+    form_type = sec_edgar_periodic_form_type(record)
+    plain = sec_edgar_plain_text(raw_submission)
+    issuer = sec_edgar_issuer_name(record, plain)
+    period = sec_edgar_periodic_report_period(raw_submission, form_type)
+
+    headline =
+      case {form_type, period} do
+        {"10-Q", period} when is_binary(period) ->
+          "#{issuer}의 #{period} 10-Q 분기보고서 핵심 재무지표를 확인했습니다"
+
+        {"10-K", period} when is_binary(period) ->
+          "#{issuer}의 #{period} 10-K 연차보고서 핵심 재무지표를 확인했습니다"
+
+        {"10-Q", _period} ->
+          "#{issuer}의 10-Q 분기보고서 핵심 재무지표를 확인했습니다"
+
+        {"10-K", _period} ->
+          "#{issuer}의 10-K 연차보고서 핵심 재무지표를 확인했습니다"
+
+        {_form_type, _period} ->
+          "#{issuer}의 SEC 정기보고서 핵심 재무지표를 확인했습니다"
+      end
+
+    details =
+      [
+        sec_edgar_xbrl_money_metric_detail(
+          raw_submission,
+          "매출",
+          [
+            "RevenueFromContractWithCustomerExcludingAssessedTax",
+            "Revenues",
+            "SalesRevenueNet"
+          ],
+          form_type
+        ),
+        sec_edgar_xbrl_money_metric_detail(
+          raw_submission,
+          "순이익/순손실",
+          ["NetIncomeLoss", "ProfitLoss"],
+          form_type
+        ),
+        sec_edgar_xbrl_eps_detail(raw_submission, form_type),
+        sec_edgar_guidance_detail(plain)
+      ]
+
+    sec_edgar_summary_with_details(headline, details)
+  end
+
+  defp sec_edgar_periodic_report_summary(_raw_submission, _record) do
+    {:error, :sec_edgar_periodic_summary_unavailable}
   end
 
   defp sec_edgar_plain_text(raw_submission) do
