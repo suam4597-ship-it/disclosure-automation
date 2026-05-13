@@ -5212,6 +5212,7 @@ defmodule DisclosureAutomation.Ingestion do
   ]
   @sec_edgar_detail_fetch_default_limit 10
   @sec_edgar_detail_fetch_default_timeout_ms 8_000
+  @sec_edgar_detail_fetch_default_max_bytes 2_000_000
   @sec_edgar_form4_cluster_min_owners 3
   @sec_edgar_form4_cluster_window_days 7
   @sec_edgar_item_heading_regex ~r/\bItem\s+[1-9]\.\d{2}\b/i
@@ -5517,14 +5518,8 @@ defmodule DisclosureAutomation.Ingestion do
   defp maybe_enrich_live_records(_source, records, _fetch_info), do: records
 
   defp enrich_sec_edgar_8k_record(source, record) when is_map(record) do
-    with url when is_binary(url) <- sec_edgar_complete_submission_text_url(record),
-         {:ok, response} <-
-           Http.fetch(url,
-             headers: source_live_headers(source),
-             timeout: sec_edgar_detail_fetch_timeout(source)
-           ),
-         status when status in 200..299 <- response.status_code,
-         {:ok, summary} <- sec_edgar_filing_body_summary(response.body, record) do
+    with {:ok, raw_submission} <- sec_edgar_fetch_submission_text(source, record),
+         {:ok, summary} <- sec_edgar_filing_body_summary(raw_submission, record) do
       Map.put(record, :summary, summary)
     else
       _reason -> record
@@ -5534,14 +5529,8 @@ defmodule DisclosureAutomation.Ingestion do
   defp enrich_sec_edgar_8k_record(_source, record), do: record
 
   defp enrich_sec_edgar_periodic_report_record(source, record) when is_map(record) do
-    with url when is_binary(url) <- sec_edgar_complete_submission_text_url(record),
-         {:ok, response} <-
-           Http.fetch(url,
-             headers: source_live_headers(source),
-             timeout: sec_edgar_detail_fetch_timeout(source)
-           ),
-         status when status in 200..299 <- response.status_code,
-         {:ok, summary} <- sec_edgar_periodic_report_summary(response.body, record) do
+    with {:ok, raw_submission} <- sec_edgar_fetch_submission_text(source, record),
+         {:ok, summary} <- sec_edgar_periodic_report_summary(raw_submission, record) do
       Map.put(record, :summary, summary)
     else
       _reason -> record
@@ -5551,14 +5540,8 @@ defmodule DisclosureAutomation.Ingestion do
   defp enrich_sec_edgar_periodic_report_record(_source, record), do: record
 
   defp enrich_sec_edgar_registration_record(source, record) when is_map(record) do
-    with url when is_binary(url) <- sec_edgar_complete_submission_text_url(record),
-         {:ok, response} <-
-           Http.fetch(url,
-             headers: source_live_headers(source),
-             timeout: sec_edgar_detail_fetch_timeout(source)
-           ),
-         status when status in 200..299 <- response.status_code,
-         {:ok, summary} <- sec_edgar_registration_statement_summary(response.body, record) do
+    with {:ok, raw_submission} <- sec_edgar_fetch_submission_text(source, record),
+         {:ok, summary} <- sec_edgar_registration_statement_summary(raw_submission, record) do
       Map.put(record, :summary, summary)
     else
       _reason -> record
@@ -5619,9 +5602,11 @@ defmodule DisclosureAutomation.Ingestion do
              timeout: sec_edgar_detail_fetch_timeout(source)
            ),
          status when status in 200..299 <- response.status_code,
-         body when is_binary(body) <- response.body do
+         body when is_binary(body) <- response.body,
+         true <- byte_size(body) <= sec_edgar_detail_fetch_max_bytes(source) do
       {:ok, body}
     else
+      false -> {:error, :sec_edgar_submission_too_large}
       _reason -> {:error, :sec_edgar_submission_fetch_failed}
     end
   end
@@ -6382,13 +6367,8 @@ defmodule DisclosureAutomation.Ingestion do
 
   defp sec_edgar_form4_buy_report(source, record) do
     with url when is_binary(url) <- sec_edgar_complete_submission_text_url(record),
-         {:ok, response} <-
-           Http.fetch(url,
-             headers: source_live_headers(source),
-             timeout: sec_edgar_detail_fetch_timeout(source)
-           ),
-         status when status in 200..299 <- response.status_code,
-         {:ok, ownership_xml} <- sec_edgar_form4_ownership_xml(response.body),
+         {:ok, raw_submission} <- sec_edgar_fetch_submission_text(source, record),
+         {:ok, ownership_xml} <- sec_edgar_form4_ownership_xml(raw_submission),
          {:ok, report} <- sec_edgar_form4_report_from_xml(ownership_xml, record, url) do
       report
     else
@@ -6830,7 +6810,8 @@ defmodule DisclosureAutomation.Ingestion do
              timeout: sec_edgar_detail_fetch_timeout(source)
            ),
          true <- response.status_code in 200..299,
-         body when is_binary(body) <- response.body do
+         body when is_binary(body) <- response.body,
+         true <- byte_size(body) <= sec_edgar_detail_fetch_max_bytes(source) do
       {:ok, body}
     else
       _reason -> {:error, :sec_edgar_13f_previous_submission_unavailable}
@@ -8663,6 +8644,15 @@ defmodule DisclosureAutomation.Ingestion do
       "detail_fetch_timeout_ms",
       :detail_fetch_timeout_ms,
       @sec_edgar_detail_fetch_default_timeout_ms
+    )
+  end
+
+  defp sec_edgar_detail_fetch_max_bytes(source) do
+    source_config_positive_integer(
+      source,
+      "detail_fetch_max_bytes",
+      :detail_fetch_max_bytes,
+      @sec_edgar_detail_fetch_default_max_bytes
     )
   end
 

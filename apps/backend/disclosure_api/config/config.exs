@@ -25,7 +25,7 @@ config :disclosure_automation, DisclosureAutomationWeb.Endpoint,
 config :disclosure_automation, Oban,
   repo: DisclosureAutomation.Repo,
   plugins: [{Oban.Plugins.Pruner, max_age: 86400}],
-  queues: [source_polling: 10, health_checks: 5]
+  queues: [source_polling: 2, source_polling_slow: 1, health_checks: 5]
 
 config :logger, :console,
   format: "$time $metadata[$level] $message\n",
