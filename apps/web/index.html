@@ -336,7 +336,6 @@
           <div class="card-body">
             <div class="row"><b>일본</b><span><span class="blue">18:30</span> <span class="time">JST</span></span></div>
             <div class="row"><b>중국/대만</b><span><span class="blue">20:00</span> <span class="time">KST</span></span></div>
-            <div class="row"><b>한국</b><span><span class="blue">20:45</span></span></div>
             <div class="row"><b>유럽</b><span><span class="blue">04:30+1</span></span></div>
             <div class="row"><b>미국</b><span><span class="blue">11:00+1</span></span></div>
           </div>
@@ -353,7 +352,6 @@
       <button class="icon" onclick="closeSettings()" aria-label="설정 닫기">X</button>
     </header>
     <section>
-      <div class="setting"><span>한국 (KST)</span><input type="time" value="20:45"></div>
       <div class="setting"><span>일본 (JST)</span><input type="time" value="18:30"></div>
       <div class="setting"><span>중국/대만</span><input type="time" value="20:00"></div>
       <div class="setting"><span>유럽</span><input type="time" value="04:30"></div>
@@ -636,9 +634,8 @@ function pruneHiddenRegionStaticChrome() {
   if (HIDDEN_REGIONS.has("kr")) {
     document.querySelectorAll(".setting, .card-body .row").forEach(row => {
       const text = row.textContent || "";
-      const timeValue = row.querySelector("input[type='time']")?.value || "";
 
-      if (text.includes("한국") || text.includes("20:45") || timeValue === "20:45") {
+      if (text.includes("한국")) {
         row.remove();
       }
     });
