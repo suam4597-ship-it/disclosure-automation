@@ -635,7 +635,12 @@ setOperatorLink();
 function pruneHiddenRegionStaticChrome() {
   if (HIDDEN_REGIONS.has("kr")) {
     document.querySelectorAll(".setting, .card-body .row").forEach(row => {
-      if ((row.textContent || "").includes("20:45")) row.remove();
+      const text = row.textContent || "";
+      const timeValue = row.querySelector("input[type='time']")?.value || "";
+
+      if (text.includes("한국") || text.includes("20:45") || timeValue === "20:45") {
+        row.remove();
+      }
     });
   }
 
