@@ -6642,19 +6642,19 @@ defmodule DisclosureAutomation.Ingestion do
 
     headline =
       if manager_count >= 2 do
-        "#{issuer} showed simultaneous 13F accumulation across #{manager_count} notable managers"
+        "#{issuer}에서 유명 기관 #{manager_count}곳의 13F 동시 매수/비중 증가 신호가 확인됐습니다"
       else
-        "#{List.first(managers)} showed 13F accumulation in #{issuer}"
+        "#{issuer}에서 #{List.first(managers)}의 13F 보유지분 증가 신호가 확인됐습니다"
       end
 
     summary =
       sec_edgar_summary_with_details(
         headline,
         [
-          "Managers: #{Enum.join(Enum.take(managers, 6), ", ")}",
-          "Signal: #{if manager_count >= 2, do: "multiple institutions buying/increasing", else: top_change.change_kind}",
+          "기관: #{Enum.join(Enum.take(managers, 6), ", ")}",
+          "신호: #{sec_edgar_13f_signal_label(manager_count, top_change.change_kind)}",
           "CUSIP: #{cusip}",
-          "Current 13F value: #{sec_edgar_13f_value_label(top_change.current_value_thousands)}"
+          "현재 13F 평가액: #{sec_edgar_13f_value_label(top_change.current_value_thousands)}"
           | change_labels
         ]
       )
@@ -6670,7 +6670,7 @@ defmodule DisclosureAutomation.Ingestion do
             ],
             ":"
           ),
-      title: "13F institutional accumulation - #{issuer}",
+      title: "13F 보유지분 증가 - #{issuer}",
       url: latest_change.url,
       summary: summary,
       published_at: latest_change.published_at,
@@ -6728,12 +6728,19 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp sec_edgar_13f_change_detail(%{change_kind: "new_position"} = change) do
-    "New position: #{change.manager_name} reported #{sec_edgar_13f_share_label(change.current_shares)} of #{change.issuer_name}"
+    "신규 편입: #{change.manager_name}가 #{change.issuer_name} #{sec_edgar_13f_share_label(change.current_shares)} 보유를 보고했습니다"
   end
 
   defp sec_edgar_13f_change_detail(%{change_kind: "increased_position"} = change) do
-    "Increased position: #{change.manager_name} raised shares by #{sec_edgar_13f_percent_label(change.increase_percent)} from #{sec_edgar_13f_share_label(change.previous_shares)} to #{sec_edgar_13f_share_label(change.current_shares)}"
+    "보유지분 증가: #{change.manager_name}가 보유 주식 수를 #{sec_edgar_13f_percent_label(change.increase_percent)} 늘렸습니다. 기존 #{sec_edgar_13f_share_label(change.previous_shares)} → 현재 #{sec_edgar_13f_share_label(change.current_shares)}"
   end
+
+  defp sec_edgar_13f_signal_label(manager_count, _change_kind) when manager_count >= 2,
+    do: "여러 기관의 동시 매수/비중 증가"
+
+  defp sec_edgar_13f_signal_label(_manager_count, "new_position"), do: "신규 편입"
+  defp sec_edgar_13f_signal_label(_manager_count, "increased_position"), do: "보유지분 증가"
+  defp sec_edgar_13f_signal_label(_manager_count, value), do: value
 
   defp sec_edgar_13f_change_sort_value(change) do
     change.current_value_thousands
@@ -6979,7 +6986,7 @@ defmodule DisclosureAutomation.Ingestion do
     end
   end
 
-  defp sec_edgar_13f_share_label(nil), do: "unknown shares"
+  defp sec_edgar_13f_share_label(nil), do: "확인 불가"
 
   defp sec_edgar_13f_share_label(decimal) do
     decimal
@@ -6989,7 +6996,7 @@ defmodule DisclosureAutomation.Ingestion do
     |> sec_edgar_share_label()
   end
 
-  defp sec_edgar_13f_percent_label(nil), do: "new"
+  defp sec_edgar_13f_percent_label(nil), do: "신규"
 
   defp sec_edgar_13f_percent_label(decimal) do
     decimal
@@ -6998,7 +7005,7 @@ defmodule DisclosureAutomation.Ingestion do
     |> Kernel.<>("%")
   end
 
-  defp sec_edgar_13f_value_label(nil), do: "unknown"
+  defp sec_edgar_13f_value_label(nil), do: "확인 불가"
 
   defp sec_edgar_13f_value_label(value_thousands) do
     value_thousands
@@ -7481,8 +7488,8 @@ defmodule DisclosureAutomation.Ingestion do
 
     details =
       [
-        strategic_signal && "Signal: #{strategic_signal}",
-        counterparty && "Counterparty: #{counterparty}",
+        strategic_signal && "신호: #{strategic_signal}",
+        counterparty && "상대방: #{counterparty}",
         sec_edgar_item_101_customer_order_detail(section),
         sec_edgar_item_101_supply_agreement_detail(section),
         sec_edgar_item_101_minimum_commitment_detail(section),
@@ -7674,7 +7681,7 @@ defmodule DisclosureAutomation.Ingestion do
 
       details =
         [
-          "Signal: #{signal}",
+          "신호: #{signal}",
           sec_edgar_strategic_update_sentence_detail(section),
           sec_edgar_partnership_detail(section),
           sec_edgar_guidance_raise_detail(section),
@@ -7683,7 +7690,7 @@ defmodule DisclosureAutomation.Ingestion do
         ]
 
       sec_edgar_summary_with_details(
-        "#{issuer} filed an Item 7.01 investor presentation or strategic update",
+        "#{issuer}는 Item 7.01 투자자 발표 또는 전략 업데이트를 공시했습니다",
         details
       )
     else
@@ -7697,7 +7704,7 @@ defmodule DisclosureAutomation.Ingestion do
 
       details =
         [
-          "Signal: #{signal}",
+          "신호: #{signal}",
           sec_edgar_strategic_update_sentence_detail(section),
           sec_edgar_partnership_detail(section),
           sec_edgar_guidance_raise_detail(section),
@@ -7706,7 +7713,7 @@ defmodule DisclosureAutomation.Ingestion do
         ]
 
       sec_edgar_summary_with_details(
-        "#{issuer} filed an Item 8.01 strategic update with a positive catalyst signal",
+        "#{issuer}는 긍정 촉매 신호가 있는 Item 8.01 전략 업데이트를 공시했습니다",
         details
       )
     else
@@ -7771,18 +7778,18 @@ defmodule DisclosureAutomation.Ingestion do
     cond do
       section =~
           ~r/customer agreement|customer contract|commercial agreement|master services agreement/i ->
-        "customer/commercial agreement"
+        "고객/상업 계약"
 
       section =~
           ~r/supply agreement|offtake agreement|manufacturing agreement|production agreement/i ->
-        "supply/offtake agreement"
+        "공급/오프테이크 계약"
 
       section =~ ~r/purchase order|customer order|order backlog|bookings?/i ->
-        "customer order/backlog"
+        "고객 주문/백로그"
 
       section =~
           ~r/strategic partnership|strategic alliance|collaboration agreement|cooperation agreement/i ->
-        "strategic partnership/collaboration agreement"
+        "전략적 파트너십/협업 계약"
 
       section =~ ~r/underwriting agreement/i ->
         "인수계약"
@@ -7845,26 +7852,26 @@ defmodule DisclosureAutomation.Ingestion do
     cond do
       section =~
           ~r/order backlog|backlog|purchase order|customer order|awarded (?:a )?contract|bookings?/i ->
-        "customer order/backlog"
+        "고객 주문/백로그"
 
       section =~
           ~r/minimum (?:purchase|volume|revenue|commitment|annual)|take-or-pay|committed to purchase|must purchase/i ->
-        "minimum purchase/volume commitment"
+        "최소구매/최소물량 약정"
 
       section =~
           ~r/customer agreement|customer contract|master services agreement|commercial agreement/i ->
-        "customer/commercial agreement"
+        "고객/상업 계약"
 
       section =~
           ~r/supply agreement|offtake agreement|manufacturing agreement|production agreement|long-term supply/i ->
-        "supply/offtake agreement"
+        "공급/오프테이크 계약"
 
       section =~
           ~r/strategic partnership|strategic alliance|collaboration agreement|cooperation agreement/i ->
-        "strategic partnership/collaboration"
+        "전략적 파트너십/협업"
 
       section =~ ~r/exclusive|sole supplier|preferred supplier|right of first refusal/i ->
-        "exclusive/preferred supplier terms"
+        "독점/우선공급 조건"
 
       true ->
         nil
@@ -7877,7 +7884,7 @@ defmodule DisclosureAutomation.Ingestion do
       ~r/(customer agreement|customer contract|customer order|purchase order|awarded (?:a )?contract|bookings?|master services agreement|commercial agreement)/i,
       420
     )
-    |> sec_edgar_labeled_detail("Customer/order")
+    |> sec_edgar_labeled_detail("고객/수주")
   end
 
   defp sec_edgar_item_101_supply_agreement_detail(section) do
@@ -7886,7 +7893,7 @@ defmodule DisclosureAutomation.Ingestion do
       ~r/(supply agreement|offtake agreement|manufacturing agreement|production agreement|long-term supply|commercial supply)/i,
       420
     )
-    |> sec_edgar_labeled_detail("Supply/offtake")
+    |> sec_edgar_labeled_detail("공급/오프테이크")
   end
 
   defp sec_edgar_item_101_minimum_commitment_detail(section) do
@@ -7895,7 +7902,7 @@ defmodule DisclosureAutomation.Ingestion do
       ~r/(minimum (?:purchase|volume|revenue|commitment|annual)|take-or-pay|committed to purchase|must purchase|at least\s+\$[\d,.]+\s*(?:million|billion)?)/i,
       420
     )
-    |> sec_edgar_labeled_detail("Minimum commitment")
+    |> sec_edgar_labeled_detail("최소 약정")
   end
 
   defp sec_edgar_item_101_exclusivity_detail(section) do
@@ -7904,7 +7911,7 @@ defmodule DisclosureAutomation.Ingestion do
       ~r/(exclusive|sole supplier|preferred supplier|right of first refusal|non-exclusive|territory|global rights)/i,
       420
     )
-    |> sec_edgar_labeled_detail("Exclusivity/preferred terms")
+    |> sec_edgar_labeled_detail("독점/우선공급 조건")
   end
 
   defp sec_edgar_item_101_contract_duration_detail(section) do
@@ -7913,7 +7920,7 @@ defmodule DisclosureAutomation.Ingestion do
       ~r/(multi-year|long-term|initial term|term of|expires|through|until|renewal|renewable|\d+\s+year|\d+\s+month)/i,
       420
     )
-    |> sec_edgar_labeled_detail("Duration/term")
+    |> sec_edgar_labeled_detail("계약 기간")
   end
 
   defp sec_edgar_transaction_label(section) do
@@ -8298,27 +8305,27 @@ defmodule DisclosureAutomation.Ingestion do
   defp sec_edgar_strategic_update_signal(section) do
     cond do
       section =~ ~r/investor presentation|presentation materials|investor deck/i ->
-        "investor presentation"
+        "투자자 발표 자료"
 
       section =~ ~r/strategic update|strategic review|strategic alternatives/i ->
-        "strategic update/review"
+        "전략 업데이트/검토"
 
       section =~ ~r/partnership|collaboration|commercial agreement|strategic alliance/i ->
-        "partnership/collaboration"
+        "파트너십/협업"
 
       section =~
           ~r/raises? (?:its )?(?:full[- ]year )?guidance|raised guidance|guidance raise|increased outlook/i ->
-        "guidance raise / improved outlook"
+        "가이던스 상향/전망 개선"
 
       section =~ ~r/order backlog|backlog|purchase order|awarded (?:a )?contract|booking/i ->
-        "order/backlog signal"
+        "수주/백로그 신호"
 
       section =~ ~r/artificial intelligence|\bAI\b|data center|datacenter|cloud infrastructure/i ->
-        "AI/data-center theme"
+        "AI/데이터센터 테마"
 
       section =~
           ~r/clinical|phase\s+[123]|FDA|NDA|BLA|trial data|product launch|commercial launch/i ->
-        "clinical/product catalyst"
+        "임상/제품 출시 촉매"
 
       true ->
         nil
@@ -8331,7 +8338,7 @@ defmodule DisclosureAutomation.Ingestion do
       ~r/(investor presentation|strategic update|strategic review|partnership|collaboration|guidance|outlook|order backlog|backlog|purchase order|artificial intelligence|\bAI\b|data center|clinical|phase\s+[123]|product launch|commercial launch)/i,
       460
     )
-    |> sec_edgar_labeled_detail("Strategic update")
+    |> sec_edgar_labeled_detail("전략 업데이트")
   end
 
   defp sec_edgar_partnership_detail(section) do
@@ -8340,7 +8347,7 @@ defmodule DisclosureAutomation.Ingestion do
       ~r/(partnership|collaboration|strategic alliance|commercial agreement|supply agreement|license agreement)/i,
       420
     )
-    |> sec_edgar_labeled_detail("Partnership")
+    |> sec_edgar_labeled_detail("파트너십")
   end
 
   defp sec_edgar_guidance_raise_detail(section) do
@@ -8349,7 +8356,7 @@ defmodule DisclosureAutomation.Ingestion do
       ~r/(raises? (?:its )?(?:full[- ]year )?guidance|raised guidance|increase[sd]? (?:its )?(?:full[- ]year )?outlook|expects? (?:higher|increased)|reaffirmed guidance)/i,
       420
     )
-    |> sec_edgar_labeled_detail("Guidance/outlook")
+    |> sec_edgar_labeled_detail("가이던스/전망")
   end
 
   defp sec_edgar_order_backlog_detail(section) do
@@ -8358,7 +8365,7 @@ defmodule DisclosureAutomation.Ingestion do
       ~r/(order backlog|backlog|purchase order|awarded (?:a )?contract|bookings?|customer order)/i,
       420
     )
-    |> sec_edgar_labeled_detail("Order/backlog")
+    |> sec_edgar_labeled_detail("수주/백로그")
   end
 
   defp sec_edgar_first_money_detail(section) do
