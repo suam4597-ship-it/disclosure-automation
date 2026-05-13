@@ -10,7 +10,7 @@
 window.GLOBALPULSE_RUNTIME_CONFIG = Object.freeze({
   environment: "staging",
   apiBaseUrl: "https://globalpulse-backend-staging.fly.dev",
-  configVersion: "staging-20260513-region-detail-1",
+  configVersion: "staging-20260513-link-filter-1",
   allowQueryParamOverride: true
 });
 
@@ -86,9 +86,7 @@ window.GLOBALPULSE_REGION_ALIASES = Object.assign(
 
 window.GLOBALPULSE_REGION_ORDER =
   window.GLOBALPULSE_REGION_ORDER || [
-    "global",
     "us",
-    "kr",
     "jp",
     "greater_china",
     "cn",
@@ -99,5 +97,16 @@ window.GLOBALPULSE_REGION_ORDER =
     "india",
     "anz",
     "eu",
+    "global",
     "other"
   ];
+
+window.GLOBALPULSE_HIDDEN_REGIONS =
+  window.GLOBALPULSE_HIDDEN_REGIONS || ["kr"];
+
+// Region-specific disclosure exclusions live here. Keep this off the public UI;
+// update these lists when an operator asks to hide a category for a region.
+window.GLOBALPULSE_REGION_EXCLUSION_RULES = Object.assign(
+  {},
+  window.GLOBALPULSE_REGION_EXCLUSION_RULES || {}
+);

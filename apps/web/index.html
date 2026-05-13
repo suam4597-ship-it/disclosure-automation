@@ -223,6 +223,8 @@
     .bar.high { background: var(--red); }
 
     .headline { font-weight: 800; line-height: 1.35; margin-bottom: 5px; letter-spacing: -0.015em; }
+    .headline-link { color: inherit; text-decoration: none; }
+    .headline-link:hover, .headline-link:focus-visible { color: #bfdbfe; text-decoration: underline; text-underline-offset: 3px; }
     .summary { color: var(--sub); font-size: 13px; line-height: 1.55; margin-bottom: 8px; }
     .meta { display: flex; gap: 10px; align-items: center; color: var(--muted); font-size: 12px; flex-wrap: wrap; }
     .source { color: var(--sub); font-weight: 700; }
@@ -425,9 +427,7 @@ const REGION_ALIASES = Object.assign({
 }, window.GLOBALPULSE_REGION_ALIASES || {});
 
 const REGION_ORDER = window.GLOBALPULSE_REGION_ORDER || [
-  "global",
   "us",
-  "kr",
   "jp",
   "greater_china",
   "cn",
@@ -438,11 +438,14 @@ const REGION_ORDER = window.GLOBALPULSE_REGION_ORDER || [
   "india",
   "anz",
   "eu",
+  "global",
   "other"
 ];
 
 const REGION_SHORTCUTS = window.GLOBALPULSE_REGION_SHORTCUTS || ["us", "jp", "greater_china", "india", "eu"];
 const EUROPE_DISPLAY_REGIONS = new Set(["eu", "eu_north", "eu_central", "eu_south", "uk", "ch", "tr"]);
+const HIDDEN_REGIONS = new Set((window.GLOBALPULSE_HIDDEN_REGIONS || ["kr"]).map(displayRegion));
+const REGION_EXCLUSION_RULES = normalizeRegionExclusionRules(window.GLOBALPULSE_REGION_EXCLUSION_RULES || {});
 const FILTERS = [
   ["all", "전체"],
   ["disclosure", "공시"],
@@ -580,7 +583,10 @@ function digestEdition() {
 
 function selectedRegionFromUrl() {
   const region = new URLSearchParams(location.search).get("region");
-  return region ? displayRegion(canonicalRegion(region)) : null;
+  if (!region) return null;
+
+  const selected = displayRegion(canonicalRegion(region));
+  return isHiddenRegion(selected) ? null : selected;
 }
 
 function regionPageUrl(region) {
@@ -625,6 +631,34 @@ function setOperatorLink() {
 }
 
 setOperatorLink();
+
+function pruneHiddenRegionStaticChrome() {
+  if (HIDDEN_REGIONS.has("kr")) {
+    document.querySelectorAll(".setting, .card-body .row").forEach(row => {
+      if ((row.textContent || "").includes("20:45")) row.remove();
+    });
+  }
+
+  const scheduleBody = Array.from(document.querySelectorAll(".card-body"))
+    .find(body => Array.from(body.querySelectorAll(".blue"))
+      .some(node => (node.textContent || "").includes("11:00")));
+
+  if (!scheduleBody) return;
+
+  const order = ["11:00", "18:30", "20:00", "04:30"];
+  const rows = Array.from(scheduleBody.querySelectorAll(".row"));
+  rows
+    .sort((a, b) => scheduleRowIndex(a, order) - scheduleRowIndex(b, order))
+    .forEach(row => scheduleBody.appendChild(row));
+}
+
+function scheduleRowIndex(row, order) {
+  const text = row.textContent || "";
+  const index = order.findIndex(token => text.includes(token));
+  return index === -1 ? order.length : index;
+}
+
+pruneHiddenRegionStaticChrome();
 
 async function fetchJson(path) {
   const response = await fetch(`${API_BASE_URL}${path}`, { headers: { Accept: "application/json" } });
@@ -677,6 +711,99 @@ function regionLabel(code) {
   return REGION_LABELS[displayRegion(code)] || "기타 지역";
 }
 
+function isHiddenRegion(region) {
+  return HIDDEN_REGIONS.has(displayRegion(region));
+}
+
+function normalizeRegionExclusionRules(rules) {
+  return Object.fromEntries(Object.entries(rules || {}).map(([region, rule]) => [
+    displayRegion(region),
+    {
+      categories: normalizeRuleTerms(rule?.categories || rule?.category),
+      tags: normalizeRuleTerms(rule?.tags || rule?.coverage_tags),
+      sources: normalizeRuleTerms(rule?.sources || rule?.source_keys),
+      titleIncludes: normalizeRuleTerms(rule?.titleIncludes || rule?.title_includes),
+      summaryIncludes: normalizeRuleTerms(rule?.summaryIncludes || rule?.summary_includes),
+      textIncludes: normalizeRuleTerms(rule?.textIncludes || rule?.text_includes)
+    }
+  ]));
+}
+
+function normalizeRuleTerms(value) {
+  const values = Array.isArray(value) ? value : (value ? [value] : []);
+  return values
+    .map(term => String(term).trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function itemPolicyFields(item) {
+  const raw = item.raw || {};
+  const metadata = raw.metadata || {};
+  const rawTags = [
+    ...(metadata.coverage_tags || []),
+    ...(raw.coverage_tags || []),
+    ...(raw.tags || [])
+  ];
+
+  return {
+    categories: normalizeRuleTerms([
+      item.kind,
+      item.category,
+      raw.kind,
+      raw.type,
+      raw.category,
+      metadata.category,
+      metadata.source_type,
+      ...(raw.sectors || [])
+    ]),
+    tags: normalizeRuleTerms(rawTags),
+    sources: normalizeRuleTerms([
+      item.source,
+      sourceKey(raw.source || raw.source_key || raw.provider),
+      raw.source_key,
+      raw.provider
+    ]),
+    title: String(item.title || "").toLowerCase(),
+    summary: String(item.summary || "").toLowerCase()
+  };
+}
+
+function matchesAnyField(values, terms) {
+  if (!terms.length) return false;
+  return values.some(value => terms.some(term => value === term || value.includes(term)));
+}
+
+function textIncludesAny(text, terms) {
+  return terms.length > 0 && terms.some(term => text.includes(term));
+}
+
+function matchesRegionExclusionRule(item, rule) {
+  const fields = itemPolicyFields(item);
+  const allText = `${fields.title} ${fields.summary} ${fields.categories.join(" ")} ${fields.tags.join(" ")} ${fields.sources.join(" ")}`;
+
+  return (
+    matchesAnyField(fields.categories, rule.categories) ||
+    matchesAnyField(fields.tags, rule.tags) ||
+    matchesAnyField(fields.sources, rule.sources) ||
+    textIncludesAny(fields.title, rule.titleIncludes) ||
+    textIncludesAny(fields.summary, rule.summaryIncludes) ||
+    textIncludesAny(allText, rule.textIncludes)
+  );
+}
+
+function excludedByRegionPolicy(item) {
+  if (item.displayRegions.some(isHiddenRegion)) return true;
+
+  return item.displayRegions.some(region => {
+    const rule = REGION_EXCLUSION_RULES[region];
+    return rule && matchesRegionExclusionRule(item, rule);
+  });
+}
+
+function applyItemPolicy(items) {
+  return items.filter(item => !excludedByRegionPolicy(item));
+}
+
 function itemKind(item) {
   const src = sourceKey(item.source || item.source_key || item.provider).toLowerCase();
   const url = String(item.canonical_url || item.url || "").toLowerCase();
@@ -716,6 +843,7 @@ function normalizeItem(item, index) {
   const priority = Number(item.priority_rank ?? item.priority ?? index + 1);
   const kind = itemKind(item);
   const category = categoryKey(item, kind, importance);
+  const url = item.canonical_url || item.url || item.link || item.href || "";
 
   return {
     raw: item,
@@ -730,8 +858,9 @@ function normalizeItem(item, index) {
     priority,
     kind,
     category,
+    url,
     publishedAt: item.published_at || item.date || item.digest_date || null,
-    storyKey: item.story_key || item.canonical_url || item.duplicate_group_key || `${index}`,
+    storyKey: item.story_key || url || item.duplicate_group_key || `${index}`,
     tags: tagList(item, kind, category, importance)
   };
 }
@@ -820,16 +949,26 @@ function renderStatusRail(items, mode) {
   const groups = groupedByRegion(items);
   const selected = selectedRegionFromUrl();
   const presentRegions = new Set(groups.map(([region]) => region));
-  const chips = groups.map(([region, values]) => {
+  const regionChips = groups.map(([region, values]) => {
     const avg = average(values.map(item => item.importance));
-    return `<a class="chip ${selected === region ? "active" : ""}" href="${escapeHtml(regionPageUrl(region))}"><i class="dot live"></i>${escapeHtml(regionLabel(region))} <span class="time">${values.length}건 / 평균 ${avg}</span></a>`;
+    return {
+      region,
+      html: `<a class="chip ${selected === region ? "active" : ""}" href="${escapeHtml(regionPageUrl(region))}"><i class="dot live"></i>${escapeHtml(regionLabel(region))} <span class="time">${values.length}건 / 평균 ${avg}</span></a>`
+    };
   });
-  const shortcuts = unique(REGION_SHORTCUTS.map(displayRegion))
+  const shortcutChips = unique(REGION_SHORTCUTS.map(displayRegion))
+    .filter(region => !isHiddenRegion(region))
     .filter(region => !presentRegions.has(region))
     .filter(region => !selected || selected === region)
-    .map(region => `<a class="chip ${selected === region ? "active" : ""}" href="${escapeHtml(regionPageUrl(region))}"><i class="dot pending"></i>${escapeHtml(regionLabel(region))} 전체 보기</a>`);
+    .map(region => ({
+      region,
+      html: `<a class="chip ${selected === region ? "active" : ""}" href="${escapeHtml(regionPageUrl(region))}"><i class="dot pending"></i>${escapeHtml(regionLabel(region))} 전체 보기</a>`
+    }));
 
-  chips.push(...shortcuts);
+  const chips = regionChips
+    .concat(shortcutChips)
+    .sort((a, b) => regionOrderIndex(a.region) - regionOrderIndex(b.region))
+    .map(chip => chip.html);
 
   if (!chips.length) {
     chips.push(`<span class="chip"><i class="dot pending"></i>표시할 백엔드 항목 없음</span>`);
@@ -875,11 +1014,15 @@ function renderFeed(items) {
 function renderItem(item) {
   const date = item.publishedAt ? new Date(item.publishedAt).toLocaleString() : "latest";
   const bar = item.importance >= 85 ? "high" : item.category;
+  const headline = item.url
+    ? `<a class="headline-link" href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.title)}</a>`
+    : escapeHtml(item.title);
+
   return `
     <div class="item" data-cat="${escapeHtml(item.category)}">
       <i class="bar ${escapeHtml(bar)}"></i>
       <div>
-        <div class="headline">${escapeHtml(item.title)}</div>
+        <div class="headline">${headline}</div>
         <div class="summary">${escapeHtml(item.summary)}</div>
         <div class="meta">
           <span class="source">${escapeHtml(item.source)}</span>
@@ -951,7 +1094,7 @@ function renderRegionDetailHeader(items) {
 }
 
 function renderDashboard(items, digest, mode = "backend") {
-  currentItems = sortedItems(items);
+  currentItems = sortedItems(applyItemPolicy(items));
   currentDigest = digest;
   const visibleItems = regionScopedItems(currentItems);
   renderTabs(visibleItems);
