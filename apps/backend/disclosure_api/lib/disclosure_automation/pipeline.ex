@@ -5197,6 +5197,7 @@ defmodule DisclosureAutomation.Ingestion do
   @sec_edgar_current_s4_source_key "sec_edgar_current_s4_merger_registration_statements"
   @sec_edgar_current_f4_source_key "sec_edgar_current_f4_merger_registration_statements"
   @sec_edgar_current_schedule_to_source_key "sec_edgar_current_schedule_to_tender_offers"
+  @sec_edgar_13f_accumulation_source_key "sec_edgar_13f_institutional_accumulation"
   @sec_edgar_periodic_report_source_keys [
     @sec_edgar_current_10q_source_key,
     @sec_edgar_current_10k_source_key
@@ -5373,6 +5374,23 @@ defmodule DisclosureAutomation.Ingestion do
 
   defp maybe_enrich_live_records(
          %SourceRegistry{source_key: @sec_edgar_form4_cluster_source_key},
+         _records,
+         _fetch_info
+       ) do
+    []
+  end
+
+  defp maybe_enrich_live_records(
+         %SourceRegistry{source_key: @sec_edgar_13f_accumulation_source_key} = source,
+         records,
+         %{"mode" => "live"}
+       )
+       when is_list(records) do
+    sec_edgar_13f_accumulation_records(source, records)
+  end
+
+  defp maybe_enrich_live_records(
+         %SourceRegistry{source_key: @sec_edgar_13f_accumulation_source_key},
          _records,
          _fetch_info
        ) do
@@ -6551,6 +6569,466 @@ defmodule DisclosureAutomation.Ingestion do
     ]
   end
 
+  defp sec_edgar_13f_accumulation_records(source, records) do
+    records
+    |> Enum.filter(&sec_edgar_13f_record?/1)
+    |> Enum.uniq_by(&(sec_edgar_accession_number(&1) || Map.get(&1, :url)))
+    |> Enum.take(sec_edgar_detail_fetch_limit(source))
+    |> Enum.flat_map(&sec_edgar_13f_accumulation_changes(source, &1))
+    |> sec_edgar_13f_accumulation_signal_records(source)
+  end
+
+  defp sec_edgar_13f_record?(record) when is_map(record) do
+    category = String.upcase(to_string(Map.get(record, :category) || ""))
+    title = String.upcase(to_string(Map.get(record, :title) || ""))
+
+    category in ["13F-HR", "13F-HR/A"] or String.starts_with?(title, "13F-HR")
+  end
+
+  defp sec_edgar_13f_record?(_record), do: false
+
+  defp sec_edgar_13f_accumulation_changes(source, record) do
+    with {:ok, current_raw} <- sec_edgar_fetch_submission_text(source, record),
+         manager when is_binary(manager) <- sec_edgar_13f_manager_name(record, current_raw),
+         true <- sec_edgar_13f_notable_manager?(source, manager),
+         current_positions when current_positions != [] <- sec_edgar_13f_positions(current_raw),
+         {:ok, previous_raw} <-
+           sec_edgar_13f_previous_submission_text(source, record, current_raw),
+         previous_positions when previous_positions != [] <- sec_edgar_13f_positions(previous_raw) do
+      previous_by_cusip = Map.new(previous_positions, &{&1.cusip, &1})
+      min_increase_percent = sec_edgar_13f_min_increase_percent(source)
+
+      per_manager_limit =
+        source_config_positive_integer(source, "positions_per_manager", :positions_per_manager, 5)
+
+      current_positions
+      |> Enum.map(fn position ->
+        sec_edgar_13f_position_change(
+          record,
+          manager,
+          position,
+          Map.get(previous_by_cusip, position.cusip),
+          min_increase_percent
+        )
+      end)
+      |> Enum.reject(&is_nil/1)
+      |> Enum.sort_by(&sec_edgar_13f_change_sort_value/1, :desc)
+      |> Enum.take(per_manager_limit)
+    else
+      _reason -> []
+    end
+  end
+
+  defp sec_edgar_13f_accumulation_signal_records(changes, source) do
+    emit_limit = source_config_positive_integer(source, "emit_limit", :emit_limit, 40)
+
+    changes
+    |> Enum.group_by(& &1.cusip)
+    |> Enum.map(&sec_edgar_13f_accumulation_signal_record/1)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.sort_by(&sec_edgar_13f_record_sort_value/1, :desc)
+    |> Enum.take(emit_limit)
+  end
+
+  defp sec_edgar_13f_accumulation_signal_record({_cusip, []}), do: nil
+
+  defp sec_edgar_13f_accumulation_signal_record({cusip, changes}) do
+    latest_change = Enum.max_by(changes, &DateTime.to_unix(&1.published_at))
+    issuer = latest_change.issuer_name || "Unknown issuer"
+    managers = changes |> Enum.map(& &1.manager_name) |> Enum.uniq()
+    manager_count = length(managers)
+    top_change = Enum.max_by(changes, &sec_edgar_13f_change_sort_value/1)
+    change_labels = changes |> Enum.map(&sec_edgar_13f_change_detail/1) |> Enum.take(4)
+
+    headline =
+      if manager_count >= 2 do
+        "#{issuer} showed simultaneous 13F accumulation across #{manager_count} notable managers"
+      else
+        "#{List.first(managers)} showed 13F accumulation in #{issuer}"
+      end
+
+    summary =
+      sec_edgar_summary_with_details(
+        headline,
+        [
+          "Managers: #{Enum.join(Enum.take(managers, 6), ", ")}",
+          "Signal: #{if manager_count >= 2, do: "multiple institutions buying/increasing", else: top_change.change_kind}",
+          "CUSIP: #{cusip}",
+          "Current 13F value: #{sec_edgar_13f_value_label(top_change.current_value_thousands)}"
+          | change_labels
+        ]
+      )
+
+    %{
+      external_id:
+        "sec-13f-accumulation:" <>
+          Enum.join(
+            [
+              cusip,
+              sec_edgar_short_hash(Enum.map_join(changes, "|", & &1.accession)),
+              latest_change.report_period || "latest"
+            ],
+            ":"
+          ),
+      title: "13F institutional accumulation - #{issuer}",
+      url: latest_change.url,
+      summary: summary,
+      published_at: latest_change.published_at,
+      category: "13F institutional accumulation"
+    }
+  end
+
+  defp sec_edgar_13f_position_change(record, manager, position, nil, _min_increase_percent) do
+    %{
+      accession:
+        sec_edgar_accession_number(record) || Map.get(record, :external_id) ||
+          Map.get(record, :url),
+      change_kind: "new_position",
+      manager_name: manager,
+      issuer_name: position.issuer_name,
+      cusip: position.cusip,
+      current_shares: position.shares,
+      previous_shares: nil,
+      current_value_thousands: position.value_thousands,
+      previous_value_thousands: nil,
+      increase_percent: nil,
+      report_period: sec_edgar_13f_report_period(record),
+      url: Map.get(record, :url),
+      published_at: Map.get(record, :published_at) || DateTime.utc_now()
+    }
+  end
+
+  defp sec_edgar_13f_position_change(record, manager, position, previous, min_increase_percent) do
+    with current_shares when not is_nil(current_shares) <- position.shares,
+         previous_shares when not is_nil(previous_shares) <- previous.shares,
+         :gt <- Decimal.compare(current_shares, previous_shares),
+         increase_percent <- sec_edgar_13f_increase_percent(current_shares, previous_shares),
+         true <-
+           Decimal.compare(increase_percent, Decimal.new(min_increase_percent)) in [:eq, :gt] do
+      %{
+        accession:
+          sec_edgar_accession_number(record) || Map.get(record, :external_id) ||
+            Map.get(record, :url),
+        change_kind: "increased_position",
+        manager_name: manager,
+        issuer_name: position.issuer_name,
+        cusip: position.cusip,
+        current_shares: current_shares,
+        previous_shares: previous_shares,
+        current_value_thousands: position.value_thousands,
+        previous_value_thousands: previous.value_thousands,
+        increase_percent: increase_percent,
+        report_period: sec_edgar_13f_report_period(record),
+        url: Map.get(record, :url),
+        published_at: Map.get(record, :published_at) || DateTime.utc_now()
+      }
+    else
+      _reason -> nil
+    end
+  end
+
+  defp sec_edgar_13f_change_detail(%{change_kind: "new_position"} = change) do
+    "New position: #{change.manager_name} reported #{sec_edgar_13f_share_label(change.current_shares)} of #{change.issuer_name}"
+  end
+
+  defp sec_edgar_13f_change_detail(%{change_kind: "increased_position"} = change) do
+    "Increased position: #{change.manager_name} raised shares by #{sec_edgar_13f_percent_label(change.increase_percent)} from #{sec_edgar_13f_share_label(change.previous_shares)} to #{sec_edgar_13f_share_label(change.current_shares)}"
+  end
+
+  defp sec_edgar_13f_change_sort_value(change) do
+    change.current_value_thousands
+    |> case do
+      nil -> Decimal.new("0")
+      value -> value
+    end
+    |> Decimal.to_float()
+  end
+
+  defp sec_edgar_13f_record_sort_value(record) do
+    [
+      record.summary =~ ~r/multiple institutions/i && 1_000_000_000,
+      sec_edgar_13f_change_sort_value(%{current_value_thousands: nil})
+    ]
+    |> Enum.reject(&(&1 in [nil, false]))
+    |> Enum.sum()
+    |> Kernel.+(DateTime.to_unix(record.published_at))
+  end
+
+  defp sec_edgar_13f_positions(raw_submission) when is_binary(raw_submission) do
+    ~r/<(?:\w+:)?infoTable\b[\s\S]*?<\/(?:\w+:)?infoTable>/i
+    |> Regex.scan(raw_submission)
+    |> Enum.map(fn [table] -> sec_edgar_13f_position(table) end)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.uniq_by(& &1.cusip)
+  end
+
+  defp sec_edgar_13f_positions(_raw_submission), do: []
+
+  defp sec_edgar_13f_position(table) do
+    cusip = sec_edgar_13f_tag_value(table, "cusip")
+
+    if is_binary(cusip) and cusip != "" do
+      %{
+        issuer_name: sec_edgar_13f_tag_value(table, "nameOfIssuer"),
+        title_class: sec_edgar_13f_tag_value(table, "titleOfClass"),
+        cusip: sec_edgar_13f_normalized_cusip(cusip),
+        value_thousands: sec_edgar_13f_decimal_value(table, "value"),
+        shares: sec_edgar_13f_decimal_value(table, "sshPrnamt")
+      }
+    end
+  end
+
+  defp sec_edgar_13f_tag_value(xml, tag) do
+    pattern =
+      Regex.compile!(
+        "<(?:\\w+:)?#{Regex.escape(tag)}\\b[^>]*>\\s*([^<]+?)\\s*</(?:\\w+:)?#{Regex.escape(tag)}>",
+        "i"
+      )
+
+    case Regex.run(pattern, xml) do
+      [_match, value] ->
+        value
+        |> sec_edgar_decode_entities()
+        |> sec_edgar_clean_phrase()
+        |> case do
+          "" -> nil
+          cleaned -> cleaned
+        end
+
+      _match ->
+        nil
+    end
+  end
+
+  defp sec_edgar_13f_decimal_value(xml, tag) do
+    with value when is_binary(value) <- sec_edgar_13f_tag_value(xml, tag) do
+      value
+      |> String.replace(~r/[,$\s]/, "")
+      |> Decimal.parse()
+      |> case do
+        {decimal, ""} -> decimal
+        _error -> nil
+      end
+    end
+  end
+
+  defp sec_edgar_13f_previous_submission_text(source, record, raw_submission) do
+    with cik when is_binary(cik) <- sec_edgar_13f_cik(record, raw_submission),
+         {:ok, accession} <-
+           sec_edgar_13f_previous_accession(source, cik, sec_edgar_accession_number(record)),
+         url <- sec_edgar_13f_submission_text_url(cik, accession),
+         {:ok, response} <-
+           Http.fetch(url,
+             headers: source_live_headers(source),
+             timeout: sec_edgar_detail_fetch_timeout(source)
+           ),
+         true <- response.status_code in 200..299,
+         body when is_binary(body) <- response.body do
+      {:ok, body}
+    else
+      _reason -> {:error, :sec_edgar_13f_previous_submission_unavailable}
+    end
+  end
+
+  defp sec_edgar_13f_previous_accession(source, cik, current_accession) do
+    url = "https://data.sec.gov/submissions/CIK#{String.pad_leading(cik, 10, "0")}.json"
+
+    with {:ok, response} <-
+           Http.fetch(url,
+             headers: source_live_headers(source),
+             timeout: sec_edgar_detail_fetch_timeout(source)
+           ),
+         true <- response.status_code in 200..299,
+         {:ok, payload} <- Jason.decode(response.body),
+         recent when is_map(recent) <- get_in(payload, ["filings", "recent"]),
+         accession when is_binary(accession) <-
+           sec_edgar_13f_find_previous_accession(recent, current_accession) do
+      {:ok, accession}
+    else
+      _reason -> {:error, :sec_edgar_13f_previous_accession_unavailable}
+    end
+  end
+
+  defp sec_edgar_13f_find_previous_accession(recent, current_accession) do
+    current_key = sec_edgar_13f_accession_key(current_accession)
+    forms = Map.get(recent, "form") || []
+    accessions = Map.get(recent, "accessionNumber") || []
+
+    forms
+    |> Enum.zip(accessions)
+    |> Enum.find_value(fn {form, accession} ->
+      accession_key = sec_edgar_13f_accession_key(accession)
+
+      if String.upcase(to_string(form)) in ["13F-HR", "13F-HR/A"] and accession_key != current_key do
+        accession
+      end
+    end)
+  end
+
+  defp sec_edgar_13f_submission_text_url(cik, accession) do
+    cik_path =
+      cik
+      |> String.trim_leading("0")
+      |> case do
+        "" -> cik
+        value -> value
+      end
+
+    accession_path = String.replace(accession, "-", "")
+    "https://www.sec.gov/Archives/edgar/data/#{cik_path}/#{accession_path}/#{accession}.txt"
+  end
+
+  defp sec_edgar_13f_manager_name(record, raw_submission) do
+    title = to_string(Map.get(record, :title) || "")
+
+    [
+      Regex.run(~r/^13F-HR(?:\/A)?\s*-\s*(.+?)\s+\(\d{6,10}\)\s+\(Filer\)/i, title),
+      Regex.run(~r/COMPANY CONFORMED NAME:\s*([^\n\r]+)/i, raw_submission)
+    ]
+    |> Enum.find_value(fn
+      [_match, value] -> value |> sec_edgar_clean_phrase() |> sec_edgar_title_case()
+      _match -> nil
+    end)
+  end
+
+  defp sec_edgar_13f_cik(record, raw_submission) do
+    [
+      Map.get(record, :url),
+      Map.get(record, :title),
+      raw_submission
+    ]
+    |> Enum.find_value(fn value ->
+      cond do
+        match = Regex.run(~r|/data/(\d{1,10})/|i, to_string(value || "")) ->
+          Enum.at(match, 1) |> String.pad_leading(10, "0")
+
+        match = Regex.run(~r/\((\d{6,10})\)\s+\(Filer\)/i, to_string(value || "")) ->
+          Enum.at(match, 1) |> String.pad_leading(10, "0")
+
+        match = Regex.run(~r/CENTRAL INDEX KEY:\s*(\d{1,10})/i, to_string(value || "")) ->
+          Enum.at(match, 1) |> String.pad_leading(10, "0")
+
+        true ->
+          nil
+      end
+    end)
+  end
+
+  defp sec_edgar_13f_notable_manager?(source, manager) do
+    notable_only? =
+      source_config_boolean(source, "notable_manager_only", :notable_manager_only, true)
+
+    if notable_only? do
+      manager_text = String.downcase(to_string(manager || ""))
+
+      source
+      |> source_config_string_list(
+        "notable_manager_patterns",
+        :notable_manager_patterns,
+        sec_edgar_13f_default_notable_manager_patterns()
+      )
+      |> Enum.any?(fn pattern -> Regex.match?(Regex.compile!(pattern, "i"), manager_text) end)
+    else
+      true
+    end
+  end
+
+  defp sec_edgar_13f_default_notable_manager_patterns do
+    [
+      "berkshire|buffett",
+      "pershing square|ackman",
+      "icahn",
+      "elliott",
+      "third point",
+      "tiger global|tiger management",
+      "viking global",
+      "appaloosa",
+      "coatue",
+      "d1 capital",
+      "lone pine",
+      "baupost",
+      "soros",
+      "bridgewater",
+      "citadel",
+      "millennium",
+      "point72",
+      "renaissance",
+      "jpmorgan|j\\.p\\.\\s*morgan",
+      "goldman sachs",
+      "morgan stanley",
+      "blackrock",
+      "vanguard",
+      "fidelity|fmr",
+      "capital research|capital world",
+      "temasek"
+    ]
+  end
+
+  defp sec_edgar_13f_min_increase_percent(source) do
+    source_config_positive_integer(source, "increase_min_percent", :increase_min_percent, 25)
+  end
+
+  defp sec_edgar_13f_increase_percent(current, previous) do
+    if Decimal.compare(previous, Decimal.new("0")) == :gt do
+      current
+      |> Decimal.sub(previous)
+      |> Decimal.div(previous)
+      |> Decimal.mult(Decimal.new("100"))
+    else
+      Decimal.new("100")
+    end
+  end
+
+  defp sec_edgar_13f_share_label(nil), do: "unknown shares"
+
+  defp sec_edgar_13f_share_label(decimal) do
+    decimal
+    |> Decimal.round(0)
+    |> Decimal.to_integer()
+    |> Integer.to_string()
+    |> sec_edgar_share_label()
+  end
+
+  defp sec_edgar_13f_percent_label(nil), do: "new"
+
+  defp sec_edgar_13f_percent_label(decimal) do
+    decimal
+    |> Decimal.round(1)
+    |> Decimal.to_string(:normal)
+    |> Kernel.<>("%")
+  end
+
+  defp sec_edgar_13f_value_label(nil), do: "unknown"
+
+  defp sec_edgar_13f_value_label(value_thousands) do
+    value_thousands
+    |> Decimal.mult(Decimal.new("1000"))
+    |> sec_edgar_decimal_money_label()
+  end
+
+  defp sec_edgar_13f_normalized_cusip(value) do
+    value
+    |> to_string()
+    |> String.upcase()
+    |> String.replace(~r/[^A-Z0-9]/, "")
+  end
+
+  defp sec_edgar_13f_accession_key(value) do
+    value
+    |> to_string()
+    |> String.replace(~r/[^0-9]/, "")
+  end
+
+  defp sec_edgar_13f_report_period(record) do
+    [Map.get(record, :summary), Map.get(record, :title)]
+    |> Enum.find_value(fn value ->
+      case Regex.run(~r/\b(?:Period|Filed):\s*(\d{4}-\d{2}-\d{2})/i, to_string(value || "")) do
+        [_match, date] -> date
+        _match -> nil
+      end
+    end)
+  end
+
   defp sec_edgar_form4_tag_value(xml, tag) do
     pattern =
       Regex.compile!(
@@ -6964,8 +7442,13 @@ defmodule DisclosureAutomation.Ingestion do
         sec_edgar_item_502_summary(section, record) ||
           sec_edgar_generic_body_summary(section, record)
 
+      Regex.match?(~r/\bItem\s+7\.01\b/i, section) ->
+        sec_edgar_item_701_summary(section, record) ||
+          sec_edgar_generic_body_summary(section, record)
+
       Regex.match?(~r/\bItem\s+8\.01\b/i, section) ->
-        sec_edgar_item_801_summary(section, record) ||
+        sec_edgar_item_801_strategy_summary(section, record) ||
+          sec_edgar_item_801_summary(section, record) ||
           sec_edgar_generic_body_summary(section, record)
 
       true ->
@@ -7095,6 +7578,11 @@ defmodule DisclosureAutomation.Ingestion do
 
     detail_parts =
       [
+        sec_edgar_private_placement_investor_detail(section),
+        sec_edgar_private_placement_structure_detail(section),
+        sec_edgar_private_placement_price_detail(section),
+        sec_edgar_private_placement_warrant_detail(section),
+        sec_edgar_private_placement_use_detail(section),
         par_value && "주당 액면가는 #{par_value}",
         liquidation && "청산 우선권은 주당 #{liquidation}",
         net_proceeds && "비용 차감 전 예상 순수익은 #{net_proceeds}",
@@ -7167,6 +7655,52 @@ defmodule DisclosureAutomation.Ingestion do
       ]
 
     sec_edgar_summary_with_details(headline, details)
+  end
+
+  defp sec_edgar_item_701_summary(section, record) do
+    with signal when is_binary(signal) <- sec_edgar_strategic_update_signal(section) do
+      issuer = sec_edgar_issuer_name(record, section)
+
+      details =
+        [
+          "Signal: #{signal}",
+          sec_edgar_strategic_update_sentence_detail(section),
+          sec_edgar_partnership_detail(section),
+          sec_edgar_guidance_raise_detail(section),
+          sec_edgar_order_backlog_detail(section),
+          sec_edgar_first_money_detail(section)
+        ]
+
+      sec_edgar_summary_with_details(
+        "#{issuer} filed an Item 7.01 investor presentation or strategic update",
+        details
+      )
+    else
+      _reason -> nil
+    end
+  end
+
+  defp sec_edgar_item_801_strategy_summary(section, record) do
+    with signal when is_binary(signal) <- sec_edgar_strategic_update_signal(section) do
+      issuer = sec_edgar_issuer_name(record, section)
+
+      details =
+        [
+          "Signal: #{signal}",
+          sec_edgar_strategic_update_sentence_detail(section),
+          sec_edgar_partnership_detail(section),
+          sec_edgar_guidance_raise_detail(section),
+          sec_edgar_order_backlog_detail(section),
+          sec_edgar_first_money_detail(section)
+        ]
+
+      sec_edgar_summary_with_details(
+        "#{issuer} filed an Item 8.01 strategic update with a positive catalyst signal",
+        details
+      )
+    else
+      _reason -> nil
+    end
   end
 
   defp sec_edgar_item_801_summary(section, record) do
@@ -7605,6 +8139,132 @@ defmodule DisclosureAutomation.Ingestion do
       true ->
         nil
     end
+  end
+
+  defp sec_edgar_private_placement_investor_detail(section) do
+    [
+      ~r/(?:sold|issued|agreed to sell|entered into[^.]{0,80}purchase agreement with)\s+(?:to\s+)?([^.;]{3,180}?)(?:\s+an aggregate|\s+for aggregate|\s+in a private placement|\.|;|,)/i,
+      ~r/(?:investor(?:s)?|purchaser(?:s)?|buyer(?:s)?)(?:\s+include(?:s)?|\s+were|\s+are|:)\s*([^.;]{3,180})(?:\.|;|,|$)/i,
+      ~r/(?:strategic investment|PIPE financing)[^.]{0,120}\s+by\s+([^.;]{3,160})(?:\.|;|,|$)/i
+    ]
+    |> sec_edgar_first_capture(section)
+    |> sec_edgar_labeled_detail("Investor/buyer")
+  end
+
+  defp sec_edgar_private_placement_structure_detail(section) do
+    cond do
+      section =~ ~r/\bPIPE\b|private investment in public equity/i ->
+        "Structure: PIPE/private investment in public equity"
+
+      section =~ ~r/convertible preferred|preferred stock/i ->
+        "Structure: convertible/preferred stock financing"
+
+      section =~ ~r/convertible note|convertible debenture/i ->
+        "Structure: convertible debt financing"
+
+      section =~ ~r/warrant/i ->
+        "Structure: securities issuance includes warrant exposure"
+
+      section =~ ~r/private placement|securities purchase agreement/i ->
+        "Structure: private placement / securities purchase agreement"
+
+      true ->
+        nil
+    end
+  end
+
+  defp sec_edgar_private_placement_price_detail(section) do
+    [
+      ~r/(?:purchase price|offering price|price per share|sold at)[^$]{0,140}\$([\d,.]+)/i,
+      ~r/(?:conversion price|initial conversion price|convertible at)[^$]{0,140}\$([\d,.]+)/i,
+      ~r/\$([\d,.]+)\s+per\s+(?:share|unit|pre-funded warrant|common share)/i
+    ]
+    |> sec_edgar_money_capture(section)
+    |> sec_edgar_labeled_detail("Price/conversion price")
+  end
+
+  defp sec_edgar_private_placement_warrant_detail(section) do
+    section
+    |> sec_edgar_sentence_matching(
+      ~r/(warrant|exercise price|exercisable|pre-funded warrant|common warrant)/i,
+      420
+    )
+    |> sec_edgar_labeled_detail("Warrant terms")
+  end
+
+  defp sec_edgar_private_placement_use_detail(section) do
+    section
+    |> sec_edgar_sentence_matching(
+      ~r/(use(?:d)? (?:the )?(?:net )?proceeds|intends? to use|working capital|general corporate purposes|research and development|commercialization|acquisition|repay|debt)/i,
+      420
+    )
+    |> sec_edgar_labeled_detail("Use of proceeds")
+  end
+
+  defp sec_edgar_strategic_update_signal(section) do
+    cond do
+      section =~ ~r/investor presentation|presentation materials|investor deck/i ->
+        "investor presentation"
+
+      section =~ ~r/strategic update|strategic review|strategic alternatives/i ->
+        "strategic update/review"
+
+      section =~ ~r/partnership|collaboration|commercial agreement|strategic alliance/i ->
+        "partnership/collaboration"
+
+      section =~
+          ~r/raises? (?:its )?(?:full[- ]year )?guidance|raised guidance|guidance raise|increased outlook/i ->
+        "guidance raise / improved outlook"
+
+      section =~ ~r/order backlog|backlog|purchase order|awarded (?:a )?contract|booking/i ->
+        "order/backlog signal"
+
+      section =~ ~r/artificial intelligence|\bAI\b|data center|datacenter|cloud infrastructure/i ->
+        "AI/data-center theme"
+
+      section =~
+          ~r/clinical|phase\s+[123]|FDA|NDA|BLA|trial data|product launch|commercial launch/i ->
+        "clinical/product catalyst"
+
+      true ->
+        nil
+    end
+  end
+
+  defp sec_edgar_strategic_update_sentence_detail(section) do
+    section
+    |> sec_edgar_sentence_matching(
+      ~r/(investor presentation|strategic update|strategic review|partnership|collaboration|guidance|outlook|order backlog|backlog|purchase order|artificial intelligence|\bAI\b|data center|clinical|phase\s+[123]|product launch|commercial launch)/i,
+      460
+    )
+    |> sec_edgar_labeled_detail("Strategic update")
+  end
+
+  defp sec_edgar_partnership_detail(section) do
+    section
+    |> sec_edgar_sentence_matching(
+      ~r/(partnership|collaboration|strategic alliance|commercial agreement|supply agreement|license agreement)/i,
+      420
+    )
+    |> sec_edgar_labeled_detail("Partnership")
+  end
+
+  defp sec_edgar_guidance_raise_detail(section) do
+    section
+    |> sec_edgar_sentence_matching(
+      ~r/(raises? (?:its )?(?:full[- ]year )?guidance|raised guidance|increase[sd]? (?:its )?(?:full[- ]year )?outlook|expects? (?:higher|increased)|reaffirmed guidance)/i,
+      420
+    )
+    |> sec_edgar_labeled_detail("Guidance/outlook")
+  end
+
+  defp sec_edgar_order_backlog_detail(section) do
+    section
+    |> sec_edgar_sentence_matching(
+      ~r/(order backlog|backlog|purchase order|awarded (?:a )?contract|bookings?|customer order)/i,
+      420
+    )
+    |> sec_edgar_labeled_detail("Order/backlog")
   end
 
   defp sec_edgar_first_money_detail(section) do
