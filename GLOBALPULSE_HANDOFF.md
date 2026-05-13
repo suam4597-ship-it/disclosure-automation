@@ -218,6 +218,12 @@ For the latest source-health drift observation, read:
 apps/backend/disclosure_api/docs/globalpulse_source_health_drift_observation_20260512.md
 ```
 
+For the post-rollup source-health snapshot, read:
+
+```text
+apps/backend/disclosure_api/docs/globalpulse_source_health_post_rollup_snapshot_20260513.md
+```
+
 For the first monitoring and incident-response plan, read:
 
 ```text
@@ -357,6 +363,7 @@ first workflow_dispatch result: pass, run 25676030410
 daily workflow main maintenance verification: pass, run 25677329262
 first daily scheduled public web smoke run: pass, run 25712711038, event=schedule, public Pages/config/health/digest passed
 source-health drift observation: real source keys reachable, workflow canary aliases are not source-health keys
+source-health post-rollup snapshot: checked real source keys returned HTTP 200 with last_error=null; candidates remain active=false
 production approval blocker status: #561 open comments=1 approval request posted, #565 open comments=1 approval request posted
 operator approval intake packet: added, use before interpreting #561/#565 replies
 production CORS smoke contract template: added, not executable until origins are approved

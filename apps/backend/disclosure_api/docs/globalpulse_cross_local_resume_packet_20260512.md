@@ -191,6 +191,7 @@ Phase 1 backend trace: success
 #621 recorded the latest scheduled staging rollup through SEC, EU canary, HKEX, India NSE, and Denmark DFSA OAM runs.
 #622 recorded post-rollup EU canary run 25753561055 where Belgium FSMA returned fixture mode, followed by recovery run 25763799894 where Belgium FSMA returned live/200; it also added disable_live_fixture_fallback=true for eu_belgium_fsma_stori.
 Post-rollup HKEX/India scheduled observation recorded HKEX run 25767950060 and India NSE run 25768648399 as live/200 scheduled staging passes.
+Post-rollup source-health snapshot recorded checked real source keys returning HTTP 200 with last_error=null; checked candidate sources remain active=false.
 #277 through #311 and #2 through #20 were closed as superseded stale/historical PRs; see globalpulse_stale_stacked_pr_cleanup_20260512.md.
 #1 remains open as the separate phase0-foundation to main integration decision.
 ```
@@ -219,8 +220,9 @@ Recommended order:
 8. Denmark DFSA OAM later scheduled observation is recorded through run `25730389870`; keep it staging-only and inactive.
 9. Latest scheduled staging rollup is recorded through runs `25741580440`, `25742257297`, `25743490299`, `25744353562`, and `25744795173`.
 10. Belgium FSMA source config has `disable_live_fixture_fallback=true` so scheduled live canary failures do not insert fixture-backed outputs.
-11. If #561/#565 receive approved production values, prepare a production config/smoke PR using the existing templates.
-12. If no approval values exist, keep working on staging-only observation, docs, and source evidence.
+11. Use the post-rollup source-health snapshot as a comparison point if a scheduled source reports last_error later.
+12. If #561/#565 receive approved production values, prepare a production config/smoke PR using the existing templates.
+13. If no approval values exist, keep working on staging-only observation, docs, and source evidence.
 ```
 
 Useful result docs/templates:
