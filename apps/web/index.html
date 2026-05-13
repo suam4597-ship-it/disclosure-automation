@@ -231,6 +231,16 @@
     .detail-body { padding: 24px; }
     .detail-title { margin: 0 0 10px; font-size: 22px; line-height: 1.35; letter-spacing: -0.02em; }
     .detail-summary { margin: 0 0 18px; color: var(--text); line-height: 1.65; }
+    .detail-summary p { margin: 0 0 10px; }
+    .detail-summary-list { margin: 8px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+    .detail-summary-list li {
+      padding: 9px 11px;
+      border: 1px solid rgba(42, 53, 68, 0.72);
+      border-radius: 8px;
+      background: rgba(8, 13, 20, 0.22);
+      color: var(--sub);
+    }
+    .detail-summary-list b { color: var(--text); }
     .detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 18px 0; }
     .detail-box { border: 1px solid rgba(42, 53, 68, 0.85); border-radius: 8px; padding: 12px; background: rgba(8, 13, 20, 0.24); }
     .detail-box b { display: block; margin-bottom: 6px; color: var(--muted); font-size: 12px; text-transform: uppercase; }
@@ -954,7 +964,7 @@ function simpleSummary(item, title, kind, category) {
   }
 
   if (source.includes("13f_institutional")) {
-    return rawSummary || "SEC 13F에서 유명 기관의 신규 편입, 큰 비중 증가, 여러 기관 동시 매수 신호만 추린 아이디어 소싱 항목입니다.";
+    return localizeSecSummaryText(rawSummary) || "SEC 13F에서 유명 기관의 신규 편입, 큰 비중 증가, 여러 기관 동시 매수 신호만 추린 아이디어 소싱 항목입니다.";
   }
 
   if (source.includes("10q") || source.includes("10k") || combined.includes("10-q") || combined.includes("10-k")) {
@@ -1013,7 +1023,7 @@ function simpleSummary(item, title, kind, category) {
 }
 
 function secEdgarSummary(title, rawSummary) {
-  if (isSecEdgarBodySummary(rawSummary)) return rawSummary;
+  if (isSecEdgarBodySummary(rawSummary)) return localizeSecSummaryText(rawSummary);
 
   const company = title
     .replace(/^8-K\s*-\s*/i, "")
@@ -1037,7 +1047,104 @@ function isSecEdgarBodySummary(rawSummary) {
 }
 
 function isSecStrategicContractSummary(rawSummary) {
-  return /Item 1\.01 strategic contract\/order signal|Customer\/order|Supply\/offtake|Minimum commitment|Exclusivity\/preferred terms|Duration\/term/i.test(rawSummary || "");
+  return /Item 1\.01 strategic contract\/order signal|Customer\/order|Supply\/offtake|Minimum commitment|Exclusivity\/preferred terms|Duration\/term|전략적 계약|고객\/수주|공급\/오프테이크|최소 약정|독점\/우선공급|계약 기간/i.test(rawSummary || "");
+}
+
+function secSignalLabel(value) {
+  const key = cleanText(value).toLowerCase();
+  const labels = {
+    "multiple institutions buying/increasing": "여러 기관의 동시 매수/비중 증가",
+    "increased_position": "보유지분 증가",
+    "new_position": "신규 편입",
+    "investor presentation": "투자자 발표 자료",
+    "strategic update/review": "전략 업데이트/검토",
+    "partnership/collaboration": "파트너십/협업",
+    "guidance raise / improved outlook": "가이던스 상향/전망 개선",
+    "order/backlog signal": "수주/백로그 신호",
+    "ai/data-center theme": "AI/데이터센터 테마",
+    "clinical/product catalyst": "임상/제품 출시 촉매",
+    "customer order/backlog": "고객 주문/백로그",
+    "minimum purchase/volume commitment": "최소구매/최소물량 약정",
+    "customer/commercial agreement": "고객/상업 계약",
+    "supply/offtake agreement": "공급/오프테이크 계약",
+    "strategic partnership/collaboration": "전략적 파트너십/협업",
+    "exclusive/preferred supplier terms": "독점/우선공급 조건"
+  };
+  return labels[key] || value;
+}
+
+function localizeSecSummaryText(rawText) {
+  let text = cleanText(rawText);
+  if (!text) return "";
+
+  text = text.replace(
+    /원문 본문 기준,\s*(.+?) showed simultaneous 13F accumulation across (\d+) notable managers\./i,
+    "원문 본문 기준, $1에서 유명 기관 $2곳의 13F 동시 매수/비중 증가 신호가 확인됐습니다."
+  );
+
+  text = text.replace(
+    /원문 본문 기준,\s*(.+?) showed 13F accumulation in (.+?)\./i,
+    "원문 본문 기준, $2에서 $1의 13F 보유지분 증가 신호가 확인됐습니다."
+  );
+
+  text = text.replace(
+    /Increased position:\s*(.+?) raised shares by ([^;]+?) from ([^;]+?) to ([^;.]+)(?=\.|;|$)/gi,
+    "보유지분 증가: $1가 보유 주식 수를 $2 늘렸습니다. 기존 $3 → 현재 $4"
+  );
+
+  text = text.replace(
+    /New position:\s*(.+?) reported ([^;]+?) of ([^;.]+)(?=\.|;|$)/gi,
+    "신규 편입: $1가 $3 $2 보유를 보고했습니다"
+  );
+
+  text = text
+    .replace(/Managers:/g, "기관:")
+    .replace(/Signal:\s*([^;.]*)/g, (_match, value) => `신호: ${secSignalLabel(value)}`)
+    .replace(/신호:\s*([^;.]*)/g, (_match, value) => `신호: ${secSignalLabel(value)}`)
+    .replace(/Current 13F value:/g, "현재 13F 평가액:")
+    .replace(/Strategic update:/g, "전략 업데이트:")
+    .replace(/Partnership:/g, "파트너십:")
+    .replace(/Guidance\/outlook:/g, "가이던스/전망:")
+    .replace(/Order\/backlog:/g, "수주/백로그:")
+    .replace(/Customer\/order:/g, "고객/수주:")
+    .replace(/Supply\/offtake:/g, "공급/오프테이크:")
+    .replace(/Minimum commitment:/g, "최소 약정:")
+    .replace(/Exclusivity\/preferred terms:/g, "독점/우선공급 조건:")
+    .replace(/Duration\/term:/g, "계약 기간:")
+    .replace(/Counterparty:/g, "상대방:")
+    .replace(/Item 1\.01 strategic contract\/order signal:\s*([^.;]*)/gi, (_match, value) => `Item 1.01 전략적 계약/수주 신호: ${secSignalLabel(value)}`)
+    .replace(/filed an Item 7\.01 investor presentation or strategic update/gi, "는 Item 7.01 투자자 발표 또는 전략 업데이트를 공시했습니다")
+    .replace(/filed an Item 8\.01 strategic update with a positive catalyst signal/gi, "는 긍정 촉매 신호가 있는 Item 8.01 전략 업데이트를 공시했습니다");
+
+  return text;
+}
+
+function detailSummaryLines(item) {
+  const localized = localizeSecSummaryText(detailNarrative(item));
+  if (!localized) return [];
+  return localized.split(/\s*;\s*/).map(part => cleanText(part)).filter(Boolean);
+}
+
+function detailSummaryLineHtml(line, index) {
+  if (index === 0) return `<p>${escapeHtml(line)}</p>`;
+
+  const match = line.match(/^([^:：]{1,32})[:：]\s*(.*)$/);
+  if (match) {
+    return `<li><b>${escapeHtml(match[1])}:</b> ${escapeHtml(match[2])}</li>`;
+  }
+
+  return `<li>${escapeHtml(line)}</li>`;
+}
+
+function detailSummaryHtml(item) {
+  const lines = detailSummaryLines(item);
+  if (!lines.length) return "";
+  const [lead, ...details] = lines;
+  const leadHtml = detailSummaryLineHtml(lead, 0);
+  const detailHtml = details.length
+    ? `<ul class="detail-summary-list">${details.map((line, index) => detailSummaryLineHtml(line, index + 1)).join("")}</ul>`
+    : "";
+  return `<div class="detail-summary">${leadHtml}${detailHtml}</div>`;
 }
 
 function tdnetSummary(title) {
@@ -1662,7 +1769,7 @@ function renderItemDetail(items, itemKey) {
       </div>
       <div class="detail-body">
         <h2 class="detail-title">${escapeHtml(item.title)}</h2>
-        <p class="detail-summary">${escapeHtml(detailNarrative(item))}</p>
+        ${detailSummaryHtml(item)}
         <div class="detail-grid">
           <div class="detail-box">
             <b>대상</b>
