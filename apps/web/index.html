@@ -968,27 +968,27 @@ function simpleSummary(item, title, kind, category) {
   }
 
   if (source.includes("10q") || source.includes("10k") || combined.includes("10-q") || combined.includes("10-k")) {
-    return rawSummary || "SEC 정기보고서에서 매출, 순이익/순손실, EPS와 가이던스 문구를 요약한 항목입니다.";
+    return localizeSecSummaryText(rawSummary) || "SEC 정기보고서에서 매출, 순이익/순손실, EPS와 가이던스 문구를 요약한 항목입니다.";
   }
 
   if (source.includes("s1_registration") || source.includes("f1_registration") || combined.includes(" ipo ")) {
-    return rawSummary || "SEC IPO/신규상장 등록서에서 사업 설명, 조달 규모, 자금 사용 목적, 공모 가격과 lock-up 문구를 요약한 항목입니다.";
+    return localizeSecSummaryText(rawSummary) || "SEC IPO/신규상장 등록서에서 사업 설명, 조달 규모, 자금 사용 목적, 공모 가격과 lock-up 문구를 요약한 항목입니다.";
   }
 
   if (source.includes("13d_activist")) {
-    return rawSummary || "SEC Schedule 13D에서 5% 이상 전략 지분, 행동주의 가능성, 목적 문구를 요약한 항목입니다.";
+    return localizeSecSummaryText(rawSummary) || "SEC Schedule 13D에서 5% 이상 전략 지분, 행동주의 가능성, 목적 문구를 요약한 항목입니다.";
   }
 
   if (source.includes("13g_increased")) {
-    return rawSummary || "SEC Schedule 13G에서 신규 또는 증가한 5% 이상 보유지분 신호만 추린 항목입니다.";
+    return localizeSecSummaryText(rawSummary) || "SEC Schedule 13G에서 신규 또는 증가한 5% 이상 보유지분 신호만 추린 항목입니다.";
   }
 
   if (source.includes("s4_merger") || source.includes("f4_merger")) {
-    return rawSummary || "SEC S-4/F-4에서 주식교환·합병 대상, 교환/합병 비율과 전략적 목적을 요약한 항목입니다.";
+    return localizeSecSummaryText(rawSummary) || "SEC S-4/F-4에서 주식교환·합병 대상, 교환/합병 비율과 전략적 목적을 요약한 항목입니다.";
   }
 
   if (source.includes("schedule_to")) {
-    return rawSummary || "SEC Schedule TO에서 공개매수 조건, 수량, 주당 가액과 공개매수 목적을 요약한 항목입니다.";
+    return localizeSecSummaryText(rawSummary) || "SEC Schedule TO에서 공개매수 조건, 수량, 주당 가액과 공개매수 목적을 요약한 항목입니다.";
   }
 
   if (source.includes("sec_edgar") || combined.includes("8-k") || combined.includes("item ")) {
@@ -1098,10 +1098,61 @@ function localizeSecSummaryText(rawText) {
   );
 
   text = text
+    .replace(
+      /원문 본문 기준,\s*(.+?) filed Schedule 13D showing a 5%\+ strategic or activist ownership position\./gi,
+      "원문 본문 기준, $1의 Schedule 13D에서 5% 이상 전략적/행동주의 보유지분 신호가 확인됐습니다."
+    )
+    .replace(
+      /원문 본문 기준,\s*(.+?) filed Schedule 13G with a new or increased 5%\+ beneficial ownership signal\./gi,
+      "원문 본문 기준, $1의 Schedule 13G에서 신규 또는 증가한 5% 이상 보유지분 신호가 확인됐습니다."
+    )
+    .replace(
+      /원문 본문 기준,\s*(.+?) filed (S-4|F-4) for a stock-exchange, merger, or business-combination registration\./gi,
+      "원문 본문 기준, $1의 $2 주식교환/합병 등록서 핵심 조건을 확인했습니다."
+    )
+    .replace(
+      /원문 본문 기준,\s*(.+?) filed Schedule TO for a tender offer or buyout-style transaction\./gi,
+      "원문 본문 기준, $1의 Schedule TO 공개매수 또는 인수성 거래 조건을 확인했습니다."
+    );
+
+  text = text
     .replace(/Managers:/g, "기관:")
     .replace(/Signal:\s*([^;.]*)/g, (_match, value) => `신호: ${secSignalLabel(value)}`)
     .replace(/신호:\s*([^;.]*)/g, (_match, value) => `신호: ${secSignalLabel(value)}`)
     .replace(/Current 13F value:/g, "현재 13F 평가액:")
+    .replace(/Reporting owner:/g, "신고자/보유자:")
+    .replace(/Beneficially owned shares:/g, "보유 주식 수:")
+    .replace(/Beneficial ownership:/g, "보유 지분율:")
+    .replace(/Purpose\/engagement:/g, "목적/관여:")
+    .replace(/Signal focus:/g, "신호 초점:")
+    .replace(/Increase filter:/g, "필터 조건:")
+    .replace(/Merger\/exchange target:/g, "교환/합병 대상:")
+    .replace(/Exchange\/merger ratio:/g, "교환/합병 비율:")
+    .replace(/Transaction value\/consideration:/g, "거래가치/대가:")
+    .replace(/Strategic purpose:/g, "전략적 목적:")
+    .replace(/Offeror\/buyer:/g, "공개매수자/인수자:")
+    .replace(/Tender price per share:/g, "주당 공개매수가:")
+    .replace(/Tender quantity:/g, "공개매수 수량:")
+    .replace(/Tender terms:/g, "공개매수 조건:")
+    .replace(/Tender purpose:/g, "공개매수 목적:")
+    .replace(/potential activist or strategic engagement/gi, "행동주의 또는 전략적 관여 가능성")
+    .replace(/potential control, M&A, or ownership-change angle/gi, "지배권, M&A 또는 보유지분 변화 가능성")
+    .replace(/13D is treated as active\/strategic ownership, not a passive 13G holding/gi, "13D는 단순 패시브 13G 보유가 아닌 적극적/전략적 지분으로 분류")
+    .replace(/initial 13G treated as a newly disclosed 5%\+ ownership position/gi, "최초 13G는 신규 5% 이상 보유지분 공시로 간주")
+    .replace(/any and all outstanding shares\/securities/gi, "발행주식/증권 전부")
+    .replace(/shares\/ADSs\/units/gi, "주/ADS/units")
+    .replace(/Business description:/g, "사업 설명:")
+    .replace(/Business:/g, "사업 설명:")
+    .replace(/Offering amount:/g, "상장/공모 조달 규모:")
+    .replace(/Offering size:/g, "상장/공모 조달 규모:")
+    .replace(/Use of proceeds:/g, "조달자금 사용 목적:")
+    .replace(/Price range:/g, "공모 가격:")
+    .replace(/Offering price:/g, "공모 가격:")
+    .replace(/Lock-up\/overhang:/g, "오버행/lock-up 일정:")
+    .replace(/Revenue:/g, "매출:")
+    .replace(/Net income\/loss:/g, "순이익/순손실:")
+    .replace(/Net income:/g, "순이익:")
+    .replace(/Guidance:/g, "가이던스:")
     .replace(/Strategic update:/g, "전략 업데이트:")
     .replace(/Partnership:/g, "파트너십:")
     .replace(/Guidance\/outlook:/g, "가이던스/전망:")
@@ -1121,7 +1172,7 @@ function localizeSecSummaryText(rawText) {
 
 function detailSummaryLines(item) {
   const localized = localizeSecSummaryText(detailNarrative(item))
-    .replace(/\.\s+(기관|신호|CUSIP|현재 13F 평가액|전략 업데이트|파트너십|가이던스\/전망|수주\/백로그|고객\/수주|공급\/오프테이크|최소 약정|독점\/우선공급 조건|계약 기간|상대방):/g, "; $1:");
+    .replace(/\.\s+(기관|신호|CUSIP|현재 13F 평가액|매출|순이익\/순손실|순이익|EPS|가이던스|사업 설명|상장\/공모 조달 규모|조달자금 사용 목적|주당\/ADS 공모 가격|공모 가격|오버행\/lock-up 일정|신고자\/보유자|보유 주식 수|보유 지분율|목적\/관여|신호 초점|필터 조건|교환\/합병 대상|교환\/합병 비율|거래가치\/대가|전략적 목적|공개매수자\/인수자|주당 공개매수가|공개매수 수량|공개매수 조건|공개매수 목적|전략 업데이트|파트너십|가이던스\/전망|수주\/백로그|고객\/수주|공급\/오프테이크|최소 약정|독점\/우선공급 조건|계약 기간|상대방):/g, "; $1:");
   if (!localized) return [];
   return localized.split(/\s*;\s*/).map(part => cleanText(part)).filter(Boolean);
 }
