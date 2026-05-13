@@ -1478,6 +1478,47 @@ parsers:
       reject_future_timestamps: true
       detail_fetch_disabled: true
 
+  - parser_key: tdnet_public_list_html_v1
+    display_name: Japan TDnet Public List HTML Parser
+    enabled: true
+    input_types: [html]
+    output_contract: canonical_document_v1
+    timeout_ms: 5000
+    max_items_per_poll: 25
+    supports_pagination: false
+    supports_detail_fetch: false
+    extraction:
+      id_fields:
+        - kjTitle.a.href
+      title_fields:
+        - kjName
+        - kjTitle.a.text
+      summary_fields:
+        - kjCode
+        - kjPlace
+        - kjXbrl
+      url_fields:
+        - kjTitle.a.href
+      published_at_fields:
+        - kaiji-date-1
+        - kjTime
+      category_fields:
+        - disclosure
+    normalization:
+      source_shape: tdnet_public_list_table_html
+      trim_html: true
+      decode_entities: true
+      collapse_whitespace: true
+      timezone_strategy: asia_tokyo_to_utc
+      generated_url_strategy: official_tdnet_pdf_link
+      missing_summary_strategy: bounded_metadata_summary
+    quality:
+      minimum_title_length: 8
+      reject_empty_url: true
+      reject_non_tdnet_public_list_payload: true
+      reject_future_timestamps: true
+      detail_fetch_disabled: true
+
   - parser_key: hkex_latest_listed_company_info_json_v1
     display_name: HKEX Latest Listed Company Information JSON Parser
     enabled: true
