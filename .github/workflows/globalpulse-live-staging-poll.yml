@@ -16,22 +16,18 @@ on:
         required: false
         default: "breaking"
   schedule:
-    # Run at minute 7 every hour. Keep this conservative for public RSS sources.
-    - cron: "7 * * * *"
-    # Run the verified India NSE candidate every 2 hours on weekdays in staging.
-    - cron: "37 */2 * * 1-5"
-    # Run the HKEX latest-listed-company candidate every 2 hours on weekdays in staging.
-    - cron: "22 */2 * * 1-5"
-    # Run the first EU listed-company disclosure canary every 4 hours on weekdays in staging.
-    - cron: "17 */4 * * 1-5"
-    # Run the Denmark DFSA OAM candidate as a separate staging-only canary on weekdays.
-    - cron: "47 */4 * * 1-5"
+    # US SEC EDGAR current 8-K filings registry cadence.
+    - cron: "*/10 * * * *"
+    # Japan TDnet disclosures registry cadence.
+    - cron: "*/15 * * * *"
+    # Greater China, India, and Europe staging canaries registry cadence.
+    - cron: "*/30 * * * *"
 
 permissions:
   contents: read
 
 concurrency:
-  group: globalpulse-live-staging-poll
+  group: globalpulse-live-staging-poll-${{ github.event.schedule || github.event.inputs.source_key || github.run_id }}
   cancel-in-progress: false
 
 jobs:
@@ -53,6 +49,19 @@ jobs:
         pt_cmvm_portal_info_privi
       DENMARK_DFSA_OAM_CANARY_SOURCES: >-
         dk_dfsa_oam_company_announcements
+      REGIONAL_30M_CADENCE_SOURCES: >-
+        hkex_latest_listed_company_information
+        tw_mops_daily_material_information
+        india_nse_announcements
+        eu_france_info_financiere_oam
+        eu_spain_cnmv_inside_information
+        eu_spain_cnmv_other_relevant_information
+        eu_belgium_fsma_stori
+        uk_fca_nsm_regulated_information
+        ch_six_ser_official_notices
+        eu_euronext_company_press_releases
+        pt_cmvm_portal_info_privi
+        dk_dfsa_oam_company_announcements
 
     steps:
       - name: Resolve source
@@ -66,17 +75,14 @@ jobs:
           elif [ -n "${REQUESTED_SOURCE_KEY}" ]; then
             resolved_source="${REQUESTED_SOURCE_KEY}"
             run_mode="single_source"
-          elif [ "${SCHEDULE_EXPR}" = "17 */4 * * 1-5" ]; then
-            resolved_source="eu_scheduled_staging_canary"
-            run_mode="eu_canary"
-          elif [ "${SCHEDULE_EXPR}" = "47 */4 * * 1-5" ]; then
-            resolved_source="denmark_dfsa_oam_staging_canary"
-            run_mode="denmark_dfsa_oam_canary"
-          elif [ "${SCHEDULE_EXPR}" = "37 */2 * * 1-5" ]; then
-            resolved_source="india_nse_announcements"
+          elif [ "${SCHEDULE_EXPR}" = "*/15 * * * *" ]; then
+            resolved_source="jp_tdnet_disclosures"
             run_mode="single_source"
-          elif [ "${SCHEDULE_EXPR}" = "22 */2 * * 1-5" ]; then
-            resolved_source="hkex_latest_listed_company_information"
+          elif [ "${SCHEDULE_EXPR}" = "*/30 * * * *" ]; then
+            resolved_source="regional_30m_cadence_staging_sources"
+            run_mode="multi_source"
+          elif [ "${SCHEDULE_EXPR}" = "*/10 * * * *" ]; then
+            resolved_source="sec_edgar_current_8k_filings"
             run_mode="single_source"
           else
             resolved_source="sec_edgar_current_8k_filings"
@@ -97,6 +103,8 @@ jobs:
             echo "eu_canary_sources=${EU_CANARY_SOURCES}"
           elif [ "${RUN_MODE}" = "denmark_dfsa_oam_canary" ]; then
             echo "denmark_dfsa_oam_canary_sources=${DENMARK_DFSA_OAM_CANARY_SOURCES}"
+          elif [ "${RUN_MODE}" = "multi_source" ]; then
+            echo "regional_30m_cadence_sources=${REGIONAL_30M_CADENCE_SOURCES}"
           fi
 
       - name: Health check
@@ -110,12 +118,14 @@ jobs:
 
       - name: Poll live source
         run: |
-          if [ "${RUN_MODE}" = "eu_canary" ] || [ "${RUN_MODE}" = "denmark_dfsa_oam_canary" ]; then
+          if [ "${RUN_MODE}" = "eu_canary" ] || [ "${RUN_MODE}" = "denmark_dfsa_oam_canary" ] || [ "${RUN_MODE}" = "multi_source" ]; then
             failed=0
             canary_sources="${EU_CANARY_SOURCES}"
 
             if [ "${RUN_MODE}" = "denmark_dfsa_oam_canary" ]; then
               canary_sources="${DENMARK_DFSA_OAM_CANARY_SOURCES}"
+            elif [ "${RUN_MODE}" = "multi_source" ]; then
+              canary_sources="${REGIONAL_30M_CADENCE_SOURCES}"
             fi
 
             for source in ${canary_sources}; do
@@ -196,6 +206,8 @@ jobs:
             digest_output="digest-eu-canary.json"
           elif [ "${RUN_MODE}" = "denmark_dfsa_oam_canary" ]; then
             digest_output="digest-denmark-dfsa-oam-canary.json"
+          elif [ "${RUN_MODE}" = "multi_source" ]; then
+            digest_output="digest-regional-30m-cadence.json"
           else
             digest_output="digest.json"
           fi

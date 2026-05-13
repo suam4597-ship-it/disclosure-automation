@@ -19,6 +19,7 @@ LATEST_OBSERVED_STAGING_POLL_RUN_WAS_SEC_HOURLY
 SCHEDULED_STAGING_POLL_NO_NEW_RUN_GAP_OBSERVED
 SEC_HOURLY_SCHEDULED_RUN_AFTER_GAP_OBSERVED
 MANUAL_WORKFLOW_DISPATCH_DOES_NOT_COUNT_AS_SCHEDULED_PASS
+LIVE_STAGING_WORKFLOW_ALIGNED_TO_REGISTRY_CADENCE
 PRODUCTION_SCHEDULED_POLLING_NOT_ENABLED
 ```
 
@@ -99,15 +100,16 @@ workflow: GlobalPulse live staging poll
 workflow file: .github/workflows/globalpulse-live-staging-poll.yml
 ```
 
-Known schedule routing:
+Current schedule routing after registry-cadence alignment:
 
 ```text
-7 * * * *             -> sec_press_releases, single_source
-37 */2 * * 1-5        -> india_nse_announcements, single_source
-17 */4 * * 1-5        -> eu_scheduled_staging_canary, eu_canary
-47 */4 * * 1-5        -> denmark_dfsa_oam_staging_canary, denmark_dfsa_oam_canary
-22 */2 * * 1-5        -> hkex_latest_listed_company_information, single_source
+*/10 * * * *          -> sec_edgar_current_8k_filings, single_source
+*/15 * * * *          -> jp_tdnet_disclosures, single_source
+*/30 * * * *          -> regional_30m_cadence_staging_sources, multi_source
+regional 30m sources  -> hkex_latest_listed_company_information, tw_mops_daily_material_information, india_nse_announcements, EU canary sources, dk_dfsa_oam_company_announcements
 ```
+
+Historical runs above may still reference the older SEC hourly / HKEX / India / EU / Denmark cron split. Treat this schedule map and the workflow file as the current authority.
 
 ## Command Path
 
