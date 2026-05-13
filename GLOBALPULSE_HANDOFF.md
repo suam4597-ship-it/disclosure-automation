@@ -200,6 +200,12 @@ For the latest public web digest diversity refresh, read:
 apps/backend/disclosure_api/docs/globalpulse_public_web_digest_diversity_refresh_20260512.md
 ```
 
+For the public dashboard Korean locale and latest digest diversity fix, read:
+
+```text
+apps/backend/disclosure_api/docs/globalpulse_public_dashboard_locale_and_digest_diversity_fix_20260513.md
+```
+
 For the source-observation production readiness matrix, read:
 
 ```text
@@ -414,6 +420,7 @@ public config smoke: 200
 Fly staging health: 200 ok
 Fly staging digest: 200 item_count=12 fallback=false
 latest digest diversity observation: public scheduled smoke top-N includes HKEX, EU Euronext, and India
+public dashboard locale/diversity fix: Korean chrome labels added; latest digest now uses recent-date candidate backfill while preserving JSON shape
 ```
 
 Current public surfaces:
