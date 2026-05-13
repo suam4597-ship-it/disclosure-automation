@@ -273,7 +273,8 @@
     .tag.markets { background: rgba(34, 197, 94, 0.12); color: var(--green); }
     .tag.high { background: rgba(239, 68, 68, 0.12); color: var(--red); }
     .tag.signal { background: rgba(34, 197, 94, 0.14); color: #86efac; }
-    .signal-pill {
+    .tag.composite { background: rgba(245, 158, 11, 0.14); color: #fbbf24; }
+    .signal-pill, .composite-pill {
       display: inline-flex;
       align-items: center;
       gap: 5px;
@@ -285,7 +286,13 @@
       font-size: 11px;
       font-weight: 900;
     }
+    .composite-pill {
+      border-color: rgba(245, 158, 11, 0.32);
+      background: rgba(245, 158, 11, 0.1);
+      color: #fbbf24;
+    }
     .signal-box { border-color: rgba(34, 197, 94, 0.32); background: rgba(34, 197, 94, 0.06); }
+    .composite-box { border-color: rgba(245, 158, 11, 0.35); background: rgba(245, 158, 11, 0.06); }
 
     .sidebar { display: flex; flex-direction: column; gap: 24px; }
     .card h3 {
@@ -1038,6 +1045,75 @@ function signalDetailBoxHtml(item) {
   `;
 }
 
+function secCompositeCategory(item) {
+  if (!isSecItem(item)) return "";
+
+  const source = itemSourceKey(item).toLowerCase();
+  const text = secSignalHaystack(item);
+
+  if (source.includes("form4")) return "내부자 매수";
+  if (source.includes("13f")) return "기관 매수";
+  if (source.includes("13d") || source.includes("13g")) return "지분 변화";
+  if (source.includes("schedule_to") || source.includes("s4_merger") || source.includes("f4_merger") || /item 2\.01|item 5\.01|merger|tender offer|exchange ratio|change in control/.test(text)) return "M&A/공개매수";
+  if (source.includes("s1_registration") || source.includes("f1_registration")) return "IPO";
+  if (source.includes("10q") || source.includes("10k") || /item 2\.02|revenue|net income|eps|guidance/.test(text)) return "실적";
+  if (source.includes("8k") || /item 1\.01|item 3\.02|item 7\.01|item 8\.01|strategic|partnership|customer|backlog|contract|order/.test(text)) return "8-K 촉매";
+
+  return "";
+}
+
+function compositeIssuerKey(item) {
+  const value = detailTarget(item)
+    .toLowerCase()
+    .replace(/\b(incorporated|inc|corp|corporation|ltd|limited|plc|sa|nv|ag|co|company|class a|common stock)\b/g, "")
+    .replace(/[^a-z0-9가-힣]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return value.length >= 3 ? value : "";
+}
+
+function applyCompositeSignals(items) {
+  const decorated = items.map(item => ({ ...item, compositeSignals: [], compositeScore: 0 }));
+  const groups = new Map();
+
+  for (const item of decorated) {
+    const issuerKey = compositeIssuerKey(item);
+    const category = secCompositeCategory(item);
+    if (!issuerKey || !category) continue;
+    if (!groups.has(issuerKey)) groups.set(issuerKey, { categories: new Set(), items: [] });
+    groups.get(issuerKey).categories.add(category);
+    groups.get(issuerKey).items.push(item);
+  }
+
+  for (const group of groups.values()) {
+    if (group.categories.size < 2) continue;
+    const categories = [...group.categories];
+    const score = Math.min(99, 88 + Math.max(0, categories.length - 2) * 3);
+    for (const item of group.items) {
+      item.compositeSignals = categories;
+      item.compositeScore = score;
+    }
+  }
+
+  return decorated;
+}
+
+function compositePillHtml(item) {
+  if (!item.compositeSignals?.length) return "";
+  return `<span class="composite-pill">${escapeHtml(`복합 시그널 ${item.compositeSignals.length}개`)}</span>`;
+}
+
+function compositeDetailBoxHtml(item) {
+  if (!item.compositeSignals?.length) return "";
+  return `
+    <div class="detail-box composite-box">
+      <b>복합 시그널</b>
+      <span>${escapeHtml(item.compositeSignals.join(" + "))}</span>
+    </div>
+  `;
+}
+
 const SEC_8K_ITEM_LABELS = {
   "1.01": "중요 계약 체결",
   "1.02": "중요 계약 종료",
@@ -1493,6 +1569,10 @@ function companyFromTitle(title) {
   const cleaned = cleanText(title)
     .replace(/^8-K\s*-\s*/i, "")
     .replace(/\s*\(\d+\)\s*\(Filer\).*$/i, "");
+
+  const secIdeaMatch = cleaned.match(/^(?:13F institutional accumulation|Form 4 insider purchase cluster|Schedule 13D strategic ownership|Schedule 13G increased ownership|S-4 merger\/exchange registration|F-4 merger\/exchange registration|Schedule TO tender offer)\s+-\s+(.+)$/i);
+  if (secIdeaMatch) return cleanIssuer(secIdeaMatch[1]);
+
   const parts = cleaned.split(/\s+-\s+/).map(cleanText).filter(Boolean);
 
   if (parts.length >= 2 && /^\d{3,6}[A-Z]*$/i.test(parts[0])) return cleanIssuer(parts[1]);
@@ -1575,7 +1655,7 @@ function fileSizeFromSummary(rawSummary) {
 }
 
 function detailTarget(item) {
-  return companyFromTitle(item.title);
+  return issuerFromSummary(rawSummaryText(item)) || companyFromTitle(item.title);
 }
 
 function detailCategoryLabel(item) {
@@ -1804,6 +1884,7 @@ function tagLabel(tag) {
 
 function sortedItems(items) {
   return items.slice().sort((a, b) =>
+    ((b.compositeScore || 0) - (a.compositeScore || 0)) ||
     ((b.signalScore || 0) - (a.signalScore || 0)) ||
     (b.importance - a.importance) ||
     (a.priority - b.priority) ||
@@ -1941,6 +2022,7 @@ function renderItem(item) {
         <div class="summary">${escapeHtml(item.summary)}</div>
         <div class="meta">
           <span class="source">${escapeHtml(item.source)}</span>
+          ${compositePillHtml(item)}
           ${signalPillHtml(item)}
           <span>${escapeHtml(date)}</span>
           <span>우선순위 #${escapeHtml(String(item.priority))}</span>
@@ -2001,6 +2083,7 @@ function renderItemDetail(items, itemKey) {
             <b>주요 수치/조건</b>
             <span>${values.length ? escapeHtml(values.join(", ")) : "원문 요약에서 별도 금액이나 비율을 찾지 못했습니다."}</span>
           </div>
+          ${compositeDetailBoxHtml(item)}
           ${signalDetailBoxHtml(item)}
         </div>
         <ul class="detail-list">
@@ -2035,7 +2118,7 @@ function renderSidebar(items, digest, mode) {
   ).join("") || row("지역 없음", "0");
 
   document.getElementById("topPriority").innerHTML = sorted.slice(0, 5).map(item =>
-    row(truncate(item.title, 56), item.signalScore ? `시그널 ${item.signalScore}` : `#${item.priority} / ${item.importance}`)
+    row(truncate(item.title, 56), item.compositeScore ? `복합 ${item.compositeSignals.length}개` : item.signalScore ? `시그널 ${item.signalScore}` : `#${item.priority} / ${item.importance}`)
   ).join("") || row("중요 항목 없음", "n/a");
 }
 
@@ -2044,8 +2127,9 @@ function renderInsight(items, digest, mode) {
   const selected = selectedRegionFromUrl();
   const scope = selected ? `${regionLabel(selected)} 전체 화면에서 ` : "";
   const signalCount = items.filter(item => item.signalScore > 0).length;
+  const compositeCount = items.filter(item => item.compositeScore > 0).length;
   const message = mode === "backend"
-    ? `${scope}Fly 백엔드 digest ${digest?.digest_date || "latest"} 기준, ${items.length}개 공시/뉴스를 지역별로 묶고 ${signalCount}개 투자 시그널을 우선 정렬했습니다.`
+    ? `${scope}Fly 백엔드 digest ${digest?.digest_date || "latest"} 기준, ${items.length}개 공시/뉴스를 지역별로 묶고 ${signalCount}개 투자 시그널, ${compositeCount}개 복합 시그널을 우선 정렬했습니다.`
     : "백엔드에 연결할 수 없어 정적 데모 데이터를 같은 UI 구조로 표시합니다.";
 
   document.getElementById("insightBanner").innerHTML = `
@@ -2075,7 +2159,7 @@ function renderRegionDetailHeader(items) {
 }
 
 function renderDashboard(items, digest, mode = "backend") {
-  currentItems = sortedItems(applyItemPolicy(items));
+  currentItems = sortedItems(applyCompositeSignals(applyItemPolicy(items)));
   currentDigest = digest;
   const visibleItems = regionScopedItems(currentItems);
   const itemKey = selectedItemKeyFromUrl();
