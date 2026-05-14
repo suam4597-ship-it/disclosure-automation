@@ -360,7 +360,7 @@
     <div class="tabs" id="tabs"></div>
     <div class="insight" id="insightBanner">
       <span>[LIVE]</span>
-      <span>백엔드 digest를 불러와 지역별 공시와 뉴스를 <strong>중요도 순</strong>으로 정리합니다.</span>
+      <span>백엔드 digest를 불러와 지역별 공시와 뉴스를 <strong>최신순</strong>으로 정리합니다.</span>
     </div>
     <div class="region-page" id="regionDetailHeader"></div>
 
@@ -379,7 +379,7 @@
         </div>
 
         <div class="card">
-          <h3>중요도 상위</h3>
+          <h3>최신 항목</h3>
           <div class="card-body" id="topPriority"></div>
         </div>
 
@@ -500,16 +500,11 @@ const FILTERS = [
   ["all", "전체"],
   ["disclosure", "공시"],
   ["news", "뉴스"],
-  ["regulatory", "규제"],
-  ["markets", "시장"],
-  ["high", "중요"],
   ["sec_positive", "투자 시그널"],
   ["sec_strategy", "전략/계약"],
   ["sec_mna", "M&A/공개매수"],
   ["sec_ownership", "지분/기관"],
-  ["sec_insider", "내부자"],
-  ["sec_financials", "실적"],
-  ["sec_ipo", "IPO"]
+  ["sec_financials", "실적"]
 ];
 
 const TAG_LABELS = {
@@ -1858,13 +1853,23 @@ function tagLabel(tag) {
   return TAG_LABELS[key] || String(tag);
 }
 
+function itemTimeValue(item) {
+  const time = Date.parse(item.publishedAt || "");
+  return Number.isFinite(time) ? time : 0;
+}
+
+function shortDateTime(value) {
+  if (!value) return "latest";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "latest";
+  return date.toLocaleString();
+}
+
 function sortedItems(items) {
   return items.slice().sort((a, b) =>
-    ((b.compositeSignals?.length || 0) - (a.compositeSignals?.length || 0)) ||
-    (Number(secSignalBuckets(b).includes("sec_positive")) - Number(secSignalBuckets(a).includes("sec_positive"))) ||
-    (b.importance - a.importance) ||
+    (itemTimeValue(b) - itemTimeValue(a)) ||
     (a.priority - b.priority) ||
-    String(b.publishedAt || "").localeCompare(String(a.publishedAt || ""))
+    (b.importance - a.importance)
   );
 }
 
@@ -1948,7 +1953,7 @@ function renderStatusRail(items, mode) {
     chips.push(`<span class="chip"><i class="dot pending"></i>표시할 백엔드 항목 없음</span>`);
   }
 
-  chips.unshift(`<a class="chip ${selected ? "" : "active"}" href="${escapeHtml(dashboardUrl())}"><i class="dot ${mode === "backend" ? "live" : "pending"}"></i>${mode === "backend" ? "백엔드 digest 연결됨" : "정적 데모 모드"}</a>`);
+  chips.unshift(`<a class="chip ${selected ? "" : "active"}" href="${escapeHtml(dashboardUrl())}"><i class="dot ${mode === "backend" ? "live" : "pending"}"></i>${mode === "backend" ? "전체 보기" : "정적 데모 전체 보기"}</a>`);
   document.getElementById("statusRail").innerHTML = chips.join("");
 }
 
@@ -1986,7 +1991,7 @@ function renderFeed(items) {
 }
 
 function renderItem(item) {
-  const date = item.publishedAt ? new Date(item.publishedAt).toLocaleString() : "latest";
+  const date = shortDateTime(item.publishedAt);
   const bar = item.importance >= 85 ? "high" : item.category;
   const headline = `<a class="headline-link" href="${escapeHtml(itemDetailUrl(item))}">${escapeHtml(item.title)}</a>`;
 
@@ -2001,7 +2006,6 @@ function renderItem(item) {
           ${compositePillHtml(item)}
           ${signalPillHtml(item)}
           <span>${escapeHtml(date)}</span>
-          <span>우선순위 #${escapeHtml(String(item.priority))}</span>
           <span>중요도 ${escapeHtml(String(item.importance))}</span>
           ${item.tags.map(([klass, label]) => `<span class="tag ${escapeHtml(klass)}">${escapeHtml(label)}</span>`).join("")}
         </div>
@@ -2026,7 +2030,7 @@ function renderItemDetail(items, itemKey) {
     return;
   }
 
-  const date = item.publishedAt ? new Date(item.publishedAt).toLocaleString() : "latest";
+  const date = shortDateTime(item.publishedAt);
   const bullets = detailBullets(item);
   const values = extractDetailValues(item);
   const originalLink = item.url
@@ -2094,8 +2098,8 @@ function renderSidebar(items, digest, mode) {
   ).join("") || row("지역 없음", "0");
 
   document.getElementById("topPriority").innerHTML = sorted.slice(0, 5).map(item =>
-    row(truncate(item.title, 56), item.compositeSignals?.length ? `복합 ${item.compositeSignals.length}개` : secSignalBuckets(item).includes("sec_positive") ? "투자 시그널" : `#${item.priority} / ${item.importance}`)
-  ).join("") || row("중요 항목 없음", "n/a");
+    row(truncate(item.title, 56), shortDateTime(item.publishedAt))
+  ).join("") || row("최신 항목 없음", "n/a");
 }
 
 function renderInsight(items, digest, mode) {
@@ -2105,7 +2109,7 @@ function renderInsight(items, digest, mode) {
   const signalCount = items.filter(item => secSignalBuckets(item).includes("sec_positive")).length;
   const compositeCount = items.filter(item => item.compositeSignals?.length).length;
   const message = mode === "backend"
-    ? `${scope}Fly 백엔드 digest ${digest?.digest_date || "latest"} 기준, ${items.length}개 공시/뉴스를 지역별로 묶고 ${signalCount}개 투자 시그널, ${compositeCount}개 복합 시그널을 표시합니다.`
+    ? `${scope}Fly 백엔드 digest ${digest?.digest_date || "latest"} 기준, ${items.length}개 공시/뉴스를 지역별 최신순으로 묶고 ${signalCount}개 투자 시그널, ${compositeCount}개 복합 시그널을 표시합니다.`
     : "백엔드에 연결할 수 없어 정적 데모 데이터를 같은 UI 구조로 표시합니다.";
 
   document.getElementById("insightBanner").innerHTML = `

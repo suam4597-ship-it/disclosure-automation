@@ -10,7 +10,7 @@
 window.GLOBALPULSE_RUNTIME_CONFIG = Object.freeze({
   environment: "staging",
   apiBaseUrl: "https://globalpulse-backend-staging.fly.dev",
-  configVersion: "staging-20260514-sec-signal-no-score-1",
+  configVersion: "staging-20260514-latest-order-compact-filters-1",
   allowQueryParamOverride: true
 });
 
