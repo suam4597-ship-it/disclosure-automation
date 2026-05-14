@@ -5710,21 +5710,21 @@ defmodule DisclosureAutomation.Ingestion do
   defp enrich_sec_edgar_8k_record(_source, record), do: record
 
   defp enrich_sec_edgar_periodic_report_record(source, record) when is_map(record) do
-    with {:ok, raw_submission} <- sec_edgar_fetch_submission_text(source, record),
-         {:ok, summary} <- sec_edgar_periodic_report_summary(raw_submission, record) do
-      Map.put(record, :summary, summary)
-    else
-      _reason ->
-        source
-        |> sec_edgar_periodic_report_summary_from_archive_document(record)
-        |> case do
+    case sec_edgar_periodic_report_summary_from_archive_document(source, record) do
+      {:ok, summary} ->
+        Map.put(record, :summary, summary)
+
+      {:error, _archive_reason} ->
+        case sec_edgar_periodic_report_summary_from_companyconcept(source, record) do
           {:ok, summary} ->
             Map.put(record, :summary, summary)
 
-          {:error, _archive_reason} ->
-            case sec_edgar_periodic_report_summary_from_companyconcept(source, record) do
-              {:ok, summary} -> Map.put(record, :summary, summary)
-              {:error, _fallback_reason} -> record
+          {:error, _companyconcept_reason} ->
+            with {:ok, raw_submission} <- sec_edgar_fetch_submission_text(source, record),
+                 {:ok, summary} <- sec_edgar_periodic_report_summary(raw_submission, record) do
+              Map.put(record, :summary, summary)
+            else
+              _reason -> record
             end
         end
     end
