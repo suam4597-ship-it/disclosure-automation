@@ -1341,11 +1341,11 @@ function localizeSecSummaryText(rawText) {
     .replace(/filed an Item 7\.01 investor presentation or strategic update/gi, "는 Item 7.01 투자자 발표 또는 전략 업데이트를 공시했습니다")
     .replace(/filed an Item 8\.01 strategic update with a positive catalyst signal/gi, "는 긍정 촉매 신호가 있는 Item 8.01 전략 업데이트를 공시했습니다");
 
-  return text;
+  return formatMoneyText(text);
 }
 
 function detailSummaryLines(item) {
-  const localized = localizeSecSummaryText(detailNarrative(item))
+  const localized = formatMoneyText(localizeSecSummaryText(detailNarrative(item)))
     .replace(/\.\s+(기관|신호|CUSIP|현재 13F 평가액|매출|순이익\/순손실|순이익|EPS|가이던스|사업 설명|상장\/공모 조달 규모|조달자금 사용 목적|주당\/ADS 공모 가격|공모 가격|오버행\/lock-up 일정|신고자\/보유자|보유 주식 수|보유 지분율|목적\/관여|신호 초점|필터 조건|교환\/합병 대상|교환\/합병 비율|거래가치\/대가|전략적 목적|공개매수자\/인수자|주당 공개매수가|공개매수 수량|공개매수 조건|공개매수 목적|전략 업데이트|파트너십|가이던스\/전망|수주\/백로그|고객\/수주|공급\/오프테이크|최소 약정|독점\/우선공급 조건|계약 기간|상대방):/g, "; $1:");
   if (!localized) return [];
   return localized.split(/\s*;\s*/).map(part => cleanText(part)).filter(Boolean);
@@ -1573,6 +1573,21 @@ function cleanText(value) {
   return String(value || "")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function formatMoneyText(value) {
+  return String(value || "").replace(
+    /(-?\d{4,})(\.\d+)?(?=(?:백만|만|억)?\s*달러)/g,
+    (_match, integer, decimal = "") => `${formatIntegerThousands(integer)}${decimal}`
+  );
+}
+
+function formatIntegerThousands(value) {
+  const text = String(value || "");
+  const sign = text.startsWith("-") ? "-" : "";
+  const digits = sign ? text.slice(1) : text;
+
+  return `${sign}${digits.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
 }
 
 function conciseSentence(value) {
@@ -2056,7 +2071,7 @@ function renderItem(item) {
       <i class="bar ${escapeHtml(bar)}"></i>
       <div>
         <div class="headline">${headline}</div>
-        <div class="summary">${escapeHtml(item.summary)}</div>
+        <div class="summary">${escapeHtml(formatMoneyText(item.summary))}</div>
         <div class="meta">
           <span class="source">${escapeHtml(item.source)}</span>
           ${compositePillHtml(item)}
