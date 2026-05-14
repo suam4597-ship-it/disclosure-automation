@@ -8112,7 +8112,7 @@ defmodule DisclosureAutomation.Ingestion do
         [_match, description] ->
           description
           |> sec_edgar_clean_sentence()
-          |> String.slice(0, 260)
+          |> sec_edgar_amendment_description_label()
 
         _match ->
           nil
@@ -8121,6 +8121,24 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp sec_edgar_amendment_description(_plain), do: nil
+
+  defp sec_edgar_amendment_description_label(description) when is_binary(description) do
+    cond do
+      Regex.match?(~r/amend the Exhibit List|Exhibit List/i, description) ->
+        "Exhibit List 및 Part IV Item 15 관련 목록 수정"
+
+      Regex.match?(~r/audit|auditor|internal control/i, description) ->
+        "감사/내부통제 관련 수정"
+
+      Regex.match?(~r/restat|error correction|financial statement/i, description) ->
+        "재무제표 또는 오류 정정 관련 수정"
+
+      true ->
+        String.slice(description, 0, 260)
+    end
+  end
+
+  defp sec_edgar_amendment_description_label(_description), do: nil
 
   defp sec_edgar_filing_ref(record) when is_map(record) do
     url = Map.get(record, :url) || Map.get(record, "url")
