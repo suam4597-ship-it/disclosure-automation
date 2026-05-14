@@ -5215,10 +5215,15 @@ defmodule DisclosureAutomation.Ingestion do
     "RealEstateRevenueNet",
     "RentalIncome",
     "InterestIncomeOperating",
+    "GrossInvestmentIncomeOperating",
+    "InterestIncomeOperatingPaidInCash",
+    "InterestIncomeOperatingPaidInKind",
     "InterestIncomeExpenseOperatingNet",
     "InterestAndDividendIncomeOperating",
     "InvestmentIncomeInterest",
+    "InvestmentIncomeInvestmentExpense",
     "InvestmentIncomeNet",
+    "InvestmentIncomeOperatingAfterExpenseAndTax",
     "InsuranceRevenue",
     "PremiumsEarnedNet"
   ]
@@ -5246,7 +5251,8 @@ defmodule DisclosureAutomation.Ingestion do
     "EarningsPerShareDilutedContinuingOperations",
     "EarningsPerShareBasicContinuingOperations",
     "IncomeLossFromContinuingOperationsPerDilutedShare",
-    "IncomeLossFromContinuingOperationsPerBasicShare"
+    "IncomeLossFromContinuingOperationsPerBasicShare",
+    "InvestmentCompanyInvestmentIncomeLossPerShare"
   ]
   @sec_edgar_registration_source_keys [
     @sec_edgar_current_s1_source_key,
@@ -7863,31 +7869,7 @@ defmodule DisclosureAutomation.Ingestion do
       filing_ref = %{cik: cik, accession: accession}
 
       metric_details =
-        [
-          sec_edgar_companyconcept_money_metric_detail(
-            source,
-            filing_ref,
-            "매출액",
-            @sec_edgar_periodic_revenue_xbrl_tags,
-            form_type
-          ),
-          sec_edgar_companyconcept_money_metric_detail(
-            source,
-            filing_ref,
-            "영업이익",
-            @sec_edgar_periodic_operating_income_xbrl_tags,
-            form_type
-          ),
-          sec_edgar_companyconcept_money_metric_detail(
-            source,
-            filing_ref,
-            "순이익/순손실",
-            @sec_edgar_periodic_net_income_xbrl_tags,
-            form_type
-          ),
-          sec_edgar_companyconcept_eps_detail(source, filing_ref, form_type)
-        ]
-        |> Enum.reject(&is_nil/1)
+        sec_edgar_companyconcept_periodic_metric_details(source, filing_ref, form_type)
 
       case metric_details do
         [] ->
@@ -7916,6 +7898,59 @@ defmodule DisclosureAutomation.Ingestion do
     end
   end
 
+  defp sec_edgar_companyconcept_periodic_metric_details(source, filing_ref, form_type) do
+    [
+      sec_edgar_companyconcept_money_metric_detail(
+        source,
+        filing_ref,
+        "매출액",
+        @sec_edgar_periodic_revenue_xbrl_tags,
+        form_type
+      ),
+      sec_edgar_companyconcept_money_metric_detail(
+        source,
+        filing_ref,
+        "영업이익",
+        @sec_edgar_periodic_operating_income_xbrl_tags,
+        form_type
+      ),
+      sec_edgar_companyconcept_money_metric_detail(
+        source,
+        filing_ref,
+        "순이익/순손실",
+        @sec_edgar_periodic_net_income_xbrl_tags,
+        form_type
+      ),
+      sec_edgar_companyconcept_eps_detail(source, filing_ref, form_type)
+    ]
+    |> Enum.reject(&is_nil/1)
+  end
+
+  defp sec_edgar_xbrl_periodic_metric_details(raw_submission, form_type) do
+    [
+      sec_edgar_xbrl_money_metric_detail(
+        raw_submission,
+        "매출액",
+        @sec_edgar_periodic_revenue_xbrl_tags,
+        form_type
+      ),
+      sec_edgar_xbrl_money_metric_detail(
+        raw_submission,
+        "영업이익",
+        @sec_edgar_periodic_operating_income_xbrl_tags,
+        form_type
+      ),
+      sec_edgar_xbrl_money_metric_detail(
+        raw_submission,
+        "순이익/순손실",
+        @sec_edgar_periodic_net_income_xbrl_tags,
+        form_type
+      ),
+      sec_edgar_xbrl_eps_detail(raw_submission, form_type)
+    ]
+    |> Enum.reject(&is_nil/1)
+  end
+
   defp sec_edgar_periodic_report_summary(raw_submission, record)
        when is_binary(raw_submission) do
     form_type = sec_edgar_periodic_form_type(record)
@@ -7941,31 +7976,17 @@ defmodule DisclosureAutomation.Ingestion do
           "#{issuer}의 SEC 정기보고서 핵심 재무지표를 확인했습니다"
       end
 
-    details =
-      [
-        sec_edgar_xbrl_money_metric_detail(
-          raw_submission,
-          "매출액",
-          @sec_edgar_periodic_revenue_xbrl_tags,
-          form_type
-        ),
-        sec_edgar_xbrl_money_metric_detail(
-          raw_submission,
-          "영업이익",
-          @sec_edgar_periodic_operating_income_xbrl_tags,
-          form_type
-        ),
-        sec_edgar_xbrl_money_metric_detail(
-          raw_submission,
-          "순이익/순손실",
-          @sec_edgar_periodic_net_income_xbrl_tags,
-          form_type
-        ),
-        sec_edgar_xbrl_eps_detail(raw_submission, form_type),
-        sec_edgar_guidance_detail(plain)
-      ]
+    metric_details = sec_edgar_xbrl_periodic_metric_details(raw_submission, form_type)
 
-    {:ok, sec_edgar_summary_with_details(headline, details)}
+    case metric_details do
+      [] ->
+        {:error, :sec_edgar_periodic_core_metrics_unavailable}
+
+      details ->
+        guidance_detail = sec_edgar_guidance_detail(plain)
+
+        {:ok, sec_edgar_summary_with_details(headline, details ++ [guidance_detail])}
+    end
   end
 
   defp sec_edgar_periodic_report_summary(_raw_submission, _record) do
