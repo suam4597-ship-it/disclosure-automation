@@ -5202,6 +5202,52 @@ defmodule DisclosureAutomation.Ingestion do
     @sec_edgar_current_10q_source_key,
     @sec_edgar_current_10k_source_key
   ]
+  @sec_edgar_periodic_revenue_xbrl_tags [
+    "RevenueFromContractWithCustomerExcludingAssessedTax",
+    "RevenueFromContractWithCustomerIncludingAssessedTax",
+    "Revenues",
+    "SalesRevenueNet",
+    "SalesRevenueGoodsNet",
+    "SalesRevenueServicesNet",
+    "SalesRevenueGoodsGross",
+    "SalesRevenueServicesGross",
+    "RegulatedAndUnregulatedOperatingRevenue",
+    "RealEstateRevenueNet",
+    "RentalIncome",
+    "InterestIncomeOperating",
+    "InterestIncomeExpenseOperatingNet",
+    "InterestAndDividendIncomeOperating",
+    "InvestmentIncomeInterest",
+    "InvestmentIncomeNet",
+    "InsuranceRevenue",
+    "PremiumsEarnedNet"
+  ]
+  @sec_edgar_periodic_operating_income_xbrl_tags [
+    "OperatingIncomeLoss",
+    "IncomeLossFromOperations",
+    "IncomeFromOperations",
+    "OperatingProfitLoss",
+    "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+    "IncomeLossFromContinuingOperationsBeforeIncomeTaxes"
+  ]
+  @sec_edgar_periodic_net_income_xbrl_tags [
+    "NetIncomeLoss",
+    "ProfitLoss",
+    "NetIncomeLossAttributableToParent",
+    "NetIncomeLossAvailableToCommonStockholdersBasic",
+    "NetIncomeLossAvailableToCommonStockholdersDiluted",
+    "IncomeLossFromContinuingOperations",
+    "IncomeLossFromContinuingOperationsIncludingPortionAttributableToNoncontrollingInterest"
+  ]
+  @sec_edgar_periodic_eps_xbrl_tags [
+    "EarningsPerShareDiluted",
+    "EarningsPerShareBasic",
+    "EarningsPerShareBasicAndDiluted",
+    "EarningsPerShareDilutedContinuingOperations",
+    "EarningsPerShareBasicContinuingOperations",
+    "IncomeLossFromContinuingOperationsPerDilutedShare",
+    "IncomeLossFromContinuingOperationsPerBasicShare"
+  ]
   @sec_edgar_registration_source_keys [
     @sec_edgar_current_s1_source_key,
     @sec_edgar_current_f1_source_key
@@ -5788,14 +5834,7 @@ defmodule DisclosureAutomation.Ingestion do
 
   defp sec_edgar_xbrl_eps_detail(raw_submission, form_type) do
     raw_submission
-    |> sec_edgar_xbrl_metric_values(
-      [
-        "EarningsPerShareDiluted",
-        "EarningsPerShareBasic",
-        "EarningsPerShareBasicAndDiluted"
-      ],
-      form_type
-    )
+    |> sec_edgar_xbrl_metric_values(@sec_edgar_periodic_eps_xbrl_tags, form_type)
     |> sec_edgar_preferred_xbrl_metric(form_type)
     |> case do
       nil -> nil
@@ -5806,6 +5845,7 @@ defmodule DisclosureAutomation.Ingestion do
   defp sec_edgar_xbrl_metric_values(raw_submission, tag_names, _form_type)
        when is_binary(raw_submission) do
     contexts = sec_edgar_xbrl_contexts(raw_submission)
+    tag_priority = sec_edgar_xbrl_tag_priority(tag_names)
     tag_names = MapSet.new(tag_names)
 
     inline_metrics =
@@ -5816,26 +5856,41 @@ defmodule DisclosureAutomation.Ingestion do
 
         if local_name && MapSet.member?(tag_names, local_name) do
           sec_edgar_xbrl_metric_from_fact(local_name, attrs, body, contexts)
+          |> sec_edgar_put_xbrl_tag_priority(tag_priority)
         end
       end)
       |> Enum.reject(&is_nil/1)
 
-    standard_metrics = sec_edgar_xbrl_standard_metric_values(raw_submission, tag_names, contexts)
+    standard_metrics =
+      sec_edgar_xbrl_standard_metric_values(raw_submission, tag_names, tag_priority, contexts)
 
     inline_metrics ++ standard_metrics
   end
 
   defp sec_edgar_xbrl_metric_values(_raw_submission, _tag_names, _form_type), do: []
 
-  defp sec_edgar_xbrl_standard_metric_values(raw_submission, tag_names, contexts) do
+  defp sec_edgar_xbrl_standard_metric_values(raw_submission, tag_names, tag_priority, contexts) do
     ~r/<(?:[\w.-]+:)?([A-Za-z][\w.-]*)\b([^>]*)>([^<]{0,160})<\/(?:[\w.-]+:)?\1>/i
     |> Regex.scan(raw_submission)
     |> Enum.map(fn [_match, local_name, attrs, body] ->
       if MapSet.member?(tag_names, local_name) do
         sec_edgar_xbrl_metric_from_fact(local_name, attrs, body, contexts)
+        |> sec_edgar_put_xbrl_tag_priority(tag_priority)
       end
     end)
     |> Enum.reject(&is_nil/1)
+  end
+
+  defp sec_edgar_xbrl_tag_priority(tag_names) do
+    tag_names
+    |> Enum.with_index()
+    |> Map.new()
+  end
+
+  defp sec_edgar_put_xbrl_tag_priority(nil, _tag_priority), do: nil
+
+  defp sec_edgar_put_xbrl_tag_priority(%{tag: tag} = metric, tag_priority) do
+    Map.put(metric, :tag_priority, Map.get(tag_priority, tag, 999))
   end
 
   defp sec_edgar_xbrl_metric_from_fact(local_name, attrs, body, contexts) do
@@ -5846,7 +5901,10 @@ defmodule DisclosureAutomation.Ingestion do
          context <- Map.get(contexts, context_ref, %{}) do
       %{
         tag: local_name,
-        value: sec_edgar_apply_xbrl_scale(decimal, scale),
+        value:
+          decimal
+          |> sec_edgar_apply_xbrl_scale(scale)
+          |> sec_edgar_apply_xbrl_sign(attrs),
         context_ref: context_ref,
         duration_days: Map.get(context, :duration_days),
         end_date: Map.get(context, :end_date)
@@ -5868,6 +5926,7 @@ defmodule DisclosureAutomation.Ingestion do
       {
         sec_edgar_periodic_duration_score(metric.duration_days, form_type),
         end_date_score,
+        -Map.get(metric, :tag_priority, 999),
         metric.value |> Decimal.abs() |> Decimal.to_float()
       }
     end)
@@ -5986,6 +6045,22 @@ defmodule DisclosureAutomation.Ingestion do
   defp sec_edgar_apply_xbrl_scale(decimal, scale) do
     factor = Decimal.from_float(:math.pow(10, scale))
     Decimal.mult(decimal, factor)
+  end
+
+  defp sec_edgar_apply_xbrl_sign(decimal, attrs) do
+    case sec_edgar_xbrl_attr(attrs, "sign") do
+      "-" ->
+        decimal
+        |> Decimal.to_string(:normal)
+        |> String.starts_with?("-")
+        |> case do
+          true -> decimal
+          false -> Decimal.mult(decimal, Decimal.new("-1"))
+        end
+
+      _sign ->
+        decimal
+    end
   end
 
   defp sec_edgar_guidance_detail(plain) do
@@ -7449,27 +7524,19 @@ defmodule DisclosureAutomation.Ingestion do
         sec_edgar_xbrl_money_metric_detail(
           raw_submission,
           "매출액",
-          [
-            "RevenueFromContractWithCustomerExcludingAssessedTax",
-            "Revenues",
-            "SalesRevenueNet"
-          ],
+          @sec_edgar_periodic_revenue_xbrl_tags,
           form_type
         ),
         sec_edgar_xbrl_money_metric_detail(
           raw_submission,
           "영업이익",
-          [
-            "OperatingIncomeLoss",
-            "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
-            "IncomeLossFromContinuingOperationsBeforeIncomeTaxes"
-          ],
+          @sec_edgar_periodic_operating_income_xbrl_tags,
           form_type
         ),
         sec_edgar_xbrl_money_metric_detail(
           raw_submission,
           "순이익/순손실",
-          ["NetIncomeLoss", "ProfitLoss"],
+          @sec_edgar_periodic_net_income_xbrl_tags,
           form_type
         ),
         sec_edgar_xbrl_eps_detail(raw_submission, form_type),
