@@ -5327,6 +5327,94 @@ defmodule DisclosureAutomation.Ingestion do
     end
   end
 
+  def backfill_sec_periodic_report_summaries(opts \\ []) do
+    edition = Keyword.get(opts, :edition, "breaking")
+    limit = sec_edgar_backfill_positive_int(Keyword.get(opts, :limit)) || 20
+    raw_only? = Keyword.get(opts, :raw_only, false)
+
+    recent_date_limit =
+      sec_edgar_backfill_positive_int(Keyword.get(opts, :recent_date_limit)) || 3
+
+    cutoff = Date.utc_today() |> Date.add(-recent_date_limit)
+
+    base_filter =
+      dynamic(
+        [item, source],
+        source.source_key in ^@sec_edgar_periodic_report_source_keys and
+          item.edition == ^edition and item.digest_date >= ^cutoff
+      )
+
+    candidate_filter =
+      if raw_only? do
+        dynamic([item, _source], ^base_filter and like(item.summary, "Filed:%"))
+      else
+        base_filter
+      end
+
+    candidates =
+      Repo.all(
+        from(item in CanonicalFeedItem,
+          join: source in SourceRegistry,
+          on: source.id == item.source_registry_id,
+          where: ^candidate_filter,
+          order_by: [desc: item.published_at],
+          limit: ^limit,
+          select: {item, source}
+        )
+      )
+
+    results =
+      Enum.map(candidates, fn {item, source} ->
+        record = %{
+          title: item.headline,
+          summary: item.summary,
+          url: item.canonical_url,
+          category: Map.get(item.metadata || %{}, "category"),
+          published_at: item.published_at
+        }
+
+        case enrich_sec_edgar_periodic_report_record(source, record) do
+          %{summary: summary} when is_binary(summary) and summary != item.summary ->
+            now = DateTime.utc_now()
+
+            {updated, _rows} =
+              Repo.update_all(
+                from(existing in CanonicalFeedItem, where: existing.id == ^item.id),
+                set: [summary: summary, updated_at: now]
+              )
+
+            %{
+              status: "updated",
+              updated: updated,
+              headline: item.headline,
+              source_key: source.source_key
+            }
+
+          _record ->
+            %{status: "unchanged", headline: item.headline, source_key: source.source_key}
+        end
+      end)
+
+    %{
+      status: "completed",
+      candidates: length(candidates),
+      updated: Enum.count(results, &(Map.get(&1, :status) == "updated")),
+      unchanged: Enum.count(results, &(Map.get(&1, :status) == "unchanged")),
+      results: results
+    }
+  end
+
+  defp sec_edgar_backfill_positive_int(value) when is_integer(value) and value > 0, do: value
+
+  defp sec_edgar_backfill_positive_int(value) when is_binary(value) do
+    case Integer.parse(value) do
+      {parsed, ""} when parsed > 0 -> parsed
+      _error -> nil
+    end
+  end
+
+  defp sec_edgar_backfill_positive_int(_value), do: nil
+
   def archive_raw_documents_before(%DateTime{} = cutoff) do
     {count, _} =
       from(document in RawDocument, where: document.inserted_at < ^cutoff)
@@ -5864,12 +5952,9 @@ defmodule DisclosureAutomation.Ingestion do
 
   defp sec_edgar_guidance_detail(plain) do
     plain
+    |> String.slice(0, 80_000)
     |> String.split(~r/(?<=[.!?])\s+/u)
-    |> Enum.find(fn sentence ->
-      sentence =~ ~r/\b(guidance|outlook|expect|expects|forecast|full[- ]year|raises?|lowers?)\b/i and
-        sentence =~ ~r/\b(revenue|sales|income|earnings|EPS|margin|profit)\b/i and
-        not sec_edgar_accounting_guidance_sentence?(sentence)
-    end)
+    |> Enum.find(&sec_edgar_financial_guidance_sentence?/1)
     |> case do
       nil ->
         "매출/이익 가이던스 문구는 본문에서 명확히 확인되지 않음"
@@ -5882,9 +5967,25 @@ defmodule DisclosureAutomation.Ingestion do
     end
   end
 
-  defp sec_edgar_accounting_guidance_sentence?(sentence) do
+  defp sec_edgar_financial_guidance_sentence?(sentence) do
+    sec_edgar_guidance_signal?(sentence) and
+      sec_edgar_guidance_metric?(sentence) and
+      not sec_edgar_non_financial_guidance_sentence?(sentence)
+  end
+
+  defp sec_edgar_guidance_signal?(sentence) do
     sentence =~
-      ~r/\b(accounting guidance|guidance addresses|FASB|ASU|rate reconciliation|income taxes paid|deferred tax|tax assets?|tax liabilities?)\b/i
+      ~r/\b(guidance|outlook|forecast|projection|projected)\b/i
+  end
+
+  defp sec_edgar_guidance_metric?(sentence) do
+    sentence =~
+      ~r/\b(revenue|revenues|net sales|sales|net income|operating income|earnings|EPS|margin|profit|EBITDA|adjusted EBITDA|cash flow)\b/i
+  end
+
+  defp sec_edgar_non_financial_guidance_sentence?(sentence) do
+    sentence =~
+      ~r/\b(accounting guidance|guidance addresses|fair value guidance|valuation techniques?|FASB|ASU|GAAP guidance|rate reconciliation|income taxes paid|deferred tax|tax assets?|tax liabilities?|taxable temporary differences?|projected future taxable income|tax planning strategies|risk factors?|could materially|may materially|adversely affect|federal government|government shutdown|debt ceiling|CODM|budget versus actual|variance analysis|segment measure|chief operating decision maker|forward[- ]looking statements?|safe harbor)\b/i
   end
 
   defp sec_edgar_registration_form_type(record) do
