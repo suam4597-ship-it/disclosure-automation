@@ -145,6 +145,8 @@ sources:
       summary_mode: xbrl_financial_summary
       category_bias: periodic_financials
       disable_live_fixture_fallback: true
+      poll_async_default: true
+      poll_queue: source_polling_slow
       max_items_per_poll: 20
       detail_fetch_limit: 3
       detail_fetch_timeout_ms: 10000
