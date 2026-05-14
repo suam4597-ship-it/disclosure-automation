@@ -5760,7 +5760,10 @@ defmodule DisclosureAutomation.Ingestion do
             Map.put(record, :summary, summary)
 
           {:error, _companyconcept_reason} ->
-            record
+            case sec_edgar_periodic_report_amendment_summary_from_archive_document(source, record) do
+              {:ok, summary} -> Map.put(record, :summary, summary)
+              {:error, _amendment_reason} -> record
+            end
         end
     end
   end
@@ -5899,6 +5902,36 @@ defmodule DisclosureAutomation.Ingestion do
       )
     else
       _reason -> {:error, :sec_edgar_archive_index_unavailable}
+    end
+  end
+
+  defp sec_edgar_periodic_report_amendment_summary_from_archive_document(source, record) do
+    if sec_edgar_periodic_amendment?(record) do
+      with {:ok, candidate_urls} <- sec_edgar_archive_document_candidate_urls(source, record) do
+        candidate_urls
+        |> Enum.reduce_while(
+          {:error, :sec_edgar_periodic_amendment_summary_unavailable},
+          fn url, _acc ->
+            case sec_edgar_fetch_archive_document(source, url) do
+              {:ok, archive_document} ->
+                case sec_edgar_periodic_amendment_summary(archive_document, record) do
+                  {:ok, summary} ->
+                    {:halt, {:ok, summary}}
+
+                  {:error, _reason} ->
+                    {:cont, {:error, :sec_edgar_periodic_amendment_summary_unavailable}}
+                end
+
+              {:error, _reason} ->
+                {:cont, {:error, :sec_edgar_archive_document_fetch_failed}}
+            end
+          end
+        )
+      else
+        _reason -> {:error, :sec_edgar_archive_index_unavailable}
+      end
+    else
+      {:error, :sec_edgar_periodic_not_amendment}
     end
   end
 
@@ -6042,6 +6075,17 @@ defmodule DisclosureAutomation.Ingestion do
       true -> category
     end
   end
+
+  defp sec_edgar_periodic_amendment?(record) when is_map(record) do
+    category =
+      String.upcase(to_string(Map.get(record, :category) || Map.get(record, "category") || ""))
+
+    title = String.upcase(to_string(Map.get(record, :title) || Map.get(record, "title") || ""))
+
+    String.ends_with?(category, "/A") or Regex.match?(~r/\b10-[QK]\/A\b/, title)
+  end
+
+  defp sec_edgar_periodic_amendment?(_record), do: false
 
   defp sec_edgar_periodic_report_period(raw_submission, form_type) do
     period_end =
@@ -8029,6 +8073,53 @@ defmodule DisclosureAutomation.Ingestion do
   defp sec_edgar_periodic_report_summary(_raw_submission, _record) do
     {:error, :sec_edgar_periodic_summary_unavailable}
   end
+
+  defp sec_edgar_periodic_amendment_summary(raw_submission, record)
+       when is_binary(raw_submission) and is_map(record) do
+    plain = sec_edgar_plain_text(raw_submission)
+
+    with true <- sec_edgar_periodic_amendment?(record),
+         description when is_binary(description) <- sec_edgar_amendment_description(plain) do
+      form_type = sec_edgar_periodic_form_type(record)
+      issuer = sec_edgar_issuer_name(record, plain)
+
+      headline =
+        "#{issuer}의 #{form_type}/A 수정보고서는 재무제표 수치보다 수정 범위 확인이 필요한 항목입니다"
+
+      details = [
+        "수정 내용: #{description}",
+        "재무 수치: 이 수정보고서 본문에서는 매출액, 영업이익, 순이익/순손실, EPS가 별도 XBRL 수치로 확인되지 않음"
+      ]
+
+      {:ok, sec_edgar_summary_with_details(headline, details)}
+    else
+      _reason -> {:error, :sec_edgar_periodic_amendment_summary_unavailable}
+    end
+  end
+
+  defp sec_edgar_periodic_amendment_summary(_raw_submission, _record) do
+    {:error, :sec_edgar_periodic_amendment_summary_unavailable}
+  end
+
+  defp sec_edgar_amendment_description(plain) when is_binary(plain) do
+    [
+      ~r/Amendment Description\s+(.+?)(?=\s+(?:Entity Central Index Key|Current Fiscal Year End Date|Document Fiscal Year Focus|X\s+-\s+Definition|References)\b)/i,
+      ~r/(?:is filing|filed)\s+this\s+Amendment\s+No\.\s+\d+\s+(.+?)(?=\s+(?:Entity Central Index Key|Current Fiscal Year End Date|Document Fiscal Year Focus|X\s+-\s+Definition|References)\b)/i
+    ]
+    |> Enum.find_value(fn pattern ->
+      case Regex.run(pattern, plain) do
+        [_match, description] ->
+          description
+          |> sec_edgar_clean_sentence()
+          |> String.slice(0, 260)
+
+        _match ->
+          nil
+      end
+    end)
+  end
+
+  defp sec_edgar_amendment_description(_plain), do: nil
 
   defp sec_edgar_filing_ref(record) when is_map(record) do
     url = Map.get(record, :url) || Map.get(record, "url")

@@ -1634,9 +1634,9 @@ function periodicFinancialMetrics(item) {
 
   const text = rawSummaryText(item);
   const specs = [
-    ["매출액", /(?:매출액|매출|revenue|revenues|sales)(?:은|는|:)\s*([^;.]+)/i],
-    ["영업이익", /(?:영업이익|operating income|operating profit)(?:은|는|:)\s*([^;.]+)/i],
-    ["순이익/순손실", /(?:순이익\/순손실|순이익|순손실|net income\/loss|net income|net loss)(?:은|는|:)\s*([^;.]+)/i],
+    ["매출액", /(?:매출액|매출\/영업수익|영업수익|투자수익|이자수익|매출|revenue|revenues|sales|investment income|interest income)(?:은|는|:)\s*([^;.]+)/i],
+    ["영업이익", /(?:영업이익|영업손익|영업손실|operating income|operating loss|operating profit|loss from operations)(?:은|는|:)\s*([^;.]+)/i],
+    ["순이익/순손실", /(?:순이익\/순손실|순이익|순손실|순손익|net income\/loss|net income|net loss|profit loss)(?:은|는|:)\s*([^;.]+)/i],
     ["EPS", /(?:EPS|earnings per share)(?:은|는|:)\s*([^;.]+)/i],
     ["가이던스/전망", /(?:매출\/이익 가이던스 문구|가이던스\/전망 문구|가이던스\/전망|guidance|outlook|forecast)(?::|은|는)?\s*([^;]+)/i]
   ];
@@ -1654,10 +1654,17 @@ function periodicFinancialBoxesHtml(item) {
   const metrics = periodicFinancialMetrics(item);
 
   if (!metrics.length) {
+    const text = rawSummaryText(item);
+    const amendmentWithoutMetrics = /수정보고서|10-[QK]\/A/i.test(`${item.title || ""} ${text}`) &&
+      /별도 .*재무수치|매출액, 영업이익, 순이익\/순손실, EPS가 .*확인되지 않음|재무 수치:/i.test(text);
+    const message = amendmentWithoutMetrics
+      ? "이 수정보고서는 재무제표 수치보다 수정 범위 확인이 핵심입니다. 본문에서 매출액, 영업이익, 순이익/순손실, EPS가 별도 XBRL 수치로 확인되지 않았습니다."
+      : "아직 이 digest 항목에는 매출액, 영업이익, EPS, 가이던스 추출값이 없습니다. 최신 SEC refresh에서 원문 XBRL 상세 추출이 필요합니다.";
+
     return `
       <div class="detail-box">
         <b>재무 수치</b>
-        <span>아직 이 digest 항목에는 매출액, 영업이익, EPS, 가이던스 추출값이 없습니다. 최신 SEC refresh에서 원문 XBRL 상세 추출이 필요합니다.</span>
+        <span>${escapeHtml(message)}</span>
       </div>
     `;
   }
