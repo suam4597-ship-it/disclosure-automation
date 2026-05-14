@@ -5259,7 +5259,7 @@ defmodule DisclosureAutomation.Ingestion do
   @sec_edgar_detail_fetch_default_limit 10
   @sec_edgar_detail_fetch_default_timeout_ms 8_000
   @sec_edgar_detail_fetch_default_max_bytes 2_000_000
-  @sec_edgar_periodic_report_detail_fetch_min_limit 20
+  @sec_edgar_periodic_report_detail_fetch_min_limit 10
   @sec_edgar_periodic_report_detail_fetch_min_max_bytes 8_000_000
   @sec_edgar_periodic_report_detail_fetch_min_timeout_ms 10_000
   @sec_edgar_form4_cluster_min_owners 3
