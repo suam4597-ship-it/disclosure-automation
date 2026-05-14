@@ -5330,6 +5330,7 @@ defmodule DisclosureAutomation.Ingestion do
   def backfill_sec_periodic_report_summaries(opts \\ []) do
     edition = Keyword.get(opts, :edition, "breaking")
     limit = sec_edgar_backfill_positive_int(Keyword.get(opts, :limit)) || 20
+    offset = sec_edgar_backfill_nonnegative_int(Keyword.get(opts, :offset)) || 0
     max_size_mb = sec_edgar_backfill_positive_int(Keyword.get(opts, :max_size_mb)) || 8
     raw_only? = Keyword.get(opts, :raw_only, false)
 
@@ -5360,6 +5361,7 @@ defmodule DisclosureAutomation.Ingestion do
           where: ^candidate_filter,
           order_by: [desc: item.published_at],
           limit: ^limit,
+          offset: ^offset,
           select: {item, source}
         )
       )
@@ -5408,6 +5410,7 @@ defmodule DisclosureAutomation.Ingestion do
     %{
       status: "completed",
       candidates: length(candidates),
+      offset: offset,
       updated: Enum.count(results, &(Map.get(&1, :status) == "updated")),
       unchanged: Enum.count(results, &(Map.get(&1, :status) == "unchanged")),
       skipped_too_large: Enum.count(results, &(Map.get(&1, :status) == "skipped_too_large")),
@@ -5425,6 +5428,17 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp sec_edgar_backfill_positive_int(_value), do: nil
+
+  defp sec_edgar_backfill_nonnegative_int(value) when is_integer(value) and value >= 0, do: value
+
+  defp sec_edgar_backfill_nonnegative_int(value) when is_binary(value) do
+    case Integer.parse(value) do
+      {parsed, ""} when parsed >= 0 -> parsed
+      _error -> nil
+    end
+  end
+
+  defp sec_edgar_backfill_nonnegative_int(_value), do: nil
 
   defp sec_edgar_backfill_item_too_large?(item, max_size_mb) do
     case Regex.run(~r/\bSize:\s*(\d+(?:\.\d+)?)\s*MB\b/i, item.summary || "") do
