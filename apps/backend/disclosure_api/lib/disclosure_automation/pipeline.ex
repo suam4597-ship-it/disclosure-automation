@@ -8655,8 +8655,10 @@ defmodule DisclosureAutomation.Ingestion do
   defp sec_edgar_summary_with_details(headline, details) do
     details =
       details
-      |> Enum.reject(&is_nil/1)
-      |> Enum.map(&String.trim/1)
+      |> Enum.flat_map(fn
+        detail when is_binary(detail) -> [String.trim(detail)]
+        _detail -> []
+      end)
       |> Enum.reject(&(&1 == ""))
 
     case details do
