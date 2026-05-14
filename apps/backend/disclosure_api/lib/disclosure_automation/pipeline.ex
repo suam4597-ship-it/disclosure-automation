@@ -8076,7 +8076,7 @@ defmodule DisclosureAutomation.Ingestion do
 
   defp sec_edgar_periodic_amendment_summary(raw_submission, record)
        when is_binary(raw_submission) and is_map(record) do
-    plain = sec_edgar_plain_text(raw_submission)
+    plain = sec_edgar_plain_text_with_ix_header(raw_submission)
 
     with true <- sec_edgar_periodic_amendment?(record),
          description when is_binary(description) <- sec_edgar_amendment_description(plain) do
@@ -8104,6 +8104,7 @@ defmodule DisclosureAutomation.Ingestion do
   defp sec_edgar_amendment_description(plain) when is_binary(plain) do
     [
       ~r/Amendment Description\s+(.+?)(?=\s+(?:Entity Central Index Key|Current Fiscal Year End Date|Document Fiscal Year Focus|X\s+-\s+Definition|References)\b)/i,
+      ~r/((?:is filing|filed)\s+this\s+Amendment\s+No\.\s+\d+.{0,520}?\.)(?=\s|$)/i,
       ~r/(?:is filing|filed)\s+this\s+Amendment\s+No\.\s+\d+\s+(.+?)(?=\s+(?:Entity Central Index Key|Current Fiscal Year End Date|Document Fiscal Year Focus|X\s+-\s+Definition|References)\b)/i
     ]
     |> Enum.find_value(fn pattern ->
@@ -8212,6 +8213,17 @@ defmodule DisclosureAutomation.Ingestion do
   defp sec_edgar_plain_text(raw_submission) do
     raw_submission
     |> String.replace(~r/<ix:header[\s\S]*?<\/ix:header>/i, " ")
+    |> String.replace(~r/<script[\s\S]*?<\/script>/i, " ")
+    |> String.replace(~r/<style[\s\S]*?<\/style>/i, " ")
+    |> String.replace(~r/<[^>]+>/, " ")
+    |> sec_edgar_decode_entities()
+    |> String.replace(~r/<[^>]+>/, " ")
+    |> String.replace(~r/\s+/u, " ")
+    |> String.trim()
+  end
+
+  defp sec_edgar_plain_text_with_ix_header(raw_submission) do
+    raw_submission
     |> String.replace(~r/<script[\s\S]*?<\/script>/i, " ")
     |> String.replace(~r/<style[\s\S]*?<\/style>/i, " ")
     |> String.replace(~r/<[^>]+>/, " ")
