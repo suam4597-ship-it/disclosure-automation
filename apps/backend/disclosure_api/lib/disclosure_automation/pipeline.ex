@@ -5682,31 +5682,51 @@ defmodule DisclosureAutomation.Ingestion do
     contexts = sec_edgar_xbrl_contexts(raw_submission)
     tag_names = MapSet.new(tag_names)
 
-    ~r/<(?:\w+:)?nonFraction\b([^>]*)>([\s\S]*?)<\/(?:\w+:)?nonFraction>/i
-    |> Regex.scan(raw_submission)
-    |> Enum.map(fn [_match, attrs, body] ->
-      local_name = sec_edgar_xbrl_local_name(attrs)
+    inline_metrics =
+      ~r/<(?:\w+:)?nonFraction\b([^>]*)>([\s\S]*?)<\/(?:\w+:)?nonFraction>/i
+      |> Regex.scan(raw_submission)
+      |> Enum.map(fn [_match, attrs, body] ->
+        local_name = sec_edgar_xbrl_local_name(attrs)
 
-      if local_name && MapSet.member?(tag_names, local_name) do
-        context_ref = sec_edgar_xbrl_attr(attrs, "contextRef")
-        scale = sec_edgar_xbrl_scale(attrs)
-
-        with decimal when not is_nil(decimal) <- sec_edgar_xbrl_decimal(body),
-             context <- Map.get(contexts, context_ref, %{}) do
-          %{
-            tag: local_name,
-            value: sec_edgar_apply_xbrl_scale(decimal, scale),
-            context_ref: context_ref,
-            duration_days: Map.get(context, :duration_days),
-            end_date: Map.get(context, :end_date)
-          }
+        if local_name && MapSet.member?(tag_names, local_name) do
+          sec_edgar_xbrl_metric_from_fact(local_name, attrs, body, contexts)
         end
+      end)
+      |> Enum.reject(&is_nil/1)
+
+    standard_metrics = sec_edgar_xbrl_standard_metric_values(raw_submission, tag_names, contexts)
+
+    inline_metrics ++ standard_metrics
+  end
+
+  defp sec_edgar_xbrl_metric_values(_raw_submission, _tag_names, _form_type), do: []
+
+  defp sec_edgar_xbrl_standard_metric_values(raw_submission, tag_names, contexts) do
+    ~r/<(?:[\w.-]+:)?([A-Za-z][\w.-]*)\b([^>]*)>([^<]{0,160})<\/(?:[\w.-]+:)?\1>/i
+    |> Regex.scan(raw_submission)
+    |> Enum.map(fn [_match, local_name, attrs, body] ->
+      if MapSet.member?(tag_names, local_name) do
+        sec_edgar_xbrl_metric_from_fact(local_name, attrs, body, contexts)
       end
     end)
     |> Enum.reject(&is_nil/1)
   end
 
-  defp sec_edgar_xbrl_metric_values(_raw_submission, _tag_names, _form_type), do: []
+  defp sec_edgar_xbrl_metric_from_fact(local_name, attrs, body, contexts) do
+    context_ref = sec_edgar_xbrl_attr(attrs, "contextRef")
+    scale = sec_edgar_xbrl_scale(attrs)
+
+    with decimal when not is_nil(decimal) <- sec_edgar_xbrl_decimal(body),
+         context <- Map.get(contexts, context_ref, %{}) do
+      %{
+        tag: local_name,
+        value: sec_edgar_apply_xbrl_scale(decimal, scale),
+        context_ref: context_ref,
+        duration_days: Map.get(context, :duration_days),
+        end_date: Map.get(context, :end_date)
+      }
+    end
+  end
 
   defp sec_edgar_preferred_xbrl_metric([], _form_type), do: nil
 
@@ -5847,7 +5867,8 @@ defmodule DisclosureAutomation.Ingestion do
     |> String.split(~r/(?<=[.!?])\s+/u)
     |> Enum.find(fn sentence ->
       sentence =~ ~r/\b(guidance|outlook|expect|expects|forecast|full[- ]year|raises?|lowers?)\b/i and
-        sentence =~ ~r/\b(revenue|sales|income|earnings|EPS|margin|profit)\b/i
+        sentence =~ ~r/\b(revenue|sales|income|earnings|EPS|margin|profit)\b/i and
+        not sec_edgar_accounting_guidance_sentence?(sentence)
     end)
     |> case do
       nil ->
@@ -5859,6 +5880,11 @@ defmodule DisclosureAutomation.Ingestion do
         |> String.trim()
         |> then(&"가이던스/전망 문구: #{&1}")
     end
+  end
+
+  defp sec_edgar_accounting_guidance_sentence?(sentence) do
+    sentence =~
+      ~r/\b(accounting guidance|guidance addresses|FASB|ASU|rate reconciliation|income taxes paid|deferred tax|tax assets?|tax liabilities?)\b/i
   end
 
   defp sec_edgar_registration_form_type(record) do
@@ -5973,10 +5999,11 @@ defmodule DisclosureAutomation.Ingestion do
         sec_edgar_13d_activism_signal_detail(plain)
       ]
 
-    sec_edgar_summary_with_details(
-      "#{issuer}의 Schedule 13D에서 5% 이상 전략적/행동주의 보유지분 신호가 확인됐습니다",
-      details
-    )
+    {:ok,
+     sec_edgar_summary_with_details(
+       "#{issuer}의 Schedule 13D에서 5% 이상 전략적/행동주의 보유지분 신호가 확인됐습니다",
+       details
+     )}
   end
 
   defp sec_edgar_schedule_13d_summary(_raw_submission, _record) do
@@ -5998,10 +6025,11 @@ defmodule DisclosureAutomation.Ingestion do
           sec_edgar_13g_increase_detail(plain, record)
         ]
 
-      sec_edgar_summary_with_details(
-        "#{issuer}의 Schedule 13G에서 신규 또는 증가한 5% 이상 보유지분 신호가 확인됐습니다",
-        details
-      )
+      {:ok,
+       sec_edgar_summary_with_details(
+         "#{issuer}의 Schedule 13G에서 신규 또는 증가한 5% 이상 보유지분 신호가 확인됐습니다",
+         details
+       )}
     else
       {:error, :sec_edgar_13g_without_increase_signal}
     end
@@ -6025,10 +6053,11 @@ defmodule DisclosureAutomation.Ingestion do
         sec_edgar_ma_purpose_detail(plain)
       ]
 
-    sec_edgar_summary_with_details(
-      "#{issuer}의 #{form_type} 주식교환/합병 등록서 핵심 조건을 확인했습니다",
-      details
-    )
+    {:ok,
+     sec_edgar_summary_with_details(
+       "#{issuer}의 #{form_type} 주식교환/합병 등록서 핵심 조건을 확인했습니다",
+       details
+     )}
   end
 
   defp sec_edgar_ma_registration_summary(_raw_submission, _record) do
@@ -6049,10 +6078,11 @@ defmodule DisclosureAutomation.Ingestion do
         sec_edgar_tender_purpose_detail(plain)
       ]
 
-    sec_edgar_summary_with_details(
-      "#{issuer}의 Schedule TO 공개매수 또는 인수성 거래 조건을 확인했습니다",
-      details
-    )
+    {:ok,
+     sec_edgar_summary_with_details(
+       "#{issuer}의 Schedule TO 공개매수 또는 인수성 거래 조건을 확인했습니다",
+       details
+     )}
   end
 
   defp sec_edgar_tender_offer_summary(_raw_submission, _record) do
@@ -7279,7 +7309,7 @@ defmodule DisclosureAutomation.Ingestion do
       [
         sec_edgar_xbrl_money_metric_detail(
           raw_submission,
-          "매출",
+          "매출액",
           [
             "RevenueFromContractWithCustomerExcludingAssessedTax",
             "Revenues",
@@ -7307,7 +7337,7 @@ defmodule DisclosureAutomation.Ingestion do
         sec_edgar_guidance_detail(plain)
       ]
 
-    sec_edgar_summary_with_details(headline, details)
+    {:ok, sec_edgar_summary_with_details(headline, details)}
   end
 
   defp sec_edgar_periodic_report_summary(_raw_submission, _record) do
@@ -7336,7 +7366,7 @@ defmodule DisclosureAutomation.Ingestion do
         sec_edgar_registration_overhang_detail(plain)
       ]
 
-    sec_edgar_summary_with_details(headline, details)
+    {:ok, sec_edgar_summary_with_details(headline, details)}
   end
 
   defp sec_edgar_registration_statement_summary(_raw_submission, _record) do
@@ -7350,6 +7380,7 @@ defmodule DisclosureAutomation.Ingestion do
     |> String.replace(~r/<style[\s\S]*?<\/style>/i, " ")
     |> String.replace(~r/<[^>]+>/, " ")
     |> sec_edgar_decode_entities()
+    |> String.replace(~r/<[^>]+>/, " ")
     |> String.replace(~r/\s+/u, " ")
     |> String.trim()
   end
@@ -8402,6 +8433,13 @@ defmodule DisclosureAutomation.Ingestion do
 
     cond do
       match = Regex.run(~r/8-K\s*-\s*(.+?)\s+\(\d{6,10}\)/i, title) ->
+        match |> Enum.at(1) |> sec_edgar_title_case()
+
+      match =
+          Regex.run(
+            ~r/^(?:10-Q|10-K)(?:\/A)?\s*-\s*(.+?)\s+\(\d{6,10}\)\s+\((?:Subject|Filer)\)/i,
+            title
+          ) ->
         match |> Enum.at(1) |> sec_edgar_title_case()
 
       match =
