@@ -7751,13 +7751,13 @@ defmodule DisclosureAutomation.Ingestion do
 
     cond do
       absolute_value >= 1_000_000_000 ->
-        "#{sec_edgar_trim_number(value / 100_000_000)}억 달러"
+        "#{sec_edgar_money_number(value / 100_000_000)}억 달러"
 
       absolute_value >= 1_000_000 ->
-        "#{sec_edgar_trim_number(value / 1_000_000)}백만 달러"
+        "#{sec_edgar_money_number(value / 1_000_000)}백만 달러"
 
       true ->
-        "#{sec_edgar_trim_number(value)}달러"
+        "#{sec_edgar_money_number(value)}달러"
     end
   end
 
@@ -9261,7 +9261,7 @@ defmodule DisclosureAutomation.Ingestion do
         "#{sec_edgar_kr_billion_usd(parsed)}($#{amount}#{english_scale})"
 
       {parsed, _rest} ->
-        "#{sec_edgar_trim_number(parsed)}달러"
+        "#{sec_edgar_money_number(parsed)}달러"
 
       _error ->
         "$#{amount}#{english_scale}"
@@ -9271,15 +9271,15 @@ defmodule DisclosureAutomation.Ingestion do
   defp sec_edgar_money_label(_amount, _scale), do: nil
 
   defp sec_edgar_kr_million_usd(value) when value >= 100 do
-    "#{sec_edgar_trim_number(value / 100)}억 달러"
+    "#{sec_edgar_money_number(value / 100)}억 달러"
   end
 
   defp sec_edgar_kr_million_usd(value) do
-    "#{sec_edgar_trim_number(value * 100)}만 달러"
+    "#{sec_edgar_money_number(value * 100)}만 달러"
   end
 
   defp sec_edgar_kr_billion_usd(value) do
-    "#{sec_edgar_trim_number(value * 10)}억 달러"
+    "#{sec_edgar_money_number(value * 10)}억 달러"
   end
 
   defp sec_edgar_share_label(nil), do: nil
@@ -9330,6 +9330,33 @@ defmodule DisclosureAutomation.Ingestion do
       |> String.trim_trailing("0")
       |> String.trim_trailing(".")
     end
+  end
+
+  defp sec_edgar_money_number(value) when is_float(value) do
+    value
+    |> sec_edgar_trim_number()
+    |> sec_edgar_group_number()
+  end
+
+  defp sec_edgar_group_number(number) when is_binary(number) do
+    case String.split(number, ".", parts: 2) do
+      [integer, decimal] -> "#{sec_edgar_group_integer(integer)}.#{decimal}"
+      [integer] -> sec_edgar_group_integer(integer)
+    end
+  end
+
+  defp sec_edgar_group_integer("-" <> integer) do
+    "-" <> sec_edgar_group_integer(integer)
+  end
+
+  defp sec_edgar_group_integer(integer) do
+    integer
+    |> String.reverse()
+    |> String.graphemes()
+    |> Enum.chunk_every(3)
+    |> Enum.map(&Enum.join/1)
+    |> Enum.join(",")
+    |> String.reverse()
   end
 
   defp sec_edgar_decode_entities(value) do
