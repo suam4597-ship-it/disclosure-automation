@@ -244,6 +244,8 @@
     .detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 18px 0; }
     .detail-box { border: 1px solid rgba(42, 53, 68, 0.85); border-radius: 8px; padding: 12px; background: rgba(8, 13, 20, 0.24); }
     .detail-box b { display: block; margin-bottom: 6px; color: var(--muted); font-size: 12px; text-transform: uppercase; }
+    .periodic-financial-box { border-color: rgba(59, 130, 246, 0.34); background: rgba(59, 130, 246, 0.07); }
+    .periodic-financial-box span { font-weight: 850; }
     .detail-list { margin: 8px 0 0; padding-left: 18px; color: var(--sub); line-height: 1.65; }
     .detail-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
     .detail-note { margin-top: 14px; color: var(--muted); font-size: 12px; line-height: 1.5; }
@@ -1617,10 +1619,11 @@ function periodicFinancialMetrics(item) {
 
   const text = rawSummaryText(item);
   const specs = [
-    ["매출액", /(?:매출|revenue|revenues|sales)(?:은|는|:)\s*([^;.]+)/i],
+    ["매출액", /(?:매출액|매출|revenue|revenues|sales)(?:은|는|:)\s*([^;.]+)/i],
     ["영업이익", /(?:영업이익|operating income|operating profit)(?:은|는|:)\s*([^;.]+)/i],
+    ["순이익/순손실", /(?:순이익\/순손실|순이익|순손실|net income\/loss|net income|net loss)(?:은|는|:)\s*([^;.]+)/i],
     ["EPS", /(?:EPS|earnings per share)(?:은|는|:)\s*([^;.]+)/i],
-    ["가이던스/전망", /(?:가이던스\/전망 문구|guidance|outlook|forecast)(?::|은|는)?\s*([^;]+)/i]
+    ["가이던스/전망", /(?:매출\/이익 가이던스 문구|가이던스\/전망 문구|가이던스\/전망|guidance|outlook|forecast)(?::|은|는)?\s*([^;]+)/i]
   ];
 
   return specs.flatMap(([label, pattern]) => {
@@ -1645,7 +1648,7 @@ function periodicFinancialBoxesHtml(item) {
   }
 
   return metrics.map(metric => `
-    <div class="detail-box">
+    <div class="detail-box periodic-financial-box">
       <b>${escapeHtml(metric.label)}</b>
       <span>${escapeHtml(metric.value)}</span>
     </div>
@@ -2086,6 +2089,7 @@ function renderItemDetail(items, itemKey) {
   const date = shortDateTime(item.publishedAt);
   const bullets = detailBullets(item);
   const values = extractDetailValues(item);
+  const periodicReport = isSecPeriodicReport(item);
   const originalLink = item.url
     ? `<a class="detail-action primary" href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">원문 보기</a>`
     : "";
@@ -2114,7 +2118,7 @@ function renderItemDetail(items, itemKey) {
           </div>
           <div class="detail-box">
             <b>주요 수치/조건</b>
-            <span>${values.length ? escapeHtml(values.join(", ")) : "원문 요약에서 별도 금액이나 비율을 찾지 못했습니다."}</span>
+            <span>${periodicReport ? "아래 재무 지표 카드에서 매출, 영업이익, 순이익/순손실, EPS, 가이던스를 분리해 표시합니다." : values.length ? escapeHtml(values.join(", ")) : "원문 요약에서 별도 금액이나 비율을 찾지 못했습니다."}</span>
           </div>
           ${periodicFinancialBoxesHtml(item)}
           ${compositeDetailBoxHtml(item)}

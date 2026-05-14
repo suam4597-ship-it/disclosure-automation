@@ -5708,7 +5708,11 @@ defmodule DisclosureAutomation.Ingestion do
          {:ok, summary} <- sec_edgar_periodic_report_summary(raw_submission, record) do
       Map.put(record, :summary, summary)
     else
-      _reason -> record
+      _reason ->
+        case sec_edgar_periodic_report_summary_from_companyconcept(source, record) do
+          {:ok, summary} -> Map.put(record, :summary, summary)
+          {:error, _fallback_reason} -> record
+        end
     end
   end
 
@@ -5841,6 +5845,138 @@ defmodule DisclosureAutomation.Ingestion do
       metric -> "EPS는 주당 #{sec_edgar_decimal_per_share_label(metric.value)}"
     end
   end
+
+  defp sec_edgar_companyconcept_money_metric_detail(source, filing_ref, label, tag_names, form_type) do
+    source
+    |> sec_edgar_companyconcept_metric_values(filing_ref, tag_names, form_type)
+    |> sec_edgar_preferred_xbrl_metric(form_type)
+    |> case do
+      nil -> nil
+      metric -> "#{label}은 #{sec_edgar_decimal_money_label(metric.value)}"
+    end
+  end
+
+  defp sec_edgar_companyconcept_eps_detail(source, filing_ref, form_type) do
+    source
+    |> sec_edgar_companyconcept_metric_values(
+      filing_ref,
+      @sec_edgar_periodic_eps_xbrl_tags,
+      form_type
+    )
+    |> sec_edgar_preferred_xbrl_metric(form_type)
+    |> case do
+      nil -> nil
+      metric -> "EPS는 주당 #{sec_edgar_decimal_per_share_label(metric.value)}"
+    end
+  end
+
+  defp sec_edgar_companyconcept_metric_values(source, filing_ref, tag_names, form_type) do
+    tag_priority = sec_edgar_xbrl_tag_priority(tag_names)
+
+    tag_names
+    |> Enum.reduce_while([], fn tag_name, _acc ->
+      metrics =
+        case sec_edgar_fetch_companyconcept(source, filing_ref.cik, tag_name) do
+          {:ok, concept} ->
+            concept
+            |> sec_edgar_companyconcept_facts_for_accession(filing_ref.accession, form_type)
+            |> Enum.map(fn fact ->
+              fact
+              |> sec_edgar_companyconcept_metric_from_fact(tag_name)
+              |> sec_edgar_put_xbrl_tag_priority(tag_priority)
+            end)
+            |> Enum.reject(&is_nil/1)
+
+          {:error, _reason} ->
+            []
+        end
+
+      case metrics do
+        [] -> {:cont, []}
+        values -> {:halt, values}
+      end
+    end)
+  end
+
+  defp sec_edgar_fetch_companyconcept(source, cik, tag_name) do
+    cik = sec_edgar_padded_cik(cik)
+
+    url =
+      "https://data.sec.gov/api/xbrl/companyconcept/CIK#{cik}/us-gaap/#{URI.encode(tag_name)}.json"
+
+    with {:ok, response} <-
+           Http.fetch(url,
+             headers: source_live_headers(source),
+             timeout: sec_edgar_detail_fetch_timeout(source)
+           ),
+         status when status in 200..299 <- response.status_code,
+         body when is_binary(body) <- response.body,
+         true <- byte_size(body) <= sec_edgar_detail_fetch_max_bytes(source),
+         {:ok, decoded} <- Jason.decode(body) do
+      {:ok, decoded}
+    else
+      false -> {:error, :sec_edgar_companyconcept_too_large}
+      _reason -> {:error, :sec_edgar_companyconcept_fetch_failed}
+    end
+  end
+
+  defp sec_edgar_companyconcept_facts_for_accession(concept, accession, form_type) do
+    concept
+    |> Map.get("units", %{})
+    |> Map.values()
+    |> List.flatten()
+    |> Enum.filter(fn fact ->
+      Map.get(fact, "accn") == accession and
+        sec_edgar_companyconcept_form_matches?(Map.get(fact, "form"), form_type)
+    end)
+  end
+
+  defp sec_edgar_companyconcept_form_matches?(form, form_type)
+       when is_binary(form) and is_binary(form_type) do
+    normalized_form = String.upcase(form)
+    normalized_type = String.upcase(form_type)
+
+    normalized_form == normalized_type or normalized_form == "#{normalized_type}/A"
+  end
+
+  defp sec_edgar_companyconcept_form_matches?(_form, _form_type), do: false
+
+  defp sec_edgar_companyconcept_metric_from_fact(tag_name, fact) when is_map(fact) do
+    with value when not is_nil(value) <- Map.get(fact, "val"),
+         {decimal, ""} <- Decimal.parse(to_string(value)) do
+      %{
+        tag: tag_name,
+        value: decimal,
+        context_ref: Map.get(fact, "frame"),
+        duration_days: sec_edgar_companyconcept_duration_days(fact),
+        end_date: sec_edgar_companyconcept_date(Map.get(fact, "end"))
+      }
+    else
+      _reason -> nil
+    end
+  end
+
+  defp sec_edgar_companyconcept_metric_from_fact(_tag_name, _fact), do: nil
+
+  defp sec_edgar_companyconcept_duration_days(fact) do
+    with start_date <- sec_edgar_companyconcept_date(Map.get(fact, "start")),
+         %Date{} <- start_date,
+         end_date <- sec_edgar_companyconcept_date(Map.get(fact, "end")),
+         %Date{} <- end_date do
+      Date.diff(end_date, start_date) + 1
+    else
+      _reason -> nil
+    end
+  end
+
+  defp sec_edgar_companyconcept_date(value) when is_binary(value) do
+    case Date.from_iso8601(value) do
+      {:ok, date} -> date
+      {:error, _reason} -> nil
+    end
+  end
+
+  defp sec_edgar_companyconcept_date(_value), do: nil
 
   defp sec_edgar_xbrl_metric_values(raw_submission, tag_names, _form_type)
        when is_binary(raw_submission) do
@@ -7494,6 +7630,66 @@ defmodule DisclosureAutomation.Ingestion do
     {:error, :sec_edgar_summary_unavailable}
   end
 
+  defp sec_edgar_periodic_report_summary_from_companyconcept(source, record) do
+    with %{cik: cik, accession: accession} <- sec_edgar_filing_ref(record) do
+      form_type = sec_edgar_periodic_form_type(record)
+      issuer = sec_edgar_issuer_name(record, "")
+      filing_ref = %{cik: cik, accession: accession}
+
+      metric_details =
+        [
+          sec_edgar_companyconcept_money_metric_detail(
+            source,
+            filing_ref,
+            "매출액",
+            @sec_edgar_periodic_revenue_xbrl_tags,
+            form_type
+          ),
+          sec_edgar_companyconcept_money_metric_detail(
+            source,
+            filing_ref,
+            "영업이익",
+            @sec_edgar_periodic_operating_income_xbrl_tags,
+            form_type
+          ),
+          sec_edgar_companyconcept_money_metric_detail(
+            source,
+            filing_ref,
+            "순이익/순손실",
+            @sec_edgar_periodic_net_income_xbrl_tags,
+            form_type
+          ),
+          sec_edgar_companyconcept_eps_detail(source, filing_ref, form_type)
+        ]
+        |> Enum.reject(&is_nil/1)
+
+      case metric_details do
+        [] ->
+          {:error, :sec_edgar_companyconcept_metrics_unavailable}
+
+        details ->
+          headline =
+            case form_type do
+              "10-Q" ->
+                "#{issuer}의 SEC XBRL companyconcept 기준 10-Q 분기보고서 핵심 재무지표를 확인했습니다"
+
+              "10-K" ->
+                "#{issuer}의 SEC XBRL companyconcept 기준 10-K 연차보고서 핵심 재무지표를 확인했습니다"
+
+              _form_type ->
+                "#{issuer}의 SEC XBRL companyconcept 기준 정기보고서 핵심 재무지표를 확인했습니다"
+            end
+
+          guidance =
+            "매출/이익 가이던스 문구는 대용량 XBRL fallback 경로에서 별도 확인되지 않음"
+
+          {:ok, sec_edgar_summary_with_details(headline, details ++ [guidance])}
+      end
+    else
+      _reason -> {:error, :sec_edgar_companyconcept_ref_unavailable}
+    end
+  end
+
   defp sec_edgar_periodic_report_summary(raw_submission, record)
        when is_binary(raw_submission) do
     form_type = sec_edgar_periodic_form_type(record)
@@ -7548,6 +7744,65 @@ defmodule DisclosureAutomation.Ingestion do
 
   defp sec_edgar_periodic_report_summary(_raw_submission, _record) do
     {:error, :sec_edgar_periodic_summary_unavailable}
+  end
+
+  defp sec_edgar_filing_ref(record) when is_map(record) do
+    url = Map.get(record, :url) || Map.get(record, "url")
+    title = Map.get(record, :title) || Map.get(record, "title")
+    summary = Map.get(record, :summary) || Map.get(record, "summary")
+
+    with cik when is_binary(cik) <- sec_edgar_cik_from_url(url) || sec_edgar_cik_from_title(title),
+         accession when is_binary(accession) <-
+           sec_edgar_accession_from_summary(summary) || sec_edgar_accession_from_url(url) do
+      %{cik: cik, accession: accession}
+    else
+      _reason -> nil
+    end
+  end
+
+  defp sec_edgar_filing_ref(_record), do: nil
+
+  defp sec_edgar_cik_from_url(url) when is_binary(url) do
+    case Regex.run(~r|/Archives/edgar/data/(\d+)/|i, url) do
+      [_match, cik] -> cik
+      _match -> nil
+    end
+  end
+
+  defp sec_edgar_cik_from_url(_url), do: nil
+
+  defp sec_edgar_cik_from_title(title) when is_binary(title) do
+    case Regex.run(~r/\((\d{6,10})\)\s+\((?:Filer|Subject)\)/i, title) do
+      [_match, cik] -> cik
+      _match -> nil
+    end
+  end
+
+  defp sec_edgar_cik_from_title(_title), do: nil
+
+  defp sec_edgar_accession_from_summary(summary) when is_binary(summary) do
+    case Regex.run(~r/\bAccNo:\s*([0-9-]{18,24})\b/i, summary) do
+      [_match, accession] -> accession
+      _match -> nil
+    end
+  end
+
+  defp sec_edgar_accession_from_summary(_summary), do: nil
+
+  defp sec_edgar_accession_from_url(url) when is_binary(url) do
+    case Regex.run(~r|/([0-9]{10}-[0-9]{2}-[0-9]{6})-index\.html?$|i, url) do
+      [_match, accession] -> accession
+      _match -> nil
+    end
+  end
+
+  defp sec_edgar_accession_from_url(_url), do: nil
+
+  defp sec_edgar_padded_cik(cik) do
+    cik
+    |> to_string()
+    |> String.replace(~r/\D/, "")
+    |> String.pad_leading(10, "0")
   end
 
   defp sec_edgar_registration_statement_summary(raw_submission, record)
