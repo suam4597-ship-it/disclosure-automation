@@ -5213,6 +5213,9 @@ defmodule DisclosureAutomation.Ingestion do
   @sec_edgar_detail_fetch_default_limit 10
   @sec_edgar_detail_fetch_default_timeout_ms 8_000
   @sec_edgar_detail_fetch_default_max_bytes 2_000_000
+  @sec_edgar_periodic_report_detail_fetch_min_limit 3
+  @sec_edgar_periodic_report_detail_fetch_min_max_bytes 8_000_000
+  @sec_edgar_periodic_report_detail_fetch_min_timeout_ms 10_000
   @sec_edgar_form4_cluster_min_owners 3
   @sec_edgar_form4_cluster_window_days 7
   @sec_edgar_item_heading_regex ~r/\bItem\s+[1-9]\.\d{2}\b/i
@@ -7286,6 +7289,16 @@ defmodule DisclosureAutomation.Ingestion do
         ),
         sec_edgar_xbrl_money_metric_detail(
           raw_submission,
+          "영업이익",
+          [
+            "OperatingIncomeLoss",
+            "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+            "IncomeLossFromContinuingOperationsBeforeIncomeTaxes"
+          ],
+          form_type
+        ),
+        sec_edgar_xbrl_money_metric_detail(
+          raw_submission,
           "순이익/순손실",
           ["NetIncomeLoss", "ProfitLoss"],
           form_type
@@ -8629,7 +8642,18 @@ defmodule DisclosureAutomation.Ingestion do
     end
   end
 
+  defp sec_edgar_detail_fetch_limit(%SourceRegistry{source_key: source_key} = source)
+       when source_key in @sec_edgar_periodic_report_source_keys do
+    source
+    |> sec_edgar_detail_fetch_limit_config()
+    |> max(@sec_edgar_periodic_report_detail_fetch_min_limit)
+  end
+
   defp sec_edgar_detail_fetch_limit(source) do
+    sec_edgar_detail_fetch_limit_config(source)
+  end
+
+  defp sec_edgar_detail_fetch_limit_config(source) do
     source_config_positive_integer(
       source,
       "detail_fetch_limit",
@@ -8638,7 +8662,18 @@ defmodule DisclosureAutomation.Ingestion do
     )
   end
 
+  defp sec_edgar_detail_fetch_timeout(%SourceRegistry{source_key: source_key} = source)
+       when source_key in @sec_edgar_periodic_report_source_keys do
+    source
+    |> sec_edgar_detail_fetch_timeout_config()
+    |> max(@sec_edgar_periodic_report_detail_fetch_min_timeout_ms)
+  end
+
   defp sec_edgar_detail_fetch_timeout(source) do
+    sec_edgar_detail_fetch_timeout_config(source)
+  end
+
+  defp sec_edgar_detail_fetch_timeout_config(source) do
     source_config_positive_integer(
       source,
       "detail_fetch_timeout_ms",
@@ -8647,7 +8682,18 @@ defmodule DisclosureAutomation.Ingestion do
     )
   end
 
+  defp sec_edgar_detail_fetch_max_bytes(%SourceRegistry{source_key: source_key} = source)
+       when source_key in @sec_edgar_periodic_report_source_keys do
+    source
+    |> sec_edgar_detail_fetch_max_bytes_config()
+    |> max(@sec_edgar_periodic_report_detail_fetch_min_max_bytes)
+  end
+
   defp sec_edgar_detail_fetch_max_bytes(source) do
+    sec_edgar_detail_fetch_max_bytes_config(source)
+  end
+
+  defp sec_edgar_detail_fetch_max_bytes_config(source) do
     source_config_positive_integer(
       source,
       "detail_fetch_max_bytes",
