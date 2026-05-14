@@ -5213,17 +5213,23 @@ defmodule DisclosureAutomation.Ingestion do
     "SalesRevenueServicesGross",
     "RegulatedAndUnregulatedOperatingRevenue",
     "RealEstateRevenueNet",
+    "OperatingLeasesIncomeStatementLeaseRevenue",
+    "LeaseIncome",
     "RentalIncome",
     "InterestIncomeOperating",
     "GrossInvestmentIncomeOperating",
     "InterestIncomeOperatingPaidInCash",
     "InterestIncomeOperatingPaidInKind",
     "InterestIncomeExpenseOperatingNet",
+    "InterestIncomeAfterProvisionForLoanLoss",
     "InterestAndDividendIncomeOperating",
     "InvestmentIncomeInterest",
+    "InvestmentIncomeInterestAndDividend",
     "InvestmentIncomeInvestmentExpense",
     "InvestmentIncomeNet",
     "InvestmentIncomeOperatingAfterExpenseAndTax",
+    "NoninterestIncome",
+    "OtherIncome",
     "InsuranceRevenue",
     "PremiumsEarnedNet"
   ]
@@ -5241,6 +5247,7 @@ defmodule DisclosureAutomation.Ingestion do
     "NetIncomeLossAttributableToParent",
     "NetIncomeLossAvailableToCommonStockholdersBasic",
     "NetIncomeLossAvailableToCommonStockholdersDiluted",
+    "NetIncomeLossAvailableToCommonStockholdersBasicAndDiluted",
     "IncomeLossFromContinuingOperations",
     "IncomeLossFromContinuingOperationsIncludingPortionAttributableToNoncontrollingInterest"
   ]
@@ -5252,6 +5259,7 @@ defmodule DisclosureAutomation.Ingestion do
     "EarningsPerShareBasicContinuingOperations",
     "IncomeLossFromContinuingOperationsPerDilutedShare",
     "IncomeLossFromContinuingOperationsPerBasicShare",
+    "IncomeLossFromContinuingOperationsPerBasicAndDilutedShare",
     "InvestmentCompanyInvestmentIncomeLossPerShare"
   ]
   @sec_edgar_registration_source_keys [
@@ -5380,6 +5388,7 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   def backfill_sec_periodic_report_summaries(opts \\ []) do
+    archive_only? = Keyword.get(opts, :archive_only, false)
     edition = Keyword.get(opts, :edition, "breaking")
     limit = sec_edgar_backfill_positive_int(Keyword.get(opts, :limit)) || 20
     offset = sec_edgar_backfill_nonnegative_int(Keyword.get(opts, :offset)) || 0
@@ -5420,7 +5429,7 @@ defmodule DisclosureAutomation.Ingestion do
 
     results =
       Enum.map(candidates, fn {item, source} ->
-        if sec_edgar_backfill_item_too_large?(item, max_size_mb) do
+        if not archive_only? and sec_edgar_backfill_item_too_large?(item, max_size_mb) do
           %{
             status: "skipped_too_large",
             headline: item.headline,
@@ -5436,7 +5445,14 @@ defmodule DisclosureAutomation.Ingestion do
             published_at: item.published_at
           }
 
-          case enrich_sec_edgar_periodic_report_record(source, record) do
+          enriched_record =
+            if archive_only? do
+              enrich_sec_edgar_periodic_report_record_from_bounded_fallbacks(source, record)
+            else
+              enrich_sec_edgar_periodic_report_record(source, record)
+            end
+
+          case enriched_record do
             %{summary: summary} when is_binary(summary) and summary != item.summary ->
               now = DateTime.utc_now()
 
@@ -5468,6 +5484,12 @@ defmodule DisclosureAutomation.Ingestion do
       skipped_too_large: Enum.count(results, &(Map.get(&1, :status) == "skipped_too_large")),
       results: results
     }
+  end
+
+  def backfill_sec_periodic_report_archive_summaries(opts \\ []) do
+    opts
+    |> Keyword.put(:archive_only, true)
+    |> backfill_sec_periodic_report_summaries()
   end
 
   defp sec_edgar_backfill_positive_int(value) when is_integer(value) and value > 0, do: value
@@ -5710,6 +5732,24 @@ defmodule DisclosureAutomation.Ingestion do
   defp enrich_sec_edgar_8k_record(_source, record), do: record
 
   defp enrich_sec_edgar_periodic_report_record(source, record) when is_map(record) do
+    case enrich_sec_edgar_periodic_report_record_from_bounded_fallbacks(source, record) do
+      %{summary: _summary} = record ->
+        record
+
+      _record ->
+        with {:ok, raw_submission} <- sec_edgar_fetch_submission_text(source, record),
+             {:ok, summary} <- sec_edgar_periodic_report_summary(raw_submission, record) do
+          Map.put(record, :summary, summary)
+        else
+          _reason -> record
+        end
+    end
+  end
+
+  defp enrich_sec_edgar_periodic_report_record(_source, record), do: record
+
+  defp enrich_sec_edgar_periodic_report_record_from_bounded_fallbacks(source, record)
+       when is_map(record) do
     case sec_edgar_periodic_report_summary_from_archive_document(source, record) do
       {:ok, summary} ->
         Map.put(record, :summary, summary)
@@ -5719,18 +5759,14 @@ defmodule DisclosureAutomation.Ingestion do
           {:ok, summary} ->
             Map.put(record, :summary, summary)
 
-          {:error, _companyconcept_reason} ->
-            with {:ok, raw_submission} <- sec_edgar_fetch_submission_text(source, record),
-                 {:ok, summary} <- sec_edgar_periodic_report_summary(raw_submission, record) do
-              Map.put(record, :summary, summary)
-            else
-              _reason -> record
-            end
+          {:error, _companyconcept_reason} -> record
         end
     end
   end
 
-  defp enrich_sec_edgar_periodic_report_record(_source, record), do: record
+  defp enrich_sec_edgar_periodic_report_record_from_bounded_fallbacks(_source, record) do
+    record
+  end
 
   defp enrich_sec_edgar_registration_record(source, record) when is_map(record) do
     with {:ok, raw_submission} <- sec_edgar_fetch_submission_text(source, record),
