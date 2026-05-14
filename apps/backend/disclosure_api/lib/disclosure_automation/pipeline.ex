@@ -5330,6 +5330,7 @@ defmodule DisclosureAutomation.Ingestion do
   def backfill_sec_periodic_report_summaries(opts \\ []) do
     edition = Keyword.get(opts, :edition, "breaking")
     limit = sec_edgar_backfill_positive_int(Keyword.get(opts, :limit)) || 20
+    max_size_mb = sec_edgar_backfill_positive_int(Keyword.get(opts, :max_size_mb)) || 8
     raw_only? = Keyword.get(opts, :raw_only, false)
 
     recent_date_limit =
@@ -5365,33 +5366,42 @@ defmodule DisclosureAutomation.Ingestion do
 
     results =
       Enum.map(candidates, fn {item, source} ->
-        record = %{
-          title: item.headline,
-          summary: item.summary,
-          url: item.canonical_url,
-          category: Map.get(item.metadata || %{}, "category"),
-          published_at: item.published_at
-        }
+        if sec_edgar_backfill_item_too_large?(item, max_size_mb) do
+          %{
+            status: "skipped_too_large",
+            headline: item.headline,
+            source_key: source.source_key,
+            max_size_mb: max_size_mb
+          }
+        else
+          record = %{
+            title: item.headline,
+            summary: item.summary,
+            url: item.canonical_url,
+            category: Map.get(item.metadata || %{}, "category"),
+            published_at: item.published_at
+          }
 
-        case enrich_sec_edgar_periodic_report_record(source, record) do
-          %{summary: summary} when is_binary(summary) and summary != item.summary ->
-            now = DateTime.utc_now()
+          case enrich_sec_edgar_periodic_report_record(source, record) do
+            %{summary: summary} when is_binary(summary) and summary != item.summary ->
+              now = DateTime.utc_now()
 
-            {updated, _rows} =
-              Repo.update_all(
-                from(existing in CanonicalFeedItem, where: existing.id == ^item.id),
-                set: [summary: summary, updated_at: now]
-              )
+              {updated, _rows} =
+                Repo.update_all(
+                  from(existing in CanonicalFeedItem, where: existing.id == ^item.id),
+                  set: [summary: summary, updated_at: now]
+                )
 
-            %{
-              status: "updated",
-              updated: updated,
-              headline: item.headline,
-              source_key: source.source_key
-            }
+              %{
+                status: "updated",
+                updated: updated,
+                headline: item.headline,
+                source_key: source.source_key
+              }
 
-          _record ->
-            %{status: "unchanged", headline: item.headline, source_key: source.source_key}
+            _record ->
+              %{status: "unchanged", headline: item.headline, source_key: source.source_key}
+          end
         end
       end)
 
@@ -5400,6 +5410,7 @@ defmodule DisclosureAutomation.Ingestion do
       candidates: length(candidates),
       updated: Enum.count(results, &(Map.get(&1, :status) == "updated")),
       unchanged: Enum.count(results, &(Map.get(&1, :status) == "unchanged")),
+      skipped_too_large: Enum.count(results, &(Map.get(&1, :status) == "skipped_too_large")),
       results: results
     }
   end
@@ -5414,6 +5425,19 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp sec_edgar_backfill_positive_int(_value), do: nil
+
+  defp sec_edgar_backfill_item_too_large?(item, max_size_mb) do
+    case Regex.run(~r/\bSize:\s*(\d+(?:\.\d+)?)\s*MB\b/i, item.summary || "") do
+      [_match, size] ->
+        case Float.parse(size) do
+          {parsed, _rest} -> parsed > max_size_mb
+          _error -> false
+        end
+
+      _match ->
+        false
+    end
+  end
 
   def archive_raw_documents_before(%DateTime{} = cutoff) do
     {count, _} =
