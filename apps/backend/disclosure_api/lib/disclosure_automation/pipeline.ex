@@ -5759,7 +5759,8 @@ defmodule DisclosureAutomation.Ingestion do
           {:ok, summary} ->
             Map.put(record, :summary, summary)
 
-          {:error, _companyconcept_reason} -> record
+          {:error, _companyconcept_reason} ->
+            record
         end
     end
   end
