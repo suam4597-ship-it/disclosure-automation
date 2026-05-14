@@ -5846,7 +5846,13 @@ defmodule DisclosureAutomation.Ingestion do
     end
   end
 
-  defp sec_edgar_companyconcept_money_metric_detail(source, filing_ref, label, tag_names, form_type) do
+  defp sec_edgar_companyconcept_money_metric_detail(
+         source,
+         filing_ref,
+         label,
+         tag_names,
+         form_type
+       ) do
     source
     |> sec_edgar_companyconcept_metric_values(filing_ref, tag_names, form_type)
     |> sec_edgar_preferred_xbrl_metric(form_type)
