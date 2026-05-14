@@ -147,7 +147,7 @@ sources:
       disable_live_fixture_fallback: true
       poll_async_default: true
       poll_queue: source_polling_slow
-      max_items_per_poll: 20
+      max_items_per_poll: 10
       detail_fetch_limit: 3
       detail_fetch_timeout_ms: 10000
       detail_fetch_max_bytes: 8000000
