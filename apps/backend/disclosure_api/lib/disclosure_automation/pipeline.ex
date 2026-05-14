@@ -6098,7 +6098,7 @@ defmodule DisclosureAutomation.Ingestion do
 
   defp sec_edgar_non_financial_guidance_sentence?(sentence) do
     sentence =~
-      ~r/\b(accounting guidance|guidance addresses|fair value guidance|valuation techniques?|FASB|ASU|GAAP guidance|rate reconciliation|income taxes paid|deferred tax|tax assets?|tax liabilities?|taxable temporary differences?|projected future taxable income|tax planning strategies|risk factors?|could materially|may materially|adversely affect|federal government|government shutdown|debt ceiling|CODM|budget versus actual|variance analysis|segment measure|chief operating decision maker|forward[- ]looking statements?|safe harbor)\b/i
+      ~r/\b(accounting guidance|guidance addresses|fair value guidance|valuation techniques?|FASB|ASU|GAAP guidance|rate reconciliation|income taxes paid|deferred tax|tax assets?|tax liabilities?|taxable temporary differences?|projected future taxable income|tax planning strategies|risk factors?|could materially|may materially|adversely affect|federal government|government shutdown|debt ceiling|CODM|budget versus actual|variance analysis|segment measure|chief operating decision maker|forward[- ]looking statements?|safe harbor|Food and Drug Administration|FDA|product candidates?|foreign regulatory agencies?|governmental regulations?|clinical trials?|ultimately not approve|we are required to report)\b/i
   end
 
   defp sec_edgar_registration_form_type(record) do
