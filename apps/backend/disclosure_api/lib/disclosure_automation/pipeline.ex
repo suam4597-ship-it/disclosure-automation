@@ -5851,7 +5851,7 @@ defmodule DisclosureAutomation.Ingestion do
 
             {:error, _reason} ->
               {:cont, {:error, :sec_edgar_archive_document_fetch_failed}}
-            end
+          end
         end
       )
     else
