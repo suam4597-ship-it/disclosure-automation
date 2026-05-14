@@ -5259,7 +5259,7 @@ defmodule DisclosureAutomation.Ingestion do
   @sec_edgar_detail_fetch_default_limit 10
   @sec_edgar_detail_fetch_default_timeout_ms 8_000
   @sec_edgar_detail_fetch_default_max_bytes 2_000_000
-  @sec_edgar_periodic_report_detail_fetch_min_limit 3
+  @sec_edgar_periodic_report_detail_fetch_min_limit 20
   @sec_edgar_periodic_report_detail_fetch_min_max_bytes 8_000_000
   @sec_edgar_periodic_report_detail_fetch_min_timeout_ms 10_000
   @sec_edgar_form4_cluster_min_owners 3
@@ -5709,9 +5709,17 @@ defmodule DisclosureAutomation.Ingestion do
       Map.put(record, :summary, summary)
     else
       _reason ->
-        case sec_edgar_periodic_report_summary_from_companyconcept(source, record) do
-          {:ok, summary} -> Map.put(record, :summary, summary)
-          {:error, _fallback_reason} -> record
+        source
+        |> sec_edgar_periodic_report_summary_from_archive_document(record)
+        |> case do
+          {:ok, summary} ->
+            Map.put(record, :summary, summary)
+
+          {:error, _archive_reason} ->
+            case sec_edgar_periodic_report_summary_from_companyconcept(source, record) do
+              {:ok, summary} -> Map.put(record, :summary, summary)
+              {:error, _fallback_reason} -> record
+            end
         end
     end
   end
@@ -5774,8 +5782,195 @@ defmodule DisclosureAutomation.Ingestion do
   defp enrich_sec_edgar_tender_offer_record(_source, record), do: record
 
   defp sec_edgar_fetch_submission_text(source, record) do
+    max_bytes = sec_edgar_detail_fetch_max_bytes(source)
+
     with url when is_binary(url) <- sec_edgar_complete_submission_text_url(record),
+         false <- sec_edgar_record_declared_too_large?(record, max_bytes),
          {:ok, response} <-
+           Http.fetch(url,
+             headers: source_live_headers(source),
+             timeout: sec_edgar_detail_fetch_timeout(source)
+           ),
+         status when status in 200..299 <- response.status_code,
+         body when is_binary(body) <- response.body,
+         true <- byte_size(body) <= max_bytes do
+      {:ok, body}
+    else
+      value when value in [true, false] -> {:error, :sec_edgar_submission_too_large}
+      _reason -> {:error, :sec_edgar_submission_fetch_failed}
+    end
+  end
+
+  defp sec_edgar_record_declared_too_large?(record, max_bytes) when is_map(record) do
+    summary = Map.get(record, :summary) || Map.get(record, "summary") || ""
+
+    case Regex.run(~r/\bSize:\s*(\d+(?:\.\d+)?)\s*(KB|MB|GB)\b/i, summary) do
+      [_match, size, unit] ->
+        case Float.parse(size) do
+          {parsed, _rest} ->
+            sec_edgar_declared_size_bytes(parsed, unit) > max_bytes
+
+          _error ->
+            false
+        end
+
+      _match ->
+        false
+    end
+  end
+
+  defp sec_edgar_record_declared_too_large?(_record, _max_bytes), do: false
+
+  defp sec_edgar_declared_size_bytes(size, unit) do
+    multiplier =
+      case String.upcase(to_string(unit)) do
+        "GB" -> 1_000_000_000
+        "MB" -> 1_000_000
+        "KB" -> 1_000
+        _unit -> 1
+      end
+
+    trunc(size * multiplier)
+  end
+
+  defp sec_edgar_periodic_report_summary_from_archive_document(source, record) do
+    with {:ok, candidate_urls} <- sec_edgar_archive_document_candidate_urls(source, record) do
+      candidate_urls
+      |> Enum.reduce_while(
+        {:error, :sec_edgar_archive_document_summary_unavailable},
+        fn url, _acc ->
+          case sec_edgar_fetch_archive_document(source, url) do
+            {:ok, archive_document} ->
+              case sec_edgar_periodic_report_summary(archive_document, record) do
+                {:ok, summary} ->
+                  {:halt, {:ok, summary}}
+
+                {:error, _reason} ->
+                  {:cont, {:error, :sec_edgar_archive_document_summary_unavailable}}
+              end
+
+            {:error, _reason} ->
+              {:cont, {:error, :sec_edgar_archive_document_fetch_failed}}
+            end
+        end
+      )
+    else
+      _reason -> {:error, :sec_edgar_archive_index_unavailable}
+    end
+  end
+
+  defp sec_edgar_archive_document_candidate_urls(source, record) do
+    with base_url when is_binary(base_url) <- sec_edgar_archive_directory_url(record),
+         {:ok, response} <-
+           Http.fetch("#{base_url}/index.json",
+             headers: source_live_headers(source),
+             timeout: sec_edgar_detail_fetch_timeout(source)
+           ),
+         status when status in 200..299 <- response.status_code,
+         body when is_binary(body) <- response.body,
+         true <- byte_size(body) <= sec_edgar_detail_fetch_max_bytes(source),
+         {:ok, decoded} <- Jason.decode(body) do
+      candidates =
+        decoded
+        |> get_in(["directory", "item"])
+        |> sec_edgar_archive_document_candidates()
+        |> Enum.map(fn name -> "#{base_url}/#{name}" end)
+        |> Enum.take(sec_edgar_archive_document_fetch_limit(source))
+
+      case candidates do
+        [] -> {:error, :sec_edgar_archive_document_candidates_unavailable}
+        values -> {:ok, values}
+      end
+    else
+      false -> {:error, :sec_edgar_archive_index_too_large}
+      _reason -> {:error, :sec_edgar_archive_index_fetch_failed}
+    end
+  end
+
+  defp sec_edgar_archive_document_candidates(items) when is_list(items) do
+    items
+    |> Enum.flat_map(fn
+      %{"name" => name, "size" => size} -> [{name, size}]
+      %{name: name, size: size} -> [{name, size}]
+      _item -> []
+    end)
+    |> Enum.filter(fn {name, size} ->
+      sec_edgar_archive_document_candidate_name?(name) and
+        sec_edgar_archive_document_candidate_size?(size)
+    end)
+    |> Enum.sort_by(fn {name, size} ->
+      {sec_edgar_archive_document_candidate_rank(name), sec_edgar_archive_document_size(size)}
+    end)
+    |> Enum.map(fn {name, _size} -> name end)
+  end
+
+  defp sec_edgar_archive_document_candidates(_items), do: []
+
+  defp sec_edgar_archive_document_candidate_name?(name) when is_binary(name) do
+    normalized = String.downcase(name)
+
+    allowed_extension? =
+      String.ends_with?(normalized, ".htm") or
+        String.ends_with?(normalized, ".html") or
+        String.ends_with?(normalized, ".xml")
+
+    excluded? =
+      String.contains?(normalized, "-index") or
+        String.contains?(normalized, "-headers") or
+        String.ends_with?(normalized, ".xsd") or
+        String.ends_with?(normalized, "_cal.xml") or
+        String.ends_with?(normalized, "_def.xml") or
+        String.ends_with?(normalized, "_lab.xml") or
+        String.ends_with?(normalized, "_pre.xml") or
+        normalized in ["filingsummary.xml", "show.js", "report.css"] or
+        Regex.match?(~r/^r\d+\.htm$/i, normalized) or
+        String.starts_with?(normalized, "exhibit")
+
+    allowed_extension? and not excluded?
+  end
+
+  defp sec_edgar_archive_document_candidate_name?(_name), do: false
+
+  defp sec_edgar_archive_document_candidate_size?(size) do
+    sec_edgar_archive_document_size(size) in 1..@sec_edgar_periodic_report_detail_fetch_min_max_bytes
+  end
+
+  defp sec_edgar_archive_document_size(size) when is_integer(size), do: size
+
+  defp sec_edgar_archive_document_size(size) when is_binary(size) do
+    case Integer.parse(size) do
+      {parsed, _rest} -> parsed
+      :error -> 0
+    end
+  end
+
+  defp sec_edgar_archive_document_size(_size), do: 0
+
+  defp sec_edgar_archive_document_candidate_rank(name) when is_binary(name) do
+    normalized = String.downcase(name)
+
+    cond do
+      String.ends_with?(normalized, "_htm.xml") -> 0
+      Regex.match?(~r/\d{8}\.htm$/i, normalized) -> 1
+      Regex.match?(~r/\d{8}\.html$/i, normalized) -> 1
+      String.ends_with?(normalized, ".htm") -> 2
+      String.ends_with?(normalized, ".html") -> 2
+      String.ends_with?(normalized, ".xml") -> 3
+      true -> 9
+    end
+  end
+
+  defp sec_edgar_archive_document_candidate_rank(_name), do: 9
+
+  defp sec_edgar_archive_document_fetch_limit(source) do
+    source
+    |> sec_edgar_detail_fetch_limit()
+    |> min(3)
+    |> max(1)
+  end
+
+  defp sec_edgar_fetch_archive_document(source, url) when is_binary(url) do
+    with {:ok, response} <-
            Http.fetch(url,
              headers: source_live_headers(source),
              timeout: sec_edgar_detail_fetch_timeout(source)
@@ -5785,9 +5980,13 @@ defmodule DisclosureAutomation.Ingestion do
          true <- byte_size(body) <= sec_edgar_detail_fetch_max_bytes(source) do
       {:ok, body}
     else
-      false -> {:error, :sec_edgar_submission_too_large}
-      _reason -> {:error, :sec_edgar_submission_fetch_failed}
+      false -> {:error, :sec_edgar_archive_document_too_large}
+      _reason -> {:error, :sec_edgar_archive_document_fetch_failed}
     end
+  end
+
+  defp sec_edgar_fetch_archive_document(_source, _url) do
+    {:error, :sec_edgar_archive_document_url_unavailable}
   end
 
   defp sec_edgar_periodic_form_type(record) do
@@ -7620,6 +7819,27 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp sec_edgar_complete_submission_text_url(_record), do: nil
+
+  defp sec_edgar_archive_directory_url(%{url: url}) when is_binary(url) do
+    normalized_url =
+      url
+      |> String.split("?", parts: 2)
+      |> List.first()
+
+    case Regex.run(
+           ~r|^(https://www\.sec\.gov/Archives/edgar/data/\d+/\d+)/[^/]+?-index\.html?$|i,
+           normalized_url
+         ) do
+      [_, base_url] -> base_url
+      _match -> nil
+    end
+  end
+
+  defp sec_edgar_archive_directory_url(%{"url" => url}) when is_binary(url) do
+    sec_edgar_archive_directory_url(%{url: url})
+  end
+
+  defp sec_edgar_archive_directory_url(_record), do: nil
 
   defp sec_edgar_filing_body_summary(raw_submission, record) when is_binary(raw_submission) do
     plain = sec_edgar_plain_text(raw_submission)
