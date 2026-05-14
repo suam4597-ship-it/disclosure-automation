@@ -1643,7 +1643,7 @@ function periodicFinancialMetrics(item) {
 
   return specs.flatMap(([label, pattern]) => {
     const match = text.match(pattern);
-    const value = cleanText(match?.[1] || "");
+    const value = formatMoneyText(cleanText(match?.[1] || ""));
     return value ? [{ label, value: truncate(value, label === "가이던스/전망" ? 170 : 80) }] : [];
   });
 }
