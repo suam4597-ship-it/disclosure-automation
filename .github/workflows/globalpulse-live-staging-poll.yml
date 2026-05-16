@@ -110,26 +110,8 @@ jobs:
 
       - name: Poll live source
         run: |
-          if [ "${RUN_MODE}" = "eu_canary" ] || [ "${RUN_MODE}" = "denmark_dfsa_oam_canary" ]; then
-            failed=0
-            canary_sources="${EU_CANARY_SOURCES}"
-
-            if [ "${RUN_MODE}" = "denmark_dfsa_oam_canary" ]; then
-              canary_sources="${DENMARK_DFSA_OAM_CANARY_SOURCES}"
-            fi
-
-            for source in ${canary_sources}; do
-              output="poll-${source}.json"
-              status=$(curl -sS -o "${output}" -w "%{http_code}" -X POST "${BACKEND_URL}/api/admin/sources/${source}/poll?use_live_fetch=true&edition=${EDITION}")
-              echo "source=${source} poll status=${status}"
-              cat "${output}"
-
-              if [ "${status}" -lt 200 ] || [ "${status}" -ge 300 ]; then
-                failed=1
-                continue
-              fi
-
-              POLL_JSON="${output}" POLL_SOURCE="${source}" python3 - <<'PY' || failed=1
+          validate_poll_contract() {
+            POLL_JSON="$1" POLL_SOURCE="$2" python3 - <<'PY'
           import json
           import os
           import sys
@@ -178,14 +160,57 @@ jobs:
 
           print(f"{source}: poll contract pass")
           PY
+          }
+
+          poll_with_retry() {
+            source="$1"
+            output="$2"
+            poll_ok=0
+            status=000
+
+            for attempt in 1 2 3; do
+              status=$(curl -sS -o "${output}" -w "%{http_code}" -X POST "${BACKEND_URL}/api/admin/sources/${source}/poll?use_live_fetch=true&edition=${EDITION}" || true)
+              if [ -z "${status}" ]; then
+                status=000
+              fi
+
+              echo "source=${source} poll attempt=${attempt} status=${status}"
+              cat "${output}" || true
+
+              if [ "${status}" -ge 200 ] && [ "${status}" -lt 300 ] && validate_poll_contract "${output}" "${source}"; then
+                poll_ok=1
+                break
+              fi
+
+              if [ "${attempt}" -lt 3 ]; then
+                sleep $((attempt * 5))
+              fi
+            done
+
+            if [ "${poll_ok}" != "1" ]; then
+              echo "source=${source} poll failed after retries"
+              return 1
+            fi
+          }
+
+          if [ "${RUN_MODE}" = "eu_canary" ] || [ "${RUN_MODE}" = "denmark_dfsa_oam_canary" ]; then
+            failed=0
+            canary_sources="${EU_CANARY_SOURCES}"
+
+            if [ "${RUN_MODE}" = "denmark_dfsa_oam_canary" ]; then
+              canary_sources="${DENMARK_DFSA_OAM_CANARY_SOURCES}"
+            fi
+
+            for source in ${canary_sources}; do
+              output="poll-${source}.json"
+              if ! poll_with_retry "${source}" "${output}"; then
+                failed=1
+              fi
             done
 
             exit "${failed}"
           else
-            status=$(curl -sS -o poll.json -w "%{http_code}" -X POST "${BACKEND_URL}/api/admin/sources/${SOURCE_KEY}/poll?use_live_fetch=true&edition=${EDITION}")
-            echo "poll status=${status}"
-            cat poll.json
-            if [ "${status}" -lt 200 ] || [ "${status}" -ge 300 ]; then
+            if ! poll_with_retry "${SOURCE_KEY}" "poll.json"; then
               exit 1
             fi
           fi
