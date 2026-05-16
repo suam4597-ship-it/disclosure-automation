@@ -750,12 +750,17 @@ sources:
       - regulated_information
       - issuer_announcement
       - company_press_release
-    active: false
+    active: true
     config:
       fixture_path: source_payloads/eu_euronext_company_press_releases.xml
-      candidate_status: manual_staging_only
+      candidate_status: scheduled_staging_live
       live_source_contract: globalpulse_eu_listed_company_disclosure_endpoint_scan.md
       max_items_per_poll: 25
+      disable_live_fixture_fallback: true
+      live_timeout_ms: 30000
+      live_headers:
+        accept: application/rss+xml, application/xml, text/xml, */*
+        user-agent: disclosure-automation-phase1 suam4597@gmail.com
 
   - source_key: eu_belgium_fsma_stori
     display_name: Belgium FSMA STORI Regulated Information
