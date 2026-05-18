@@ -9882,10 +9882,10 @@ defmodule DisclosureAutomation.Ingestion do
           section =~ ~r/administrative agent|collateral agent/i ->
         "관리/담보 agent는 MUFG Bank와 U.S. Bank로 변경 또는 지정"
 
-      section =~ ~r/JPMorgan Chase Bank[^.]{0,120}administrative agent/i ->
+      section =~ ~r/JPMorgan Chase Bank.{0,160}administrative agent/is ->
         "행정대리인은 JPMorgan Chase Bank"
 
-      section =~ ~r/Bank of America[^.]{0,120}Administrative Agent/i ->
+      section =~ ~r/Bank of America.{0,160}administrative agent/is ->
         "행정대리인은 Bank of America"
 
       section =~ ~r/administrative agent|collateral agent/i ->
