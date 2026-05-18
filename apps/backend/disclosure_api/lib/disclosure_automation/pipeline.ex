@@ -10217,8 +10217,8 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp sec_edgar_material_money_match(section) do
-    section
-    |> Regex.scan(~r/\$([\d,.]+)\s*(million|billion)?/i)
+    ~r/\$([\d,.]+)\s*(million|billion)?/i
+    |> Regex.scan(section)
     |> Enum.map(fn
       [_match, amount, scale] ->
         {amount, scale, sec_edgar_money_numeric_value(amount, scale)}
