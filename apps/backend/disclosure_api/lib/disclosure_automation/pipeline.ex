@@ -5492,6 +5492,73 @@ defmodule DisclosureAutomation.Ingestion do
     |> backfill_sec_periodic_report_summaries()
   end
 
+  def backfill_sec_8k_summaries(opts \\ []) do
+    edition = Keyword.get(opts, :edition, "breaking")
+    limit = sec_edgar_backfill_positive_int(Keyword.get(opts, :limit)) || 100
+    offset = sec_edgar_backfill_nonnegative_int(Keyword.get(opts, :offset)) || 0
+
+    recent_date_limit =
+      sec_edgar_backfill_positive_int(Keyword.get(opts, :recent_date_limit)) || 3
+
+    cutoff = Date.utc_today() |> Date.add(-recent_date_limit)
+
+    candidates =
+      Repo.all(
+        from(item in CanonicalFeedItem,
+          join: source in SourceRegistry,
+          on: source.id == item.source_registry_id,
+          where:
+            source.source_key == ^@sec_edgar_current_8k_source_key and
+              item.edition == ^edition and item.digest_date >= ^cutoff,
+          order_by: [desc: item.published_at],
+          limit: ^limit,
+          offset: ^offset,
+          select: {item, source}
+        )
+      )
+
+    results =
+      Enum.map(candidates, fn {item, source} ->
+        record = %{
+          title: item.headline,
+          summary: item.summary,
+          url: item.canonical_url,
+          category: Map.get(item.metadata || %{}, "category"),
+          published_at: item.published_at
+        }
+
+        case enrich_sec_edgar_8k_record(source, record) do
+          %{summary: summary} when is_binary(summary) and summary != item.summary ->
+            now = DateTime.utc_now()
+
+            {updated, _rows} =
+              Repo.update_all(
+                from(existing in CanonicalFeedItem, where: existing.id == ^item.id),
+                set: [summary: summary, updated_at: now]
+              )
+
+            %{
+              status: "updated",
+              updated: updated,
+              headline: item.headline,
+              source_key: source.source_key
+            }
+
+          _record ->
+            %{status: "unchanged", headline: item.headline, source_key: source.source_key}
+        end
+      end)
+
+    %{
+      status: "completed",
+      candidates: length(candidates),
+      offset: offset,
+      updated: Enum.count(results, &(Map.get(&1, :status) == "updated")),
+      unchanged: Enum.count(results, &(Map.get(&1, :status) == "unchanged")),
+      results: results
+    }
+  end
+
   defp sec_edgar_backfill_positive_int(value) when is_integer(value) and value > 0, do: value
 
   defp sec_edgar_backfill_positive_int(value) when is_binary(value) do
@@ -9132,6 +9199,8 @@ defmodule DisclosureAutomation.Ingestion do
 
     counterparty = sec_edgar_counterparty(section)
 
+    finance_contract? = sec_edgar_debt_contract_section?(section)
+
     details =
       [
         strategic_signal && "신호: #{strategic_signal}",
@@ -9141,10 +9210,10 @@ defmodule DisclosureAutomation.Ingestion do
         sec_edgar_item_101_minimum_commitment_detail(section),
         sec_edgar_item_101_exclusivity_detail(section),
         sec_edgar_item_101_contract_duration_detail(section),
-        sec_edgar_first_money_detail(section),
+        not finance_contract? && sec_edgar_first_money_detail(section),
         sec_edgar_agreement_purpose(section),
         sec_edgar_order_backlog_detail(section)
-      ]
+      ] ++ sec_edgar_item_101_financing_details(section, finance_contract?)
 
     sec_edgar_summary_with_details(headline, details)
   end
@@ -9212,8 +9281,12 @@ defmodule DisclosureAutomation.Ingestion do
     details =
       [
         sec_edgar_debt_amount_detail(section),
+        sec_edgar_refinancing_purpose_detail(section),
+        sec_edgar_interest_terms_detail(section),
         sec_edgar_interest_rate_detail(section),
+        sec_edgar_relative_maturity_detail(section),
         sec_edgar_maturity_detail(section),
+        sec_edgar_agent_change_detail(section),
         sec_edgar_debt_security_detail(section)
       ]
 
@@ -9571,6 +9644,27 @@ defmodule DisclosureAutomation.Ingestion do
     |> sec_edgar_labeled_detail("계약 기간")
   end
 
+  defp sec_edgar_item_101_financing_details(_section, false), do: []
+
+  defp sec_edgar_item_101_financing_details(section, true) do
+    [
+      sec_edgar_debt_amount_detail(section),
+      sec_edgar_refinancing_purpose_detail(section),
+      sec_edgar_interest_terms_detail(section),
+      sec_edgar_relative_maturity_detail(section),
+      sec_edgar_maturity_detail(section),
+      sec_edgar_agent_change_detail(section),
+      sec_edgar_debt_security_detail(section)
+    ]
+  end
+
+  defp sec_edgar_debt_contract_section?(section) do
+    Regex.match?(
+      ~r/(credit agreement|credit facility|term loan|loan agreement|financing agreement|indenture|notes?|debenture|borrowings?)/i,
+      section
+    )
+  end
+
   defp sec_edgar_transaction_label(section) do
     cond do
       section =~ ~r/business combination|merger/i ->
@@ -9663,10 +9757,81 @@ defmodule DisclosureAutomation.Ingestion do
     end
   end
 
+  defp sec_edgar_refinancing_purpose_detail(section) do
+    cond do
+      section =~ ~r/used to refinance|refinancing|refinance/i ->
+        "자금 사용/목적은 기존 대출 또는 신용공여 refinancing"
+
+      section =~ ~r/repay|repayment/i ->
+        "자금 사용/목적은 기존 부채 상환"
+
+      true ->
+        nil
+    end
+  end
+
+  defp sec_edgar_interest_terms_detail(section) do
+    cond do
+      Regex.match?(
+        ~r/SOFR[^.]{0,120}?(\d+)\s*bps[^.]{0,180}?base rate[^.]{0,120}?(\d+)\s*bps/i,
+        section
+      ) ->
+        [_, sofr_bps, base_bps] =
+          Regex.run(
+            ~r/SOFR[^.]{0,120}?(\d+)\s*bps[^.]{0,180}?base rate[^.]{0,120}?(\d+)\s*bps/i,
+            section
+          )
+
+        "금리 조건은 term SOFR+#{sofr_bps}bp 또는 base rate+#{base_bps}bp"
+
+      Regex.match?(~r/SOFR[^.]{0,120}?(\d+)\s*bps/i, section) ->
+        [_, bps] = Regex.run(~r/SOFR[^.]{0,120}?(\d+)\s*bps/i, section)
+        "금리 조건은 SOFR+#{bps}bp"
+
+      Regex.match?(~r/base rate[^.]{0,120}?(\d+)\s*bps/i, section) ->
+        [_, bps] = Regex.run(~r/base rate[^.]{0,120}?(\d+)\s*bps/i, section)
+        "금리 조건은 base rate+#{bps}bp"
+
+      true ->
+        nil
+    end
+  end
+
   defp sec_edgar_interest_rate_detail(section) do
     case Regex.run(~r/(?:interest|bears interest)[^.]{0,100}?(\d+(?:\.\d+)?)%/i, section) do
       [_match, rate] -> "이자율은 #{rate}%로 언급됨"
       _match -> nil
+    end
+  end
+
+  defp sec_edgar_relative_maturity_detail(section) do
+    cond do
+      Regex.match?(
+        ~r/(?:extends?|extended)[^.]{0,120}?maturity[^.]{0,120}?(\d+)\s+years?\s+following\s+the\s+(?:closing\s+date|effective\s+date)/i,
+        section
+      ) ->
+        [_, years] =
+          Regex.run(
+            ~r/(?:extends?|extended)[^.]{0,120}?maturity[^.]{0,120}?(\d+)\s+years?\s+following\s+the\s+(?:closing\s+date|effective\s+date)/i,
+            section
+          )
+
+        "만기는 closing/effective date 이후 #{years}년으로 연장"
+
+      Regex.match?(
+        ~r/(\d+)\s+years?\s+following\s+the\s+(?:closing\s+date|effective\s+date)/i,
+        section
+      ) ->
+        [_, years] =
+          Regex.run(
+            ~r/(\d+)\s+years?\s+following\s+the\s+(?:closing\s+date|effective\s+date)/i,
+            section
+          )
+
+        "만기는 closing/effective date 이후 #{years}년"
+
+      true ->
+        nil
     end
   end
 
@@ -9679,6 +9844,22 @@ defmodule DisclosureAutomation.Ingestion do
         "만기 또는 상환 예정일은 #{year}년 #{sec_edgar_month_number(month)}월 #{day}일"
 
       _match ->
+        nil
+    end
+  end
+
+  defp sec_edgar_agent_change_detail(section) do
+    cond do
+      section =~ ~r/MUFG Bank[^.]{0,180}administrative agent/i and
+          section =~ ~r/U\.S\. Bank[^.]{0,180}collateral agent/i ->
+        "관리/담보 agent는 MUFG Bank와 U.S. Bank로 변경 또는 지정"
+
+      section =~ ~r/administrative agent|collateral agent/i ->
+        section
+        |> sec_edgar_sentence_matching(~r/(administrative agent|collateral agent)/i, 360)
+        |> sec_edgar_labeled_detail("Agent 변경/지정")
+
+      true ->
         nil
     end
   end
