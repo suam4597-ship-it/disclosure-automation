@@ -5273,6 +5273,7 @@ defmodule DisclosureAutomation.Ingestion do
   @sec_edgar_detail_fetch_default_limit 10
   @sec_edgar_detail_fetch_default_timeout_ms 8_000
   @sec_edgar_detail_fetch_default_max_bytes 2_000_000
+  @sec_edgar_current_8k_detail_fetch_min_max_bytes 4_000_000
   @sec_edgar_periodic_report_detail_fetch_min_limit 10
   @sec_edgar_periodic_report_detail_fetch_min_max_bytes 8_000_000
   @sec_edgar_periodic_report_detail_fetch_min_timeout_ms 10_000
@@ -9649,7 +9650,7 @@ defmodule DisclosureAutomation.Ingestion do
   defp sec_edgar_item_101_contract_duration_detail(section) do
     section
     |> sec_edgar_sentence_matching(
-      ~r/(multi-year|long-term|initial term|term of|expires|through|until|renewal|renewable|\d+\s+year|\d+\s+month)/i,
+      ~r/(multi-year|long-term|initial term|term of|expires|through\s+(?:January|February|March|April|May|June|July|August|September|October|November|December|\d{4})|until|renewal|renewable|\d+\s+year|\d+\s+month)/i,
       420
     )
     |> sec_edgar_labeled_detail("계약 기간")
@@ -9754,7 +9755,7 @@ defmodule DisclosureAutomation.Ingestion do
 
   defp sec_edgar_debt_amount_detail(section) do
     case Regex.run(
-           ~r/(?:principal amount|aggregate principal amount|commitment|facility)[^$]{0,120}\$([\d,.]+)\s*(million|billion)?/i,
+           ~r/(?:principal amount|aggregate principal amount|aggregate offering price|aggregate amount|gross proceeds|net proceeds|commitment|facility)[^$]{0,160}\$([\d,.]+)\s*(million|billion)?/i,
            section
          ) do
       [_match, amount, scale] ->
@@ -10209,12 +10210,47 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp sec_edgar_first_money_detail(section) do
-    case Regex.run(~r/\$([\d,.]+)\s*(million|billion)?/i, section) do
-      [_match, amount, scale] -> "본문에 언급된 금액/규모는 #{sec_edgar_money_label(amount, scale)}"
-      [_match, amount] -> "본문에 언급된 금액/규모는 #{sec_edgar_money_label(amount, nil)}"
-      _match -> nil
+    case sec_edgar_material_money_match(section) do
+      {amount, scale} -> "본문에 언급된 금액/규모는 #{sec_edgar_money_label(amount, scale)}"
+      nil -> nil
     end
   end
+
+  defp sec_edgar_material_money_match(section) do
+    section
+    |> Regex.scan(~r/\$([\d,.]+)\s*(million|billion)?/i)
+    |> Enum.map(fn
+      [_match, amount, scale] ->
+        {amount, scale, sec_edgar_money_numeric_value(amount, scale)}
+
+      [_match, amount] ->
+        {amount, nil, sec_edgar_money_numeric_value(amount, nil)}
+    end)
+    |> Enum.reject(fn {_amount, _scale, numeric_value} -> is_nil(numeric_value) end)
+    |> Enum.sort_by(fn {_amount, _scale, numeric_value} -> numeric_value end, :desc)
+    |> case do
+      [{amount, scale, _numeric_value} | _rest] -> {amount, scale}
+      [] -> nil
+    end
+  end
+
+  defp sec_edgar_money_numeric_value(amount, scale) when is_binary(amount) do
+    normalized_amount = String.replace(amount, ",", "")
+
+    multiplier =
+      case String.downcase(scale || "") do
+        "billion" -> 1_000_000_000
+        "million" -> 1_000_000
+        _scale -> 1
+      end
+
+    case Float.parse(normalized_amount) do
+      {parsed, _rest} -> parsed * multiplier
+      _error -> nil
+    end
+  end
+
+  defp sec_edgar_money_numeric_value(_amount, _scale), do: nil
 
   defp sec_edgar_first_capture(patterns, section) when is_list(patterns) do
     patterns
@@ -10567,6 +10603,14 @@ defmodule DisclosureAutomation.Ingestion do
     source
     |> sec_edgar_detail_fetch_max_bytes_config()
     |> max(@sec_edgar_periodic_report_detail_fetch_min_max_bytes)
+  end
+
+  defp sec_edgar_detail_fetch_max_bytes(
+         %SourceRegistry{source_key: @sec_edgar_current_8k_source_key} = source
+       ) do
+    source
+    |> sec_edgar_detail_fetch_max_bytes_config()
+    |> max(@sec_edgar_current_8k_detail_fetch_min_max_bytes)
   end
 
   defp sec_edgar_detail_fetch_max_bytes(source) do
