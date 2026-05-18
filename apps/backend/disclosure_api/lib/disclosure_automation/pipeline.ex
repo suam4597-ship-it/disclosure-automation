@@ -9221,7 +9221,7 @@ defmodule DisclosureAutomation.Ingestion do
         sec_edgar_item_101_supply_agreement_detail(section),
         sec_edgar_item_101_minimum_commitment_detail(section),
         sec_edgar_item_101_exclusivity_detail(section),
-        sec_edgar_item_101_contract_duration_detail(section),
+        not finance_contract? && sec_edgar_item_101_contract_duration_detail(section),
         not finance_contract? && sec_edgar_first_money_detail(section),
         sec_edgar_agreement_purpose(section),
         sec_edgar_order_backlog_detail(section)
@@ -9650,7 +9650,7 @@ defmodule DisclosureAutomation.Ingestion do
   defp sec_edgar_item_101_contract_duration_detail(section) do
     section
     |> sec_edgar_sentence_matching(
-      ~r/(multi-year|long-term|initial term|term of|expires|through\s+(?:January|February|March|April|May|June|July|August|September|October|November|December|\d{4})|until|renewal|renewable|\d+\s+year|\d+\s+month)/i,
+      ~r/(multi-year|long-term|initial term|maturity|expires|through\s+(?:January|February|March|April|May|June|July|August|September|October|November|December|\d{4})|until|renewal|renewable|\d+\s+year|\d+\s+month)/i,
       420
     )
     |> sec_edgar_labeled_detail("계약 기간")
