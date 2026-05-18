@@ -1545,7 +1545,7 @@ function textAfter(value, label) {
 
 function companyFromTitle(title) {
   const cleaned = cleanText(title)
-    .replace(/^8-K\s*-\s*/i, "")
+    .replace(/^(?:8-K|10-Q|10-K|10-Q\/A|10-K\/A|S-1|S-1\/A|F-1|F-1\/A|F-10|F-10\/A|S-4|S-4\/A|F-4|F-4\/A|Schedule TO)\s*-\s*/i, "")
     .replace(/\s*\(\d+\)\s*\(Filer\).*$/i, "");
 
   const secIdeaMatch = cleaned.match(/^(?:13F institutional accumulation|Form 4 insider purchase cluster|Schedule 13D strategic ownership|Schedule 13G increased ownership|S-4 merger\/exchange registration|F-4 merger\/exchange registration|Schedule TO tender offer)\s+-\s+(.+)$/i);
@@ -1625,15 +1625,17 @@ function extractDetailValues(item) {
   const text = `${item.title} ${rawSummaryText(item)}`;
   const patterns = [
     /(?:US\$|HK\$|NT\$|RMB|USD|EUR|GBP|JPY|Rs\.?|₹|\$)\s?[\d,.]+(?:\s?(?:million|billion|trillion|m|bn|crore|lakh))?/gi,
+    /-?[\d,.]+\s*(?:\uB2EC\uB7EC|\uC6D0|\uC5D4|\uC720\uB85C|\uC704\uC548)/gi,
     /\b[\d,.]+\s?(?:million|billion|trillion|crore|lakh|shares|equity shares|KB|MB)\b/gi,
     /\b\d+(?:\.\d+)?%\b/g,
-    /\bItem\s+\d+\.\d{2}\b/gi,
     /\b\d{4}-\d{2}-\d{2}\b/g
   ];
 
   return unique(patterns.flatMap(pattern =>
     [...text.matchAll(pattern)].map(match => cleanText(match[0]))
-  )).slice(0, 8);
+  ))
+    .filter(value => !/^Item\s+\d+\.\d{2}$/i.test(value))
+    .slice(0, 8);
 }
 
 function isSecPeriodicReport(item) {
@@ -1887,7 +1889,7 @@ function detailBullets(item) {
   }
 
   const values = extractDetailValues(item);
-  if (values.length) bullets.push(`주요 수치/조건: ${values.join(", ")}`);
+  if (values.length && !isSecPeriodicReport(item)) bullets.push(`주요 수치/조건: ${values.join(", ")}`);
 
   return bullets;
 }
