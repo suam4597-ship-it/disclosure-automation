@@ -6300,20 +6300,15 @@ defmodule DisclosureAutomation.Ingestion do
     sec_edgar_decimal_money_label(Map.get(metric, :value))
   end
 
-  defp sec_edgar_metric_trend_suffix(metric, metrics, _form_type, value_type) do
+  defp sec_edgar_metric_trend_suffix(metric, metrics, form_type, value_type) do
+    yoy_metric = sec_edgar_yoy_metric(metric, metrics)
+    qoq_metric = sec_edgar_qoq_metric(metric, metrics)
+    yoy_detail = sec_edgar_metric_change_detail("YoY", metric, yoy_metric, value_type)
+    qoq_detail = sec_edgar_metric_change_detail("QoQ", metric, qoq_metric, value_type)
+
     [
-      sec_edgar_metric_change_detail(
-        "YoY",
-        metric,
-        sec_edgar_yoy_metric(metric, metrics),
-        value_type
-      ),
-      sec_edgar_metric_change_detail(
-        "QoQ",
-        metric,
-        sec_edgar_qoq_metric(metric, metrics),
-        value_type
-      )
+      yoy_detail || sec_edgar_metric_missing_trend_note("YoY", yoy_metric),
+      qoq_detail || sec_edgar_metric_missing_trend_note("QoQ", qoq_metric, form_type, metric)
     ]
     |> Enum.reject(&is_nil/1)
     |> case do
@@ -6464,6 +6459,35 @@ defmodule DisclosureAutomation.Ingestion do
     end
   end
 
+  defp sec_edgar_metric_missing_trend_note(label, nil), do: "#{label} 없음: 비교값 없음"
+
+  defp sec_edgar_metric_missing_trend_note(label, %{value: %Decimal{} = previous_value}) do
+    if Decimal.equal?(previous_value, Decimal.new(0)) do
+      "#{label} 없음: 이전값 0"
+    else
+      "#{label} 없음: 계산 불가"
+    end
+  end
+
+  defp sec_edgar_metric_missing_trend_note(label, _previous), do: "#{label} 없음: 계산 불가"
+
+  defp sec_edgar_metric_missing_trend_note("QoQ", previous, form_type, metric) do
+    if sec_edgar_annual_periodic_metric?(form_type, metric) do
+      "QoQ 없음: 연차보고서"
+    else
+      sec_edgar_metric_missing_trend_note("QoQ", previous)
+    end
+  end
+
+  defp sec_edgar_metric_missing_trend_note(label, previous, _form_type, _metric) do
+    sec_edgar_metric_missing_trend_note(label, previous)
+  end
+
+  defp sec_edgar_annual_periodic_metric?(form_type, metric) do
+    String.upcase(to_string(form_type)) in ["10-K", "10-K/A"] or
+      match?(days when is_integer(days) and days > 110, Map.get(metric, :duration_days))
+  end
+
   defp sec_edgar_metric_percent_change(%Decimal{} = current, %Decimal{} = previous) do
     if Decimal.equal?(previous, Decimal.new(0)) do
       nil
@@ -6562,13 +6586,16 @@ defmodule DisclosureAutomation.Ingestion do
   defp sec_edgar_companyconcept_metric_from_fact(tag_name, fact) when is_map(fact) do
     with value when not is_nil(value) <- Map.get(fact, "val"),
          {decimal, ""} <- Decimal.parse(to_string(value)) do
+      end_date = sec_edgar_companyconcept_date(Map.get(fact, "end"))
+      start_date = sec_edgar_companyconcept_start_date(fact, end_date)
+
       %{
         tag: tag_name,
         value: decimal,
         context_ref: Map.get(fact, "frame"),
-        start_date: sec_edgar_companyconcept_date(Map.get(fact, "start")),
-        duration_days: sec_edgar_companyconcept_duration_days(fact),
-        end_date: sec_edgar_companyconcept_date(Map.get(fact, "end")),
+        start_date: start_date,
+        duration_days: sec_edgar_companyconcept_duration_days(start_date, end_date, fact),
+        end_date: end_date,
         form: Map.get(fact, "form"),
         accession: Map.get(fact, "accn")
       }
@@ -6579,16 +6606,54 @@ defmodule DisclosureAutomation.Ingestion do
 
   defp sec_edgar_companyconcept_metric_from_fact(_tag_name, _fact), do: nil
 
-  defp sec_edgar_companyconcept_duration_days(fact) do
-    with start_date <- sec_edgar_companyconcept_date(Map.get(fact, "start")),
-         %Date{} <- start_date,
-         end_date <- sec_edgar_companyconcept_date(Map.get(fact, "end")),
+  defp sec_edgar_companyconcept_start_date(fact, end_date) do
+    sec_edgar_companyconcept_date(Map.get(fact, "start")) ||
+      sec_edgar_companyconcept_frame_start_date(Map.get(fact, "frame"), end_date)
+  end
+
+  defp sec_edgar_companyconcept_duration_days(start_date, end_date, fact) do
+    with %Date{} <- start_date,
          %Date{} <- end_date do
       Date.diff(end_date, start_date) + 1
     else
-      _reason -> nil
+      _reason -> sec_edgar_companyconcept_frame_duration_days(Map.get(fact, "frame"))
     end
   end
+
+  defp sec_edgar_companyconcept_frame_start_date(frame, %Date{} = end_date)
+       when is_binary(frame) do
+    case Regex.run(~r/^CY(\d{4})Q([1-4])I?$/i, frame) do
+      [_match, year, quarter] ->
+        year = String.to_integer(year)
+
+        {month, day} =
+          case String.to_integer(quarter) do
+            1 -> {1, 1}
+            2 -> {4, 1}
+            3 -> {7, 1}
+            4 -> {10, 1}
+          end
+
+        case Date.new(year, month, day) do
+          {:ok, start_date} ->
+            if Date.compare(start_date, end_date) in [:lt, :eq], do: start_date, else: nil
+
+          _date ->
+            nil
+        end
+
+      _no_quarter_frame ->
+        nil
+    end
+  end
+
+  defp sec_edgar_companyconcept_frame_start_date(_frame, _end_date), do: nil
+
+  defp sec_edgar_companyconcept_frame_duration_days(frame) when is_binary(frame) do
+    if Regex.match?(~r/^CY\d{4}Q[1-4]I?$/i, frame), do: 92, else: nil
+  end
+
+  defp sec_edgar_companyconcept_frame_duration_days(_frame), do: nil
 
   defp sec_edgar_companyconcept_date(value) when is_binary(value) do
     case Date.from_iso8601(value) do
@@ -8495,26 +8560,29 @@ defmodule DisclosureAutomation.Ingestion do
       metric_details =
         sec_edgar_companyfacts_periodic_metric_details(companyfacts, filing_ref, form_type)
 
+      headline =
+        case form_type do
+          "10-Q" ->
+            "#{issuer}의 SEC XBRL companyconcept 기준 10-Q 분기보고서 핵심 재무지표를 확인했습니다"
+
+          "10-K" ->
+            "#{issuer}의 SEC XBRL companyconcept 기준 10-K 연차보고서 핵심 재무지표를 확인했습니다"
+
+          _form_type ->
+            "#{issuer}의 SEC XBRL companyconcept 기준 정기보고서 핵심 재무지표를 확인했습니다"
+        end
+
+      guidance =
+        "매출/이익 가이던스 문구는 대용량 XBRL fallback 경로에서 별도 확인되지 않음"
+
       case metric_details do
         [] ->
-          {:error, :sec_edgar_companyconcept_metrics_unavailable}
+          reason_detail =
+            sec_edgar_periodic_metric_unavailable_detail(companyfacts, record, form_type)
+
+          {:ok, sec_edgar_summary_with_details(headline, [reason_detail, guidance])}
 
         details ->
-          headline =
-            case form_type do
-              "10-Q" ->
-                "#{issuer}의 SEC XBRL companyconcept 기준 10-Q 분기보고서 핵심 재무지표를 확인했습니다"
-
-              "10-K" ->
-                "#{issuer}의 SEC XBRL companyconcept 기준 10-K 연차보고서 핵심 재무지표를 확인했습니다"
-
-              _form_type ->
-                "#{issuer}의 SEC XBRL companyconcept 기준 정기보고서 핵심 재무지표를 확인했습니다"
-            end
-
-          guidance =
-            "매출/이익 가이던스 문구는 대용량 XBRL fallback 경로에서 별도 확인되지 않음"
-
           {:ok, sec_edgar_summary_with_details(headline, details ++ [guidance])}
       end
     else
@@ -8522,7 +8590,8 @@ defmodule DisclosureAutomation.Ingestion do
     end
   end
 
-  defp sec_edgar_companyfacts_periodic_metric_details(companyfacts, filing_ref, form_type) do
+  defp sec_edgar_companyfacts_periodic_metric_details(companyfacts, filing_ref, form_type)
+       when is_map(companyfacts) do
     [
       sec_edgar_companyfacts_money_metric_detail(
         companyfacts,
@@ -8548,6 +8617,86 @@ defmodule DisclosureAutomation.Ingestion do
       sec_edgar_companyfacts_eps_detail(companyfacts, filing_ref, form_type)
     ]
     |> Enum.reject(&is_nil/1)
+  end
+
+  defp sec_edgar_companyfacts_periodic_metric_details(
+         _companyfacts,
+         _filing_ref,
+         _form_type
+       ),
+       do: []
+
+  defp sec_edgar_periodic_companyfacts_metric_details(companyfacts, record, form_type) do
+    case sec_edgar_filing_ref(record) do
+      %{cik: cik, accession: accession} ->
+        sec_edgar_companyfacts_periodic_metric_details(
+          companyfacts,
+          %{cik: cik, accession: accession},
+          form_type
+        )
+
+      _missing_ref ->
+        []
+    end
+  end
+
+  defp sec_edgar_periodic_metric_unavailable_detail(companyfacts, record, form_type) do
+    tag_names = sec_edgar_periodic_metric_tag_names()
+
+    cond do
+      not is_map(companyfacts) ->
+        "재무 수치: 원문 XBRL에서 표준 손익계산서 값을 찾지 못함"
+
+      not sec_edgar_companyfacts_has_any_metric_concept?(companyfacts, tag_names) ->
+        "재무 수치: 표준 손익계산서 XBRL 태그 없음"
+
+      not sec_edgar_companyfacts_has_current_metric_fact?(
+        companyfacts,
+        record,
+        form_type,
+        tag_names
+      ) ->
+        "재무 수치: 현재 공시의 표준 손익계산서 XBRL 값 없음"
+
+      true ->
+        "재무 수치: 표준 XBRL 값이 후보 기준과 맞지 않음"
+    end
+  end
+
+  defp sec_edgar_periodic_metric_tag_names do
+    @sec_edgar_periodic_revenue_xbrl_tags ++
+      @sec_edgar_periodic_operating_income_xbrl_tags ++
+      @sec_edgar_periodic_net_income_xbrl_tags ++
+      @sec_edgar_periodic_eps_xbrl_tags
+  end
+
+  defp sec_edgar_companyfacts_has_any_metric_concept?(companyfacts, tag_names) do
+    Enum.any?(tag_names, fn tag_name ->
+      match?(%{}, sec_edgar_companyfacts_concept(companyfacts, tag_name))
+    end)
+  end
+
+  defp sec_edgar_companyfacts_has_current_metric_fact?(
+         companyfacts,
+         record,
+         form_type,
+         tag_names
+       ) do
+    with %{accession: accession} <- sec_edgar_filing_ref(record) do
+      Enum.any?(tag_names, fn tag_name ->
+        case sec_edgar_companyfacts_concept(companyfacts, tag_name) do
+          %{} = concept ->
+            concept
+            |> sec_edgar_companyconcept_facts_for_accession(accession, form_type)
+            |> Enum.any?()
+
+          _missing ->
+            false
+        end
+      end)
+    else
+      _missing_ref -> false
+    end
   end
 
   defp sec_edgar_companyfacts_money_metric_detail(
@@ -8651,7 +8800,21 @@ defmodule DisclosureAutomation.Ingestion do
 
     case metric_details do
       [] ->
-        {:error, :sec_edgar_periodic_core_metrics_unavailable}
+        companyfacts_details =
+          sec_edgar_periodic_companyfacts_metric_details(companyfacts, record, form_type)
+
+        guidance_detail = sec_edgar_guidance_detail(plain)
+
+        case companyfacts_details do
+          [] ->
+            reason_detail =
+              sec_edgar_periodic_metric_unavailable_detail(companyfacts, record, form_type)
+
+            {:ok, sec_edgar_summary_with_details(headline, [reason_detail, guidance_detail])}
+
+          details ->
+            {:ok, sec_edgar_summary_with_details(headline, details ++ [guidance_detail])}
+        end
 
       details ->
         guidance_detail = sec_edgar_guidance_detail(plain)
