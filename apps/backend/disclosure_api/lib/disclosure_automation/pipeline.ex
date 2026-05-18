@@ -6535,6 +6535,7 @@ defmodule DisclosureAutomation.Ingestion do
 
     cond do
       category in ["S-1", "S-1/A"] or String.starts_with?(title, "S-1") -> "S-1"
+      category in ["F-10", "F-10/A"] or String.starts_with?(title, "F-10") -> "F-10"
       category in ["F-1", "F-1/A"] or String.starts_with?(title, "F-1") -> "F-1"
       true -> category
     end
@@ -6575,16 +6576,22 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp sec_edgar_registration_use_of_proceeds_detail(plain) do
-    plain
-    |> sec_edgar_section_after_heading("Use of Proceeds", 1_200)
-    |> case do
-      nil ->
-        sec_edgar_sentence_matching(plain, ~r/use the (?:net )?proceeds/i, 360)
+    section = sec_edgar_registration_section_after_heading(plain, "Use of Proceeds", 2_400)
 
-      section ->
-        sec_edgar_sentence_matching(section, ~r/(use|intend|plan|expect).{0,80}proceeds/i, 360) ||
-          section
-    end
+    value =
+      cond do
+        is_binary(section) and sec_edgar_deferred_proceeds_section?(section) ->
+          "구체적 금액/용도는 본문에 확정 기재되지 않았고, 관련 Prospectus Supplement에서 제시 예정"
+
+        is_binary(section) ->
+          sec_edgar_registration_use_sentence(section) ||
+            sec_edgar_registration_use_table_excerpt(section)
+
+        true ->
+          sec_edgar_registration_use_sentence(plain)
+      end
+
+    value
     |> case do
       nil ->
         nil
@@ -6599,7 +6606,9 @@ defmodule DisclosureAutomation.Ingestion do
 
   defp sec_edgar_registration_price_detail(plain) do
     patterns = [
-      ~r/(?:initial public offering price|public offering price|offering price|price per share)[^$]{0,120}\$([\d,.]+)/i,
+      ~r/(?:initial public offering price|public offering price|offering price)[^.;]{0,120}\$([\d,.]+)[^.;]{0,80}\bper\s+(?:ordinary\s+)?share/i,
+      ~r/(?:initial public offering price|public offering price|offering price)[^.;]{0,120}\$([\d,.]+)[^.;]{0,80}\bper\s+ADS/i,
+      ~r/(?:price per share|per share price)[^$]{0,120}\$([\d,.]+)/i,
       ~r/\$([\d,.]+)\s+per\s+(?:ordinary\s+)?share/i,
       ~r/\$([\d,.]+)\s+per\s+ADS/i
     ]
@@ -6611,11 +6620,22 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp sec_edgar_registration_overhang_detail(plain) do
-    plain
-    |> sec_edgar_sentence_matching(
-      ~r/(lock-up|lockup|restricted shares|may be sold|eligible for sale|days after this offering)/i,
-      420
-    )
+    value =
+      [
+        "Lock-Up Agreements",
+        "Lock-Up Agreement",
+        "Lock-up",
+        "Shares Eligible for Future Sale",
+        "Underwriting"
+      ]
+      |> Enum.find_value(fn heading ->
+        plain
+        |> sec_edgar_registration_section_after_heading(heading, 2_800)
+        |> sec_edgar_registration_lockup_excerpt()
+      end) ||
+        sec_edgar_registration_lockup_excerpt(plain)
+
+    value
     |> case do
       nil ->
         nil
@@ -6625,6 +6645,185 @@ defmodule DisclosureAutomation.Ingestion do
         |> sec_edgar_clean_sentence()
         |> then(&"오버행/lock-up 일정: #{&1}")
     end
+  end
+
+  defp sec_edgar_registration_section_after_heading(plain, heading, length) do
+    plain
+    |> sec_edgar_sections_after_heading(heading, length)
+    |> Enum.reject(&sec_edgar_registration_toc_section?(&1, heading))
+    |> Enum.map(&sec_edgar_strip_heading_prefix(&1, heading))
+    |> Enum.map(&sec_edgar_cut_before_any_heading(&1, sec_edgar_registration_stop_headings(heading)))
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.find(&sec_edgar_registration_substantive_section?/1)
+  end
+
+  defp sec_edgar_sections_after_heading(plain, heading, length) do
+    pattern = Regex.compile!("\\b#{Regex.escape(heading)}\\b", "i")
+
+    pattern
+    |> Regex.scan(plain, return: :index)
+    |> Enum.map(fn [{start, _size}] ->
+      plain
+      |> binary_part(start, min(length, byte_size(plain) - start))
+      |> String.replace(~r/\s+/u, " ")
+      |> String.trim()
+    end)
+  end
+
+  defp sec_edgar_registration_toc_section?(section, heading) do
+    prefix = String.slice(section, 0, 520)
+    heading_pattern = Regex.compile!("^\\s*#{Regex.escape(heading)}\\s+\\d+\\s+", "i")
+
+    heading_hits =
+      sec_edgar_registration_all_headings()
+      |> Enum.count(fn candidate ->
+        Regex.match?(Regex.compile!("\\b#{Regex.escape(candidate)}\\b", "i"), prefix)
+      end)
+
+    Regex.match?(heading_pattern, prefix) or heading_hits >= 4
+  end
+
+  defp sec_edgar_registration_all_headings do
+    [
+      "The Company",
+      "Recent Developments",
+      "Consolidated Capitalization",
+      "Use of Proceeds",
+      "Description of Securities",
+      "Plan of Distribution",
+      "Earnings Coverage Ratios",
+      "Prior Sales",
+      "Trading Price and Volume",
+      "Risk Factors",
+      "Underwriting",
+      "Shares Eligible for Future Sale",
+      "Lock-Up Agreements",
+      "Lock-Up Agreement",
+      "Lock-up",
+      "Dilution"
+    ]
+  end
+
+  defp sec_edgar_registration_stop_headings(current_heading) do
+    sec_edgar_registration_all_headings()
+    |> Enum.reject(&(String.downcase(&1) == String.downcase(current_heading)))
+  end
+
+  defp sec_edgar_strip_heading_prefix(section, heading) do
+    heading_pattern =
+      Regex.compile!(
+        "^\\s*(?:[-–—]?\\s*\\d+\\s*[-–—]?\\s*)?#{Regex.escape(heading)}\\s*(?:\\d+\\s*)?",
+        "i"
+      )
+
+    section
+    |> String.replace(heading_pattern, "", global: false)
+    |> sec_edgar_clean_sentence()
+  end
+
+  defp sec_edgar_cut_before_any_heading(section, headings) do
+    cutoff =
+      headings
+      |> Enum.flat_map(fn heading ->
+        pattern = Regex.compile!("\\b#{Regex.escape(heading)}\\b", "i")
+
+        case Regex.run(pattern, section, return: :index) do
+          [{start, _size}] when start > 80 -> [start]
+          _match -> []
+        end
+      end)
+      |> Enum.sort()
+      |> List.first()
+
+    case cutoff do
+      nil -> section
+      index -> binary_part(section, 0, index)
+    end
+  end
+
+  defp sec_edgar_registration_substantive_section?(section) do
+    section =~ ~r/[a-z]{3,}/i and byte_size(section) > 40
+  end
+
+  defp sec_edgar_deferred_proceeds_section?(section) do
+    section =~
+      ~r/(?:will be|shall be)\s+(?:described|set forth|specified)\s+in\s+(?:the\s+)?(?:applicable\s+)?Prospectus Supplement|have not determined|has not yet determined|not currently known/i
+  end
+
+  defp sec_edgar_registration_use_sentence(section) do
+    section
+    |> sec_edgar_sentences()
+    |> Enum.reject(&sec_edgar_deferred_proceeds_section?/1)
+    |> Enum.filter(&sec_edgar_use_of_proceeds_sentence?/1)
+    |> Enum.take(2)
+    |> Enum.join(" ")
+    |> case do
+      "" -> nil
+      value -> value
+    end
+  end
+
+  defp sec_edgar_use_of_proceeds_sentence?(sentence) do
+    sentence =~
+      ~r/(use(?:d)? (?:the )?(?:net )?proceeds|intend(?:s)? to use|plan(?:s)? to use|expect(?:s)? to use|allocate|apply|repay|repayment|working capital|general corporate purposes|research and development|commercialization|acquisition|capital expenditures?|debt)/i
+  end
+
+  defp sec_edgar_registration_use_table_excerpt(section) do
+    cond do
+      section =~ ~r/\$|US\$|C\$|working capital|general corporate|repay|debt|acquisition|research|development|commercialization|capital expenditures?/i ->
+        section
+        |> sec_edgar_clean_sentence()
+        |> String.slice(0, 520)
+
+      true ->
+        nil
+    end
+  end
+
+  defp sec_edgar_registration_lockup_excerpt(nil), do: nil
+
+  defp sec_edgar_registration_lockup_excerpt(section) do
+    section
+    |> sec_edgar_sentences()
+    |> Enum.map(&sec_edgar_clean_sentence/1)
+    |> Enum.reject(&sec_edgar_generic_distribution_sentence?/1)
+    |> Enum.filter(&sec_edgar_lockup_or_overhang_sentence?/1)
+    |> Enum.take(2)
+    |> Enum.join(" ")
+    |> case do
+      "" -> nil
+      value -> value
+    end
+  end
+
+  defp sec_edgar_generic_distribution_sentence?(sentence) do
+    sentence =~ ~r/may be sold from time to time/i and
+      sentence =~ ~r/market prices|negotiated with purchasers|plan of distribution/i and
+      not Regex.match?(
+        ~r/lock[- ]?up|may not\s+(?:offer|sell|transfer|dispose|pledge)|agree(?:d)? not to\s+(?:offer|sell|transfer|dispose|pledge)|restricted from\s+(?:selling|transferring|disposing)|eligible for sale|days after/i,
+        sentence
+      )
+  end
+
+  defp sec_edgar_lockup_or_overhang_sentence?(sentence) do
+    has_lock_signal =
+      sentence =~
+        ~r/lock[- ]?up|eligible for sale|Rule\s+144|market standoff|(?:agree(?:d)?|undertake(?:s)?|will|may|shall)\s+not\s+(?:directly\s+or\s+indirectly\s+)?(?:offer|sell|contract to sell|pledge|transfer|dispose)|restricted from\s+(?:selling|transferring|disposing)/i
+
+    has_time_limit =
+      sentence =~
+        ~r/\b\d+\s+days?\b|until|through|ending|after this offering|following (?:the )?offering|after the date|expiration/i
+
+    has_sale_terms =
+      sentence =~
+        ~r/sell|sale|transfer|dispose|pledge|offer|short sale|eligible for sale|lock[- ]?up|shares|common stock|ordinary shares|ADSs/i
+
+    has_holder_or_shares =
+      sentence =~
+        ~r/directors?|officers?|stockholders?|shareholders?|holders?|selling stockholders?|affiliates?|insiders?|underwriters?|[\d,]+(?:\.\d+)?\s+(?:shares|ordinary shares|common stock|ADSs|Class [A-Z] shares)/i
+
+    has_lock_signal and has_time_limit and has_sale_terms and has_holder_or_shares
   end
 
   defp sec_edgar_schedule_13d_summary(raw_submission, record)
@@ -6998,13 +7197,22 @@ defmodule DisclosureAutomation.Ingestion do
 
   defp sec_edgar_sentence_matching(plain, pattern, max_length) do
     plain
-    |> String.split(~r/(?<=[.!?])\s+/u)
+    |> sec_edgar_sentences()
     |> Enum.find(&Regex.match?(pattern, &1))
     |> case do
       nil -> nil
       sentence -> sentence |> String.slice(0, max_length) |> String.trim()
     end
   end
+
+  defp sec_edgar_sentences(value) when is_binary(value) do
+    value
+    |> String.split(~r/(?<=[.!?])\s+/u)
+    |> Enum.map(&sec_edgar_clean_sentence/1)
+    |> Enum.reject(&(&1 == ""))
+  end
+
+  defp sec_edgar_sentences(_value), do: []
 
   defp sec_edgar_money_capture(patterns, plain) do
     patterns
@@ -8208,6 +8416,7 @@ defmodule DisclosureAutomation.Ingestion do
     headline =
       case form_type do
         "F-1" -> "#{issuer}의 F-1 신규상장/IPO 등록서 핵심 조건을 확인했습니다"
+        "F-10" -> "#{issuer}의 F-10 외국기업 등록서 핵심 조건을 확인했습니다"
         "S-1" -> "#{issuer}의 S-1 신규상장/IPO 등록서 핵심 조건을 확인했습니다"
         _form_type -> "#{issuer}의 SEC 신규상장 등록서 핵심 조건을 확인했습니다"
       end
@@ -9312,7 +9521,7 @@ defmodule DisclosureAutomation.Ingestion do
 
       match =
           Regex.run(
-            ~r/^(?:SC\s+13D(?:\/A)?|SC\s+13G(?:\/A)?|S-4(?:\/A)?|F-4(?:\/A)?|SC\s+TO(?:-[A-Z])?(?:\/A)?)\s*-\s*(.+?)\s+\(\d{6,10}\)\s+\((?:Subject|Filer)\)/i,
+            ~r/^(?:SC\s+13D(?:\/A)?|SC\s+13G(?:\/A)?|S-1(?:\/A)?|F-1(?:\/A)?|F-10(?:\/A)?|S-4(?:\/A)?|F-4(?:\/A)?|SC\s+TO(?:-[A-Z])?(?:\/A)?)\s*-\s*(.+?)\s+\(\d{6,10}\)\s+\((?:Subject|Filer)\)/i,
             title
           ) ->
         match |> Enum.at(1) |> sec_edgar_title_case()

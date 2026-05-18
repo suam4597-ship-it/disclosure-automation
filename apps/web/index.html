@@ -1605,6 +1605,18 @@ function rawSummaryText(item) {
   return cleanText(item.raw?.summary || item.raw?.description || item.summary || "");
 }
 
+function secFormType(item) {
+  return cleanText(item.raw?.metadata?.category || item.raw?.category || item.metadata?.category || "").toUpperCase();
+}
+
+function isSecRegistrationStatement(item) {
+  const source = itemSourceKey(item).toLowerCase();
+  const form = secFormType(item);
+  return /^(S-1|F-1|F-10)(\/A)?$/.test(form) ||
+    source.includes("s1_registration") ||
+    source.includes("f1_registration");
+}
+
 function sourceDisplayName(item) {
   return sourceLabel(item.raw?.source || item.raw?.source_key || item.raw?.provider || item.source);
 }
@@ -1707,6 +1719,10 @@ function detailTarget(item) {
 function detailCategoryLabel(item) {
   const source = itemSourceKey(item).toLowerCase();
   const rawSummary = rawSummaryText(item);
+  const form = secFormType(item);
+  if (/^F-10(\/A)?$/.test(form)) return "SEC F-10 외국기업 등록서";
+  if (/^F-1(\/A)?$/.test(form)) return "SEC F-1 IPO 등록서";
+  if (/^S-1(\/A)?$/.test(form)) return "SEC S-1 IPO 등록서";
   if (source.includes("form4")) return "SEC Form 4 내부자 매수 클러스터";
   if (source.includes("13f_institutional")) return "SEC 13F 기관 포트폴리오 누적 매수";
   if (source.includes("10q")) return "SEC 10-Q 정기보고서";
@@ -1748,7 +1764,7 @@ function detailNarrative(item) {
     return rawSummary || `${target}의 SEC 정기보고서에서 매출, 순이익/순손실, EPS와 가이던스 문구를 확인하는 항목입니다.`;
   }
 
-  if (source.includes("s1_registration") || source.includes("f1_registration")) {
+  if (isSecRegistrationStatement(item)) {
     return rawSummary || `${target}의 SEC IPO/신규상장 등록서에서 사업 설명, 조달 규모, 자금 사용 목적, 공모 가격과 lock-up 문구를 확인하는 항목입니다.`;
   }
 
@@ -1840,7 +1856,7 @@ function detailBullets(item) {
     }
   }
 
-  if (source.includes("s1_registration") || source.includes("f1_registration")) {
+  if (isSecRegistrationStatement(item)) {
     bullets.push("확인 항목: 사업 설명, 조달 규모, 자금 사용 목적, 주당/ADS 공모 가격, lock-up/오버행 일정");
   }
 
