@@ -8374,24 +8374,25 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp sec_edgar_decimal_money_label(decimal) do
-    value = Decimal.to_float(decimal)
-    absolute_value = abs(value)
-
-    cond do
-      absolute_value >= 1_000_000_000 ->
-        "#{sec_edgar_money_number(value / 100_000_000)}억 달러"
-
-      absolute_value >= 1_000_000 ->
-        "#{sec_edgar_money_number(value / 1_000_000)}백만 달러"
-
-      true ->
-        "#{sec_edgar_money_number(value)}달러"
-    end
+    decimal
+    |> Decimal.round(0)
+    |> Decimal.to_integer()
+    |> Integer.to_string()
+    |> sec_edgar_group_number()
+    |> Kernel.<>("달러")
   end
 
   defp sec_edgar_decimal_per_share_label(decimal) do
-    decimal
-    |> Decimal.round(2)
+    rounded = Decimal.round(decimal, 2)
+
+    rounded =
+      if Decimal.equal?(rounded, Decimal.new(0)) do
+        Decimal.new(0)
+      else
+        rounded
+      end
+
+    rounded
     |> Decimal.to_string(:normal)
     |> Kernel.<>("달러")
   end
