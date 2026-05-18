@@ -5881,13 +5881,15 @@ defmodule DisclosureAutomation.Ingestion do
 
   defp sec_edgar_periodic_report_summary_from_archive_document(source, record) do
     with {:ok, candidate_urls} <- sec_edgar_archive_document_candidate_urls(source, record) do
+      companyfacts = sec_edgar_companyfacts_for_record(source, record)
+
       candidate_urls
       |> Enum.reduce_while(
         {:error, :sec_edgar_archive_document_summary_unavailable},
         fn url, _acc ->
           case sec_edgar_fetch_archive_document(source, url) do
             {:ok, archive_document} ->
-              case sec_edgar_periodic_report_summary(archive_document, record) do
+              case sec_edgar_periodic_report_summary(archive_document, record, companyfacts) do
                 {:ok, summary} ->
                   {:halt, {:ok, summary}}
 
@@ -6112,89 +6114,413 @@ defmodule DisclosureAutomation.Ingestion do
     end
   end
 
-  defp sec_edgar_xbrl_money_metric_detail(raw_submission, label, tag_names, form_type) do
-    raw_submission
-    |> sec_edgar_xbrl_metric_values(tag_names, form_type)
-    |> sec_edgar_preferred_xbrl_metric(form_type)
-    |> case do
-      nil -> nil
-      metric -> "#{label}은 #{sec_edgar_decimal_money_label(metric.value)}"
-    end
-  end
-
-  defp sec_edgar_xbrl_eps_detail(raw_submission, form_type) do
-    raw_submission
-    |> sec_edgar_xbrl_metric_values(@sec_edgar_periodic_eps_xbrl_tags, form_type)
-    |> sec_edgar_preferred_xbrl_metric(form_type)
-    |> case do
-      nil -> nil
-      metric -> "EPS는 주당 #{sec_edgar_decimal_per_share_label(metric.value)}"
-    end
-  end
-
-  defp sec_edgar_companyconcept_money_metric_detail(
-         source,
-         filing_ref,
+  defp sec_edgar_xbrl_money_metric_detail(
+         raw_submission,
          label,
          tag_names,
-         form_type
+         form_type,
+         companyfacts
        ) do
-    source
-    |> sec_edgar_companyconcept_metric_values(filing_ref, tag_names, form_type)
+    metrics = sec_edgar_xbrl_metric_values(raw_submission, tag_names, form_type)
+    trend_metrics = sec_edgar_metric_trend_metrics(metrics, companyfacts, tag_names)
+
+    metrics
     |> sec_edgar_preferred_xbrl_metric(form_type)
     |> case do
       nil -> nil
-      metric -> "#{label}은 #{sec_edgar_decimal_money_label(metric.value)}"
+      metric -> sec_edgar_metric_detail(label, metric, trend_metrics, form_type, :money)
     end
   end
 
-  defp sec_edgar_companyconcept_eps_detail(source, filing_ref, form_type) do
-    source
-    |> sec_edgar_companyconcept_metric_values(
-      filing_ref,
-      @sec_edgar_periodic_eps_xbrl_tags,
-      form_type
-    )
+  defp sec_edgar_xbrl_eps_detail(raw_submission, form_type, companyfacts) do
+    metrics =
+      sec_edgar_xbrl_metric_values(raw_submission, @sec_edgar_periodic_eps_xbrl_tags, form_type)
+
+    trend_metrics =
+      sec_edgar_metric_trend_metrics(metrics, companyfacts, @sec_edgar_periodic_eps_xbrl_tags)
+
+    metrics
     |> sec_edgar_preferred_xbrl_metric(form_type)
     |> case do
       nil -> nil
-      metric -> "EPS는 주당 #{sec_edgar_decimal_per_share_label(metric.value)}"
+      metric -> sec_edgar_metric_detail("EPS", metric, trend_metrics, form_type, :per_share)
     end
   end
 
-  defp sec_edgar_companyconcept_metric_values(source, filing_ref, tag_names, form_type) do
+  defp sec_edgar_metric_trend_metrics(metrics, companyfacts, tag_names) do
+    (metrics ++ sec_edgar_companyfacts_metric_history(companyfacts, tag_names))
+    |> sec_edgar_dedupe_periodic_metrics()
+  end
+
+  defp sec_edgar_companyfacts_metric_history(nil, _tag_names), do: []
+
+  defp sec_edgar_companyfacts_metric_history(companyfacts, tag_names) do
+    tag_priority = sec_edgar_xbrl_tag_priority(tag_names)
+
+    tag_names
+    |> Enum.flat_map(fn tag_name ->
+      case sec_edgar_companyfacts_concept(companyfacts, tag_name) do
+        %{} = concept ->
+          concept
+          |> sec_edgar_companyconcept_periodic_facts()
+          |> Enum.map(fn fact ->
+            tag_name
+            |> sec_edgar_companyconcept_metric_from_fact(fact)
+            |> sec_edgar_put_xbrl_tag_priority(tag_priority)
+          end)
+          |> Enum.reject(&is_nil/1)
+
+        _missing ->
+          []
+      end
+    end)
+  end
+
+  defp sec_edgar_companyfacts_metric_values(companyfacts, filing_ref, tag_names, form_type) do
     tag_priority = sec_edgar_xbrl_tag_priority(tag_names)
 
     tag_names
     |> Enum.reduce_while([], fn tag_name, _acc ->
       metrics =
-        case sec_edgar_fetch_companyconcept(source, filing_ref.cik, tag_name) do
-          {:ok, concept} ->
-            concept
-            |> sec_edgar_companyconcept_facts_for_accession(filing_ref.accession, form_type)
-            |> Enum.map(fn fact ->
-              fact
-              |> sec_edgar_companyconcept_metric_from_fact(tag_name)
-              |> sec_edgar_put_xbrl_tag_priority(tag_priority)
-            end)
-            |> Enum.reject(&is_nil/1)
+        case sec_edgar_companyfacts_concept(companyfacts, tag_name) do
+          %{} = concept ->
+            current_metrics =
+              concept
+              |> sec_edgar_companyconcept_facts_for_accession(filing_ref.accession, form_type)
+              |> Enum.map(fn fact ->
+                tag_name
+                |> sec_edgar_companyconcept_metric_from_fact(fact)
+                |> sec_edgar_put_xbrl_tag_priority(tag_priority)
+              end)
+              |> Enum.reject(&is_nil/1)
 
-          {:error, _reason} ->
+            comparison_metrics =
+              concept
+              |> sec_edgar_companyconcept_periodic_facts()
+              |> Enum.reject(&(Map.get(&1, "accn") == filing_ref.accession))
+              |> Enum.map(fn fact ->
+                tag_name
+                |> sec_edgar_companyconcept_metric_from_fact(fact)
+                |> sec_edgar_put_xbrl_tag_priority(tag_priority)
+              end)
+              |> Enum.reject(&is_nil/1)
+
+            (current_metrics ++ comparison_metrics)
+            |> sec_edgar_dedupe_periodic_metrics()
+
+          _missing ->
             []
         end
 
-      case metrics do
-        [] -> {:cont, []}
-        values -> {:halt, values}
+      current_available? =
+        metrics
+        |> Enum.any?(&(Map.get(&1, :accession) == filing_ref.accession))
+
+      case {current_available?, metrics} do
+        {true, values} -> {:halt, values}
+        _no_current -> {:cont, []}
       end
     end)
   end
 
-  defp sec_edgar_fetch_companyconcept(source, cik, tag_name) do
-    cik = sec_edgar_padded_cik(cik)
+  defp sec_edgar_companyfacts_concept(companyfacts, tag_name) do
+    companyfacts
+    |> Map.get("facts", %{})
+    |> Map.values()
+    |> Enum.find_value(fn
+      %{} = taxonomy -> Map.get(taxonomy, tag_name)
+      _taxonomy -> nil
+    end)
+  end
 
-    url =
-      "https://data.sec.gov/api/xbrl/companyconcept/CIK#{cik}/us-gaap/#{URI.encode(tag_name)}.json"
+  defp sec_edgar_companyconcept_periodic_facts(concept) do
+    concept
+    |> Map.get("units", %{})
+    |> Map.values()
+    |> List.flatten()
+    |> Enum.filter(fn fact ->
+      form = fact |> Map.get("form") |> to_string() |> String.upcase()
+      form in ["10-Q", "10-Q/A", "10-K", "10-K/A"]
+    end)
+  end
+
+  defp sec_edgar_dedupe_periodic_metrics(metrics) do
+    metrics
+    |> Enum.sort_by(fn metric ->
+      {
+        -sec_edgar_form_preference(Map.get(metric, :form)),
+        -sec_edgar_frame_preference(Map.get(metric, :context_ref)),
+        -Date.to_gregorian_days(Map.get(metric, :end_date) || ~D[0001-01-01])
+      }
+    end)
+    |> Enum.uniq_by(fn metric ->
+      {
+        Map.get(metric, :tag),
+        Map.get(metric, :start_date),
+        Map.get(metric, :end_date),
+        Map.get(metric, :duration_days),
+        metric |> Map.get(:value) |> Decimal.to_string(:normal)
+      }
+    end)
+  end
+
+  defp sec_edgar_form_preference(form) when is_binary(form) do
+    case String.upcase(form) do
+      "10-Q" -> 3
+      "10-K" -> 3
+      "10-Q/A" -> 2
+      "10-K/A" -> 2
+      _form -> 1
+    end
+  end
+
+  defp sec_edgar_form_preference(_form), do: 0
+
+  defp sec_edgar_frame_preference(frame) when is_binary(frame) do
+    if String.trim(frame) == "", do: 0, else: 1
+  end
+
+  defp sec_edgar_frame_preference(_frame), do: 0
+
+  defp sec_edgar_metric_detail(label, metric, metrics, form_type, value_type) do
+    value = sec_edgar_metric_value_label(metric, value_type)
+    trend = sec_edgar_metric_trend_suffix(metric, metrics, form_type, value_type)
+
+    case label do
+      "EPS" -> "EPS는 주당 #{value}#{trend}"
+      _label -> "#{label}은 #{value}#{trend}"
+    end
+  end
+
+  defp sec_edgar_metric_value_label(metric, :per_share) do
+    sec_edgar_decimal_per_share_label(Map.get(metric, :value))
+  end
+
+  defp sec_edgar_metric_value_label(metric, _value_type) do
+    sec_edgar_decimal_money_label(Map.get(metric, :value))
+  end
+
+  defp sec_edgar_metric_trend_suffix(metric, metrics, _form_type, value_type) do
+    [
+      sec_edgar_metric_change_detail(
+        "YoY",
+        metric,
+        sec_edgar_yoy_metric(metric, metrics),
+        value_type
+      ),
+      sec_edgar_metric_change_detail(
+        "QoQ",
+        metric,
+        sec_edgar_qoq_metric(metric, metrics),
+        value_type
+      )
+    ]
+    |> Enum.reject(&is_nil/1)
+    |> case do
+      [] -> ""
+      values -> " (#{Enum.join(values, ", ")})"
+    end
+  end
+
+  defp sec_edgar_yoy_metric(%{end_date: %Date{} = end_date} = metric, metrics) do
+    duration_days = Map.get(metric, :duration_days)
+    target_end = sec_edgar_shift_year(end_date, -1)
+    tolerance_days = if duration_days && duration_days > 250, do: 25, else: 10
+
+    sec_edgar_metric_near_end(metric, metrics, target_end, tolerance_days)
+  end
+
+  defp sec_edgar_yoy_metric(_metric, _metrics), do: nil
+
+  defp sec_edgar_qoq_metric(%{duration_days: days}, _metrics)
+       when is_integer(days) and days > 110,
+       do: nil
+
+  defp sec_edgar_qoq_metric(%{start_date: %Date{} = start_date} = metric, metrics) do
+    target_end = Date.add(start_date, -1)
+
+    sec_edgar_metric_near_end(metric, metrics, target_end, 15) ||
+      sec_edgar_derived_q4_metric(metric, metrics, target_end)
+  end
+
+  defp sec_edgar_qoq_metric(%{end_date: %Date{} = end_date} = metric, metrics) do
+    target_end = sec_edgar_shift_month(end_date, -3)
+
+    sec_edgar_metric_near_end(metric, metrics, target_end, 18) ||
+      sec_edgar_derived_q4_metric(metric, metrics, target_end)
+  end
+
+  defp sec_edgar_qoq_metric(_metric, _metrics), do: nil
+
+  defp sec_edgar_metric_near_end(current, metrics, target_end, tolerance_days) do
+    metrics
+    |> Enum.reject(&sec_edgar_same_metric_period?(&1, current))
+    |> Enum.filter(&(Map.get(&1, :tag) == Map.get(current, :tag)))
+    |> Enum.filter(&sec_edgar_metric_duration_compatible?(&1, current))
+    |> Enum.flat_map(fn candidate ->
+      case Map.get(candidate, :end_date) do
+        %Date{} = end_date ->
+          distance = abs(Date.diff(end_date, target_end))
+
+          if distance <= tolerance_days do
+            [{candidate, distance}]
+          else
+            []
+          end
+
+        _end_date ->
+          []
+      end
+    end)
+    |> Enum.sort_by(fn {candidate, distance} ->
+      {
+        distance,
+        -sec_edgar_periodic_duration_score(Map.get(candidate, :duration_days), "10-Q"),
+        -sec_edgar_form_preference(Map.get(candidate, :form)),
+        -sec_edgar_frame_preference(Map.get(candidate, :context_ref))
+      }
+    end)
+    |> List.first()
+    |> case do
+      {candidate, _distance} -> candidate
+      nil -> nil
+    end
+  end
+
+  defp sec_edgar_same_metric_period?(metric, current) do
+    Map.get(metric, :start_date) == Map.get(current, :start_date) and
+      Map.get(metric, :end_date) == Map.get(current, :end_date) and
+      Decimal.equal?(Map.get(metric, :value), Map.get(current, :value))
+  end
+
+  defp sec_edgar_metric_duration_compatible?(candidate, current) do
+    current_duration = Map.get(current, :duration_days)
+    candidate_duration = Map.get(candidate, :duration_days)
+
+    cond do
+      is_integer(current_duration) and current_duration > 250 ->
+        is_integer(candidate_duration) and candidate_duration > 250
+
+      is_integer(candidate_duration) ->
+        candidate_duration in 70..110
+
+      true ->
+        false
+    end
+  end
+
+  defp sec_edgar_derived_q4_metric(
+         %{tag: tag, start_date: %Date{month: 1, day: 1}},
+         metrics,
+         %Date{month: 12, day: 31} = target_end
+       ) do
+    annual =
+      metrics
+      |> Enum.find(fn candidate ->
+        Map.get(candidate, :tag) == tag and Map.get(candidate, :end_date) == target_end and
+          is_integer(Map.get(candidate, :duration_days)) and
+          Map.get(candidate, :duration_days) in 330..370
+      end)
+
+    nine_month =
+      metrics
+      |> Enum.find(fn candidate ->
+        Map.get(candidate, :tag) == tag and
+          Map.get(candidate, :end_date) == Date.add(target_end, -92) and
+          is_integer(Map.get(candidate, :duration_days)) and
+          Map.get(candidate, :duration_days) in 250..285
+      end)
+
+    case {annual, nine_month} do
+      {%{} = annual_metric, %{} = ytd_metric} ->
+        %{
+          tag: tag,
+          value: Decimal.sub(Map.get(annual_metric, :value), Map.get(ytd_metric, :value)),
+          context_ref: "derived-q4",
+          start_date: Date.add(Map.get(ytd_metric, :end_date), 1),
+          end_date: target_end,
+          duration_days: Date.diff(target_end, Map.get(ytd_metric, :end_date)),
+          form: Map.get(annual_metric, :form),
+          accession: Map.get(annual_metric, :accession),
+          tag_priority: Map.get(annual_metric, :tag_priority, 999)
+        }
+
+      _missing ->
+        nil
+    end
+  end
+
+  defp sec_edgar_derived_q4_metric(_metric, _metrics, _target_end), do: nil
+
+  defp sec_edgar_metric_change_detail(_label, _current, nil, _value_type), do: nil
+
+  defp sec_edgar_metric_change_detail(label, current, previous, _value_type) do
+    case sec_edgar_metric_percent_change(Map.get(current, :value), Map.get(previous, :value)) do
+      nil ->
+        nil
+
+      percent ->
+        "#{label} #{sec_edgar_signed_percent_label(percent)}"
+    end
+  end
+
+  defp sec_edgar_metric_percent_change(%Decimal{} = current, %Decimal{} = previous) do
+    if Decimal.equal?(previous, Decimal.new(0)) do
+      nil
+    else
+      current
+      |> Decimal.sub(previous)
+      |> Decimal.div(Decimal.abs(previous))
+      |> Decimal.mult(Decimal.new(100))
+    end
+  end
+
+  defp sec_edgar_metric_percent_change(_current, _previous), do: nil
+
+  defp sec_edgar_signed_percent_label(decimal) do
+    rounded = Decimal.round(decimal, 1)
+
+    sign =
+      case Decimal.compare(rounded, Decimal.new(0)) do
+        :gt -> "+"
+        _comparison -> ""
+      end
+
+    "#{sign}#{Decimal.to_string(rounded, :normal)}%"
+  end
+
+  defp sec_edgar_shift_year(%Date{} = date, offset) do
+    sec_edgar_clamped_date(date.year + offset, date.month, date.day)
+  end
+
+  defp sec_edgar_shift_month(%Date{} = date, offset) do
+    total_month = date.year * 12 + date.month - 1 + offset
+    year = div(total_month, 12)
+    month = rem(total_month, 12) + 1
+
+    sec_edgar_clamped_date(year, month, date.day)
+  end
+
+  defp sec_edgar_clamped_date(year, month, day) do
+    last_day = Date.days_in_month(%Date{year: year, month: month, day: 1})
+
+    {:ok, date} = Date.new(year, month, min(day, last_day))
+
+    date
+  end
+
+  defp sec_edgar_companyfacts_for_record(source, record) do
+    with %{cik: cik} <- sec_edgar_filing_ref(record),
+         {:ok, companyfacts} <- sec_edgar_fetch_companyfacts(source, cik) do
+      companyfacts
+    else
+      _reason -> nil
+    end
+  end
+
+  defp sec_edgar_fetch_companyfacts(source, cik) do
+    cik = sec_edgar_padded_cik(cik)
+    url = "https://data.sec.gov/api/xbrl/companyfacts/CIK#{cik}.json"
 
     with {:ok, response} <-
            Http.fetch(url,
@@ -6207,8 +6533,8 @@ defmodule DisclosureAutomation.Ingestion do
          {:ok, decoded} <- Jason.decode(body) do
       {:ok, decoded}
     else
-      false -> {:error, :sec_edgar_companyconcept_too_large}
-      _reason -> {:error, :sec_edgar_companyconcept_fetch_failed}
+      false -> {:error, :sec_edgar_companyfacts_too_large}
+      _reason -> {:error, :sec_edgar_companyfacts_fetch_failed}
     end
   end
 
@@ -6240,8 +6566,11 @@ defmodule DisclosureAutomation.Ingestion do
         tag: tag_name,
         value: decimal,
         context_ref: Map.get(fact, "frame"),
+        start_date: sec_edgar_companyconcept_date(Map.get(fact, "start")),
         duration_days: sec_edgar_companyconcept_duration_days(fact),
-        end_date: sec_edgar_companyconcept_date(Map.get(fact, "end"))
+        end_date: sec_edgar_companyconcept_date(Map.get(fact, "end")),
+        form: Map.get(fact, "form"),
+        accession: Map.get(fact, "accn")
       }
     else
       _reason -> nil
@@ -6334,6 +6663,7 @@ defmodule DisclosureAutomation.Ingestion do
           |> sec_edgar_apply_xbrl_scale(scale)
           |> sec_edgar_apply_xbrl_sign(attrs),
         context_ref: context_ref,
+        start_date: Map.get(context, :start_date),
         duration_days: Map.get(context, :duration_days),
         end_date: Map.get(context, :end_date)
       }
@@ -8155,13 +8485,14 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp sec_edgar_periodic_report_summary_from_companyconcept(source, record) do
-    with %{cik: cik, accession: accession} <- sec_edgar_filing_ref(record) do
+    with %{cik: cik, accession: accession} <- sec_edgar_filing_ref(record),
+         {:ok, companyfacts} <- sec_edgar_fetch_companyfacts(source, cik) do
       form_type = sec_edgar_periodic_form_type(record)
       issuer = sec_edgar_issuer_name(record, "")
       filing_ref = %{cik: cik, accession: accession}
 
       metric_details =
-        sec_edgar_companyconcept_periodic_metric_details(source, filing_ref, form_type)
+        sec_edgar_companyfacts_periodic_metric_details(companyfacts, filing_ref, form_type)
 
       case metric_details do
         [] ->
@@ -8186,64 +8517,110 @@ defmodule DisclosureAutomation.Ingestion do
           {:ok, sec_edgar_summary_with_details(headline, details ++ [guidance])}
       end
     else
-      _reason -> {:error, :sec_edgar_companyconcept_ref_unavailable}
+      _reason -> {:error, :sec_edgar_companyfacts_ref_unavailable}
     end
   end
 
-  defp sec_edgar_companyconcept_periodic_metric_details(source, filing_ref, form_type) do
+  defp sec_edgar_companyfacts_periodic_metric_details(companyfacts, filing_ref, form_type) do
     [
-      sec_edgar_companyconcept_money_metric_detail(
-        source,
+      sec_edgar_companyfacts_money_metric_detail(
+        companyfacts,
         filing_ref,
         "매출액",
         @sec_edgar_periodic_revenue_xbrl_tags,
         form_type
       ),
-      sec_edgar_companyconcept_money_metric_detail(
-        source,
+      sec_edgar_companyfacts_money_metric_detail(
+        companyfacts,
         filing_ref,
         "영업이익",
         @sec_edgar_periodic_operating_income_xbrl_tags,
         form_type
       ),
-      sec_edgar_companyconcept_money_metric_detail(
-        source,
+      sec_edgar_companyfacts_money_metric_detail(
+        companyfacts,
         filing_ref,
         "순이익/순손실",
         @sec_edgar_periodic_net_income_xbrl_tags,
         form_type
       ),
-      sec_edgar_companyconcept_eps_detail(source, filing_ref, form_type)
+      sec_edgar_companyfacts_eps_detail(companyfacts, filing_ref, form_type)
     ]
     |> Enum.reject(&is_nil/1)
   end
 
-  defp sec_edgar_xbrl_periodic_metric_details(raw_submission, form_type) do
+  defp sec_edgar_companyfacts_money_metric_detail(
+         companyfacts,
+         filing_ref,
+         label,
+         tag_names,
+         form_type
+       ) do
+    metrics = sec_edgar_companyfacts_metric_values(companyfacts, filing_ref, tag_names, form_type)
+
+    metrics
+    |> sec_edgar_preferred_xbrl_metric(form_type)
+    |> case do
+      nil -> nil
+      metric -> sec_edgar_metric_detail(label, metric, metrics, form_type, :money)
+    end
+  end
+
+  defp sec_edgar_companyfacts_eps_detail(companyfacts, filing_ref, form_type) do
+    metrics =
+      sec_edgar_companyfacts_metric_values(
+        companyfacts,
+        filing_ref,
+        @sec_edgar_periodic_eps_xbrl_tags,
+        form_type
+      )
+
+    metrics
+    |> sec_edgar_preferred_xbrl_metric(form_type)
+    |> case do
+      nil -> nil
+      metric -> sec_edgar_metric_detail("EPS", metric, metrics, form_type, :per_share)
+    end
+  end
+
+  defp sec_edgar_xbrl_periodic_metric_details(raw_submission, form_type, companyfacts) do
     [
       sec_edgar_xbrl_money_metric_detail(
         raw_submission,
         "매출액",
         @sec_edgar_periodic_revenue_xbrl_tags,
-        form_type
+        form_type,
+        companyfacts
       ),
       sec_edgar_xbrl_money_metric_detail(
         raw_submission,
         "영업이익",
         @sec_edgar_periodic_operating_income_xbrl_tags,
-        form_type
+        form_type,
+        companyfacts
       ),
       sec_edgar_xbrl_money_metric_detail(
         raw_submission,
         "순이익/순손실",
         @sec_edgar_periodic_net_income_xbrl_tags,
-        form_type
+        form_type,
+        companyfacts
       ),
-      sec_edgar_xbrl_eps_detail(raw_submission, form_type)
+      sec_edgar_xbrl_eps_detail(raw_submission, form_type, companyfacts)
     ]
     |> Enum.reject(&is_nil/1)
   end
 
   defp sec_edgar_periodic_report_summary(raw_submission, record)
+       when is_binary(raw_submission) do
+    sec_edgar_periodic_report_summary(raw_submission, record, nil)
+  end
+
+  defp sec_edgar_periodic_report_summary(_raw_submission, _record) do
+    {:error, :sec_edgar_periodic_summary_unavailable}
+  end
+
+  defp sec_edgar_periodic_report_summary(raw_submission, record, companyfacts)
        when is_binary(raw_submission) do
     form_type = sec_edgar_periodic_form_type(record)
     plain = sec_edgar_plain_text(raw_submission)
@@ -8268,7 +8645,8 @@ defmodule DisclosureAutomation.Ingestion do
           "#{issuer}의 SEC 정기보고서 핵심 재무지표를 확인했습니다"
       end
 
-    metric_details = sec_edgar_xbrl_periodic_metric_details(raw_submission, form_type)
+    metric_details =
+      sec_edgar_xbrl_periodic_metric_details(raw_submission, form_type, companyfacts)
 
     case metric_details do
       [] ->
@@ -8281,7 +8659,7 @@ defmodule DisclosureAutomation.Ingestion do
     end
   end
 
-  defp sec_edgar_periodic_report_summary(_raw_submission, _record) do
+  defp sec_edgar_periodic_report_summary(_raw_submission, _record, _companyfacts) do
     {:error, :sec_edgar_periodic_summary_unavailable}
   end
 
