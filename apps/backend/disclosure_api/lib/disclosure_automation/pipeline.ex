@@ -10248,7 +10248,9 @@ defmodule DisclosureAutomation.Ingestion do
       [_match, amount] ->
         {amount, nil, sec_edgar_money_numeric_value(amount, nil)}
     end)
-    |> Enum.reject(fn {_amount, _scale, numeric_value} -> is_nil(numeric_value) end)
+    |> Enum.reject(fn {_amount, _scale, numeric_value} ->
+      is_nil(numeric_value) or numeric_value < 1
+    end)
     |> Enum.sort_by(fn {_amount, _scale, numeric_value} -> numeric_value end, :desc)
     |> case do
       [{amount, scale, _numeric_value} | _rest] -> {amount, scale}
