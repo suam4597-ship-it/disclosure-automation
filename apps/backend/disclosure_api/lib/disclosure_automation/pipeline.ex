@@ -5519,33 +5519,43 @@ defmodule DisclosureAutomation.Ingestion do
 
     results =
       Enum.map(candidates, fn {item, source} ->
-        record = %{
-          title: item.headline,
-          summary: item.summary,
-          url: item.canonical_url,
-          category: Map.get(item.metadata || %{}, "category"),
-          published_at: item.published_at
-        }
+        try do
+          record = %{
+            title: item.headline,
+            summary: item.summary,
+            url: item.canonical_url,
+            category: Map.get(item.metadata || %{}, "category"),
+            published_at: item.published_at
+          }
 
-        case enrich_sec_edgar_8k_record(source, record) do
-          %{summary: summary} when is_binary(summary) and summary != item.summary ->
-            now = DateTime.utc_now()
+          case enrich_sec_edgar_8k_record(source, record) do
+            %{summary: summary} when is_binary(summary) and summary != item.summary ->
+              now = DateTime.utc_now()
 
-            {updated, _rows} =
-              Repo.update_all(
-                from(existing in CanonicalFeedItem, where: existing.id == ^item.id),
-                set: [summary: summary, updated_at: now]
-              )
+              {updated, _rows} =
+                Repo.update_all(
+                  from(existing in CanonicalFeedItem, where: existing.id == ^item.id),
+                  set: [summary: summary, updated_at: now]
+                )
 
+              %{
+                status: "updated",
+                updated: updated,
+                headline: item.headline,
+                source_key: source.source_key
+              }
+
+            _record ->
+              %{status: "unchanged", headline: item.headline, source_key: source.source_key}
+          end
+        rescue
+          error ->
             %{
-              status: "updated",
-              updated: updated,
+              status: "error",
               headline: item.headline,
-              source_key: source.source_key
+              source_key: source.source_key,
+              reason: Exception.message(error)
             }
-
-          _record ->
-            %{status: "unchanged", headline: item.headline, source_key: source.source_key}
         end
       end)
 
@@ -5555,6 +5565,7 @@ defmodule DisclosureAutomation.Ingestion do
       offset: offset,
       updated: Enum.count(results, &(Map.get(&1, :status) == "updated")),
       unchanged: Enum.count(results, &(Map.get(&1, :status) == "unchanged")),
+      errors: Enum.count(results, &(Map.get(&1, :status) == "error")),
       results: results
     }
   end
@@ -9127,7 +9138,7 @@ defmodule DisclosureAutomation.Ingestion do
       end
 
     tail
-    |> binary_part(0, min(end_offset, 6_000))
+    |> String.slice(0, min(end_offset, 6_000))
     |> String.replace(~r/\s+/u, " ")
     |> String.trim()
   end
