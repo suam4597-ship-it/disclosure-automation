@@ -9223,7 +9223,7 @@ defmodule DisclosureAutomation.Ingestion do
         sec_edgar_item_101_exclusivity_detail(section),
         not finance_contract? && sec_edgar_item_101_contract_duration_detail(section),
         not finance_contract? && sec_edgar_first_money_detail(section),
-        sec_edgar_agreement_purpose(section),
+        not finance_contract? && sec_edgar_agreement_purpose(section),
         sec_edgar_order_backlog_detail(section)
       ] ++ sec_edgar_item_101_financing_details(section, finance_contract?)
 
@@ -9862,8 +9862,8 @@ defmodule DisclosureAutomation.Ingestion do
 
   defp sec_edgar_agent_change_detail(section) do
     cond do
-      section =~ ~r/MUFG Bank[^.]{0,180}administrative agent/i and
-          section =~ ~r/U\.S\. Bank[^.]{0,180}collateral agent/i ->
+      section =~ ~r/MUFG Bank/i and section =~ ~r/U\.S\. Bank/i and
+          section =~ ~r/administrative agent|collateral agent/i ->
         "관리/담보 agent는 MUFG Bank와 U.S. Bank로 변경 또는 지정"
 
       section =~ ~r/administrative agent|collateral agent/i ->
