@@ -9222,7 +9222,9 @@ defmodule DisclosureAutomation.Ingestion do
         sec_edgar_item_101_minimum_commitment_detail(section),
         sec_edgar_item_101_exclusivity_detail(section),
         not finance_contract? && sec_edgar_item_101_contract_duration_detail(section),
-        not finance_contract? && sec_edgar_first_money_detail(section),
+        not finance_contract? &&
+          (sec_edgar_equity_offering_amount_detail(section) ||
+             sec_edgar_first_money_detail(section)),
         not finance_contract? && sec_edgar_agreement_purpose(section),
         sec_edgar_order_backlog_detail(section)
       ] ++ sec_edgar_item_101_financing_details(section, finance_contract?)
@@ -9527,6 +9529,10 @@ defmodule DisclosureAutomation.Ingestion do
       section =~ ~r/underwriting agreement/i ->
         "인수계약"
 
+      section =~ ~r/at-the-market|ATM Program|sales agreement|equity distribution agreement/i and
+          section =~ ~r/common stock|shares|offering/i ->
+        "시장가 주식매각 또는 공모계약"
+
       section =~ ~r/merger agreement|business combination agreement/i ->
         "합병 또는 사업결합 계약"
 
@@ -9668,6 +9674,16 @@ defmodule DisclosureAutomation.Ingestion do
       sec_edgar_agent_change_detail(section),
       sec_edgar_debt_security_detail(section)
     ]
+  end
+
+  defp sec_edgar_equity_offering_amount_detail(section) do
+    if section =~ ~r/at-the-market|ATM Program|sales agreement|equity distribution agreement/i and
+         section =~ ~r/common stock|shares|offering/i do
+      case sec_edgar_material_money_match(section) do
+        {amount, scale} -> "주식매각 또는 공모 한도는 #{sec_edgar_money_label(amount, scale)}"
+        nil -> nil
+      end
+    end
   end
 
   defp sec_edgar_debt_contract_section?(section) do
@@ -9865,6 +9881,12 @@ defmodule DisclosureAutomation.Ingestion do
       section =~ ~r/MUFG Bank/i and section =~ ~r/U\.S\. Bank/i and
           section =~ ~r/administrative agent|collateral agent/i ->
         "관리/담보 agent는 MUFG Bank와 U.S. Bank로 변경 또는 지정"
+
+      section =~ ~r/JPMorgan Chase Bank[^.]{0,120}administrative agent/i ->
+        "행정대리인은 JPMorgan Chase Bank"
+
+      section =~ ~r/Bank of America[^.]{0,120}Administrative Agent/i ->
+        "행정대리인은 Bank of America"
 
       section =~ ~r/administrative agent|collateral agent/i ->
         section
