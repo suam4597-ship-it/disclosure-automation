@@ -6652,7 +6652,9 @@ defmodule DisclosureAutomation.Ingestion do
     |> sec_edgar_sections_after_heading(heading, length)
     |> Enum.reject(&sec_edgar_registration_toc_section?(&1, heading))
     |> Enum.map(&sec_edgar_strip_heading_prefix(&1, heading))
-    |> Enum.map(&sec_edgar_cut_before_any_heading(&1, sec_edgar_registration_stop_headings(heading)))
+    |> Enum.map(
+      &sec_edgar_cut_before_any_heading(&1, sec_edgar_registration_stop_headings(heading))
+    )
     |> Enum.map(&String.trim/1)
     |> Enum.reject(&(&1 == ""))
     |> Enum.find(&sec_edgar_registration_substantive_section?/1)
@@ -6771,7 +6773,8 @@ defmodule DisclosureAutomation.Ingestion do
 
   defp sec_edgar_registration_use_table_excerpt(section) do
     cond do
-      section =~ ~r/\$|US\$|C\$|working capital|general corporate|repay|debt|acquisition|research|development|commercialization|capital expenditures?/i ->
+      section =~
+          ~r/\$|US\$|C\$|working capital|general corporate|repay|debt|acquisition|research|development|commercialization|capital expenditures?/i ->
         section
         |> sec_edgar_clean_sentence()
         |> String.slice(0, 520)
@@ -8353,7 +8356,8 @@ defmodule DisclosureAutomation.Ingestion do
     title = Map.get(record, :title) || Map.get(record, "title")
     summary = Map.get(record, :summary) || Map.get(record, "summary")
 
-    with cik when is_binary(cik) <- sec_edgar_cik_from_url(url) || sec_edgar_cik_from_title(title),
+    with cik when is_binary(cik) <-
+           sec_edgar_cik_from_url(url) || sec_edgar_cik_from_title(title),
          accession when is_binary(accession) <-
            sec_edgar_accession_from_summary(summary) || sec_edgar_accession_from_url(url) do
       %{cik: cik, accession: accession}
