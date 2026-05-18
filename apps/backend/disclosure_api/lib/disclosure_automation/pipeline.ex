@@ -6622,7 +6622,7 @@ defmodule DisclosureAutomation.Ingestion do
 
   defp sec_edgar_companyconcept_frame_start_date(frame, %Date{} = end_date)
        when is_binary(frame) do
-    case Regex.run(~r/^CY(\d{4})Q([1-4])I?$/i, frame) do
+    case Regex.run(~r/^CY(\d{4})Q([1-4])$/i, frame) do
       [_match, year, quarter] ->
         year = String.to_integer(year)
 
@@ -6650,7 +6650,7 @@ defmodule DisclosureAutomation.Ingestion do
   defp sec_edgar_companyconcept_frame_start_date(_frame, _end_date), do: nil
 
   defp sec_edgar_companyconcept_frame_duration_days(frame) when is_binary(frame) do
-    if Regex.match?(~r/^CY\d{4}Q[1-4]I?$/i, frame), do: 92, else: nil
+    if Regex.match?(~r/^CY\d{4}Q[1-4]$/i, frame), do: 92, else: nil
   end
 
   defp sec_edgar_companyconcept_frame_duration_days(_frame), do: nil
