@@ -561,6 +561,9 @@ const SOURCE_LABELS = {
 
 const DEFAULT_EXCLUDED_SOURCE_KEYS = ["sec_press_releases"];
 const REGION_SOURCE_KEYS = {
+  jp: [
+    "jp_tdnet_disclosures"
+  ],
   us: [
     "sec_edgar_current_8k_filings",
     "sec_edgar_form4_clustered_insider_buys",
@@ -576,7 +579,7 @@ const REGION_SOURCE_KEYS = {
     "sec_edgar_current_schedule_to_tender_offers"
   ]
 };
-const DASHBOARD_SUPPLEMENT_REGIONS = ["us"];
+const DASHBOARD_SUPPLEMENT_REGIONS = ["us", "jp"];
 const DASHBOARD_SUPPLEMENT_LIMIT = 5;
 
 const STATIC_ITEMS = [
