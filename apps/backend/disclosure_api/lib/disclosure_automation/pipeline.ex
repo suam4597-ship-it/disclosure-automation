@@ -3,6 +3,7 @@ defmodule DisclosureAutomation.Canonicalizer do
 
   def canonicalize_document(document, source, attrs \\ %{}) do
     attrs = Map.new(attrs)
+    entity_profile = entity_profile(document, source)
 
     published_at =
       document[:published_at] || Map.get(document, "published_at") || DateTime.utc_now()
@@ -19,21 +20,315 @@ defmodule DisclosureAutomation.Canonicalizer do
       summary: canonical_summary(document),
       canonical_url: document[:url],
       published_at: published_at,
-      tickers: [],
+      tickers: entity_profile_tickers(entity_profile),
       regions: infer_regions(source),
       sectors: infer_sectors(source),
       sentiment_label: "neutral",
       relevance_score: Decimal.new("0.900"),
       duplicate_group_key: "#{source.source_key}-#{slug(story_seed)}",
       status: "ready",
-      metadata: %{
-        "source_type" => source.source_type,
-        "coverage_tags" => source.coverage_tags || [],
-        "category" => document[:category],
-        "fetch_mode" => Map.get(attrs, :fetch_mode)
-      }
+      metadata:
+        %{
+          "source_type" => source.source_type,
+          "coverage_tags" => source.coverage_tags || [],
+          "category" => document[:category],
+          "fetch_mode" => Map.get(attrs, :fetch_mode)
+        }
+        |> maybe_put_entity_profile(entity_profile)
     }
   end
+
+  defp maybe_put_entity_profile(metadata, nil), do: metadata
+
+  defp maybe_put_entity_profile(metadata, profile) when map_size(profile) == 0, do: metadata
+
+  defp maybe_put_entity_profile(metadata, profile),
+    do: Map.put(metadata, "entity_profile", profile)
+
+  defp entity_profile_tickers(nil), do: []
+
+  defp entity_profile_tickers(profile) do
+    primary = Map.get(profile, "ticker") || Map.get(profile, "identifier_label")
+
+    [
+      primary,
+      prefixed_entity_identifier("CIK", Map.get(profile, "cik")),
+      prefixed_entity_identifier("ISIN", Map.get(profile, "isin")),
+      if(primary,
+        do: nil,
+        else: prefixed_entity_identifier("Code", Map.get(profile, "local_code"))
+      )
+    ]
+    |> Enum.filter(&present_entity_value?/1)
+    |> Enum.uniq()
+    |> Enum.take(3)
+  end
+
+  defp prefixed_entity_identifier(_prefix, nil), do: nil
+  defp prefixed_entity_identifier(_prefix, ""), do: nil
+  defp prefixed_entity_identifier(prefix, value), do: "#{prefix}:#{value}"
+
+  defp entity_profile(document, source) do
+    title = document_value(document, :title)
+    summary = document_value(document, :summary)
+    url = document_value(document, :url)
+    source_key = source_value(source, :source_key) || ""
+    regions = infer_regions(source)
+
+    cond do
+      String.contains?(source_key, "sec_edgar") ->
+        sec_entity_profile(title, summary, url)
+
+      String.contains?(source_key, "hkex") ->
+        hkex_entity_profile(title, summary)
+
+      String.contains?(source_key, "jp_tdnet") ->
+        labeled_entity_profile(title, summary, "TDnet", hd(regions), "JP")
+
+      String.contains?(source_key, "tw_mops") ->
+        labeled_entity_profile(title, summary, "Taiwan MOPS", hd(regions), "TW")
+
+      true ->
+        labeled_entity_profile(
+          title,
+          summary,
+          source_exchange_label(source_key),
+          hd(regions),
+          nil
+        )
+    end
+  end
+
+  defp sec_entity_profile(title, summary, url) do
+    cik = sec_cik_from_text(title) || sec_cik_from_text(summary) || sec_cik_from_url(url)
+    ticker = labeled_value(summary, "Ticker") || labeled_value(summary, "Trading symbol")
+    cusip = labeled_value(summary, "CUSIP")
+
+    company =
+      sec_company_from_title(title) || labeled_value(summary, "Company") ||
+        labeled_value(summary, "Issuer")
+
+    identifier =
+      entity_ticker_label("SEC", ticker) || prefixed_entity_identifier("CIK", cik) ||
+        prefixed_entity_identifier("CUSIP", cusip)
+
+    build_entity_profile(%{
+      "display_name" => company,
+      "region" => "us",
+      "exchange" => "SEC EDGAR",
+      "cik" => cik,
+      "cusip" => cusip,
+      "ticker" => entity_ticker_label("SEC", ticker),
+      "identifier_label" => identifier,
+      "business_summary_ko" =>
+        entity_business_summary(company, "SEC EDGAR 공시 기준으로 식별된 미국 상장/보고 기업"),
+      "source" => "rule_based_from_disclosure",
+      "confidence" => if(cik || ticker || cusip, do: "high", else: "medium")
+    })
+  end
+
+  defp hkex_entity_profile(title, summary) do
+    issuer = labeled_value(summary, "Issuer")
+    {code, name} = code_name_pair(issuer)
+    fallback_name = company_from_title(title)
+    code = code || leading_code(title)
+    name = name || fallback_name
+    identifier = if code, do: "HKEX:#{code}"
+
+    build_entity_profile(%{
+      "display_name" => name,
+      "region" => "hk",
+      "exchange" => "HKEX",
+      "local_code" => code,
+      "ticker" => identifier,
+      "identifier_label" => identifier,
+      "business_summary_ko" => entity_business_summary(name, "홍콩거래소 공시 기준으로 식별된 상장사"),
+      "source" => "rule_based_from_disclosure",
+      "confidence" => if(code, do: "high", else: "medium")
+    })
+  end
+
+  defp labeled_entity_profile(title, summary, exchange, region, ticker_prefix) do
+    company =
+      labeled_value(summary, "Company") || labeled_value(summary, "Issuer") ||
+        company_from_title(title)
+
+    symbol =
+      labeled_value(summary, "Symbol") || labeled_value(summary, "Code") || leading_code(title)
+
+    isin = labeled_value(summary, "ISIN")
+    ticker = entity_ticker_label(ticker_prefix || exchange, symbol)
+    identifier = ticker || prefixed_entity_identifier("ISIN", isin)
+
+    build_entity_profile(%{
+      "display_name" => clean_entity_text(company),
+      "region" => region,
+      "exchange" => exchange,
+      "local_code" => clean_entity_text(symbol),
+      "isin" => clean_entity_text(isin),
+      "ticker" => ticker,
+      "identifier_label" => identifier,
+      "business_summary_ko" => entity_business_summary(company, "#{exchange} 공시 기준으로 식별된 상장사"),
+      "source" => "rule_based_from_disclosure",
+      "confidence" => if(symbol || isin, do: "medium", else: "low")
+    })
+  end
+
+  defp build_entity_profile(values) do
+    values
+    |> Enum.reject(fn {_key, value} -> not present_entity_value?(value) end)
+    |> Map.new()
+  end
+
+  defp entity_ticker_label(_prefix, nil), do: nil
+  defp entity_ticker_label(_prefix, ""), do: nil
+
+  defp entity_ticker_label(prefix, symbol) do
+    prefix = clean_entity_text(prefix)
+    symbol = clean_entity_text(symbol)
+
+    cond do
+      not present_entity_value?(symbol) -> nil
+      not present_entity_value?(prefix) -> symbol
+      String.contains?(symbol, ":") -> symbol
+      true -> "#{prefix}:#{symbol}"
+    end
+  end
+
+  defp entity_business_summary(nil, _description), do: nil
+  defp entity_business_summary("", _description), do: nil
+
+  defp entity_business_summary(company, description) do
+    "#{clean_entity_text(company)}는 #{description}입니다."
+  end
+
+  defp source_exchange_label(source_key) do
+    cond do
+      String.contains?(source_key, "india_nse") -> "NSE India"
+      String.contains?(source_key, "set_thailand") -> "SET Thailand"
+      String.contains?(source_key, "euronext") -> "Euronext"
+      String.contains?(source_key, "fca_nsm") -> "FCA NSM"
+      String.contains?(source_key, "cnmv") -> "CNMV"
+      String.contains?(source_key, "cmvm") -> "CMVM"
+      String.contains?(source_key, "fsma") -> "FSMA STORI"
+      String.contains?(source_key, "dfsa") -> "DFSA OAM"
+      String.contains?(source_key, "bvb") -> "Bucharest Stock Exchange"
+      String.contains?(source_key, "sase") -> "Sarajevo Stock Exchange"
+      String.contains?(source_key, "belex") -> "Belgrade Stock Exchange"
+      true -> source_key
+    end
+  end
+
+  defp source_value(source, key) do
+    source
+    |> Map.get(key)
+    |> clean_entity_text()
+  end
+
+  defp document_value(document, key) do
+    (Map.get(document, key) || Map.get(document, to_string(key)))
+    |> clean_entity_text()
+  end
+
+  defp labeled_value(nil, _label), do: nil
+
+  defp labeled_value(text, label) do
+    escaped = Regex.escape(label)
+
+    case Regex.run(~r/(?:^|\|)\s*#{escaped}:\s*([^|]+)/iu, text) do
+      [_match, value] -> clean_entity_text(value)
+      _ -> nil
+    end
+  end
+
+  defp code_name_pair(nil), do: {nil, nil}
+
+  defp code_name_pair(value) do
+    value = clean_entity_text(value)
+
+    case Regex.run(~r/^([0-9A-Z.\-]{2,12})\s+(.+)$/u, value) do
+      [_match, code, name] -> {clean_entity_text(code), clean_entity_text(name)}
+      _ -> {nil, value}
+    end
+  end
+
+  defp leading_code(nil), do: nil
+
+  defp leading_code(value) do
+    case Regex.run(~r/^([0-9A-Z.\-]{2,12})\s+-\s+/u, value) do
+      [_match, code] -> clean_entity_text(code)
+      _ -> nil
+    end
+  end
+
+  defp sec_cik_from_text(nil), do: nil
+
+  defp sec_cik_from_text(value) do
+    case Regex.run(~r/\((\d{6,10})\)\s*\((?:Filer|Subject)\)/i, value) ||
+           Regex.run(~r/\bCIK:?\s*(\d{6,10})\b/i, value) do
+      [_match, cik] -> String.pad_leading(cik, 10, "0")
+      _ -> nil
+    end
+  end
+
+  defp sec_cik_from_url(nil), do: nil
+
+  defp sec_cik_from_url(url) do
+    case Regex.run(~r/\/Archives\/edgar\/data\/(\d+)\//i, url) do
+      [_match, cik] -> String.pad_leading(cik, 10, "0")
+      _ -> nil
+    end
+  end
+
+  defp sec_company_from_title(nil), do: nil
+
+  defp sec_company_from_title(title) do
+    title
+    |> String.replace(
+      ~r/^(?:8-K|10-Q|10-K|10-Q\/A|10-K\/A|S-1|S-1\/A|F-1|F-1\/A|F-10|F-10\/A|S-4|S-4\/A|F-4|F-4\/A|Schedule TO|SC 13D|SC 13G|SC TO-[A-Z])\s*-\s*/i,
+      ""
+    )
+    |> String.replace(
+      ~r/^(?:13F institutional accumulation|Form 4 insider purchase cluster|Schedule 13D strategic ownership|Schedule 13G increased ownership|S-4 merger\/exchange registration|F-4 merger\/exchange registration|Schedule TO tender offer)\s+-\s*/i,
+      ""
+    )
+    |> String.replace(~r/\s*\(\d{6,10}\)\s*\((?:Filer|Subject)\).*$/i, "")
+    |> clean_entity_text()
+    |> empty_to_nil()
+  end
+
+  defp company_from_title(nil), do: nil
+
+  defp company_from_title(title) do
+    parts =
+      title
+      |> clean_entity_text()
+      |> String.split(~r/\s+-\s+/u, parts: 3)
+      |> Enum.map(&clean_entity_text/1)
+      |> Enum.filter(&present_entity_value?/1)
+
+    case parts do
+      [code, company | _rest] when byte_size(code) <= 12 -> company
+      [company | _rest] -> company
+      _ -> nil
+    end
+  end
+
+  defp clean_entity_text(nil), do: nil
+
+  defp clean_entity_text(value) do
+    value
+    |> to_string()
+    |> String.replace(~r/<[^>]+>/u, " ")
+    |> String.replace(~r/\s+/u, " ")
+    |> String.trim()
+    |> empty_to_nil()
+  end
+
+  defp empty_to_nil(""), do: nil
+  defp empty_to_nil(value), do: value
+
+  defp present_entity_value?(value), do: is_binary(value) and String.trim(value) != ""
 
   defp infer_regions(source) do
     tags = Enum.map(source.coverage_tags || [], &String.downcase/1)

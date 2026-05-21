@@ -275,6 +275,7 @@
     .tag.markets { background: rgba(34, 197, 94, 0.12); color: var(--green); }
     .tag.high { background: rgba(239, 68, 68, 0.12); color: var(--red); }
     .tag.composite { background: rgba(245, 158, 11, 0.14); color: #fbbf24; }
+    .tag.identifier { background: rgba(14, 165, 233, 0.14); color: #7dd3fc; }
     .composite-pill {
       display: inline-flex;
       align-items: center;
@@ -1546,6 +1547,74 @@ function cleanText(value) {
     .trim();
 }
 
+function entityProfile(item) {
+  return item.metadata?.entity_profile || item.raw?.metadata?.entity_profile || {};
+}
+
+function itemTickers(item) {
+  const values = [
+    ...(Array.isArray(item.tickers) ? item.tickers : []),
+    ...(Array.isArray(item.raw?.tickers) ? item.raw.tickers : [])
+  ];
+  return unique(values.map(cleanText).filter(Boolean));
+}
+
+function entityIdentifierText(item) {
+  const profile = entityProfile(item);
+  const fromProfile = profile.identifier_label || profile.ticker || profile.local_code || profile.isin || profile.cik;
+  if (fromProfile) return cleanText(fromProfile);
+
+  const [firstTicker] = itemTickers(item);
+  if (firstTicker) return firstTicker;
+
+  const summary = rawSummaryText(item);
+  const labeled =
+    entityPrefixedText(summary, "Symbol") ||
+    entityPrefixedText(summary, "Code") ||
+    entityPrefixedText(summary, "ISIN") ||
+    entityPrefixedText(summary, "CUSIP");
+  if (labeled) return labeled;
+
+  const secCik = item.title.match(/\((\d{6,10})\)\s*\((?:Filer|Subject)\)/i)?.[1];
+  if (secCik) return `CIK:${secCik.padStart(10, "0")}`;
+
+  const leadingCode = item.title.match(/^([0-9A-Z.\-]{2,12})\s+-\s+/)?.[1];
+  return leadingCode || "";
+}
+
+function entityDescriptionText(item) {
+  const profile = entityProfile(item);
+  if (profile.business_summary_ko) return cleanText(profile.business_summary_ko);
+
+  const target = detailTarget(item);
+  const source = itemSourceKey(item).toLowerCase();
+
+  if (source.includes("sec_edgar")) return `${target}는 SEC EDGAR 공시 기준으로 식별된 미국 상장 또는 보고 기업입니다.`;
+  if (source.includes("hkex")) return `${target}는 홍콩거래소 공시 기준으로 식별된 상장사입니다.`;
+  if (source.includes("jp_tdnet")) return `${target}는 TDnet 공시 기준으로 식별된 일본 상장사입니다.`;
+  if (source.includes("tw_mops")) return `${target}는 대만 MOPS 공시 기준으로 식별된 상장사입니다.`;
+  if (source.includes("india_nse")) return `${target}는 인도 NSE 공시 기준으로 식별된 상장사입니다.`;
+  if (item.displayRegions.includes("eu")) return `${target}는 유럽 규제공시/OAM 기준으로 식별된 상장사입니다.`;
+
+  return `${target}는 현재 공시 제목과 원문 요약 기준으로 식별된 발행사입니다.`;
+}
+
+function entityIdentifierTagHtml(item) {
+  const identifier = entityIdentifierText(item);
+  return identifier ? `<span class="tag identifier">${escapeHtml(identifier)}</span>` : "";
+}
+
+function entityPrefixedText(text, label) {
+  const value = textAfter(text, `${label}:`);
+  if (!value) return "";
+  if (value.includes(":")) return value;
+  return `${label}:${value}`;
+}
+
+function entityDisplayName(item) {
+  return cleanText(entityProfile(item).display_name || "");
+}
+
 function formatMoneyText(value) {
   return String(value || "").replace(
     /(-?\d{4,})(\.\d+)?(?=(?:백만|만|억)?\s*달러)/g,
@@ -1686,7 +1755,7 @@ function fileSizeFromSummary(rawSummary) {
 }
 
 function detailTarget(item) {
-  return issuerFromSummary(rawSummaryText(item)) || companyFromTitle(item.title);
+  return entityDisplayName(item) || issuerFromSummary(rawSummaryText(item)) || companyFromTitle(item.title);
 }
 
 function detailCategoryLabel(item) {
@@ -1882,6 +1951,7 @@ function normalizeItem(item, index) {
   return {
     raw: item,
     metadata,
+    tickers: Array.isArray(item.tickers) ? item.tickers : [],
     sourceKey: rawSourceKey,
     title,
     summary: simpleSummary(item, title, kind, category),
@@ -2070,6 +2140,7 @@ function renderItem(item) {
         <div class="summary">${escapeHtml(formatMoneyText(item.summary))}</div>
         <div class="meta">
           <span class="source">${escapeHtml(item.source)}</span>
+          ${entityIdentifierTagHtml(item)}
           ${compositePillHtml(item)}
           <span>${escapeHtml(date)}</span>
           <span>중요도 ${escapeHtml(String(item.importance))}</span>
@@ -2121,6 +2192,14 @@ function renderItemDetail(items, itemKey) {
           <div class="detail-box">
             <b>분류</b>
             <span>${escapeHtml(detailCategoryLabel(item))}</span>
+          </div>
+          <div class="detail-box">
+            <b>식별자</b>
+            <span>${escapeHtml(entityIdentifierText(item) || "공시 원문에서 별도 티커/종목코드를 확인하지 못했습니다.")}</span>
+          </div>
+          <div class="detail-box">
+            <b>기업 개요</b>
+            <span>${escapeHtml(entityDescriptionText(item))}</span>
           </div>
           <div class="detail-box">
             <b>시각</b>
