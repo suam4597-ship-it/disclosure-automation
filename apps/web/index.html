@@ -274,26 +274,19 @@
     .tag.regulatory { background: rgba(139, 92, 246, 0.12); color: #a78bfa; }
     .tag.markets { background: rgba(34, 197, 94, 0.12); color: var(--green); }
     .tag.high { background: rgba(239, 68, 68, 0.12); color: var(--red); }
-    .tag.signal { background: rgba(34, 197, 94, 0.14); color: #86efac; }
     .tag.composite { background: rgba(245, 158, 11, 0.14); color: #fbbf24; }
-    .signal-pill, .composite-pill {
+    .composite-pill {
       display: inline-flex;
       align-items: center;
       gap: 5px;
-      border: 1px solid rgba(34, 197, 94, 0.28);
+      border: 1px solid rgba(245, 158, 11, 0.32);
       border-radius: 999px;
       padding: 2px 8px;
-      background: rgba(34, 197, 94, 0.1);
-      color: #86efac;
+      background: rgba(245, 158, 11, 0.1);
+      color: #fbbf24;
       font-size: 11px;
       font-weight: 900;
     }
-    .composite-pill {
-      border-color: rgba(245, 158, 11, 0.32);
-      background: rgba(245, 158, 11, 0.1);
-      color: #fbbf24;
-    }
-    .signal-box { border-color: rgba(34, 197, 94, 0.32); background: rgba(34, 197, 94, 0.06); }
     .composite-box { border-color: rgba(245, 158, 11, 0.35); background: rgba(245, 158, 11, 0.06); }
 
     .sidebar { display: flex; flex-direction: column; gap: 24px; }
@@ -502,7 +495,6 @@ const FILTERS = [
   ["all", "전체"],
   ["disclosure", "공시"],
   ["news", "뉴스"],
-  ["sec_positive", "투자 시그널"],
   ["sec_strategy", "전략/계약"],
   ["sec_mna", "M&A/공개매수"],
   ["sec_ownership", "지분/기관"],
@@ -990,7 +982,6 @@ function secSignalBuckets(item) {
   if (source.includes("s1_registration") || source.includes("f1_registration") || /ipo|initial public offering|use of proceeds|price range/.test(text)) buckets.add("sec_ipo");
   if (source.includes("schedule_to") || source.includes("s4_merger") || source.includes("f4_merger") || /item 2\.01|item 5\.01|merger|tender offer|exchange ratio|change in control|acquisition/.test(text)) buckets.add("sec_mna");
   if (source.includes("8k") || /item 1\.01|item 3\.02|item 7\.01|item 8\.01|strategic|partnership|collaboration|customer|backlog|contract|order/.test(text)) buckets.add("sec_strategy");
-  if (buckets.size > 0) buckets.add("sec_positive");
 
   return [...buckets];
 }
@@ -1000,29 +991,6 @@ function itemFilterKeys(item) {
   if (item.importance >= 85) keys.add("high");
   for (const key of secSignalBuckets(item)) keys.add(key);
   return keys;
-}
-
-function signalLabelText(item) {
-  if (!secSignalBuckets(item).includes("sec_positive")) return "";
-  return secSignalLabel(secCompositeCategory(item) || "SEC signal");
-}
-
-function signalPillHtml(item) {
-  const label = signalLabelText(item);
-  if (!label) return "";
-  const text = `투자 시그널 · ${label}`;
-  return `<span class="signal-pill">${escapeHtml(text)}</span>`;
-}
-
-function signalDetailBoxHtml(item) {
-  const label = signalLabelText(item);
-  if (!label) return "";
-  return `
-    <div class="detail-box signal-box">
-      <b>투자 시그널</b>
-      <span>${escapeHtml(label)}</span>
-    </div>
-  `;
 }
 
 function secCompositeCategory(item) {
@@ -2100,7 +2068,6 @@ function renderItem(item) {
         <div class="meta">
           <span class="source">${escapeHtml(item.source)}</span>
           ${compositePillHtml(item)}
-          ${signalPillHtml(item)}
           <span>${escapeHtml(date)}</span>
           <span>중요도 ${escapeHtml(String(item.importance))}</span>
           ${item.tags.map(([klass, label]) => `<span class="tag ${escapeHtml(klass)}">${escapeHtml(label)}</span>`).join("")}
@@ -2162,7 +2129,6 @@ function renderItemDetail(items, itemKey) {
           </div>
           ${periodicFinancialBoxesHtml(item)}
           ${compositeDetailBoxHtml(item)}
-          ${signalDetailBoxHtml(item)}
         </div>
         <ul class="detail-list">
           ${bullets.map(bullet => `<li>${escapeHtml(bullet)}</li>`).join("")}
@@ -2204,10 +2170,9 @@ function renderInsight(items, digest, mode) {
   const top = sortedItems(items)[0];
   const selected = selectedRegionFromUrl();
   const scope = selected ? `${regionLabel(selected)} 전체 화면에서 ` : "";
-  const signalCount = items.filter(item => secSignalBuckets(item).includes("sec_positive")).length;
   const compositeCount = items.filter(item => item.compositeSignals?.length).length;
   const message = mode === "backend"
-    ? `${scope}Fly 백엔드 digest ${digest?.digest_date || "latest"} 기준, ${items.length}개 공시/뉴스를 지역별 최신순으로 묶고 ${signalCount}개 투자 시그널, ${compositeCount}개 복합 시그널을 표시합니다.`
+    ? `${scope}Fly 백엔드 digest ${digest?.digest_date || "latest"} 기준, ${items.length}개 공시/뉴스를 지역별 최신순으로 묶고 ${compositeCount}개 복합 시그널을 표시합니다.`
     : "백엔드에 연결할 수 없어 정적 데모 데이터를 같은 UI 구조로 표시합니다.";
 
   document.getElementById("insightBanner").innerHTML = `
