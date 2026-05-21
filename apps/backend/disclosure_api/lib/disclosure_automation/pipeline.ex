@@ -86,7 +86,13 @@ defmodule DisclosureAutomation.Canonicalizer do
         labeled_entity_profile(title, summary, "TDnet", hd(regions), "JP")
 
       String.contains?(source_key, "tw_mops") ->
-        labeled_entity_profile(title, summary, "Taiwan MOPS", hd(regions), "TW")
+        labeled_entity_profile(title, summary, "Taiwan MOPS", hd(regions), "TW", url)
+
+      String.contains?(source_key, "india_nse") ->
+        labeled_entity_profile(title, summary, "NSE India", hd(regions), "NSE", url)
+
+      String.contains?(source_key, "set_thailand") ->
+        labeled_entity_profile(title, summary, "SET Thailand", hd(regions), "SET", url)
 
       true ->
         labeled_entity_profile(
@@ -94,7 +100,8 @@ defmodule DisclosureAutomation.Canonicalizer do
           summary,
           source_exchange_label(source_key),
           hd(regions),
-          nil
+          nil,
+          url
         )
     end
   end
@@ -148,13 +155,14 @@ defmodule DisclosureAutomation.Canonicalizer do
     })
   end
 
-  defp labeled_entity_profile(title, summary, exchange, region, ticker_prefix) do
+  defp labeled_entity_profile(title, summary, exchange, region, ticker_prefix, url \\ nil) do
     company =
       labeled_value(summary, "Company") || labeled_value(summary, "Issuer") ||
         company_from_title(title)
 
     symbol =
-      labeled_value(summary, "Symbol") || labeled_value(summary, "Code") || leading_code(title)
+      labeled_value(summary, "Symbol") || labeled_value(summary, "Code") || leading_code(title) ||
+        symbol_from_url(url)
 
     isin = labeled_value(summary, "ISIN")
     ticker = entity_ticker_label(ticker_prefix || exchange, symbol)
@@ -172,6 +180,15 @@ defmodule DisclosureAutomation.Canonicalizer do
       "source" => "rule_based_from_disclosure",
       "confidence" => if(symbol || isin, do: "medium", else: "low")
     })
+  end
+
+  defp symbol_from_url(nil), do: nil
+
+  defp symbol_from_url(url) do
+    case Regex.run(~r/\/corporate\/(?:xbrl\/)?([A-Z0-9.\-]+)_\d/i, url) do
+      [_match, symbol] -> clean_entity_text(symbol)
+      _ -> nil
+    end
   end
 
   defp build_entity_profile(values) do
