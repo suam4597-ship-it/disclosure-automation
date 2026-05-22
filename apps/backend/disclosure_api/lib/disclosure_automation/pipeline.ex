@@ -745,9 +745,12 @@ defmodule DisclosureAutomation.Canonicalizer do
     normalized = (clean_entity_text(text) || "") |> String.downcase()
 
     cond do
+      business_area = known_business_area_ko(normalized) ->
+        business_area
+
       business_match?(
         normalized,
-        ~r/bank|banco|은행|銀行|insurance|life insurance|보険|保険|assurance|fincorp|finance|financial|capital|mortgage|siena mortgages|asset|securities|証券|증권|trust|fund|etf|etn|shares|21shares|vontobel|ubs|bnp|santander|citigroup/u
+        ~r/bank|banco|은행|銀行|insurance|life insurance|보険|保険|assurance|fincorp|finance|financial|mortgage|siena mortgages|trust|fund|etf|etn|21shares|vontobel|ubs|bnp|santander|citigroup/u
       ) ->
         "금융·보험·증권"
 
@@ -759,25 +762,25 @@ defmodule DisclosureAutomation.Canonicalizer do
 
       business_match?(
         normalized,
-        ~r/semiconductor|electron|electronics|technology|tech|software|digital|e-commerce|commerce|internet|ai\b|data|通信|電子|半導体|テック|科技|기술|소프트웨어|전자상거래/u
-      ) ->
-        "기술·전자·디지털"
-
-      business_match?(
-        normalized,
         ~r/pharma|pharmaceutical|medical|medic|health|healthcare|bio|biocare|lab|therapeutics|drug|diagnostic|병원|의료|제약|바이오|薬|醫|医|生物/u
       ) ->
         "바이오·제약·헬스케어"
 
       business_match?(
         normalized,
-        ~r/food|foods|beverage|coffee|restaurant|consumer|retail|apparel|fashion|luxury|puig|cosmetic|수산|식품|食品|飲料|商事|상사|wholesale|유통|소비재/u
+        ~r/semiconductor|electron|electronics|technology|tech|software|digital|e-commerce|commerce|internet|ai\b|data|通信|電子|半導体|テック|科技|기술|소프트웨어|전자상거래/u
+      ) ->
+        "기술·전자·디지털"
+
+      business_match?(
+        normalized,
+        ~r/food|foods|beverage|coffee|restaurant|consumer|retail|apparel|fashion|luxury|brands|puig|cosmetic|jewelry|jewellery|수산|식품|食品|飲料|商事|상사|wholesale|유통|소비재/u
       ) ->
         "소비재·식품·유통"
 
       business_match?(
         normalized,
-        ~r/real estate|property|properties|house|housing|hotel|hotels|reit|infrastructure|infra|construction|建設|不動産|地產|地产|부동산|건설|주거/u
+        ~r/real estate|property|properties|house|housing|hotel|hotels|reit|infrastructure|infra|construction|建設|不動産|地產|地产|物業|物业|工程|부동산|건설|주거/u
       ) ->
         "부동산·건설·인프라"
 
@@ -789,7 +792,7 @@ defmodule DisclosureAutomation.Canonicalizer do
 
       business_match?(
         normalized,
-        ~r/manufactur|industrial|engineering|machinery|machine|equipment|steel|metal|mining|minerals|materials|irrigation|lmw|工業|機械|製造|산업재|제조|기계|철강|금속|광업/u
+        ~r/manufactur|industrial|industries|engineer|engineering|machinery|machine|equipment|steel|metal|mining|minerals|materials|irrigation|cast|foundry|forging|chemical|cement|lmw|工業|機械|製造|材料|化工|化學|鋼|산업재|제조|기계|철강|금속|광업/u
       ) ->
         "산업재·제조·소재"
 
@@ -808,6 +811,43 @@ defmodule DisclosureAutomation.Canonicalizer do
   end
 
   defp business_match?(text, regex), do: Regex.match?(regex, text || "")
+
+  defp known_business_area_ko(text) do
+    cond do
+      business_match?(
+        text,
+        ~r/ares private markets|siena mortgages|21shares|vontobel|ubs|bnp|santander|citigroup/u
+      ) ->
+        "금융·보험·증권"
+
+      business_match?(text, ~r/alpex solar|fujiyama power|seamec|drilling rig|zen-260/u) ->
+        "에너지·전력 인프라"
+
+      business_match?(text, ~r/ch biotech|zai lab|austar|hofseth biocare|bastide|therapeutics/u) ->
+        "바이오·제약·헬스케어"
+
+      business_match?(text, ~r/konaka|コナカ|redax|レダックス|mowi|石光商事|光・彩|puig/u) ->
+        "소비재·식품·유통"
+
+      business_match?(text, ~r/zxzn qi-house|エリアリンク|area link/u) ->
+        "부동산·건설·인프라"
+
+      business_match?(
+        text,
+        ~r/katakura|片倉|dee development engineers|karnika industries|felix industries|nelcast|mtar|transformers and rectifiers|lmw|中工/u
+      ) ->
+        "산업재·제조·소재"
+
+      business_match?(text, ~r/better collective|teleperformance|\btp\b|tep:/u) ->
+        "서비스·미디어"
+
+      business_match?(text, ~r/sdhg|shandong hi-speed/u) ->
+        "운송·자동차"
+
+      true ->
+        nil
+    end
+  end
 
   defp source_exchange_label(source_key) do
     cond do
