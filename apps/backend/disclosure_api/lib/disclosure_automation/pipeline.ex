@@ -1,6 +1,8 @@
 defmodule DisclosureAutomation.Canonicalizer do
   @moduledoc false
 
+  @regional_business_summary_version "regional_business_area_v2"
+
   @sec_submission_profile_headers [
     {~c"user-agent", ~c"disclosure-automation-phase1 suam4597@gmail.com"}
   ]
@@ -229,6 +231,7 @@ defmodule DisclosureAutomation.Canonicalizer do
       "ticker" => identifier,
       "identifier_label" => identifier,
       "business_summary_ko" => regional_business_summary(name, "홍콩거래소", title, summary),
+      "business_summary_version" => @regional_business_summary_version,
       "source" => "rule_based_from_disclosure",
       "confidence" => if(code, do: "high", else: "medium")
     })
@@ -276,6 +279,7 @@ defmodule DisclosureAutomation.Canonicalizer do
       "identifier_label" => identifier,
       "identifier_kind" => entity_identifier_kind(symbol, isin, lei, source_local_code),
       "business_summary_ko" => regional_business_summary(company, exchange, title, summary),
+      "business_summary_version" => @regional_business_summary_version,
       "source" => entity_profile_source(enriched_profile),
       "confidence" => if(symbol || isin || lei, do: "medium", else: "source_local")
     })
@@ -14270,6 +14274,8 @@ end
 defmodule DisclosureAutomation.Digest do
   @moduledoc false
 
+  @regional_business_summary_version "regional_business_area_v2"
+
   import Ecto.Query
 
   alias DisclosureAutomation.Canonicalizer
@@ -14679,7 +14685,8 @@ defmodule DisclosureAutomation.Digest do
   defp entity_profile_has_identifier?(_metadata), do: false
 
   defp entity_profile_needs_enrichment?(metadata) when is_map(metadata) do
-    not entity_profile_has_identifier?(metadata) or generic_business_summary?(metadata)
+    not entity_profile_has_identifier?(metadata) or generic_business_summary?(metadata) or
+      stale_regional_business_summary?(metadata)
   end
 
   defp entity_profile_needs_enrichment?(_metadata), do: true
@@ -14689,6 +14696,15 @@ defmodule DisclosureAutomation.Digest do
 
     String.contains?(summary, "공시 기준으로 식별된 상장사") or
       String.contains?(summary, "공시 기준 상장사입니다")
+  end
+
+  defp stale_regional_business_summary?(metadata) do
+    profile = Map.get(metadata || %{}, "entity_profile") || %{}
+    summary = Map.get(profile, "business_summary_ko") || ""
+    version = Map.get(profile, "business_summary_version")
+
+    String.contains?(summary, "회사명/공시 키워드 기준") and
+      version != @regional_business_summary_version
   end
 
   defp digest_prefixed_identifier(_prefix, nil), do: nil
