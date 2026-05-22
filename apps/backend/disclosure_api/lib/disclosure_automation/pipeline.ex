@@ -495,7 +495,7 @@ defmodule DisclosureAutomation.Canonicalizer do
   defp sec_company_from_title(title) do
     title
     |> String.replace(
-      ~r/^(?:8-K|8-K\/A|10-Q|10-K|10-Q\/A|10-K\/A|S-1|S-1\/A|F-1|F-1\/A|F-10|F-10\/A|S-4|S-4\/A|F-4|F-4\/A|Schedule TO|SC 13D(?:\/A)?|SC 13G(?:\/A)?|SC TO-[A-Z](?:\/A)?)\s*-\s*/i,
+      ~r/^(?:8-K|8-K\/A|10-Q|10-K|10-Q\/A|10-K\/A|S-1|S-1\/A|S-1MEF|F-1|F-1\/A|F-10|F-10\/A|S-4|S-4\/A|F-4|F-4\/A|Schedule TO|SC 13D(?:\/A)?|SC 13G(?:\/A)?|SC TO-[A-Z](?:\/A)?)\s*-\s*/i,
       ""
     )
     |> String.replace(
