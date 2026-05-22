@@ -5,6 +5,12 @@ defmodule DisclosureAutomation.Canonicalizer do
     {~c"user-agent", ~c"disclosure-automation-phase1 suam4597@gmail.com"}
   ]
   @sec_submission_profile_timeout_ms 2_000
+  @issuer_reference_timeout_ms 4_000
+  @issuer_reference_headers [
+    {~c"user-agent", ~c"disclosure-automation-phase1 suam4597@gmail.com"},
+    {~c"accept", ~c"text/html,application/xhtml+xml,application/xml,text/csv,*/*"}
+  ]
+  @india_nse_equity_list_url ~c"https://archives.nseindia.com/content/equities/EQUITY_L.csv"
 
   def canonicalize_document(document, source, attrs \\ %{}) do
     attrs = Map.new(attrs)
@@ -59,6 +65,7 @@ defmodule DisclosureAutomation.Canonicalizer do
       primary,
       prefixed_entity_identifier("CIK", Map.get(profile, "cik")),
       prefixed_entity_identifier("ISIN", Map.get(profile, "isin")),
+      prefixed_entity_identifier("LEI", Map.get(profile, "lei")),
       if(primary,
         do: nil,
         else: prefixed_entity_identifier("Code", Map.get(profile, "local_code"))
@@ -73,22 +80,50 @@ defmodule DisclosureAutomation.Canonicalizer do
     source_key = source_value(source, :source_key) || ""
 
     if String.contains?(source_key, "sec_edgar") do
-      records
-      |> Enum.map(fn record ->
-        title = document_value(record, :title)
-        summary = document_value(record, :summary)
-        url = document_value(record, :url)
+      prewarm_sec_submission_profiles(records)
+    end
 
-        sec_cik_from_text(title) || sec_cik_from_text(summary) || sec_cik_from_url(url)
-      end)
-      |> Enum.filter(&present_entity_value?/1)
-      |> Enum.uniq()
-      |> Enum.each(fn cik ->
-        Process.put({:sec_submission_profile, cik}, fetch_sec_submission_profile(cik))
-      end)
+    if String.contains?(source_key, "india_nse") do
+      prewarm_india_nse_equity_symbols()
+    end
+
+    if String.contains?(source_key, "euronext_company_press_releases") do
+      prewarm_euronext_company_profiles(records)
     end
 
     records
+  end
+
+  defp prewarm_sec_submission_profiles(records) do
+    records
+    |> Enum.map(fn record ->
+      title = document_value(record, :title)
+      summary = document_value(record, :summary)
+      url = document_value(record, :url)
+
+      sec_cik_from_text(title) || sec_cik_from_text(summary) || sec_cik_from_url(url)
+    end)
+    |> Enum.filter(&present_entity_value?/1)
+    |> Enum.uniq()
+    |> Enum.each(fn cik ->
+      Process.put({:sec_submission_profile, cik}, fetch_sec_submission_profile(cik))
+    end)
+  end
+
+  defp prewarm_india_nse_equity_symbols do
+    unless Process.get(:india_nse_equity_symbols) do
+      Process.put(:india_nse_equity_symbols, fetch_india_nse_equity_symbols())
+    end
+  end
+
+  defp prewarm_euronext_company_profiles(records) do
+    records
+    |> Enum.map(&document_value(&1, :url))
+    |> Enum.filter(&euronext_company_news_url?/1)
+    |> Enum.uniq()
+    |> Enum.each(fn url ->
+      Process.put({:euronext_company_profile, url}, fetch_euronext_company_profile(url))
+    end)
   end
 
   defp prefixed_entity_identifier(_prefix, nil), do: nil
@@ -204,14 +239,27 @@ defmodule DisclosureAutomation.Canonicalizer do
       labeled_value(summary, "Company") || labeled_value(summary, "Issuer") ||
         company_from_title(title)
 
+    enriched_profile = enriched_entity_profile(url)
+
     symbol =
-      (labeled_value(summary, "Symbol") || labeled_value(summary, "Code") || leading_code(title) ||
-         symbol_from_url(url))
+      first_present_entity_value([
+        labeled_value(summary, "Ticker"),
+        labeled_value(summary, "Trading symbol"),
+        labeled_value(summary, "Symbol"),
+        labeled_value(summary, "Code"),
+        Map.get(enriched_profile, "symbol"),
+        india_nse_symbol_for_company(company),
+        leading_code(title),
+        symbol_from_url(url)
+      ])
       |> normalize_market_symbol(ticker_prefix)
 
-    isin = labeled_value(summary, "ISIN")
+    isin = labeled_value(summary, "ISIN") || Map.get(enriched_profile, "isin")
+    lei = labeled_value(summary, "LEI") || Map.get(enriched_profile, "lei")
     ticker = entity_ticker_label(ticker_prefix || exchange, symbol)
-    identifier = ticker || prefixed_entity_identifier("ISIN", isin)
+
+    identifier =
+      ticker || prefixed_entity_identifier("ISIN", isin) || prefixed_entity_identifier("LEI", lei)
 
     build_entity_profile(%{
       "display_name" => clean_entity_text(company),
@@ -219,13 +267,23 @@ defmodule DisclosureAutomation.Canonicalizer do
       "exchange" => exchange,
       "local_code" => clean_entity_text(symbol),
       "isin" => clean_entity_text(isin),
+      "lei" => clean_entity_text(lei),
       "ticker" => ticker,
       "identifier_label" => identifier,
       "business_summary_ko" => entity_business_summary(company, "#{exchange} 공시 기준으로 식별된 상장사"),
-      "source" => "rule_based_from_disclosure",
-      "confidence" => if(symbol || isin, do: "medium", else: "low")
+      "source" => entity_profile_source(enriched_profile),
+      "confidence" => if(symbol || isin || lei, do: "medium", else: "low")
     })
   end
+
+  defp enriched_entity_profile(nil), do: %{}
+
+  defp enriched_entity_profile(url) do
+    Process.get({:euronext_company_profile, url}) || %{}
+  end
+
+  defp entity_profile_source(%{"source" => source}) when is_binary(source), do: source
+  defp entity_profile_source(_profile), do: "rule_based_from_disclosure"
 
   defp symbol_from_url(nil), do: nil
 
@@ -269,6 +327,184 @@ defmodule DisclosureAutomation.Canonicalizer do
   end
 
   defp normalize_market_symbol(symbol, _prefix), do: clean_entity_text(symbol)
+
+  defp india_nse_symbol_for_company(company) do
+    symbols = Process.get(:india_nse_equity_symbols) || %{}
+
+    company
+    |> issuer_lookup_keys()
+    |> Enum.find_value(&Map.get(symbols, &1))
+  end
+
+  defp fetch_india_nse_equity_symbols do
+    ensure_http_started()
+
+    http_options = [
+      timeout: @issuer_reference_timeout_ms,
+      connect_timeout: @issuer_reference_timeout_ms
+    ]
+
+    case :httpc.request(
+           :get,
+           {@india_nse_equity_list_url, @issuer_reference_headers},
+           http_options,
+           body_format: :binary
+         ) do
+      {:ok, {{_, status, _}, _headers, body}} when status in 200..299 ->
+        body
+        |> to_string()
+        |> String.split(~r/\r?\n/u, trim: true)
+        |> Enum.drop(1)
+        |> Enum.reduce(%{}, fn row, acc ->
+          case parse_comma_csv_row(row) do
+            [symbol, company | _rest] ->
+              put_issuer_symbol(acc, company, symbol)
+
+            _ ->
+              acc
+          end
+        end)
+
+      _ ->
+        %{}
+    end
+  end
+
+  defp put_issuer_symbol(acc, company, symbol) do
+    symbol = clean_entity_text(symbol)
+
+    if present_entity_value?(symbol) do
+      company
+      |> issuer_lookup_keys()
+      |> Enum.reduce(acc, &Map.put_new(&2, &1, symbol))
+    else
+      acc
+    end
+  end
+
+  defp fetch_euronext_company_profile(url) do
+    ensure_http_started()
+
+    http_options = [
+      timeout: @issuer_reference_timeout_ms,
+      connect_timeout: @issuer_reference_timeout_ms
+    ]
+
+    case :httpc.request(:get, {String.to_charlist(url), @issuer_reference_headers}, http_options,
+           body_format: :binary
+         ) do
+      {:ok, {{_, status, _}, _headers, body}} when status in 200..299 ->
+        html = to_string(body)
+
+        %{
+          "isin" => html_attribute_value(html, "data-isin"),
+          "symbol" => html_labeled_value(html, "Symbol"),
+          "source" => "euronext_company_page_enrichment"
+        }
+        |> build_entity_profile()
+
+      _ ->
+        %{}
+    end
+  end
+
+  defp euronext_company_news_url?(url) do
+    url = clean_entity_text(url) || ""
+    String.contains?(url, "live.euronext.com") and String.contains?(url, "/company-news/")
+  end
+
+  defp html_attribute_value(html, attribute) do
+    attribute = Regex.escape(attribute)
+
+    case Regex.run(~r/#{attribute}="([^"]+)"/iu, html || "") do
+      [_match, value] -> clean_entity_text(value)
+      _ -> nil
+    end
+  end
+
+  defp html_labeled_value(html, label) do
+    label = Regex.escape(label)
+
+    case Regex.run(~r/<h3[^>]*>\s*#{label}\s*<\/h3>\s*<p[^>]*>\s*([^<]+)\s*<\/p>/isu, html || "") do
+      [_match, value] -> clean_entity_text(value)
+      _ -> nil
+    end
+  end
+
+  defp ensure_http_started do
+    _ = Application.ensure_all_started(:ssl)
+    _ = Application.ensure_all_started(:inets)
+    :ok
+  end
+
+  defp issuer_lookup_keys(value) do
+    value = clean_entity_text(value)
+
+    [
+      issuer_lookup_key(value, false),
+      issuer_lookup_key(value, true)
+    ]
+    |> Enum.filter(&present_entity_value?/1)
+    |> Enum.uniq()
+  end
+
+  defp issuer_lookup_key(nil, _drop_suffixes), do: nil
+
+  defp issuer_lookup_key(value, drop_suffixes) do
+    value =
+      value
+      |> String.downcase()
+      |> String.replace("&", " and ")
+      |> String.replace(~r/[^a-z0-9]+/u, " ")
+
+    value =
+      if drop_suffixes do
+        String.replace(
+          value,
+          ~r/\b(limited|ltd|inc|corp|corporation|company|co|plc|sa|s a|ag|asa|group|holdings|holding)\b/u,
+          " "
+        )
+      else
+        value
+      end
+
+    value
+    |> String.replace(~r/\s+/u, " ")
+    |> String.trim()
+    |> empty_to_nil()
+  end
+
+  defp parse_comma_csv_row(row) do
+    row
+    |> to_charlist()
+    |> parse_comma_csv_chars([], [], false)
+    |> Enum.reverse()
+    |> Enum.map(fn field ->
+      field
+      |> Enum.reverse()
+      |> to_string()
+      |> String.replace("\"\"", "\"")
+      |> clean_entity_text()
+    end)
+  end
+
+  defp parse_comma_csv_chars([], current, fields, _quoted), do: [current | fields]
+
+  defp parse_comma_csv_chars([?", ?" | rest], current, fields, true) do
+    parse_comma_csv_chars(rest, [?" | current], fields, true)
+  end
+
+  defp parse_comma_csv_chars([?" | rest], current, fields, quoted) do
+    parse_comma_csv_chars(rest, current, fields, not quoted)
+  end
+
+  defp parse_comma_csv_chars([?, | rest], current, fields, false) do
+    parse_comma_csv_chars(rest, [], [current | fields], false)
+  end
+
+  defp parse_comma_csv_chars([char | rest], current, fields, quoted) do
+    parse_comma_csv_chars(rest, [char | current], fields, quoted)
+  end
 
   defp sec_submission_profile(nil), do: %{}
 

@@ -1627,17 +1627,30 @@ function itemTickers(item) {
 
 function entityIdentifierText(item) {
   const profile = entityProfile(item);
-  const fromProfile = profile.identifier_label || profile.ticker || profile.local_code || profile.isin || profile.cik;
+  const fromProfile = profile.identifier_label || profile.ticker || profile.local_code || profile.isin || profile.lei || profile.cik;
   if (fromProfile) return cleanText(fromProfile);
 
   const [firstTicker] = itemTickers(item);
   if (firstTicker) return firstTicker;
 
   const summary = rawSummaryText(item);
+  const source = itemSourceKey(item).toLowerCase();
+  const ticker = entityPrefixedText(summary, "Ticker") || entityPrefixedText(summary, "Trading symbol");
+  if (ticker) return ticker;
+
+  const rawSymbol = textAfter(summary, "Symbol:");
+  if (rawSymbol) return entityPrefixedMarketCode(source, "Symbol", rawSymbol);
+
+  const rawCode = textAfter(summary, "Code:");
+  if (rawCode) return entityPrefixedMarketCode(source, "Code", rawCode);
+
+  const rawIssuer = textAfter(summary, "Issuer:");
+  const issuerCode = rawIssuer.match(/^([0-9A-Z.\-]{2,12})\s+/)?.[1];
+  if (issuerCode) return entityPrefixedMarketCode(source, "Code", issuerCode);
+
   const labeled =
-    entityPrefixedText(summary, "Symbol") ||
-    entityPrefixedText(summary, "Code") ||
     entityPrefixedText(summary, "ISIN") ||
+    entityPrefixedText(summary, "LEI") ||
     entityPrefixedText(summary, "CUSIP");
   if (labeled) return labeled;
 
@@ -1645,7 +1658,18 @@ function entityIdentifierText(item) {
   if (secCik) return `CIK:${secCik.padStart(10, "0")}`;
 
   const leadingCode = item.title.match(/^([0-9A-Z.\-]{2,12})\s+-\s+/)?.[1];
-  return leadingCode || "";
+  return leadingCode ? entityPrefixedMarketCode(source, "Code", leadingCode) : "";
+}
+
+function entityPrefixedMarketCode(source, label, value) {
+  const cleaned = cleanText(value).split("|")[0].trim();
+  if (!cleaned) return "";
+  if (cleaned.includes(":")) return cleaned;
+  if (source.includes("hkex")) return `HKEX:${cleaned}`;
+  if (source.includes("tw_mops")) return `TW:${cleaned}`;
+  if (source.includes("india_nse")) return `NSE:${cleaned}`;
+  if (source.includes("jp_tdnet")) return `JP:${cleaned.replace(/^(\d{4})0$/, "$1")}`;
+  return `${label}:${cleaned}`;
 }
 
 function entityDescriptionText(item) {
