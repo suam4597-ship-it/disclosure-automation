@@ -14085,6 +14085,7 @@ defmodule DisclosureAutomation.Digest do
 
   import Ecto.Query
 
+  alias DisclosureAutomation.Canonicalizer
   alias DisclosureAutomation.Fixtures
   alias DisclosureAutomation.Repo
   alias DisclosureAutomation.Schema.CanonicalFeedItem
@@ -14174,6 +14175,7 @@ defmodule DisclosureAutomation.Digest do
       |> Repo.all()
 
     items = select_diverse_items(candidates, limit, max_per_source, max_per_region)
+    prewarm_present_item_entity_profiles(items)
 
     if items == [] do
       fallback_to_fixture(edition, digest_date, opts)
@@ -14380,7 +14382,27 @@ defmodule DisclosureAutomation.Digest do
       normalize_source_scope(Keyword.get(opts, :excluded_source_keys)) != []
   end
 
+  defp prewarm_present_item_entity_profiles(items) do
+    items
+    |> Enum.reject(fn {item, _source} -> entity_profile_has_identifier?(item.metadata || %{}) end)
+    |> Enum.group_by(fn {_item, source} -> source.source_key end)
+    |> Enum.each(fn {_source_key, source_items} ->
+      [{_item, source} | _rest] = source_items
+
+      records =
+        Enum.map(source_items, fn {item, _source} ->
+          canonicalizer_document(item)
+        end)
+
+      Canonicalizer.prewarm_entity_profiles(records, source)
+    end)
+  end
+
   defp present_item({item, source}) do
+    metadata =
+      item
+      |> enriched_present_metadata(source)
+
     %{
       "story_key" => item.story_key,
       "priority_rank" => item.priority_rank,
@@ -14392,15 +14414,86 @@ defmodule DisclosureAutomation.Digest do
         "source_key" => source.source_key,
         "display_name" => source.display_name
       },
-      "tickers" => item.tickers || [],
+      "tickers" => present_tickers(item, metadata),
       "regions" => item.regions || [],
       "sectors" => item.sectors || [],
       "sentiment_label" => item.sentiment_label,
       "relevance_score" => decimal_to_number(item.relevance_score),
       "duplicate_group_key" => item.duplicate_group_key,
-      "metadata" => item.metadata || %{}
+      "metadata" => metadata
     }
   end
+
+  defp enriched_present_metadata(item, source) do
+    metadata = item.metadata || %{}
+
+    if entity_profile_has_identifier?(metadata) do
+      metadata
+    else
+      enriched =
+        item
+        |> canonicalizer_document()
+        |> Canonicalizer.canonicalize_document(source,
+          fetch_mode: Map.get(metadata, "fetch_mode")
+        )
+        |> get_in([:metadata, "entity_profile"])
+
+      if is_map(enriched) and map_size(enriched) > 0 do
+        Map.put(metadata, "entity_profile", enriched)
+      else
+        metadata
+      end
+    end
+  end
+
+  defp canonicalizer_document(item) do
+    %{
+      title: item.headline,
+      summary: item.summary,
+      url: item.canonical_url,
+      published_at: item.published_at,
+      category: get_in(item.metadata || %{}, ["category"])
+    }
+  end
+
+  defp present_tickers(item, metadata) do
+    profile = Map.get(metadata || %{}, "entity_profile") || %{}
+
+    [
+      item.tickers || [],
+      [
+        Map.get(profile, "ticker") || Map.get(profile, "identifier_label"),
+        digest_prefixed_identifier("CIK", Map.get(profile, "cik")),
+        digest_prefixed_identifier("ISIN", Map.get(profile, "isin")),
+        digest_prefixed_identifier("LEI", Map.get(profile, "lei")),
+        if(Map.get(profile, "ticker") || Map.get(profile, "identifier_label"),
+          do: nil,
+          else: digest_prefixed_identifier("Code", Map.get(profile, "local_code"))
+        )
+      ]
+    ]
+    |> List.flatten()
+    |> Enum.filter(&digest_present?/1)
+    |> Enum.uniq()
+    |> Enum.take(3)
+  end
+
+  defp entity_profile_has_identifier?(metadata) when is_map(metadata) do
+    profile = Map.get(metadata, "entity_profile")
+
+    is_map(profile) and
+      Enum.any?(["identifier_label", "ticker", "local_code", "isin", "lei", "cik"], fn key ->
+        digest_present?(Map.get(profile, key))
+      end)
+  end
+
+  defp entity_profile_has_identifier?(_metadata), do: false
+
+  defp digest_prefixed_identifier(_prefix, nil), do: nil
+  defp digest_prefixed_identifier(_prefix, ""), do: nil
+  defp digest_prefixed_identifier(prefix, value), do: "#{prefix}:#{value}"
+
+  defp digest_present?(value), do: is_binary(value) and String.trim(value) != ""
 
   defp decimal_to_number(nil), do: nil
   defp decimal_to_number(%Decimal{} = value), do: Decimal.to_float(value)
