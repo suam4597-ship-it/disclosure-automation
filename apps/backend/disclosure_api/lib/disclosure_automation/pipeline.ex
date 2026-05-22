@@ -4,7 +4,7 @@ defmodule DisclosureAutomation.Canonicalizer do
   @sec_submission_profile_headers [
     {~c"user-agent", ~c"disclosure-automation-phase1 suam4597@gmail.com"}
   ]
-  @sec_submission_profile_timeout_ms 4_000
+  @sec_submission_profile_timeout_ms 2_000
 
   def canonicalize_document(document, source, attrs \\ %{}) do
     attrs = Map.new(attrs)
@@ -67,6 +67,28 @@ defmodule DisclosureAutomation.Canonicalizer do
     |> Enum.filter(&present_entity_value?/1)
     |> Enum.uniq()
     |> Enum.take(3)
+  end
+
+  def prewarm_entity_profiles(records, source) when is_list(records) do
+    source_key = source_value(source, :source_key) || ""
+
+    if String.contains?(source_key, "sec_edgar") do
+      records
+      |> Enum.map(fn record ->
+        title = document_value(record, :title)
+        summary = document_value(record, :summary)
+        url = document_value(record, :url)
+
+        sec_cik_from_text(title) || sec_cik_from_text(summary) || sec_cik_from_url(url)
+      end)
+      |> Enum.filter(&present_entity_value?/1)
+      |> Enum.uniq()
+      |> Enum.each(fn cik ->
+        Process.put({:sec_submission_profile, cik}, fetch_sec_submission_profile(cik))
+      end)
+    end
+
+    records
   end
 
   defp prefixed_entity_identifier(_prefix, nil), do: nil
@@ -240,13 +262,8 @@ defmodule DisclosureAutomation.Canonicalizer do
     cache_key = {:sec_submission_profile, cik}
 
     case Process.get(cache_key) do
-      nil ->
-        profile = fetch_sec_submission_profile(cik)
-        Process.put(cache_key, profile)
-        profile
-
-      profile ->
-        profile
+      nil -> %{}
+      profile -> profile
     end
   end
 
@@ -478,7 +495,7 @@ defmodule DisclosureAutomation.Canonicalizer do
   defp sec_company_from_title(title) do
     title
     |> String.replace(
-      ~r/^(?:8-K|10-Q|10-K|10-Q\/A|10-K\/A|S-1|S-1\/A|F-1|F-1\/A|F-10|F-10\/A|S-4|S-4\/A|F-4|F-4\/A|Schedule TO|SC 13D|SC 13G|SC TO-[A-Z](?:\/A)?)\s*-\s*/i,
+      ~r/^(?:8-K|8-K\/A|10-Q|10-K|10-Q\/A|10-K\/A|S-1|S-1\/A|F-1|F-1\/A|F-10|F-10\/A|S-4|S-4\/A|F-4|F-4\/A|Schedule TO|SC 13D(?:\/A)?|SC 13G(?:\/A)?|SC TO-[A-Z](?:\/A)?)\s*-\s*/i,
       ""
     )
     |> String.replace(
@@ -5782,6 +5799,7 @@ defmodule DisclosureAutomation.Ingestion do
              max_items_per_poll: source_max_items_per_poll(source)
            ) do
       records = maybe_enrich_live_records(source, records, payload.fetch_info)
+      records = Canonicalizer.prewarm_entity_profiles(records, source)
 
       result =
         Repo.transaction(fn ->
