@@ -223,13 +223,41 @@
     .bar.high { background: var(--red); }
 
     .headline { font-weight: 800; line-height: 1.35; margin-bottom: 5px; letter-spacing: -0.015em; }
+    .headline-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     .headline-link { color: inherit; text-decoration: none; }
     .headline-link:hover, .headline-link:focus-visible { color: #bfdbfe; text-decoration: underline; text-underline-offset: 3px; }
+    .title-identifier {
+      display: inline-flex;
+      align-items: center;
+      min-height: 20px;
+      border: 1px solid rgba(14, 165, 233, 0.35);
+      border-radius: 6px;
+      padding: 1px 7px;
+      background: rgba(14, 165, 233, 0.12);
+      color: #7dd3fc;
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 0;
+    }
     .summary { color: var(--sub); font-size: 13px; line-height: 1.55; margin-bottom: 8px; }
     .meta { display: flex; gap: 10px; align-items: center; color: var(--muted); font-size: 12px; flex-wrap: wrap; }
     .source { color: var(--sub); font-weight: 700; }
     .detail-body { padding: 24px; }
     .detail-title { margin: 0 0 10px; font-size: 22px; line-height: 1.35; letter-spacing: -0.02em; }
+    .entity-intro {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+      margin: 0 0 14px;
+      padding: 10px 12px;
+      border: 1px solid rgba(59, 130, 246, 0.22);
+      border-radius: 8px;
+      background: rgba(59, 130, 246, 0.07);
+      color: var(--sub);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+    .entity-intro b { color: #bfdbfe; white-space: nowrap; }
     .detail-summary { margin: 0 0 18px; color: var(--text); line-height: 1.65; }
     .detail-summary p { margin: 0 0 10px; }
     .detail-summary-list { margin: 8px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
@@ -2131,16 +2159,17 @@ function renderItem(item) {
   const date = shortDateTime(item.publishedAt);
   const bar = item.importance >= 85 ? "high" : item.category;
   const headline = `<a class="headline-link" href="${escapeHtml(itemDetailUrl(item))}">${escapeHtml(item.title)}</a>`;
+  const identifier = entityIdentifierText(item);
+  const identifierBadge = identifier ? `<span class="title-identifier">${escapeHtml(identifier)}</span>` : "";
 
   return `
     <div class="item" data-cat="${escapeHtml(item.category)}">
       <i class="bar ${escapeHtml(bar)}"></i>
       <div>
-        <div class="headline">${headline}</div>
+        <div class="headline headline-row">${headline}${identifierBadge}</div>
         <div class="summary">${escapeHtml(formatMoneyText(item.summary))}</div>
         <div class="meta">
           <span class="source">${escapeHtml(item.source)}</span>
-          ${entityIdentifierTagHtml(item)}
           ${compositePillHtml(item)}
           <span>${escapeHtml(date)}</span>
           <span>중요도 ${escapeHtml(String(item.importance))}</span>
@@ -2171,6 +2200,7 @@ function renderItemDetail(items, itemKey) {
   const bullets = detailBullets(item);
   const values = extractDetailValues(item);
   const periodicReport = isSecPeriodicReport(item);
+  const entityDescription = entityDescriptionText(item);
   const originalLink = item.url
     ? `<a class="detail-action primary" href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">원문 보기</a>`
     : "";
@@ -2183,6 +2213,7 @@ function renderItemDetail(items, itemKey) {
       </div>
       <div class="detail-body">
         <h2 class="detail-title">${escapeHtml(item.title)}</h2>
+        <div class="entity-intro"><b>기업/사업</b><span>${escapeHtml(entityDescription)}</span></div>
         ${detailSummaryHtml(item)}
         <div class="detail-grid">
           <div class="detail-box">
@@ -2199,7 +2230,7 @@ function renderItemDetail(items, itemKey) {
           </div>
           <div class="detail-box">
             <b>기업 개요</b>
-            <span>${escapeHtml(entityDescriptionText(item))}</span>
+            <span>${escapeHtml(entityDescription)}</span>
           </div>
           <div class="detail-box">
             <b>시각</b>

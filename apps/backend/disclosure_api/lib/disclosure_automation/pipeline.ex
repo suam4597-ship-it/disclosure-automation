@@ -1,6 +1,11 @@
 defmodule DisclosureAutomation.Canonicalizer do
   @moduledoc false
 
+  @sec_submission_profile_headers [
+    {~c"user-agent", ~c"disclosure-automation-phase1 suam4597@gmail.com"}
+  ]
+  @sec_submission_profile_timeout_ms 4_000
+
   def canonicalize_document(document, source, attrs \\ %{}) do
     attrs = Map.new(attrs)
     entity_profile = entity_profile(document, source)
@@ -108,27 +113,44 @@ defmodule DisclosureAutomation.Canonicalizer do
 
   defp sec_entity_profile(title, summary, url) do
     cik = sec_cik_from_text(title) || sec_cik_from_text(summary) || sec_cik_from_url(url)
-    ticker = labeled_value(summary, "Ticker") || labeled_value(summary, "Trading symbol")
+    sec_profile = sec_submission_profile(cik)
+
+    ticker =
+      first_present_entity_value([
+        labeled_value(summary, "Ticker"),
+        labeled_value(summary, "Trading symbol"),
+        sec_submission_profile_list(sec_profile, "tickers")
+      ])
+
+    exchange =
+      first_present_entity_value([
+        labeled_value(summary, "Exchange"),
+        sec_submission_profile_list(sec_profile, "exchanges")
+      ])
+
     cusip = labeled_value(summary, "CUSIP")
+    sic = clean_entity_text(sec_profile["sic"])
+    sic_description = clean_entity_text(sec_profile["sic_description"])
 
     company =
       sec_company_from_title(title) || labeled_value(summary, "Company") ||
-        labeled_value(summary, "Issuer")
+        labeled_value(summary, "Issuer") || clean_entity_text(sec_profile["name"])
 
     identifier =
-      entity_ticker_label("SEC", ticker) || prefixed_entity_identifier("CIK", cik) ||
+      sec_ticker_label(exchange, ticker) || prefixed_entity_identifier("CIK", cik) ||
         prefixed_entity_identifier("CUSIP", cusip)
 
     build_entity_profile(%{
       "display_name" => company,
       "region" => "us",
-      "exchange" => "SEC EDGAR",
+      "exchange" => sec_exchange_label(exchange),
       "cik" => cik,
       "cusip" => cusip,
-      "ticker" => entity_ticker_label("SEC", ticker),
+      "sic" => sic,
+      "sic_description" => sic_description,
+      "ticker" => sec_ticker_label(exchange, ticker),
       "identifier_label" => identifier,
-      "business_summary_ko" =>
-        entity_business_summary(company, "SEC EDGAR 공시 기준으로 식별된 미국 상장/보고 기업"),
+      "business_summary_ko" => sec_business_summary(company, sic_description),
       "source" => "rule_based_from_disclosure",
       "confidence" => if(cik || ticker || cusip, do: "high", else: "medium")
     })
@@ -209,6 +231,160 @@ defmodule DisclosureAutomation.Canonicalizer do
       not present_entity_value?(prefix) -> symbol
       String.contains?(symbol, ":") -> symbol
       true -> "#{prefix}:#{symbol}"
+    end
+  end
+
+  defp sec_submission_profile(nil), do: %{}
+
+  defp sec_submission_profile(cik) do
+    cache_key = {:sec_submission_profile, cik}
+
+    case Process.get(cache_key) do
+      nil ->
+        profile = fetch_sec_submission_profile(cik)
+        Process.put(cache_key, profile)
+        profile
+
+      profile ->
+        profile
+    end
+  end
+
+  defp fetch_sec_submission_profile(cik) do
+    _ = Application.ensure_all_started(:ssl)
+    _ = Application.ensure_all_started(:inets)
+
+    # Keep SEC profile enrichment below the published fair-access request ceiling.
+    Process.sleep(120)
+
+    url = ~c"https://data.sec.gov/submissions/CIK#{cik}.json"
+
+    http_options = [
+      timeout: @sec_submission_profile_timeout_ms,
+      connect_timeout: @sec_submission_profile_timeout_ms
+    ]
+
+    case :httpc.request(:get, {url, @sec_submission_profile_headers}, http_options,
+           body_format: :binary
+         ) do
+      {:ok, {{_, status, _}, _headers, body}} when status in 200..299 ->
+        case Jason.decode(body) do
+          {:ok, data} ->
+            %{
+              "name" => data["name"],
+              "tickers" => data["tickers"],
+              "exchanges" => data["exchanges"],
+              "sic" => data["sic"],
+              "sic_description" => data["sicDescription"]
+            }
+
+          _ ->
+            %{}
+        end
+
+      _ ->
+        %{}
+    end
+  end
+
+  defp sec_submission_profile_list(profile, key) when is_map(profile) do
+    case Map.get(profile, key) do
+      values when is_list(values) -> values
+      value -> [value]
+    end
+  end
+
+  defp sec_submission_profile_list(_profile, _key), do: []
+
+  defp first_present_entity_value(values) when is_list(values) do
+    Enum.find_value(values, fn
+      value when is_list(value) ->
+        first_present_entity_value(value)
+
+      value ->
+        value
+        |> clean_entity_text()
+        |> case do
+          nil -> nil
+          "" -> nil
+          text -> text
+        end
+    end)
+  end
+
+  defp first_present_entity_value(value), do: first_present_entity_value([value])
+
+  defp sec_ticker_label(exchange, ticker) do
+    entity_ticker_label(sec_exchange_label(exchange), ticker)
+  end
+
+  defp sec_exchange_label(exchange) do
+    exchange = clean_entity_text(exchange)
+    normalized = String.downcase(exchange || "")
+
+    cond do
+      normalized == "" -> "SEC"
+      String.contains?(normalized, "nasdaq") -> "NASDAQ"
+      String.contains?(normalized, "nyse") -> "NYSE"
+      String.contains?(normalized, "amex") -> "NYSEAMERICAN"
+      String.contains?(normalized, "otc") -> "OTC"
+      true -> exchange
+    end
+  end
+
+  defp sec_business_summary(company, sic_description) do
+    entity_business_summary(
+      company,
+      "SEC SIC 기준 #{sec_sic_description_ko(sic_description)}"
+    )
+  end
+
+  defp sec_sic_description_ko(nil), do: "미국 상장/보고 기업"
+  defp sec_sic_description_ko(""), do: "미국 상장/보고 기업"
+
+  defp sec_sic_description_ko(description) do
+    description = clean_entity_text(description)
+    normalized = String.downcase(description || "")
+
+    cond do
+      Regex.match?(~r/blank checks?/u, normalized) ->
+        "기업인수목적회사(SPAC/blank check company)"
+
+      Regex.match?(
+        ~r/pharmaceutical|medicinal|biological products?|diagnostic|medical/u,
+        normalized
+      ) ->
+        "바이오·의약품 또는 헬스케어 업종"
+
+      Regex.match?(~r/computer|software|semiconductor|electronic|technology/u, normalized) ->
+        "기술·소프트웨어 또는 전자장비 업종"
+
+      Regex.match?(~r/oil|gas|petroleum|mining|metal|energy|electric services/u, normalized) ->
+        "에너지·자원 또는 유틸리티 업종"
+
+      Regex.match?(
+        ~r/real estate|reit|mortgage|investment advice|investment|finance|loan|bank|insurance/u,
+        normalized
+      ) ->
+        "금융·투자 또는 부동산 관련 업종"
+
+      Regex.match?(~r/retail|wholesale|apparel|food|restaurant|consumer/u, normalized) ->
+        "소비재·유통 또는 외식 관련 업종"
+
+      Regex.match?(
+        ~r/manufactur|machinery|industrial|motor vehicle|aircraft|transportation/u,
+        normalized
+      ) ->
+        "제조·산업재 또는 운송장비 업종"
+
+      Regex.match?(
+        ~r/business services|services|advertising|communications|entertainment|hotel/u,
+        normalized
+      ) ->
+        "서비스·미디어 또는 커뮤니케이션 업종"
+
+      true ->
+        "‘#{description}’ 산업분류에 속한 회사"
     end
   end
 
@@ -302,7 +478,7 @@ defmodule DisclosureAutomation.Canonicalizer do
   defp sec_company_from_title(title) do
     title
     |> String.replace(
-      ~r/^(?:8-K|10-Q|10-K|10-Q\/A|10-K\/A|S-1|S-1\/A|F-1|F-1\/A|F-10|F-10\/A|S-4|S-4\/A|F-4|F-4\/A|Schedule TO|SC 13D|SC 13G|SC TO-[A-Z])\s*-\s*/i,
+      ~r/^(?:8-K|10-Q|10-K|10-Q\/A|10-K\/A|S-1|S-1\/A|F-1|F-1\/A|F-10|F-10\/A|S-4|S-4\/A|F-4|F-4\/A|Schedule TO|SC 13D|SC 13G|SC TO-[A-Z](?:\/A)?)\s*-\s*/i,
       ""
     )
     |> String.replace(
