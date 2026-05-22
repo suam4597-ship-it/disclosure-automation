@@ -548,7 +548,9 @@ defmodule DisclosureAutomation.Canonicalizer do
 
   defp exchange_code_like?(value) do
     value = clean_entity_text(value) || ""
-    Regex.match?(~r/^[0-9A-Z.\-]{2,12}$/u, value)
+
+    Regex.match?(~r/^[0-9A-Z.\-]{2,12}$/u, value) and
+      Regex.match?(~r/\d/u, value)
   end
 
   defp company_from_leading_clause(nil), do: nil
