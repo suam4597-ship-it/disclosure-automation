@@ -228,7 +228,7 @@ defmodule DisclosureAutomation.Canonicalizer do
       "local_code" => code,
       "ticker" => identifier,
       "identifier_label" => identifier,
-      "business_summary_ko" => entity_business_summary(name, "홍콩거래소 공시 기준으로 식별된 상장사"),
+      "business_summary_ko" => regional_business_summary(name, "홍콩거래소", title, summary),
       "source" => "rule_based_from_disclosure",
       "confidence" => if(code, do: "high", else: "medium")
     })
@@ -275,7 +275,7 @@ defmodule DisclosureAutomation.Canonicalizer do
       "ticker" => ticker,
       "identifier_label" => identifier,
       "identifier_kind" => entity_identifier_kind(symbol, isin, lei, source_local_code),
-      "business_summary_ko" => entity_business_summary(company, "#{exchange} 공시 기준으로 식별된 상장사"),
+      "business_summary_ko" => regional_business_summary(company, exchange, title, summary),
       "source" => entity_profile_source(enriched_profile),
       "confidence" => if(symbol || isin || lei, do: "medium", else: "source_local")
     })
@@ -699,8 +699,115 @@ defmodule DisclosureAutomation.Canonicalizer do
   defp entity_business_summary("", _description), do: nil
 
   defp entity_business_summary(company, description) do
-    "#{clean_entity_text(company)}는 #{description}입니다."
+    company = clean_entity_text(company)
+    description = clean_entity_text(description)
+
+    cond do
+      not present_entity_value?(company) or not present_entity_value?(description) ->
+        nil
+
+      Regex.match?(~r/(입니다|합니다|됩니다|있습니다|없습니다|않았습니다|했습니다)\.?$/u, description) ->
+        "#{company}는 #{description}"
+
+      true ->
+        "#{company}는 #{description}입니다."
+    end
   end
+
+  defp regional_business_summary(company, exchange, title, summary) do
+    text = entity_join_non_empty([company, title, summary], " ")
+
+    case infer_business_area_ko(text) do
+      nil ->
+        entity_business_summary(
+          company,
+          "#{exchange} 공시 기준 상장사입니다. 세부 업종은 원천 feed에서 제공되지 않았습니다."
+        )
+
+      business_area ->
+        entity_business_summary(
+          company,
+          "#{business_area} 분야 기업(회사명/공시 키워드 기준)"
+        )
+    end
+  end
+
+  defp entity_join_non_empty(values, separator) do
+    values
+    |> Enum.map(&clean_entity_text/1)
+    |> Enum.filter(&present_entity_value?/1)
+    |> Enum.join(separator)
+  end
+
+  defp infer_business_area_ko(nil), do: nil
+
+  defp infer_business_area_ko(text) do
+    normalized = (clean_entity_text(text) || "") |> String.downcase()
+
+    cond do
+      business_match?(
+        normalized,
+        ~r/bank|banco|은행|銀行|insurance|life insurance|보険|保険|assurance|fincorp|finance|financial|capital|mortgage|siena mortgages|asset|securities|証券|증권|trust|fund|etf|etn|shares|21shares|vontobel|ubs|bnp|santander|citigroup/u
+      ) ->
+        "금융·보험·증권"
+
+      business_match?(
+        normalized,
+        ~r/power|solar|energy|electric|utilities|utility|gail|transformer|rectifier|drilling|rig|offshore|renewable|電力|発電|太陽光|에너지|전력|가스|gas|oil|petroleum|green notes/u
+      ) ->
+        "에너지·전력 인프라"
+
+      business_match?(
+        normalized,
+        ~r/semiconductor|electron|electronics|technology|tech|software|digital|e-commerce|commerce|internet|ai\b|data|通信|電子|半導体|テック|科技|기술|소프트웨어|전자상거래/u
+      ) ->
+        "기술·전자·디지털"
+
+      business_match?(
+        normalized,
+        ~r/pharma|pharmaceutical|medical|medic|health|healthcare|bio|biocare|lab|therapeutics|drug|diagnostic|병원|의료|제약|바이오|薬|醫|医|生物/u
+      ) ->
+        "바이오·제약·헬스케어"
+
+      business_match?(
+        normalized,
+        ~r/food|foods|beverage|coffee|restaurant|consumer|retail|apparel|fashion|luxury|puig|cosmetic|수산|식품|食品|飲料|商事|상사|wholesale|유통|소비재/u
+      ) ->
+        "소비재·식품·유통"
+
+      business_match?(
+        normalized,
+        ~r/real estate|property|properties|house|housing|hotel|hotels|reit|infrastructure|infra|construction|建設|不動産|地產|地产|부동산|건설|주거/u
+      ) ->
+        "부동산·건설·인프라"
+
+      business_match?(
+        normalized,
+        ~r/airlines|airways|aviation|transport|shipping|logistics|rail|railway|motor|auto|automobile|mobility|항공|운송|자동차|自動車/u
+      ) ->
+        "운송·자동차"
+
+      business_match?(
+        normalized,
+        ~r/manufactur|industrial|engineering|machinery|machine|equipment|steel|metal|mining|minerals|materials|irrigation|lmw|工業|機械|製造|산업재|제조|기계|철강|금속|광업/u
+      ) ->
+        "산업재·제조·소재"
+
+      business_match?(
+        normalized,
+        ~r/media|entertainment|game|gaming|advertising|publication|publishing|education|service|services|consulting|서비스|미디어|교육|엔터/u
+      ) ->
+        "서비스·미디어"
+
+      business_match?(normalized, ~r/holdings?|holding|group|hd\b|ホールディングス|ＨＤ|ｈｄ|지주/u) ->
+        "지주회사·투자"
+
+      true ->
+        nil
+    end
+  end
+
+  defp business_match?(text, regex), do: Regex.match?(regex, text || "")
 
   defp source_exchange_label(source_key) do
     cond do
@@ -14424,7 +14531,9 @@ defmodule DisclosureAutomation.Digest do
 
   defp prewarm_present_item_entity_profiles(items) do
     items
-    |> Enum.reject(fn {item, _source} -> entity_profile_has_identifier?(item.metadata || %{}) end)
+    |> Enum.filter(fn {item, _source} ->
+      entity_profile_needs_enrichment?(item.metadata || %{})
+    end)
     |> Enum.group_by(fn {_item, source} -> source.source_key end)
     |> Enum.each(fn {_source_key, source_items} ->
       [{_item, source} | _rest] = source_items
@@ -14467,7 +14576,7 @@ defmodule DisclosureAutomation.Digest do
   defp enriched_present_metadata(item, source) do
     metadata = item.metadata || %{}
 
-    if entity_profile_has_identifier?(metadata) do
+    if not entity_profile_needs_enrichment?(metadata) do
       metadata
     else
       enriched =
@@ -14528,6 +14637,19 @@ defmodule DisclosureAutomation.Digest do
   end
 
   defp entity_profile_has_identifier?(_metadata), do: false
+
+  defp entity_profile_needs_enrichment?(metadata) when is_map(metadata) do
+    not entity_profile_has_identifier?(metadata) or generic_business_summary?(metadata)
+  end
+
+  defp entity_profile_needs_enrichment?(_metadata), do: true
+
+  defp generic_business_summary?(metadata) do
+    summary = get_in(metadata, ["entity_profile", "business_summary_ko"]) || ""
+
+    String.contains?(summary, "공시 기준으로 식별된 상장사") or
+      String.contains?(summary, "공시 기준 상장사입니다")
+  end
 
   defp digest_prefixed_identifier(_prefix, nil), do: nil
   defp digest_prefixed_identifier(_prefix, ""), do: nil
