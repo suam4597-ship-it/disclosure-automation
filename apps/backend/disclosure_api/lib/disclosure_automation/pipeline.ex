@@ -524,17 +524,67 @@ defmodule DisclosureAutomation.Canonicalizer do
   defp company_from_title(nil), do: nil
 
   defp company_from_title(title) do
+    title = clean_entity_text(title)
+
     parts =
       title
-      |> clean_entity_text()
       |> String.split(~r/\s+-\s+/u, parts: 3)
       |> Enum.map(&clean_entity_text/1)
       |> Enum.filter(&present_entity_value?/1)
 
     case parts do
-      [code, company | _rest] when byte_size(code) <= 12 -> company
-      [company | _rest] -> company
-      _ -> nil
+      [code, company | _rest] ->
+        if exchange_code_like?(code),
+          do: clean_company_name(company),
+          else: company_from_leading_clause(code)
+
+      [company | _rest] ->
+        company_from_leading_clause(company)
+
+      _ ->
+        nil
+    end
+  end
+
+  defp exchange_code_like?(value) do
+    value = clean_entity_text(value) || ""
+    Regex.match?(~r/^[0-9A-Z.\-]{2,12}$/u, value)
+  end
+
+  defp company_from_leading_clause(nil), do: nil
+
+  defp company_from_leading_clause(value) do
+    value = clean_entity_text(value)
+
+    cond do
+      not present_entity_value?(value) ->
+        nil
+
+      match =
+          Regex.run(
+            ~r/^(.{2,80}?(?:ASA|A\/S|SA|S\.A\.|AG|SE|N\.V\.|PLC|LTD|LIMITED|INC\.?|CORP\.?|GROUP|HOLDINGS?))\s*[:;]\s+/iu,
+            value
+          ) ->
+        match |> List.last() |> clean_company_name()
+
+      match =
+          Regex.run(
+            ~r/^(.{2,80}?)\s+(?:sells|announces|reports|signs|launches|publishes)\b/iu,
+            value
+          ) ->
+        match |> List.last() |> clean_company_name()
+
+      true ->
+        clean_company_name(value)
+    end
+  end
+
+  defp clean_company_name(value) do
+    value
+    |> clean_entity_text()
+    |> case do
+      nil -> nil
+      text -> text |> String.replace(~r/[;:,]+$/u, "") |> clean_entity_text()
     end
   end
 
