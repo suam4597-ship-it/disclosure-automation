@@ -258,21 +258,26 @@ defmodule DisclosureAutomation.Canonicalizer do
     lei = labeled_value(summary, "LEI") || Map.get(enriched_profile, "lei")
     ticker = entity_ticker_label(ticker_prefix || exchange, symbol)
 
+    source_local_code =
+      if(symbol || isin || lei, do: nil, else: source_local_issuer_code(company))
+
     identifier =
-      ticker || prefixed_entity_identifier("ISIN", isin) || prefixed_entity_identifier("LEI", lei)
+      ticker || prefixed_entity_identifier("ISIN", isin) || prefixed_entity_identifier("LEI", lei) ||
+        entity_ticker_label(ticker_prefix || exchange, source_local_code)
 
     build_entity_profile(%{
       "display_name" => clean_entity_text(company),
       "region" => region,
       "exchange" => exchange,
-      "local_code" => clean_entity_text(symbol),
+      "local_code" => clean_entity_text(symbol || source_local_code),
       "isin" => clean_entity_text(isin),
       "lei" => clean_entity_text(lei),
       "ticker" => ticker,
       "identifier_label" => identifier,
+      "identifier_kind" => entity_identifier_kind(symbol, isin, lei, source_local_code),
       "business_summary_ko" => entity_business_summary(company, "#{exchange} 공시 기준으로 식별된 상장사"),
       "source" => entity_profile_source(enriched_profile),
-      "confidence" => if(symbol || isin || lei, do: "medium", else: "low")
+      "confidence" => if(symbol || isin || lei, do: "medium", else: "source_local")
     })
   end
 
@@ -284,6 +289,24 @@ defmodule DisclosureAutomation.Canonicalizer do
 
   defp entity_profile_source(%{"source" => source}) when is_binary(source), do: source
   defp entity_profile_source(_profile), do: "rule_based_from_disclosure"
+
+  defp entity_identifier_kind(symbol, _isin, _lei, _source_local_code)
+       when is_binary(symbol) and symbol != "",
+       do: "ticker"
+
+  defp entity_identifier_kind(_symbol, isin, _lei, _source_local_code)
+       when is_binary(isin) and isin != "",
+       do: "isin"
+
+  defp entity_identifier_kind(_symbol, _isin, lei, _source_local_code)
+       when is_binary(lei) and lei != "",
+       do: "lei"
+
+  defp entity_identifier_kind(_symbol, _isin, _lei, source_local_code)
+       when is_binary(source_local_code) and source_local_code != "",
+       do: "source_local_issuer"
+
+  defp entity_identifier_kind(_symbol, _isin, _lei, _source_local_code), do: nil
 
   defp symbol_from_url(nil), do: nil
 
@@ -446,6 +469,23 @@ defmodule DisclosureAutomation.Canonicalizer do
     ]
     |> Enum.filter(&present_entity_value?/1)
     |> Enum.uniq()
+  end
+
+  defp source_local_issuer_code(company) do
+    company
+    |> issuer_lookup_key(true)
+    |> case do
+      nil ->
+        nil
+
+      value ->
+        value
+        |> String.upcase()
+        |> String.replace(~r/[^A-Z0-9]+/u, "-")
+        |> String.trim("-")
+        |> String.slice(0, 32)
+        |> empty_to_nil()
+    end
   end
 
   defp issuer_lookup_key(nil, _drop_suffixes), do: nil
