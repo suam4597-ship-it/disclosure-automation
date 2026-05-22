@@ -205,8 +205,9 @@ defmodule DisclosureAutomation.Canonicalizer do
         company_from_title(title)
 
     symbol =
-      labeled_value(summary, "Symbol") || labeled_value(summary, "Code") || leading_code(title) ||
-        symbol_from_url(url)
+      (labeled_value(summary, "Symbol") || labeled_value(summary, "Code") || leading_code(title) ||
+         symbol_from_url(url))
+      |> normalize_market_symbol(ticker_prefix)
 
     isin = labeled_value(summary, "ISIN")
     ticker = entity_ticker_label(ticker_prefix || exchange, symbol)
@@ -255,6 +256,19 @@ defmodule DisclosureAutomation.Canonicalizer do
       true -> "#{prefix}:#{symbol}"
     end
   end
+
+  defp normalize_market_symbol(nil, _prefix), do: nil
+
+  defp normalize_market_symbol(symbol, "JP") do
+    symbol = clean_entity_text(symbol)
+
+    case Regex.run(~r/^(\d{4})0$/u, symbol || "") do
+      [_match, code] -> code
+      _ -> symbol
+    end
+  end
+
+  defp normalize_market_symbol(symbol, _prefix), do: clean_entity_text(symbol)
 
   defp sec_submission_profile(nil), do: %{}
 

@@ -239,6 +239,30 @@
       font-weight: 900;
       letter-spacing: 0;
     }
+    .entity-card-line {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin: 4px 0 8px;
+      color: var(--sub);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+    .entity-card-line span {
+      display: inline-flex;
+      gap: 5px;
+      align-items: center;
+      border: 1px solid rgba(42, 53, 68, 0.85);
+      border-radius: 6px;
+      padding: 3px 8px;
+      background: rgba(8, 13, 20, 0.22);
+    }
+    .entity-card-line b { color: #bfdbfe; }
+    .entity-card-line .entity-description-chip {
+      flex: 1 1 280px;
+      align-items: flex-start;
+    }
     .summary { color: var(--sub); font-size: 13px; line-height: 1.55; margin-bottom: 8px; }
     .meta { display: flex; gap: 10px; align-items: center; color: var(--muted); font-size: 12px; flex-wrap: wrap; }
     .source { color: var(--sub); font-weight: 700; }
@@ -258,6 +282,20 @@
       line-height: 1.55;
     }
     .entity-intro b { color: #bfdbfe; white-space: nowrap; }
+    .entity-intro-list {
+      display: grid;
+      gap: 7px;
+      margin: 0 0 14px;
+      padding: 12px;
+      border: 1px solid rgba(59, 130, 246, 0.28);
+      border-radius: 8px;
+      background: rgba(59, 130, 246, 0.07);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .entity-intro-list div { display: flex; gap: 8px; }
+    .entity-intro-list b { min-width: 68px; color: #bfdbfe; }
+    .entity-intro-list span { color: var(--sub); }
     .detail-summary { margin: 0 0 18px; color: var(--text); line-height: 1.65; }
     .detail-summary p { margin: 0 0 10px; }
     .detail-summary-list { margin: 8px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
@@ -1632,6 +1670,20 @@ function entityIdentifierTagHtml(item) {
   return identifier ? `<span class="tag identifier">${escapeHtml(identifier)}</span>` : "";
 }
 
+function entityCardInfoHtml(item) {
+  const identifier = entityIdentifierText(item);
+  const description = entityDescriptionText(item);
+  const identifierChip = identifier
+    ? `<span><b>종목/코드</b>${escapeHtml(identifier)}</span>`
+    : "";
+  const descriptionChip = description
+    ? `<span class="entity-description-chip"><b>회사 설명</b>${escapeHtml(truncate(description, 96))}</span>`
+    : "";
+
+  if (!identifierChip && !descriptionChip) return "";
+  return `<div class="entity-card-line">${identifierChip}${descriptionChip}</div>`;
+}
+
 function entityPrefixedText(text, label) {
   const value = textAfter(text, `${label}:`);
   if (!value) return "";
@@ -2167,6 +2219,7 @@ function renderItem(item) {
       <i class="bar ${escapeHtml(bar)}"></i>
       <div>
         <div class="headline headline-row">${headline}${identifierBadge}</div>
+        ${entityCardInfoHtml(item)}
         <div class="summary">${escapeHtml(formatMoneyText(item.summary))}</div>
         <div class="meta">
           <span class="source">${escapeHtml(item.source)}</span>
@@ -2200,6 +2253,7 @@ function renderItemDetail(items, itemKey) {
   const bullets = detailBullets(item);
   const values = extractDetailValues(item);
   const periodicReport = isSecPeriodicReport(item);
+  const entityIdentifier = entityIdentifierText(item);
   const entityDescription = entityDescriptionText(item);
   const originalLink = item.url
     ? `<a class="detail-action primary" href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">원문 보기</a>`
@@ -2213,7 +2267,10 @@ function renderItemDetail(items, itemKey) {
       </div>
       <div class="detail-body">
         <h2 class="detail-title">${escapeHtml(item.title)}</h2>
-        <div class="entity-intro"><b>기업/사업</b><span>${escapeHtml(entityDescription)}</span></div>
+        <div class="entity-intro-list">
+          <div><b>종목/코드</b><span>${escapeHtml(entityIdentifier || "공시 원문에서 별도 티커/종목코드를 확인하지 못했습니다.")}</span></div>
+          <div><b>회사 설명</b><span>${escapeHtml(entityDescription)}</span></div>
+        </div>
         ${detailSummaryHtml(item)}
         <div class="detail-grid">
           <div class="detail-box">
@@ -2226,7 +2283,7 @@ function renderItemDetail(items, itemKey) {
           </div>
           <div class="detail-box">
             <b>식별자</b>
-            <span>${escapeHtml(entityIdentifierText(item) || "공시 원문에서 별도 티커/종목코드를 확인하지 못했습니다.")}</span>
+            <span>${escapeHtml(entityIdentifier || "공시 원문에서 별도 티커/종목코드를 확인하지 못했습니다.")}</span>
           </div>
           <div class="detail-box">
             <b>기업 개요</b>
