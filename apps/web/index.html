@@ -1765,6 +1765,81 @@ function sourceDisplayName(item) {
   return sourceLabel(item.raw?.source || item.raw?.source_key || item.raw?.provider || item.source);
 }
 
+function isRegionalDisclosure(item) {
+  return item.kind === "disclosure" && !itemSourceKey(item).toLowerCase().includes("sec");
+}
+
+function regionalDisclosureTopic(item) {
+  const text = `${item.title} ${rawSummaryText(item)} ${item.summary}`.toLowerCase();
+
+  if (/financial result|earnings|annual report|quarterly|revenue|profit|loss|決算|業績|실적|재무/.test(text)) return "실적/재무";
+  if (/dividend|distribution|record date|配当|분배|배당/.test(text)) return "배당/분배";
+  if (/share buyback|treasury|own shares|自己株式|자사주/.test(text)) return "자사주";
+  if (/director|officer|auditor|appointment|resignation|kmp|取締役|監査|임원|이사|감사/.test(text)) return "임원/이사회";
+  if (/general meeting|agm|egm|postal ballot|proxy|株主総会|주주총회/.test(text)) return "주주총회";
+  if (/capital increase|new shares|warrant|rights issue|bond|notes|新株|新株予約権|資本|증권 발행|채권/.test(text)) return "자본/증권발행";
+  if (/acquisition|disposal|merger|tender offer|public offer|business combination|買収|譲渡|合併|인수|매각|합병|공개매수/.test(text)) return "M&A/거래";
+  if (/holding|voting rights|substantial shareholder|ownership|major shareholder|지분|의결권|대량보유/.test(text)) return "지분/의결권";
+  if (/rating|credit rating|신용등급/.test(text)) return "신용등급";
+  if (/partnership|collaboration|contract|order|supply|offtake|中期経営計画|strategic|전략|계약|수주/.test(text)) return "전략/계약";
+  if (/clarification|corrigendum|amendment|update|開示事項の経過|정정|해명|업데이트/.test(text)) return "정정/진행상황";
+
+  return "일반 공시";
+}
+
+function regionalDisclosureFocus(item) {
+  const topic = regionalDisclosureTopic(item);
+  const focusByTopic = {
+    "실적/재무": "매출, 이익, 손실, 전망 변화와 다음 분기 가이던스가 있는지 확인",
+    "배당/분배": "주당 배당/분배금, 기준일, 지급일, 일회성 여부 확인",
+    "자사주": "매입/처분 규모, 기간, 목적, 발행주식 대비 비중 확인",
+    "임원/이사회": "변경 인물, 직책, 사임/선임 사유, 지배구조 영향 확인",
+    "주주총회": "결의 안건, 기준일, 표결 결과와 주주권 영향 확인",
+    "자본/증권발행": "발행 규모, 가격/전환가, 희석 가능성, 자금 사용 목적 확인",
+    "M&A/거래": "대상 회사/자산, 거래 금액, 조건, 완료 일정과 전략적 목적 확인",
+    "지분/의결권": "보유자, 보유 비율, 증가/감소 방향과 지배권 영향 확인",
+    "신용등급": "등급 변화 방향, 전망, 차입 비용 또는 유동성 영향 확인",
+    "전략/계약": "상대방, 계약 규모, 기간, 독점/최소구매 조건과 매출 기여 가능성 확인",
+    "정정/진행상황": "기존 공시 대비 바뀐 부분, 일정 변경, 조건 충족 여부 확인",
+    "일반 공시": "공시 제목, 원문 요약, 금액/비율/일정 같은 핵심 조건 확인"
+  };
+
+  return focusByTopic[topic] || focusByTopic["일반 공시"];
+}
+
+function regionalSourceLanguage(item) {
+  const source = itemSourceKey(item).toLowerCase();
+  if (source.includes("jp_tdnet")) return "일본어 원문";
+  if (source.includes("tw_mops")) return "중국어 원문";
+  if (source.includes("hkex")) return "영어/중국어 공시";
+  if (source.includes("india_nse")) return "영어 공시";
+  if (isEuropeSource(source, item)) return "영어 또는 현지어 공시";
+  return "현지 공시 원문";
+}
+
+function regionalCardTopicHtml(item) {
+  if (!isRegionalDisclosure(item)) return "";
+  return `<div class="entity-card-line regional-topic-line"><span><b>공시 주제</b>${escapeHtml(regionalDisclosureTopic(item))}</span><span><b>확인 포인트</b>${escapeHtml(truncate(regionalDisclosureFocus(item), 82))}</span></div>`;
+}
+
+function regionalDisclosureBoxesHtml(item) {
+  if (!isRegionalDisclosure(item)) return "";
+
+  const boxes = [
+    ["공시 주제", regionalDisclosureTopic(item)],
+    ["확인 포인트", regionalDisclosureFocus(item)],
+    ["공시망", sourceDisplayName(item)],
+    ["원문 언어", regionalSourceLanguage(item)]
+  ];
+
+  return boxes.map(([label, value]) => `
+    <div class="detail-box regional-detail-box">
+      <b>${escapeHtml(label)}</b>
+      <span>${escapeHtml(value)}</span>
+    </div>
+  `).join("");
+}
+
 function extractDetailValues(item) {
   const text = `${item.title} ${rawSummaryText(item)}`;
   const patterns = [
@@ -2032,6 +2107,12 @@ function detailBullets(item) {
     if (accNo) bullets.push(`접수번호: ${accNo}`);
   }
 
+  if (isRegionalDisclosure(item)) {
+    bullets.push(`공시 주제: ${regionalDisclosureTopic(item)}`);
+    bullets.push(`확인 포인트: ${regionalDisclosureFocus(item)}`);
+    bullets.push(`공시망/원문 언어: ${sourceDisplayName(item)} · ${regionalSourceLanguage(item)}`);
+  }
+
   const values = extractDetailValues(item);
   if (values.length && !isSecPeriodicReport(item)) bullets.push(`주요 수치/조건: ${values.join(", ")}`);
 
@@ -2244,6 +2325,7 @@ function renderItem(item) {
       <div>
         <div class="headline headline-row">${headline}${identifierBadge}</div>
         ${entityCardInfoHtml(item)}
+        ${regionalCardTopicHtml(item)}
         <div class="summary">${escapeHtml(formatMoneyText(item.summary))}</div>
         <div class="meta">
           <span class="source">${escapeHtml(item.source)}</span>
@@ -2321,6 +2403,7 @@ function renderItemDetail(items, itemKey) {
             <b>주요 수치/조건</b>
             <span>${periodicReport ? "아래 재무 지표 카드에서 매출, 영업이익, 순이익/순손실, EPS, 가이던스를 분리해 표시합니다." : values.length ? escapeHtml(values.join(", ")) : "원문 요약에서 별도 금액이나 비율을 찾지 못했습니다."}</span>
           </div>
+          ${regionalDisclosureBoxesHtml(item)}
           ${periodicFinancialBoxesHtml(item)}
           ${compositeDetailBoxHtml(item)}
         </div>
