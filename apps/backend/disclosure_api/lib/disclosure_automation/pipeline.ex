@@ -5275,7 +5275,10 @@ defmodule DisclosureAutomation.Parser do
 
   defp tdnet_public_list_disclosure_date(raw_payload) do
     with [_, year_text, month_text, day_text] <-
-           Regex.run(~r/id="kaiji-date-1">\s*(\d{4})年(\d{2})月(\d{2})日\s*<\/div>/u, raw_payload),
+           Regex.run(
+             ~r/id="kaiji-date-1"[^>]*>\s*(\d{4})\D+(\d{1,2})\D+(\d{1,2})\D*\s*<\/div>/u,
+             raw_payload
+           ),
          {year, ""} <- Integer.parse(year_text),
          {month, ""} <- Integer.parse(month_text),
          {day, ""} <- Integer.parse(day_text),
@@ -14102,8 +14105,8 @@ defmodule DisclosureAutomation.Ingestion do
   defp tw_mops_daily_material_info_payload?(_body), do: false
 
   defp tdnet_public_list_payload?(body) when is_binary(body) do
-    body =~ "適時開示情報閲覧サービス" and body =~ "id=\"kaiji-date-1\"" and
-      body =~ "id=\"main-list-table\""
+    body =~ "kaiji-date-1" and body =~ "main-list-table" and body =~ "kjTime" and
+      body =~ "kjCode" and body =~ "kjName" and body =~ "kjTitle"
   end
 
   defp tdnet_public_list_payload?(_body), do: false
