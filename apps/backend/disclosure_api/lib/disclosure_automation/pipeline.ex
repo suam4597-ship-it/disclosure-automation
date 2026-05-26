@@ -2,6 +2,7 @@ defmodule DisclosureAutomation.Canonicalizer do
   @moduledoc false
 
   @regional_business_summary_version "regional_business_area_v2"
+  @regional_profile_source_version "regional_profile_source_v1"
 
   @sec_submission_profile_headers [
     {~c"user-agent", ~c"disclosure-automation-phase1 suam4597@gmail.com"}
@@ -144,10 +145,10 @@ defmodule DisclosureAutomation.Canonicalizer do
         sec_entity_profile(title, summary, url)
 
       String.contains?(source_key, "hkex") ->
-        hkex_entity_profile(title, summary)
+        hkex_entity_profile(title, summary, url)
 
       String.contains?(source_key, "jp_tdnet") ->
-        labeled_entity_profile(title, summary, "TDnet", hd(regions), "JP")
+        labeled_entity_profile(title, summary, "TDnet", hd(regions), "JP", url)
 
       String.contains?(source_key, "tw_mops") ->
         labeled_entity_profile(title, summary, "Taiwan MOPS", hd(regions), "TW", url)
@@ -210,34 +211,45 @@ defmodule DisclosureAutomation.Canonicalizer do
       "ticker" => sec_ticker_label(exchange, ticker),
       "identifier_label" => identifier,
       "business_summary_ko" => sec_business_summary(company, sic_description),
+      "profile_source_label" => "SEC EDGAR company submissions",
+      "profile_source_url" => sec_company_profile_url(cik) || url,
+      "profile_source_kind" => "official_regulatory_profile",
+      "profile_source_basis" => "SEC submissions profile and filing metadata",
+      "profile_source_version" => @regional_profile_source_version,
       "source" => "rule_based_from_disclosure",
       "confidence" => if(cik || ticker || cusip, do: "high", else: "medium")
     })
   end
 
-  defp hkex_entity_profile(title, summary) do
+  defp hkex_entity_profile(title, summary, url) do
     issuer = labeled_value(summary, "Issuer")
     {code, name} = code_name_pair(issuer)
     fallback_name = company_from_title(title)
     code = code || leading_code(title)
     name = name || fallback_name
     identifier = if code, do: "HKEX:#{code}"
+    profile_source = regional_profile_source("HKEX", "hk", "HKEX", code, url, %{})
 
-    build_entity_profile(%{
-      "display_name" => name,
-      "region" => "hk",
-      "exchange" => "HKEX",
-      "local_code" => code,
-      "ticker" => identifier,
-      "identifier_label" => identifier,
-      "business_summary_ko" => regional_business_summary(name, "홍콩거래소", title, summary),
-      "business_summary_version" => @regional_business_summary_version,
-      "source" => "rule_based_from_disclosure",
-      "confidence" => if(code, do: "high", else: "medium")
-    })
+    build_entity_profile(
+      Map.merge(
+        %{
+          "display_name" => name,
+          "region" => "hk",
+          "exchange" => "HKEX",
+          "local_code" => code,
+          "ticker" => identifier,
+          "identifier_label" => identifier,
+          "business_summary_ko" => regional_business_summary(name, "홍콩거래소", title, summary),
+          "business_summary_version" => @regional_business_summary_version,
+          "source" => "rule_based_from_disclosure",
+          "confidence" => if(code, do: "high", else: "medium")
+        },
+        profile_source
+      )
+    )
   end
 
-  defp labeled_entity_profile(title, summary, exchange, region, ticker_prefix, url \\ nil) do
+  defp labeled_entity_profile(title, summary, exchange, region, ticker_prefix, url) do
     company =
       labeled_value(summary, "Company") || labeled_value(summary, "Issuer") ||
         company_from_title(title)
@@ -268,21 +280,36 @@ defmodule DisclosureAutomation.Canonicalizer do
       ticker || prefixed_entity_identifier("ISIN", isin) || prefixed_entity_identifier("LEI", lei) ||
         entity_ticker_label(ticker_prefix || exchange, source_local_code)
 
-    build_entity_profile(%{
-      "display_name" => clean_entity_text(company),
-      "region" => region,
-      "exchange" => exchange,
-      "local_code" => clean_entity_text(symbol || source_local_code),
-      "isin" => clean_entity_text(isin),
-      "lei" => clean_entity_text(lei),
-      "ticker" => ticker,
-      "identifier_label" => identifier,
-      "identifier_kind" => entity_identifier_kind(symbol, isin, lei, source_local_code),
-      "business_summary_ko" => regional_business_summary(company, exchange, title, summary),
-      "business_summary_version" => @regional_business_summary_version,
-      "source" => entity_profile_source(enriched_profile),
-      "confidence" => if(symbol || isin || lei, do: "medium", else: "source_local")
-    })
+    profile_source =
+      regional_profile_source(
+        exchange,
+        region,
+        ticker_prefix,
+        symbol || source_local_code,
+        url,
+        enriched_profile
+      )
+
+    build_entity_profile(
+      Map.merge(
+        %{
+          "display_name" => clean_entity_text(company),
+          "region" => region,
+          "exchange" => exchange,
+          "local_code" => clean_entity_text(symbol || source_local_code),
+          "isin" => clean_entity_text(isin),
+          "lei" => clean_entity_text(lei),
+          "ticker" => ticker,
+          "identifier_label" => identifier,
+          "identifier_kind" => entity_identifier_kind(symbol, isin, lei, source_local_code),
+          "business_summary_ko" => regional_business_summary(company, exchange, title, summary),
+          "business_summary_version" => @regional_business_summary_version,
+          "source" => entity_profile_source(enriched_profile),
+          "confidence" => if(symbol || isin || lei, do: "medium", else: "source_local")
+        },
+        profile_source
+      )
+    )
   end
 
   defp enriched_entity_profile(nil), do: %{}
@@ -311,6 +338,175 @@ defmodule DisclosureAutomation.Canonicalizer do
        do: "source_local_issuer"
 
   defp entity_identifier_kind(_symbol, _isin, _lei, _source_local_code), do: nil
+
+  defp sec_company_profile_url(nil), do: nil
+  defp sec_company_profile_url(""), do: nil
+  defp sec_company_profile_url(cik), do: "https://www.sec.gov/edgar/browse/?CIK=#{cik}"
+
+  defp regional_profile_source(exchange, region, ticker_prefix, symbol, url, enriched_profile) do
+    source_url =
+      Map.get(enriched_profile, "profile_source_url") ||
+        regional_profile_source_url(exchange, region, ticker_prefix, symbol, url)
+
+    source_label =
+      Map.get(enriched_profile, "profile_source_label") ||
+        regional_profile_source_label(exchange, region, ticker_prefix)
+
+    source_kind =
+      Map.get(enriched_profile, "profile_source_kind") ||
+        regional_profile_source_kind(exchange, region, ticker_prefix, source_url)
+
+    source_basis =
+      Map.get(enriched_profile, "profile_source_basis") ||
+        regional_profile_source_basis(exchange, region, ticker_prefix)
+
+    build_entity_profile(%{
+      "profile_source_label" => source_label,
+      "profile_source_url" => source_url,
+      "profile_source_kind" => source_kind,
+      "profile_source_basis" => source_basis,
+      "profile_source_version" => @regional_profile_source_version
+    })
+  end
+
+  defp regional_profile_source_label(_exchange, _region, "JP"),
+    do: "JPX listed company reference / TDnet disclosure"
+
+  defp regional_profile_source_label(_exchange, _region, "TW"),
+    do: "Taiwan MOPS company basic profile"
+
+  defp regional_profile_source_label(_exchange, _region, "NSE"),
+    do: "NSE India equity quote/profile"
+
+  defp regional_profile_source_label(_exchange, _region, "SET"),
+    do: "SET listed company profile"
+
+  defp regional_profile_source_label("HKEX", _region, _prefix),
+    do: "HKEXnews listed company disclosure"
+
+  defp regional_profile_source_label(exchange, region, _prefix) do
+    cond do
+      String.contains?(exchange || "", "Euronext") -> "Euronext Live company page"
+      region == "eu" -> "#{exchange} official regulated-information source"
+      true -> "#{exchange} official disclosure source"
+    end
+  end
+
+  defp regional_profile_source_kind(_exchange, _region, ticker_prefix, _source_url)
+       when ticker_prefix in ["JP", "TW", "NSE", "SET"],
+       do: "official_exchange_profile"
+
+  defp regional_profile_source_kind(exchange, "eu", _prefix, source_url) do
+    if String.contains?(exchange || "", "Euronext") and present_entity_value?(source_url),
+      do: "official_exchange_profile",
+      else: "official_regulated_information_source"
+  end
+
+  defp regional_profile_source_kind(_exchange, _region, _prefix, _source_url),
+    do: "official_disclosure_reference"
+
+  defp regional_profile_source_basis(_exchange, _region, "JP"),
+    do: "JPX issuer code reference plus TDnet timely disclosure metadata"
+
+  defp regional_profile_source_basis(_exchange, _region, "TW"),
+    do: "MOPS company basic data and material information metadata"
+
+  defp regional_profile_source_basis(_exchange, _region, "NSE"),
+    do: "NSE equity symbol reference plus NSE announcement metadata"
+
+  defp regional_profile_source_basis(_exchange, _region, "SET"),
+    do: "SET listed company profile and company news metadata"
+
+  defp regional_profile_source_basis("HKEX", _region, _prefix),
+    do: "HKEXnews issuer code and listed-company disclosure metadata"
+
+  defp regional_profile_source_basis(exchange, "eu", _prefix) do
+    if String.contains?(exchange || "", "Euronext"),
+      do: "Euronext Live issuer page and company-news metadata",
+      else: "Official OAM / regulated-information metadata"
+  end
+
+  defp regional_profile_source_basis(exchange, _region, _prefix),
+    do: "#{exchange} disclosure metadata"
+
+  defp regional_profile_source_url(_exchange, _region, "JP", symbol, url) do
+    code = clean_entity_text(symbol)
+
+    cond do
+      present_entity_value?(code) ->
+        "https://quote.jpx.co.jp/jpxhp/main/index.aspx?F=stock_search"
+
+      present_entity_value?(url) ->
+        url
+
+      true ->
+        "https://www.jpx.co.jp/english/markets/"
+    end
+  end
+
+  defp regional_profile_source_url(_exchange, _region, "TW", symbol, url) do
+    code = clean_entity_text(symbol)
+
+    cond do
+      present_entity_value?(code) ->
+        "https://mops.twse.com.tw/mops/web/t05st03"
+
+      present_entity_value?(url) ->
+        url
+
+      true ->
+        "https://mops.twse.com.tw/mops/web/index"
+    end
+  end
+
+  defp regional_profile_source_url(_exchange, _region, "NSE", symbol, url) do
+    code = clean_entity_text(symbol)
+
+    cond do
+      present_entity_value?(code) ->
+        "https://www.nseindia.com/get-quotes/equity?symbol=#{URI.encode_www_form(code)}"
+
+      present_entity_value?(url) ->
+        url
+
+      true ->
+        "https://www.nseindia.com/"
+    end
+  end
+
+  defp regional_profile_source_url(_exchange, _region, "SET", symbol, url) do
+    code = clean_entity_text(symbol)
+
+    cond do
+      present_entity_value?(code) ->
+        "https://www.set.or.th/en/market/product/stock/quote/#{URI.encode_www_form(code)}/factsheet"
+
+      present_entity_value?(url) ->
+        url
+
+      true ->
+        "https://www.set.or.th/en/market/product/stock/search"
+    end
+  end
+
+  defp regional_profile_source_url("HKEX", _region, _prefix, _symbol, url) do
+    if present_entity_value?(url), do: url, else: "https://www.hkexnews.hk/index.htm"
+  end
+
+  defp regional_profile_source_url(exchange, "eu", _prefix, _symbol, url) do
+    cond do
+      present_entity_value?(url) ->
+        url
+
+      String.contains?(exchange || "", "Euronext") ->
+        "https://live.euronext.com/en/products/equities/list"
+
+      true ->
+        nil
+    end
+  end
+
+  defp regional_profile_source_url(_exchange, _region, _prefix, _symbol, url), do: url
 
   defp symbol_from_url(nil), do: nil
 
@@ -426,6 +622,11 @@ defmodule DisclosureAutomation.Canonicalizer do
         %{
           "isin" => html_attribute_value(html, "data-isin"),
           "symbol" => html_labeled_value(html, "Symbol"),
+          "profile_source_label" => "Euronext Live company page",
+          "profile_source_url" => url,
+          "profile_source_kind" => "official_exchange_profile",
+          "profile_source_basis" => "Euronext Live issuer page metadata",
+          "profile_source_version" => @regional_profile_source_version,
           "source" => "euronext_company_page_enrichment"
         }
         |> build_entity_profile()
@@ -14278,6 +14479,7 @@ defmodule DisclosureAutomation.Digest do
   @moduledoc false
 
   @regional_business_summary_version "regional_business_area_v2"
+  @regional_profile_source_version "regional_profile_source_v1"
 
   import Ecto.Query
 
@@ -14689,7 +14891,7 @@ defmodule DisclosureAutomation.Digest do
 
   defp entity_profile_needs_enrichment?(metadata) when is_map(metadata) do
     not entity_profile_has_identifier?(metadata) or generic_business_summary?(metadata) or
-      stale_regional_business_summary?(metadata)
+      stale_regional_business_summary?(metadata) or stale_profile_source?(metadata)
   end
 
   defp entity_profile_needs_enrichment?(_metadata), do: true
@@ -14708,6 +14910,11 @@ defmodule DisclosureAutomation.Digest do
 
     String.contains?(summary, "회사명/공시 키워드 기준") and
       version != @regional_business_summary_version
+  end
+
+  defp stale_profile_source?(metadata) do
+    profile = Map.get(metadata || %{}, "entity_profile") || %{}
+    Map.get(profile, "profile_source_version") != @regional_profile_source_version
   end
 
   defp digest_prefixed_identifier(_prefix, nil), do: nil

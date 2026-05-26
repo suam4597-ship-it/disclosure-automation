@@ -259,6 +259,7 @@
       background: rgba(8, 13, 20, 0.22);
     }
     .entity-card-line b { color: #bfdbfe; }
+    .entity-card-line a { color: #93c5fd; text-decoration: underline; text-underline-offset: 2px; }
     .entity-card-line .entity-description-chip {
       flex: 1 1 280px;
       align-items: flex-start;
@@ -1689,6 +1690,33 @@ function entityDescriptionText(item) {
   return `${target}는 현재 공시 제목과 원문 요약 기준으로 식별된 발행사입니다.`;
 }
 
+function entityProfileSource(item) {
+  const profile = entityProfile(item);
+  const label = cleanText(profile.profile_source_label || "");
+  const url = cleanText(profile.profile_source_url || "");
+  const basis = cleanText(profile.profile_source_basis || "");
+  const kind = cleanText(profile.profile_source_kind || "");
+
+  if (!label && !url && !basis) return null;
+  return { label: label || "공식 공시/거래소 출처", url, basis, kind };
+}
+
+function entityProfileSourceText(item) {
+  const source = entityProfileSource(item);
+  if (!source) return "프로필 출처가 아직 연결되지 않았습니다.";
+  return source.basis ? `${source.label} · ${source.basis}` : source.label;
+}
+
+function entityProfileSourceInlineHtml(item) {
+  const source = entityProfileSource(item);
+  if (!source) return "";
+  const label = escapeHtml(source.label);
+  const sourceBody = source.url
+    ? `<a href="${escapeHtml(source.url)}" target="_blank" rel="noopener noreferrer">${label}</a>`
+    : label;
+  return `<span class="profile-source-chip"><b>프로필 출처</b>${sourceBody}</span>`;
+}
+
 function entityIdentifierTagHtml(item) {
   const identifier = entityIdentifierText(item);
   return identifier ? `<span class="tag identifier">${escapeHtml(identifier)}</span>` : "";
@@ -1697,6 +1725,7 @@ function entityIdentifierTagHtml(item) {
 function entityCardInfoHtml(item) {
   const identifier = entityIdentifierText(item);
   const description = entityDescriptionText(item);
+  const profileSourceChip = entityProfileSourceInlineHtml(item);
   const identifierChip = identifier
     ? `<span><b>종목/코드</b>${escapeHtml(identifier)}</span>`
     : "";
@@ -1704,8 +1733,8 @@ function entityCardInfoHtml(item) {
     ? `<span class="entity-description-chip"><b>회사 설명</b>${escapeHtml(truncate(description, 96))}</span>`
     : "";
 
-  if (!identifierChip && !descriptionChip) return "";
-  return `<div class="entity-card-line">${identifierChip}${descriptionChip}</div>`;
+  if (!identifierChip && !descriptionChip && !profileSourceChip) return "";
+  return `<div class="entity-card-line">${identifierChip}${descriptionChip}${profileSourceChip}</div>`;
 }
 
 function entityPrefixedText(text, label) {
@@ -2361,6 +2390,11 @@ function renderItemDetail(items, itemKey) {
   const periodicReport = isSecPeriodicReport(item);
   const entityIdentifier = entityIdentifierText(item);
   const entityDescription = entityDescriptionText(item);
+  const profileSource = entityProfileSource(item);
+  const profileSourceText = entityProfileSourceText(item);
+  const profileSourceLink = profileSource?.url
+    ? `<a href="${escapeHtml(profileSource.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(profileSource.label)}</a>`
+    : escapeHtml(profileSourceText);
   const originalLink = item.url
     ? `<a class="detail-action primary" href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">원문 보기</a>`
     : "";
@@ -2376,6 +2410,7 @@ function renderItemDetail(items, itemKey) {
         <div class="entity-intro-list">
           <div><b>종목/코드</b><span>${escapeHtml(entityIdentifier || "공시 원문에서 별도 티커/종목코드를 확인하지 못했습니다.")}</span></div>
           <div><b>회사 설명</b><span>${escapeHtml(entityDescription)}</span></div>
+          <div><b>프로필 출처</b><span>${profileSourceLink}</span></div>
         </div>
         ${detailSummaryHtml(item)}
         <div class="detail-grid">
@@ -2394,6 +2429,10 @@ function renderItemDetail(items, itemKey) {
           <div class="detail-box">
             <b>기업 개요</b>
             <span>${escapeHtml(entityDescription)}</span>
+          </div>
+          <div class="detail-box">
+            <b>프로필 출처</b>
+            <span>${profileSourceLink}${profileSource?.basis ? `<br>${escapeHtml(profileSource.basis)}` : ""}</span>
           </div>
           <div class="detail-box">
             <b>시각</b>
