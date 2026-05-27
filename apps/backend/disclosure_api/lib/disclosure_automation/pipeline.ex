@@ -14167,6 +14167,10 @@ defmodule DisclosureAutomation.Ingestion do
          response
        ) do
     cond do
+      twse_security_blocked_payload?(response.body) ->
+        {:error,
+         {:upstream_security_blocked, "tw_mops_daily_material_info_json_v1", "twse_security_page"}}
+
       not json_content_type?(response.headers) ->
         {:error,
          {:unsupported_live_content_type, "tw_mops_daily_material_info_json_v1",
@@ -14642,6 +14646,12 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp tw_mops_daily_material_info_payload?(_body), do: false
+
+  defp twse_security_blocked_payload?(body) when is_binary(body) do
+    String.contains?(body, "FOR SECURITY REASONS, THIS PAGE CAN NOT BE ACCESSED")
+  end
+
+  defp twse_security_blocked_payload?(_body), do: false
 
   defp live_present?(value) when is_binary(value), do: String.trim(value) != ""
   defp live_present?(value) when is_integer(value) or is_float(value), do: true
