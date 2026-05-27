@@ -12322,7 +12322,8 @@ defmodule DisclosureAutomation.Ingestion do
              headers: source_live_headers(source),
              method: source_live_method(source),
              body: source_live_body(source),
-             content_type: source_live_content_type(source)
+             content_type: source_live_content_type(source),
+             ssl: source_live_ssl_options(source)
            ),
          true <- response.status_code in 200..299,
          :ok <- validate_live_payload(source, response) do
@@ -14313,6 +14314,22 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp positive_live_timeout(_value), do: 8_000
+
+  defp source_live_ssl_options(source) do
+    case source_config_string_list(source, "live_tls_versions", :live_tls_versions, []) do
+      [] ->
+        [verify: :verify_none]
+
+      versions ->
+        [verify: :verify_none, versions: Enum.map(versions, &source_live_tls_version!/1)]
+    end
+  end
+
+  defp source_live_tls_version!("tlsv1"), do: :tlsv1
+  defp source_live_tls_version!("tlsv1.1"), do: :"tlsv1.1"
+  defp source_live_tls_version!("tlsv1.2"), do: :"tlsv1.2"
+  defp source_live_tls_version!("tlsv1.3"), do: :"tlsv1.3"
+  defp source_live_tls_version!(_version), do: :"tlsv1.2"
 
   defp html_content_type?(headers) do
     headers
