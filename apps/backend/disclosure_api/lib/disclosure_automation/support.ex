@@ -112,7 +112,8 @@ defmodule DisclosureAutomation.Http do
     headers = Keyword.get(opts, :headers, @default_headers)
     method = opts |> Keyword.get(:method, :get) |> normalize_method()
     request = request(method, url, headers, opts)
-    http_opts = [timeout: timeout, connect_timeout: timeout, ssl: [verify: :verify_none]]
+    ssl_opts = Keyword.get(opts, :ssl, verify: :verify_none)
+    http_opts = [timeout: timeout, connect_timeout: timeout, ssl: ssl_opts]
     request_opts = [body_format: :binary]
 
     case :httpc.request(method, request, http_opts, request_opts) do
