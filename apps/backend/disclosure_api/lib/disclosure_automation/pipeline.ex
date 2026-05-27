@@ -5215,11 +5215,10 @@ defmodule DisclosureAutomation.Parser do
   end
 
   defp parse_set_thailand_company_news(raw_payload) do
-    with {:ok, decoded} <- Jason.decode(raw_payload),
-         groups when is_list(groups) <- Map.get(decoded, "newsGroups") do
+    with {:ok, decoded} <- raw_payload |> trim_utf8_bom() |> Jason.decode() do
       items =
-        groups
-        |> Enum.flat_map(&set_thailand_company_news_group_records/1)
+        decoded
+        |> set_thailand_company_news_records()
         |> Enum.map(&parse_set_thailand_company_news_record/1)
         |> Enum.filter(&(&1.url && &1.title && &1.published_at))
 
@@ -5228,6 +5227,32 @@ defmodule DisclosureAutomation.Parser do
       {:error, reason} -> {:error, {:invalid_set_thailand_company_news_json, reason}}
       _shape -> {:error, :unexpected_set_thailand_company_news_shape}
     end
+  end
+
+  defp set_thailand_company_news_records(%{} = decoded) do
+    group_records =
+      decoded
+      |> Map.get("newsGroups", [])
+      |> case do
+        groups when is_list(groups) ->
+          Enum.flat_map(groups, &set_thailand_company_news_group_records/1)
+
+        _groups ->
+          []
+      end
+
+    paginated_records =
+      decoded
+      |> get_in(["paginateNews", "newsInfoList"])
+      |> case do
+        records when is_list(records) ->
+          Enum.map(records, &Map.put(&1, "_group", "Latest Company News"))
+
+        _records ->
+          []
+      end
+
+    group_records ++ paginated_records
   end
 
   defp set_thailand_company_news_group_records(%{"newsInfoList" => records} = group)
@@ -6383,8 +6408,10 @@ defmodule DisclosureAutomation.Ingestion do
   @de_company_register_strategy "germany_company_register_token_preflight_v1"
   @blse_strategy "blse_multi_issuer_news_rss_v1"
   @sase_strategy "sase_multi_issuer_announcements_xml_v1"
+  @set_thailand_company_news_strategy "set_thailand_company_news_json_v1"
   @tw_mops_material_info_strategy "tw_mops_daily_material_info_json_v1"
   @tdnet_public_list_strategy "tdnet_public_list_html_v1"
+  @set_thailand_base_url "https://www.set.or.th"
   @tdnet_public_list_url_template "https://www.release.tdnet.info/inbs/I_list_001_{date}.html"
   @blse_ticker_url "https://services.blberza.com/blse/ticker.ashx?LangId=3&TickerTypeId=1&filter=all&ct=xml"
   @blse_issuer_news_url_template "https://www.blberza.com/pages/IssuerNewsRss.aspx?Code={code}&LangId=3"
@@ -12104,6 +12131,42 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp maybe_load_live_payload(
+         %SourceRegistry{parser_key: "set_thailand_company_news_json_v1"} = source,
+         true
+       ) do
+    query_date = set_thailand_query_date(source)
+    url = set_thailand_company_news_live_url(source, query_date)
+
+    with {:ok, response} <-
+           Http.fetch(url,
+             timeout: source_live_timeout(source),
+             headers: source_live_headers(source)
+           ),
+         true <- response.status_code in 200..299,
+         :ok <- validate_live_payload(source, response) do
+      {:ok,
+       %{
+         raw_payload: response.body,
+         http_status: response.status_code,
+         fetch_info: %{
+           "mode" => "live",
+           "loaded" => true,
+           "strategy" => @set_thailand_company_news_strategy,
+           "url" => url,
+           "status_code" => response.status_code,
+           "bytes" => response.bytes,
+           "query_date" => Date.to_iso8601(query_date),
+           "records_seen" => set_thailand_company_news_records_seen(response.body),
+           "fixture_fallback" => false
+         }
+       }}
+    else
+      false -> {:error, :unexpected_status}
+      {:error, _reason} = error -> error
+    end
+  end
+
+  defp maybe_load_live_payload(
          %SourceRegistry{parser_key: "tw_mops_daily_material_info_json_v1"} = source,
          true
        ) do
@@ -12116,7 +12179,7 @@ defmodule DisclosureAutomation.Ingestion do
              headers: source_live_headers(source),
              method: :post,
              body: Jason.encode!(request_body),
-             content_type: "application/json"
+             content_type: source_live_content_type(source)
            ),
          true <- response.status_code in 200..299,
          :ok <- validate_live_payload(source, response) do
@@ -12730,6 +12793,101 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp tw_mops_daily_material_info_records_seen(_body), do: 0
+
+  defp set_thailand_company_news_records_seen(body) when is_binary(body) do
+    with {:ok, decoded} <- body |> trim_utf8_bom() |> Jason.decode() do
+      decoded
+      |> set_thailand_company_news_live_records()
+      |> length()
+    else
+      _ -> 0
+    end
+  end
+
+  defp set_thailand_company_news_records_seen(_body), do: 0
+
+  defp set_thailand_company_news_live_records(%{} = decoded) do
+    group_records =
+      decoded
+      |> Map.get("newsGroups", [])
+      |> case do
+        groups when is_list(groups) ->
+          groups
+          |> Enum.flat_map(fn
+            %{"newsInfoList" => records} when is_list(records) -> records
+            _group -> []
+          end)
+          |> Enum.filter(&is_map/1)
+
+        _groups ->
+          []
+      end
+
+    paginated_records =
+      decoded
+      |> get_in(["paginateNews", "newsInfoList"])
+      |> case do
+        records when is_list(records) -> Enum.filter(records, &is_map/1)
+        _records -> []
+      end
+
+    group_records ++ paginated_records
+  end
+
+  defp set_thailand_query_date(source) do
+    case source_config_value(source, "live_query_date", :live_query_date, nil) do
+      value when is_binary(value) ->
+        case Date.from_iso8601(value) do
+          {:ok, date} -> date
+          _ -> thailand_today()
+        end
+
+      _value ->
+        thailand_today()
+    end
+  end
+
+  defp thailand_today do
+    DateTime.utc_now()
+    |> DateTime.add(7 * 60 * 60, :second)
+    |> DateTime.to_date()
+  end
+
+  defp set_thailand_company_news_live_url(source, %Date{} = query_date) do
+    from_date =
+      source
+      |> set_thailand_query_window_days()
+      |> then(&Date.add(query_date, -1 * &1))
+
+    query =
+      URI.encode_query(%{
+        "sourceId" => "company",
+        "securityTypeIds" => "S",
+        "fromDate" => set_thailand_date_param(from_date),
+        "toDate" => set_thailand_date_param(query_date),
+        "orderBy" => "date",
+        "lang" => "en"
+      })
+
+    @set_thailand_base_url <> "/api/cms/v1/news/set?" <> query
+  end
+
+  defp set_thailand_query_window_days(source) do
+    source_config_non_negative_integer(
+      source,
+      "live_query_window_days",
+      :live_query_window_days,
+      1
+    )
+  end
+
+  defp set_thailand_date_param(%Date{} = date) do
+    [set_thailand_pad2(date.day), set_thailand_pad2(date.month), date.year]
+    |> Enum.join("/")
+  end
+
+  defp set_thailand_pad2(value) when is_integer(value) and value < 10, do: "0#{value}"
+  defp set_thailand_pad2(value), do: to_string(value)
 
   defp tdnet_public_list_records_seen(body) when is_binary(body) do
     Regex.scan(~r/<td[^>]*\bkjTime\b[^>]*>/u, body) |> length()
@@ -14267,24 +14425,20 @@ defmodule DisclosureAutomation.Ingestion do
   defp dfsa_oam_company_announcements_payload?(_body), do: false
 
   defp set_thailand_company_news_payload?(body) when is_binary(body) do
-    with {:ok, %{"newsGroups" => groups}} when is_list(groups) <- Jason.decode(body) do
-      Enum.any?(groups, fn
-        %{"newsInfoList" => records} when is_list(records) ->
-          Enum.any?(records, fn
-            %{
-              "id" => _id,
-              "datetime" => _datetime,
-              "symbol" => _symbol,
-              "headline" => _headline,
-              "url" => _url
-            } ->
-              true
+    with {:ok, decoded} when is_map(decoded) <- body |> trim_utf8_bom() |> Jason.decode() do
+      decoded
+      |> set_thailand_company_news_live_records()
+      |> Enum.any?(fn
+        %{
+          "id" => _id,
+          "datetime" => _datetime,
+          "symbol" => _symbol,
+          "headline" => _headline,
+          "url" => _url
+        } ->
+          true
 
-            _record ->
-              false
-          end)
-
-        _group ->
+        _record ->
           false
       end)
     else

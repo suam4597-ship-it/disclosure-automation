@@ -1548,8 +1548,8 @@ sources:
   - source_key: me_mnse_corporate_news
     display_name: Montenegro Stock Exchange Corporate News
     source_type: html
-    base_url: https://www.mnse.me/code/navigate.asp?Id=852
-    healthcheck_url: https://www.mnse.me/code/navigate.asp?Id=852
+    base_url: https://mnse.me/code/navigate.asp?Id=852
+    healthcheck_url: https://mnse.me/code/navigate.asp?Id=852
     parser_key: mnse_corporate_news_html_v1
     poll_cron: "*/30 * * * *"
     ranking_weight: 1.1
@@ -1991,11 +1991,13 @@ sources:
       max_items_per_poll: 25
       live_timeout_ms: 30000
       live_query_timezone: Asia/Taipei
+      live_content_type: application/json;charset=UTF-8
       live_headers:
         accept: "application/json, text/plain, */*"
         accept-language: "zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7"
         origin: https://mops.twse.com.tw
         referer: https://mops.twse.com.tw/mops/
+        x-requested-with: XMLHttpRequest
         user-agent: Mozilla/5.0 GlobalPulse Taiwan MOPS runtime probe
 
   - source_key: hk_market_news
@@ -2108,6 +2110,7 @@ sources:
       disable_live_fixture_fallback: true
       max_items_per_poll: 25
       live_timeout_ms: 30000
+      live_query_window_days: 1
       live_headers:
         accept: "application/json, text/plain, */*"
         accept-language: "en-US,en;q=0.9"
