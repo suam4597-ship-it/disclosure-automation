@@ -1575,6 +1575,8 @@ sources:
       disable_live_fixture_fallback: true
       max_items_per_poll: 25
       live_timeout_ms: 30000
+      live_tls_versions:
+        - tlsv1
       live_headers:
         accept: text/html
 
