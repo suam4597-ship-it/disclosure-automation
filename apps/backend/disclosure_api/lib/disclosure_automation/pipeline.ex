@@ -5329,7 +5329,7 @@ defmodule DisclosureAutomation.Parser do
 
   defp parse_tw_mops_daily_material_info(raw_payload) do
     with {:ok, decoded} <- raw_payload |> trim_utf8_bom() |> Jason.decode(),
-         %{"result" => %{"data" => rows}} <- decoded,
+         rows <- tw_mops_daily_material_info_rows(decoded),
          true <- is_list(rows) do
       items =
         rows
@@ -5342,6 +5342,12 @@ defmodule DisclosureAutomation.Parser do
       _shape -> {:error, :unexpected_tw_mops_daily_material_info_shape}
     end
   end
+
+  defp tw_mops_daily_material_info_rows(%{"result" => %{"data" => rows}}) when is_list(rows),
+    do: rows
+
+  defp tw_mops_daily_material_info_rows(rows) when is_list(rows), do: rows
+  defp tw_mops_daily_material_info_rows(_decoded), do: nil
 
   defp parse_tw_mops_daily_material_info_row([
          date_text,
@@ -5386,7 +5392,48 @@ defmodule DisclosureAutomation.Parser do
     }
   end
 
-  defp parse_tw_mops_daily_material_info_row(_row) do
+  defp parse_tw_mops_daily_material_info_row(%{} = row) do
+    parse_tw_mops_openapi_material_info_row(row)
+  end
+
+  defp parse_tw_mops_daily_material_info_row(row) do
+    parse_tw_mops_openapi_material_info_row(row)
+  end
+
+  defp parse_tw_mops_openapi_material_info_row(%{} = row) do
+    disclosure_date = string_field(row, "出表日期")
+    speech_date = string_field(row, "發言日期")
+    speech_time = string_field(row, "發言時間")
+    company_id = string_field(row, "公司代號")
+    company_name = string_field(row, "公司名稱")
+    subject = string_field(row, "主旨 ") || string_field(row, "主旨")
+    article = string_field(row, "符合條款")
+    event_date = string_field(row, "事實發生日")
+    description = string_field(row, "說明")
+
+    %{
+      external_id:
+        join_non_empty(["tw-mops", company_id, speech_date, speech_time, article], ":"),
+      title: join_non_empty([company_id, company_name, subject], " - "),
+      url: tw_mops_material_info_url_from_compact_date(speech_date || disclosure_date),
+      summary:
+        join_non_empty(
+          [
+            "Taiwan TWSE OpenAPI daily material information",
+            prefixed("Company", join_non_empty([company_id, company_name], " ")),
+            prefixed("Published", join_non_empty([speech_date, speech_time], " ")),
+            prefixed("Article", article),
+            prefixed("Event date", event_date),
+            prefixed("Description", description)
+          ],
+          " | "
+        ),
+      published_at: parse_tw_mops_openapi_datetime(speech_date || disclosure_date, speech_time),
+      category: "material_information"
+    }
+  end
+
+  defp parse_tw_mops_openapi_material_info_row(_row) do
     %{
       external_id: nil,
       title: nil,
@@ -5402,6 +5449,17 @@ defmodule DisclosureAutomation.Parser do
 
   defp tw_mops_material_info_url(date_text) do
     case parse_tw_mops_roc_date_parts(date_text) do
+      {year, month, day} ->
+        @tw_mops_material_info_base_url <>
+          "/#/web/t05st02?year=#{year}&month=#{month}&day=#{pad2(day)}"
+
+      nil ->
+        @tw_mops_material_info_base_url <> "/#/web/t05st02"
+    end
+  end
+
+  defp tw_mops_material_info_url_from_compact_date(date_text) do
+    case parse_tw_mops_compact_roc_date_parts(date_text) do
       {year, month, day} ->
         @tw_mops_material_info_base_url <>
           "/#/web/t05st02?year=#{year}&month=#{month}&day=#{pad2(day)}"
@@ -5432,6 +5490,20 @@ defmodule DisclosureAutomation.Parser do
     end
   end
 
+  defp parse_tw_mops_openapi_datetime(date_text, time_text) do
+    with {roc_year, month, day} <- parse_tw_mops_compact_roc_date_parts(date_text),
+         {hour, minute, second} <- parse_tw_mops_compact_time(time_text),
+         {:ok, date} <- Date.new(roc_year + 1911, month, day),
+         {:ok, time} <- Time.new(hour, minute, second),
+         {:ok, naive} <- NaiveDateTime.new(date, time) do
+      naive
+      |> DateTime.from_naive!("Etc/UTC")
+      |> DateTime.add(-8 * 60 * 60, :second)
+    else
+      _ -> DateTime.utc_now()
+    end
+  end
+
   defp parse_tw_mops_roc_date_parts(value) do
     value = to_clean_string(value)
 
@@ -5441,6 +5513,37 @@ defmodule DisclosureAutomation.Parser do
          {month, ""} <- Integer.parse(month_text),
          {day, ""} <- Integer.parse(day_text) do
       {year, month, day}
+    else
+      _ -> nil
+    end
+  end
+
+  defp parse_tw_mops_compact_roc_date_parts(value) do
+    value = to_clean_string(value)
+
+    with [_, year_text, month_text, day_text] <-
+           Regex.run(~r/^(\d{3})(\d{2})(\d{2})$/, value),
+         {year, ""} <- Integer.parse(year_text),
+         {month, ""} <- Integer.parse(month_text),
+         {day, ""} <- Integer.parse(day_text) do
+      {year, month, day}
+    else
+      _ -> nil
+    end
+  end
+
+  defp parse_tw_mops_compact_time(value) do
+    value =
+      value
+      |> to_clean_string()
+      |> String.pad_leading(6, "0")
+
+    with [_, hour_text, minute_text, second_text] <-
+           Regex.run(~r/^(\d{2})(\d{2})(\d{2})$/, value),
+         {hour, ""} <- Integer.parse(hour_text),
+         {minute, ""} <- Integer.parse(minute_text),
+         {second, ""} <- Integer.parse(second_text) do
+      {hour, minute, second}
     else
       _ -> nil
     end
@@ -12170,41 +12273,10 @@ defmodule DisclosureAutomation.Ingestion do
          %SourceRegistry{parser_key: "tw_mops_daily_material_info_json_v1"} = source,
          true
        ) do
-    query_date = tw_mops_query_date(source)
-    request_body = tw_mops_daily_material_info_request_body(query_date)
-
-    with {:ok, response} <-
-           Http.fetch(source.base_url,
-             timeout: source_live_timeout(source),
-             headers: source_live_headers(source),
-             method: :post,
-             body: Jason.encode!(request_body),
-             content_type: source_live_content_type(source)
-           ),
-         true <- response.status_code in 200..299,
-         :ok <- validate_live_payload(source, response) do
-      {:ok,
-       %{
-         raw_payload: response.body,
-         http_status: response.status_code,
-         fetch_info: %{
-           "mode" => "live",
-           "loaded" => true,
-           "strategy" => @tw_mops_material_info_strategy,
-           "url" => source.base_url,
-           "status_code" => response.status_code,
-           "bytes" => response.bytes,
-           "query_date" => Date.to_iso8601(query_date),
-           "roc_year" => Map.fetch!(request_body, "year"),
-           "month" => Map.fetch!(request_body, "month"),
-           "day" => Map.fetch!(request_body, "day"),
-           "records_seen" => tw_mops_daily_material_info_records_seen(response.body),
-           "fixture_fallback" => false
-         }
-       }}
+    if tw_mops_openapi_source?(source) do
+      maybe_load_tw_mops_openapi_payload(source)
     else
-      false -> {:error, :unexpected_status}
-      {:error, _reason} = error -> error
+      maybe_load_tw_mops_api_payload(source)
     end
   end
 
@@ -12273,6 +12345,74 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp maybe_load_live_payload(_source, false), do: :skip
+
+  defp maybe_load_tw_mops_openapi_payload(source) do
+    with {:ok, response} <-
+           Http.fetch(source.base_url,
+             timeout: source_live_timeout(source),
+             headers: source_live_headers(source)
+           ),
+         true <- response.status_code in 200..299,
+         :ok <- validate_live_payload(source, response) do
+      {:ok,
+       %{
+         raw_payload: response.body,
+         http_status: response.status_code,
+         fetch_info: %{
+           "mode" => "live",
+           "loaded" => true,
+           "strategy" => @tw_mops_material_info_strategy,
+           "url" => source.base_url,
+           "status_code" => response.status_code,
+           "bytes" => response.bytes,
+           "records_seen" => tw_mops_daily_material_info_records_seen(response.body),
+           "fixture_fallback" => false
+         }
+       }}
+    else
+      false -> {:error, :unexpected_status}
+      {:error, _reason} = error -> error
+    end
+  end
+
+  defp maybe_load_tw_mops_api_payload(source) do
+    query_date = tw_mops_query_date(source)
+    request_body = tw_mops_daily_material_info_request_body(query_date)
+
+    with {:ok, response} <-
+           Http.fetch(source.base_url,
+             timeout: source_live_timeout(source),
+             headers: source_live_headers(source),
+             method: :post,
+             body: Jason.encode!(request_body),
+             content_type: source_live_content_type(source)
+           ),
+         true <- response.status_code in 200..299,
+         :ok <- validate_live_payload(source, response) do
+      {:ok,
+       %{
+         raw_payload: response.body,
+         http_status: response.status_code,
+         fetch_info: %{
+           "mode" => "live",
+           "loaded" => true,
+           "strategy" => @tw_mops_material_info_strategy,
+           "url" => source.base_url,
+           "status_code" => response.status_code,
+           "bytes" => response.bytes,
+           "query_date" => Date.to_iso8601(query_date),
+           "roc_year" => Map.fetch!(request_body, "year"),
+           "month" => Map.fetch!(request_body, "month"),
+           "day" => Map.fetch!(request_body, "day"),
+           "records_seen" => tw_mops_daily_material_info_records_seen(response.body),
+           "fixture_fallback" => false
+         }
+       }}
+    else
+      false -> {:error, :unexpected_status}
+      {:error, _reason} = error -> error
+    end
+  end
 
   defp fetch_de_company_register_support_page(source) do
     url =
@@ -12784,7 +12924,7 @@ defmodule DisclosureAutomation.Ingestion do
 
   defp tw_mops_daily_material_info_records_seen(body) when is_binary(body) do
     with {:ok, decoded} <- body |> trim_utf8_bom() |> Jason.decode(),
-         %{"result" => %{"data" => rows}} <- decoded,
+         rows <- tw_mops_daily_material_info_records_seen_rows(decoded),
          true <- is_list(rows) do
       length(rows)
     else
@@ -12793,6 +12933,19 @@ defmodule DisclosureAutomation.Ingestion do
   end
 
   defp tw_mops_daily_material_info_records_seen(_body), do: 0
+
+  defp tw_mops_daily_material_info_records_seen_rows(%{"result" => %{"data" => rows}})
+       when is_list(rows),
+       do: rows
+
+  defp tw_mops_daily_material_info_records_seen_rows(rows) when is_list(rows), do: rows
+  defp tw_mops_daily_material_info_records_seen_rows(_decoded), do: nil
+
+  defp tw_mops_openapi_source?(%SourceRegistry{base_url: base_url}) when is_binary(base_url) do
+    String.contains?(base_url, "openapi.twse.com.tw")
+  end
+
+  defp tw_mops_openapi_source?(_source), do: false
 
   defp set_thailand_company_news_records_seen(body) when is_binary(body) do
     with {:ok, decoded} <- body |> trim_utf8_bom() |> Jason.decode() do
@@ -14449,15 +14602,67 @@ defmodule DisclosureAutomation.Ingestion do
   defp set_thailand_company_news_payload?(_body), do: false
 
   defp tw_mops_daily_material_info_payload?(body) when is_binary(body) do
-    with {:ok, %{"code" => 200, "result" => %{"data" => rows}}} <-
-           body |> trim_utf8_bom() |> Jason.decode() do
-      is_list(rows)
+    with {:ok, decoded} <- body |> trim_utf8_bom() |> Jason.decode(),
+         rows <- tw_mops_daily_material_info_records_seen_rows(decoded),
+         true <- is_list(rows) do
+      tw_mops_openapi_payload_rows?(rows) or
+        Enum.any?(rows, fn
+          [date_text, time_text, company_id, company_name, headline | _rest] ->
+            live_present?(date_text) and live_present?(time_text) and live_present?(company_id) and
+              live_present?(company_name) and live_present?(headline)
+
+          %{} = row ->
+            live_present?(Map.get(row, "發言日期")) and live_present?(Map.get(row, "發言時間")) and
+              live_present?(Map.get(row, "公司代號")) and live_present?(Map.get(row, "公司名稱")) and
+              (live_present?(Map.get(row, "主旨 ")) or live_present?(Map.get(row, "主旨")))
+
+          _row ->
+            false
+        end)
     else
       _ -> false
     end
   end
 
   defp tw_mops_daily_material_info_payload?(_body), do: false
+
+  defp live_present?(value) when is_binary(value), do: String.trim(value) != ""
+  defp live_present?(value) when is_integer(value) or is_float(value), do: true
+  defp live_present?(_value), do: false
+
+  defp tw_mops_openapi_payload_rows?(rows) when is_list(rows) do
+    Enum.any?(rows, fn
+      %{} = row ->
+        live_present?(Map.get(row, tw_mops_live_openapi_key(:speech_date))) and
+          live_present?(Map.get(row, tw_mops_live_openapi_key(:speech_time))) and
+          live_present?(Map.get(row, tw_mops_live_openapi_key(:company_id))) and
+          live_present?(Map.get(row, tw_mops_live_openapi_key(:company_name))) and
+          (live_present?(Map.get(row, tw_mops_live_openapi_key(:subject_with_space))) or
+             live_present?(Map.get(row, tw_mops_live_openapi_key(:subject))))
+
+      _row ->
+        false
+    end)
+  end
+
+  defp tw_mops_openapi_payload_rows?(_rows), do: false
+
+  defp tw_mops_live_openapi_key(:speech_date),
+    do: <<0x767C::utf8, 0x8A00::utf8, 0x65E5::utf8, 0x671F::utf8>>
+
+  defp tw_mops_live_openapi_key(:speech_time),
+    do: <<0x767C::utf8, 0x8A00::utf8, 0x6642::utf8, 0x9593::utf8>>
+
+  defp tw_mops_live_openapi_key(:company_id),
+    do: <<0x516C::utf8, 0x53F8::utf8, 0x4EE3::utf8, 0x865F::utf8>>
+
+  defp tw_mops_live_openapi_key(:company_name),
+    do: <<0x516C::utf8, 0x53F8::utf8, 0x540D::utf8, 0x7A31::utf8>>
+
+  defp tw_mops_live_openapi_key(:subject), do: <<0x4E3B::utf8, 0x65E8::utf8>>
+
+  defp tw_mops_live_openapi_key(:subject_with_space),
+    do: tw_mops_live_openapi_key(:subject) <> " "
 
   defp tdnet_public_list_payload?(body) when is_binary(body) do
     body =~ "kaiji-date-1" and body =~ "main-list-table" and body =~ "kjTime" and
