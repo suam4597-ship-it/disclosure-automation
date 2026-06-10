@@ -1,0 +1,106 @@
+version: 1
+defaults:
+  timezone: UTC
+  poll_cron: "*/15 * * * *"
+  parser_key: rss_v1
+  ranking_weight: 1.0
+  active: true
+
+sources:
+  - source_key: sec_press_releases
+    display_name: SEC Press Releases
+    source_type: rss
+    base_url: https://www.sec.gov/news/pressreleases.rss
+    healthcheck_url: https://www.sec.gov
+    parser_key: rss_v1
+    poll_cron: "*/10 * * * *"
+    ranking_weight: 1.4
+    coverage_tags:
+      - regulatory
+      - enforcement
+      - markets
+    active: true
+    config:
+      canonical_domain: sec.gov
+      dedupe_strategy: canonical_url
+      summary_mode: first_paragraph
+      category_bias: high_signal
+      fixture_path: source_payloads/sec_press_releases.xml
+
+  - source_key: fed_press_releases
+    display_name: Federal Reserve Press Releases
+    source_type: rss
+    base_url: https://www.federalreserve.gov/feeds/press_all.xml
+    healthcheck_url: https://www.federalreserve.gov
+    parser_key: rss_v1
+    poll_cron: "*/15 * * * *"
+    ranking_weight: 1.5
+    coverage_tags:
+      - macro
+      - rates
+      - central-bank
+    active: true
+    config:
+      canonical_domain: federalreserve.gov
+      dedupe_strategy: canonical_url
+      summary_mode: first_paragraph
+      category_bias: policy
+      fixture_path: source_payloads/fed_press_releases.xml
+
+  - source_key: nyse_press_room
+    display_name: NYSE Press Room
+    source_type: rss
+    base_url: https://www.nyse.com/rss/nyse-press-room
+    healthcheck_url: https://www.nyse.com
+    parser_key: rss_v1
+    poll_cron: "*/20 * * * *"
+    ranking_weight: 1.2
+    coverage_tags:
+      - exchange
+      - listings
+      - corporate-actions
+    active: true
+    config:
+      canonical_domain: nyse.com
+      dedupe_strategy: canonical_url
+      summary_mode: first_paragraph
+      fixture_path: source_payloads/nyse_press_room.xml
+
+  - source_key: ft_markets_news
+    display_name: Financial Times Markets News
+    source_type: html
+    base_url: https://www.ft.com/markets
+    healthcheck_url: https://www.ft.com
+    parser_key: html_article_list_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.1
+    coverage_tags:
+      - equities
+      - rates
+      - commodities
+    active: true
+    config:
+      canonical_domain: ft.com
+      dedupe_strategy: title_and_url
+      headline_selector: ".o-teaser__heading"
+      published_at_selector: "time"
+      fixture_path: source_payloads/ft_markets_news.html
+
+  - source_key: boj_announcements
+    display_name: Bank of Japan Announcements
+    source_type: rss
+    base_url: https://www.boj.or.jp/en/announcements/release/rss/index.xml
+    healthcheck_url: https://www.boj.or.jp
+    parser_key: rss_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.3
+    coverage_tags:
+      - apac
+      - central-bank
+      - currency
+    active: true
+    config:
+      canonical_domain: boj.or.jp
+      dedupe_strategy: canonical_url
+      summary_mode: first_paragraph
+      fixture_path: source_payloads/boj_announcements.xml

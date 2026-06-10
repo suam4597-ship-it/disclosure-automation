@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Disclosure Automation — Global Pulse Dashboard</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <style>
+    .banner {
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(79, 140, 255, 0.08);
+      border-radius: 18px;
+      padding: 16px 18px;
+      margin: 24px 0;
+    }
+    .hero-grid {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: 1.3fr 1fr;
+      align-items: start;
+    }
+    .pill-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+    .pill {
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 0.85rem;
+      opacity: 0.9;
+    }
+    .card p:last-child {
+      margin-bottom: 0;
+    }
+    .muted {
+      opacity: 0.78;
+    }
+    .code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.92rem;
+      word-break: break-word;
+    }
+    .link-list {
+      display: grid;
+      gap: 10px;
+      padding-left: 18px;
+    }
+    @media (max-width: 900px) {
+      .hero-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <div class="container hero-grid">
+      <div>
+        <p class="eyebrow">Investment Event Intelligence · Phase 0</p>
+        <h1>해외 공시·매크로·거래소·금융미디어 이벤트를
+          에디션형 피드로 정리하는 기반 브랜치</h1>
+        <p class="subtitle">
+          이 브랜치는 완성형 제품보다 먼저, 소스 레지스트리·딜리버리 윈도우·피드 API·운영 문서를
+          고정하는 Phase 0 foundation 계약을 담고 있습니다.
+        </p>
+        <div class="actions">
+          <a class="button primary" href="../../docs/blueprint/investment_news_blueprint_v2.md">Blueprint</a>
+          <a class="button secondary" href="../../docs/blueprint/phase0-architecture-contract.md">Architecture Contract</a>
+          <a class="button secondary" href="../../docs/phase-0/codex-task-breakdown.md">Task Breakdown</a>
+        </div>
+        <div class="pill-row">
+          <span class="pill">Digest API</span>
+          <span class="pill">Source Health API</span>
+          <span class="pill">Fixture Fallback</span>
+          <span class="pill">Oban Job Boundaries</span>
+          <span class="pill">Vercel Static Entry</span>
+        </div>
+      </div>
+
+      <aside class="card">
+        <h2>현재 브랜치 포인트</h2>
+        <p>PR #1은 Codespaces, Vercel, runbook, SQL/Ecto foundation, lightweight controllers를 중심으로 Phase 0 기반을 고정합니다.</p>
+        <p class="muted">루트 경로는 <span class="code">apps/web/vercel.json</span> rewrite를 통해 이 파일을 가리키도록 설계되었습니다.</p>
+      </aside>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="banner">
+      <strong>핵심 아이디어:</strong>
+      먼저 계약을 고정하고, 그 위에 Phoenix/Ecto 실 runtime 을 점진적으로 붙입니다.
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <h2>활성 API 계약</h2>
+        <ul>
+          <li><span class="code">GET /api/feed/digest/latest?edition=apac-open&amp;timezone=Asia/Seoul</span></li>
+          <li><span class="code">GET /api/feed/digest/2026-03-30/apac-open</span></li>
+          <li><span class="code">GET /api/admin/source-health</span></li>
+          <li><span class="code">GET /api/admin/source-health/sec_press_releases</span></li>
+          <li><span class="code">POST /api/admin/source-health/sec_press_releases/recheck</span></li>
+        </ul>
+      </article>
+
+      <article class="card">
+        <h2>레포 안의 계약 자산</h2>
+        <ul>
+          <li>sample YAML: source registry / delivery windows / parser capabilities</li>
+          <li>SQL bootstrap schema + rollback</li>
+          <li>Ecto migrations 4개</li>
+          <li>OpenAPI specs 2개</li>
+          <li>daily digest sample fixture</li>
+        </ul>
+      </article>
+
+      <article class="card">
+        <h2>다음 단계</h2>
+        <ol>
+          <li>full Phoenix API app와 연결</li>
+          <li>parser/runtime persistence 구체화</li>
+          <li>fixture fallback에서 실제 canonical feed read path로 전환</li>
+          <li>email/slack/webhook delivery 구현</li>
+        </ol>
+      </article>
+
+      <article class="card">
+        <h2>문서 링크</h2>
+        <ol class="link-list">
+          <li><a href="../../docs/blueprint/investment_news_blueprint_v2.md">investment_news_blueprint_v2.md</a></li>
+          <li><a href="../../docs/blueprint/phase0-architecture-contract.md">phase0-architecture-contract.md</a></li>
+          <li><a href="../../docs/phase-0/codex-task-breakdown.md">codex-task-breakdown.md</a></li>
+          <li><a href="../backend/openapi/feed-digest.openapi.yaml">feed-digest.openapi.yaml</a></li>
+          <li><a href="../backend/openapi/admin-source-health.openapi.yaml">admin-source-health.openapi.yaml</a></li>
+        </ol>
+      </article>
+    </section>
+  </main>
+</body>
+</html>

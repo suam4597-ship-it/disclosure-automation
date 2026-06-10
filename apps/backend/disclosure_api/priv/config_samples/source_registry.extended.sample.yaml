@@ -1,0 +1,313 @@
+version: 1
+defaults:
+  timezone: UTC
+  poll_cron: "*/15 * * * *"
+  parser_key: rss_v1
+  ranking_weight: 1.0
+  active: true
+
+sources:
+  - source_key: sec_press_releases
+    display_name: SEC Press Releases
+    source_type: rss
+    base_url: https://www.sec.gov/news/pressreleases.rss
+    healthcheck_url: https://www.sec.gov
+    parser_key: rss_v1
+    poll_cron: "*/10 * * * *"
+    ranking_weight: 1.4
+    coverage_tags: [regulatory, enforcement, markets]
+    active: true
+    config:
+      fixture_path: source_payloads/sec_press_releases.xml
+
+  - source_key: sec_edgar_current_8k_filings
+    display_name: SEC EDGAR Current 8-K Filings
+    source_type: atom
+    base_url: "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=8-K&owner=include&count=100&output=atom"
+    healthcheck_url: https://www.sec.gov/edgar
+    parser_key: rss_v1
+    poll_cron: "*/10 * * * *"
+    ranking_weight: 1.45
+    coverage_tags: [us, disclosure, filing, sec_edgar, markets]
+    active: true
+    config:
+      disable_live_fixture_fallback: true
+      max_items_per_poll: 50
+      detail_fetch_limit: 10
+      detail_fetch_timeout_ms: 8000
+      live_headers:
+        user-agent: disclosure-automation-phase1 suam4597@gmail.com
+
+  - source_key: sec_edgar_form4_clustered_insider_buys
+    display_name: SEC EDGAR Form 4 Clustered Insider Buys
+    source_type: atom
+    base_url: "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=4&owner=include&count=100&output=atom"
+    healthcheck_url: https://www.sec.gov/edgar
+    parser_key: rss_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.5
+    coverage_tags: [us, disclosure, filing, sec_edgar, form4, insider_buy, markets]
+    active: true
+    config:
+      disable_live_fixture_fallback: true
+      max_items_per_poll: 100
+      detail_fetch_limit: 60
+      detail_fetch_timeout_ms: 8000
+      cluster_window_days: 7
+      cluster_min_reporting_owners: 3
+      live_headers:
+        user-agent: disclosure-automation-phase1 suam4597@gmail.com
+
+  - source_key: sec_edgar_13f_institutional_accumulation
+    display_name: SEC EDGAR 13F Institutional Accumulation
+    source_type: atom
+    base_url: "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=13F-HR&owner=include&count=100&output=atom"
+    healthcheck_url: https://www.sec.gov/edgar
+    parser_key: rss_v1
+    poll_cron: "0 * * * *"
+    ranking_weight: 1.48
+    coverage_tags: [us, disclosure, filing, sec_edgar, 13f, institutional_buy, portfolio, markets]
+    active: true
+    config:
+      disable_live_fixture_fallback: true
+      poll_async_default: true
+      poll_queue: source_polling_slow
+      max_items_per_poll: 25
+      detail_fetch_limit: 3
+      detail_fetch_timeout_ms: 8000
+      detail_fetch_max_bytes: 1500000
+      increase_min_percent: 25
+      positions_per_manager: 5
+      emit_limit: 40
+      notable_manager_only: true
+      live_headers:
+        user-agent: disclosure-automation-phase1 suam4597@gmail.com
+
+  - source_key: sec_edgar_current_10q_reports
+    display_name: SEC EDGAR Current 10-Q Reports
+    source_type: atom
+    base_url: "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=10-Q&owner=include&count=100&output=atom"
+    healthcheck_url: https://www.sec.gov/edgar
+    parser_key: rss_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.42
+    coverage_tags: [us, disclosure, filing, sec_edgar, periodic_report, earnings, markets]
+    active: true
+    config:
+      disable_live_fixture_fallback: true
+      poll_async_default: true
+      poll_queue: source_polling_slow
+      max_items_per_poll: 10
+      detail_fetch_limit: 3
+      detail_fetch_timeout_ms: 10000
+      detail_fetch_max_bytes: 8000000
+      live_headers:
+        user-agent: disclosure-automation-phase1 suam4597@gmail.com
+
+  - source_key: sec_edgar_current_10k_reports
+    display_name: SEC EDGAR Current 10-K Reports
+    source_type: atom
+    base_url: "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=10-K&owner=include&count=100&output=atom"
+    healthcheck_url: https://www.sec.gov/edgar
+    parser_key: rss_v1
+    poll_cron: "0 * * * *"
+    ranking_weight: 1.42
+    coverage_tags: [us, disclosure, filing, sec_edgar, periodic_report, annual_report, earnings, markets]
+    active: true
+    config:
+      disable_live_fixture_fallback: true
+      poll_async_default: true
+      poll_queue: source_polling_slow
+      max_items_per_poll: 10
+      detail_fetch_limit: 3
+      detail_fetch_timeout_ms: 10000
+      detail_fetch_max_bytes: 8000000
+      live_headers:
+        user-agent: disclosure-automation-phase1 suam4597@gmail.com
+
+  - source_key: sec_edgar_current_s1_registration_statements
+    display_name: SEC EDGAR Current S-1 Registration Statements
+    source_type: atom
+    base_url: "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=S-1&owner=include&count=100&output=atom"
+    healthcheck_url: https://www.sec.gov/edgar
+    parser_key: rss_v1
+    poll_cron: "0 * * * *"
+    ranking_weight: 1.55
+    coverage_tags: [us, disclosure, filing, sec_edgar, ipo, registration_statement, markets]
+    active: true
+    config:
+      disable_live_fixture_fallback: true
+      poll_async_default: true
+      poll_queue: source_polling_slow
+      max_items_per_poll: 10
+      detail_fetch_limit: 1
+      detail_fetch_timeout_ms: 6000
+      detail_fetch_max_bytes: 1500000
+      live_headers:
+        user-agent: disclosure-automation-phase1 suam4597@gmail.com
+
+  - source_key: sec_edgar_current_f1_registration_statements
+    display_name: SEC EDGAR Current F-1 Registration Statements
+    source_type: atom
+    base_url: "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=F-1&owner=include&count=100&output=atom"
+    healthcheck_url: https://www.sec.gov/edgar
+    parser_key: rss_v1
+    poll_cron: "0 * * * *"
+    ranking_weight: 1.55
+    coverage_tags: [us, disclosure, filing, sec_edgar, ipo, registration_statement, foreign_issuer, markets]
+    active: true
+    config:
+      disable_live_fixture_fallback: true
+      poll_async_default: true
+      poll_queue: source_polling_slow
+      max_items_per_poll: 10
+      detail_fetch_limit: 1
+      detail_fetch_timeout_ms: 6000
+      detail_fetch_max_bytes: 1500000
+      live_headers:
+        user-agent: disclosure-automation-phase1 suam4597@gmail.com
+
+  - source_key: sec_edgar_current_13d_activist_ownership
+    display_name: SEC EDGAR Current Schedule 13D Strategic Ownership
+    source_type: atom
+    base_url: "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=SC%2013D&owner=include&count=100&output=atom"
+    healthcheck_url: https://www.sec.gov/edgar
+    parser_key: rss_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.6
+    coverage_tags: [us, disclosure, filing, sec_edgar, schedule_13d, activist, ownership, markets]
+    active: true
+    config:
+      disable_live_fixture_fallback: true
+      poll_async_default: true
+      poll_queue: source_polling_slow
+      max_items_per_poll: 10
+      detail_fetch_limit: 1
+      detail_fetch_timeout_ms: 6000
+      detail_fetch_max_bytes: 1500000
+      live_headers:
+        user-agent: disclosure-automation-phase1 suam4597@gmail.com
+
+  - source_key: sec_edgar_current_13g_increased_ownership
+    display_name: SEC EDGAR Current Schedule 13G Increased Ownership
+    source_type: atom
+    base_url: "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=SC%2013G&owner=include&count=100&output=atom"
+    healthcheck_url: https://www.sec.gov/edgar
+    parser_key: rss_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.5
+    coverage_tags: [us, disclosure, filing, sec_edgar, schedule_13g, increased_ownership, ownership, markets]
+    active: true
+    config:
+      disable_live_fixture_fallback: true
+      poll_async_default: true
+      poll_queue: source_polling_slow
+      max_items_per_poll: 10
+      detail_fetch_limit: 1
+      detail_fetch_timeout_ms: 6000
+      detail_fetch_max_bytes: 1500000
+      increase_only: true
+      live_headers:
+        user-agent: disclosure-automation-phase1 suam4597@gmail.com
+
+  - source_key: sec_edgar_current_s4_merger_registration_statements
+    display_name: SEC EDGAR Current S-4 Merger Registration Statements
+    source_type: atom
+    base_url: "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=S-4&owner=include&count=100&output=atom"
+    healthcheck_url: https://www.sec.gov/edgar
+    parser_key: rss_v1
+    poll_cron: "0 * * * *"
+    ranking_weight: 1.52
+    coverage_tags: [us, disclosure, filing, sec_edgar, merger, stock_exchange, registration_statement, markets]
+    active: true
+    config:
+      disable_live_fixture_fallback: true
+      poll_async_default: true
+      poll_queue: source_polling_slow
+      max_items_per_poll: 10
+      detail_fetch_limit: 1
+      detail_fetch_timeout_ms: 6000
+      detail_fetch_max_bytes: 1500000
+      live_headers:
+        user-agent: disclosure-automation-phase1 suam4597@gmail.com
+
+  - source_key: sec_edgar_current_f4_merger_registration_statements
+    display_name: SEC EDGAR Current F-4 Merger Registration Statements
+    source_type: atom
+    base_url: "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=F-4&owner=include&count=100&output=atom"
+    healthcheck_url: https://www.sec.gov/edgar
+    parser_key: rss_v1
+    poll_cron: "0 * * * *"
+    ranking_weight: 1.52
+    coverage_tags: [us, disclosure, filing, sec_edgar, merger, stock_exchange, foreign_issuer, registration_statement, markets]
+    active: true
+    config:
+      disable_live_fixture_fallback: true
+      poll_async_default: true
+      poll_queue: source_polling_slow
+      max_items_per_poll: 10
+      detail_fetch_limit: 1
+      detail_fetch_timeout_ms: 6000
+      detail_fetch_max_bytes: 1500000
+      live_headers:
+        user-agent: disclosure-automation-phase1 suam4597@gmail.com
+
+  - source_key: sec_edgar_current_schedule_to_tender_offers
+    display_name: SEC EDGAR Current Schedule TO Tender Offers
+    source_type: atom
+    base_url: "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=SC%20TO&owner=include&count=100&output=atom"
+    healthcheck_url: https://www.sec.gov/edgar
+    parser_key: rss_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.58
+    coverage_tags: [us, disclosure, filing, sec_edgar, tender_offer, buyout, ownership, markets]
+    active: true
+    config:
+      disable_live_fixture_fallback: true
+      poll_async_default: true
+      poll_queue: source_polling_slow
+      max_items_per_poll: 5
+      detail_fetch_limit: 1
+      detail_fetch_timeout_ms: 6000
+      detail_fetch_max_bytes: 750000
+      live_headers:
+        user-agent: disclosure-automation-phase1 suam4597@gmail.com
+
+  - source_key: fed_press_releases
+    display_name: Federal Reserve Press Releases
+    source_type: rss
+    base_url: https://www.federalreserve.gov/feeds/press_all.xml
+    healthcheck_url: https://www.federalreserve.gov
+    parser_key: rss_v1
+    poll_cron: "*/15 * * * *"
+    ranking_weight: 1.5
+    coverage_tags: [macro, rates, central-bank]
+    active: true
+    config:
+      fixture_path: source_payloads/fed_press_releases.xml
+
+  - source_key: nyse_press_room
+    display_name: NYSE Press Room
+    source_type: rss
+    base_url: https://www.nyse.com/rss/nyse-press-room
+    healthcheck_url: https://www.nyse.com
+    parser_key: rss_v1
+    poll_cron: "*/20 * * * *"
+    ranking_weight: 1.2
+    coverage_tags: [exchange, listings, corporate-actions]
+    active: true
+    config:
+      fixture_path: source_payloads/nyse_press_room.xml
+
+  - source_key: boj_announcements
+    display_name: Bank of Japan Announcements
+    source_type: rss
+    base_url: https://www.boj.or.jp/en/announcements/release/rss/index.xml
+    healthcheck_url: https://www.boj.or.jp
+    parser_key: rss_v1
+    poll_cron: "*/30 * * * *"
+    ranking_weight: 1.3
+    coverage_tags: [apac, central-bank, currency]
+    active: true
+    config:
+      fixture_path: source_payloads/boj_announcements.xml

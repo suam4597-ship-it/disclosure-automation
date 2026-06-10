@@ -1,0 +1,149 @@
+name: Phase 1 runtime smoke
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [phase0-foundation]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: disclosure_automation_dev
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d disclosure_automation_dev"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    defaults:
+      run:
+        working-directory: apps/backend/disclosure_api
+
+    env:
+      MIX_ENV: dev
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_HOST: 127.0.0.1
+      POSTGRES_DB: disclosure_automation_dev
+      PORT: 4000
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: 1.19.5
+          otp-version: 28.1
+
+      - name: Install dependencies
+        run: mix deps.get
+
+      - name: Create and migrate database
+        run: |
+          mix ecto.create
+          mix ecto.migrate
+
+      - name: Compile
+        run: mix compile
+
+      - name: Start server
+        run: |
+          mix phx.server > server.log 2>&1 &
+          echo $! > server.pid
+
+      - name: Health check
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:4000/api/health > health.json; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo 'health check failed'
+          tail -n 50 server.log
+          exit 1
+
+      - name: Poll source
+        run: |
+          status=$(curl -sS -o poll.json -w "%{http_code}" -X POST "http://127.0.0.1:4000/api/admin/sources/sec_press_releases/poll?use_live_fetch=false")
+          echo "poll status=${status}"
+          cat poll.json
+          if [ "${status}" -lt 200 ] || [ "${status}" -ge 300 ]; then
+            tail -n 80 server.log
+            exit 1
+          fi
+
+      - name: Fetch digest
+        run: |
+          status=$(curl -sS -o digest.json -w "%{http_code}" "http://127.0.0.1:4000/api/feed/digest/latest?edition=breaking")
+          echo "digest status=${status}"
+          cat digest.json
+          if [ "${status}" -lt 200 ] || [ "${status}" -ge 300 ]; then
+            tail -n 80 server.log
+            exit 1
+          fi
+
+      - name: Comment smoke result on PR
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const root = path.join(process.env.GITHUB_WORKSPACE, 'apps/backend/disclosure_api');
+            const read = (name) => {
+              try {
+                return fs.readFileSync(path.join(root, name), 'utf8').slice(0, 1500);
+              } catch (e) {
+                return '(missing)';
+              }
+            };
+            const body = [
+              '### Phase 1 runtime smoke',
+              `- sha: ${context.sha}`,
+              `- status: ${'${{ job.status }}'}`,
+              '',
+              '#### /api/health',
+              '```json',
+              read('health.json'),
+              '```',
+              '',
+              '#### poll result',
+              '```json',
+              read('poll.json'),
+              '```',
+              '',
+              '#### digest result',
+              '```json',
+              read('digest.json'),
+              '```',
+              '',
+              '#### server.log tail',
+              '```',
+              read('server.log').split('\n').slice(-20).join('\n'),
+              '```'
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body
+            });

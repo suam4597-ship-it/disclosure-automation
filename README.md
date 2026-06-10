@@ -6,13 +6,30 @@
 ## 구조
 | 경로 | 내용 |
 |---|---|
-| `docs/blueprint/` | 상세 설계서 v2 (데이터 모델의 단일 기준) |
-| `config/sources.yml` | 수집처 명단 — 새 거래소 추가는 여기 한 줄 |
-| `apps/web/` | 대시보드 프론트엔드 (digest API 연동) |
-| `apps/backend/schema/` | PostgreSQL 핵심 스키마 초안 |
-| `.github/workflows/` | 스테이징 폴링·공개 웹 스모크 검증 |
+| `apps/backend/disclosure_api/` | Phoenix/Elixir 백엔드 (Fly.io 스테이징 배포 본체) |
+| `apps/web/` | 공개 대시보드 프론트엔드 (GitHub Pages 배포) |
+| `docs/blueprint/` | 설계 문서 (제품 설계서 + 데이터 모델 설계서) |
+| `config/sources.yml` | 수집처 명단 레지스트리 |
+| `apps/backend/schema/` | 목표 데이터 모델 PostgreSQL 스키마 초안 |
+| `apps/backend/dedup/` | 3단계 중복 제거 참조 구현 + 테스트 |
+| `apps/backend/openapi.yml` | 백엔드 API 계약 명세 |
+| `.github/workflows/` | 배포·스테이징 폴링·스모크·CI 검증 |
 
-백엔드 구현은 별도 배포(`globalpulse-backend-staging.fly.dev`)이며,
-이 저장소의 워크플로우가 폴 계약·다이제스트 계약을 주기적으로 검증합니다.
+- 스테이징 백엔드: `https://globalpulse-backend-staging.fly.dev`
+- 공개 Pages: `https://suam4597-ship-it.github.io/disclosure-automation/`
+
+## GlobalPulse Handoff
+
+If you are continuing GlobalPulse work from a different local machine, start here:
+
+```text
+GLOBALPULSE_HANDOFF.md
+```
+
+The canonical detailed handoff lives at:
+
+```text
+apps/backend/disclosure_api/docs/globalpulse_remote_handoff_guide.md
+```
 
 시작 안내: [`docs/START_HERE.md`](./docs/START_HERE.md)

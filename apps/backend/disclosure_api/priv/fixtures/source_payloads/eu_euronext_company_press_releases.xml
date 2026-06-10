@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:dc="http://purl.org/dc/elements/1.1/" version="2.0">
+  <channel>
+    <title>Company press releases</title>
+    <link>https://live.euronext.com/en</link>
+    <description>Fixture for official Euronext listed-company press releases.</description>
+    <language>en</language>
+    <item>
+      <guid>12884368 at https://live.euronext.com</guid>
+      <title>Instabank ASA - Sale of option shares by primary insiders</title>
+      <link>https://live.euronext.com/en/products/equities/company-news/2026-05-08-instabank-asa-sale-option-shares-primary-insiders</link>
+      <description><![CDATA[
+        Instabank ASA - Sale of option shares by primary insiders
+        <span class="field__item">Stocks</span>
+        <span class="field__item">Oslo</span>
+        <span class="field__item">Instabank ASA</span>
+        <div id="field-language-display"><label>Language</label> English</div>
+        <p>Reference is made to Instabank ASA's stock exchange announcement regarding exercise of share options by primary insiders.</p>
+      ]]></description>
+      <pubDate>Fri, 08 May 2026 16:10:02 +0000</pubDate>
+      <dc:creator>Euronext</dc:creator>
+    </item>
+    <item>
+      <guid>12884367 at https://live.euronext.com</guid>
+      <title>VAN DE VELDE : Acquisition of treasury shares</title>
+      <link>https://live.euronext.com/en/products/equities/company-news/2026-05-08-van-velde-acquisition-treasury-shares</link>
+      <description><![CDATA[
+        VAN DE VELDE : Acquisition of treasury shares
+        <span class="field__item">Stocks</span>
+        <span class="field__item">Brussels</span>
+        <span class="field__item">Van De Velde</span>
+        <div id="field-language-display"><label>Language</label> English</div>
+        <p>Press release on the acquisition of treasury shares by a listed issuer.</p>
+      ]]></description>
+      <pubDate>Fri, 08 May 2026 16:03:02 +0000</pubDate>
+      <dc:creator>Euronext</dc:creator>
+    </item>
+  </channel>
+</rss>

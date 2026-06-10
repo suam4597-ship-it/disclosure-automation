@@ -1,0 +1,27 @@
+<rss version="2.0">
+  <channel>
+    <title>Zagreb Stock Exchange - Financial reports</title>
+    <description>Financial reports</description>
+    <link>https://eho.zse.hr</link>
+    <copyright>2026 zse.hr All rights reserved</copyright>
+    <pubDate>Sat, 09 May 2026 04:48:00 +0200</pubDate>
+    <lastBuildDate>Sat, 09 May 2026 03:07:42 +0200</lastBuildDate>
+    <ttl>15</ttl>
+    <item>
+      <title><![CDATA[TOKIĆ d.d. - Financial report - 2026, First quarter, Unrevised, Unconsolidated - correction ]]></title>
+      <description><![CDATA[Ispravak teksta prijevoda na engleski]]></description>
+      <link>https://eho.zse.hr//fileadmin/issuers/TOK/FI-TOK-d379df3ad1de28f71efdcceeffd71c3b.pdf</link>
+      <pubDateLocal>04.05.2026. 12:48</pubDateLocal>
+      <pubDate>Mon, 04 May 2026 12:48:55 +0200</pubDate>
+      <venues>XZAG</venues>
+    </item>
+    <item>
+      <title><![CDATA[TOKIĆ d.d. - Financial report - 2026, First quarter, Unrevised, Consolidated - correction ]]></title>
+      <description><![CDATA[Ispravak teksta prijevoda na engleski.]]></description>
+      <link>https://eho.zse.hr//fileadmin/issuers/TOK/FI-TOK-626388ff3df4a933714bf6270fe6d8d4.pdf</link>
+      <pubDateLocal>04.05.2026. 12:48</pubDateLocal>
+      <pubDate>Mon, 04 May 2026 12:48:28 +0200</pubDate>
+      <venues>XZAG</venues>
+    </item>
+  </channel>
+</rss>

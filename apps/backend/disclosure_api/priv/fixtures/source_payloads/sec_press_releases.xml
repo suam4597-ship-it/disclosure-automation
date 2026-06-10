@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>SEC Press Releases</title>
+    <link>https://www.sec.gov/news/pressreleases.rss</link>
+    <description>SEC enforcement and regulatory updates</description>
+    <item>
+      <guid>sec-2026-03-30-enforcement</guid>
+      <title>SEC announces enforcement action tied to disclosure controls</title>
+      <link>https://www.sec.gov/news/press-release/2026-30</link>
+      <description>Disclosure controls and internal reporting issues remain under review.</description>
+      <pubDate>Fri, 08 May 2026 04:45:00 GMT</pubDate>
+      <category>regulatory</category>
+    </item>
+    <item>
+      <guid>sec-2026-03-30-markets</guid>
+      <title>SEC staff statement highlights market structure monitoring</title>
+      <link>https://www.sec.gov/news/public-statement/2026-31</link>
+      <description>Staff commentary focused on liquidity and cross-venue execution quality.</description>
+      <pubDate>Fri, 08 May 2026 04:20:00 GMT</pubDate>
+      <category>markets</category>
+    </item>
+  </channel>
+</rss>

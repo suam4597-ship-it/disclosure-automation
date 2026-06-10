@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Japan TDnet Disclosures</title>
+    <item>
+      <title>Toyota announces timely disclosure on hybrid capacity plan</title>
+      <link>https://www.release.tdnet.info/inbs/140120260508000101.pdf</link>
+      <guid>jp-tdnet-20260508-toyota-hybrid-capacity</guid>
+      <description>Timely disclosure outlines hybrid production capacity updates and medium-term capex expectations.</description>
+      <pubDate>Fri, 08 May 2026 02:35:00 GMT</pubDate>
+      <category>markets</category>
+    </item>
+    <item>
+      <title>Tokyo Electron updates earnings guidance after order strength</title>
+      <link>https://www.release.tdnet.info/inbs/140120260508000102.pdf</link>
+      <guid>jp-tdnet-20260508-tokyo-electron-guidance</guid>
+      <description>Guidance revision references stronger advanced equipment demand and stable foundry order visibility.</description>
+      <pubDate>Fri, 08 May 2026 01:55:00 GMT</pubDate>
+      <category>regulatory</category>
+    </item>
+  </channel>
+</rss>

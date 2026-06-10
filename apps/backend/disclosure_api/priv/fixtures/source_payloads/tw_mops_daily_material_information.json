@@ -1,0 +1,40 @@
+{
+  "code": 200,
+  "message": "query success",
+  "result": {
+    "data": [
+      [
+        "115/05/11",
+        "07:00:04",
+        "1463",
+        "TestIssuer",
+        "Name change announcement",
+        {
+          "apiName": "t05st02_detail",
+          "parameters": {
+            "companyId": "1463",
+            "marketKind": "sii",
+            "enterDate": "1150511",
+            "serialNumber": 1
+          }
+        }
+      ],
+      [
+        "115/05/11",
+        "11:09:16",
+        "2029",
+        "TestIssuerTwo",
+        "Equity transfer agreement termination announcement",
+        {
+          "apiName": "t05st02_detail",
+          "parameters": {
+            "companyId": "2029",
+            "marketKind": "otc",
+            "enterDate": "1150511",
+            "serialNumber": 1
+          }
+        }
+      ]
+    ]
+  }
+}

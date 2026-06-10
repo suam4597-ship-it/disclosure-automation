@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Bank of Japan Announcements</title>
+    <link>https://www.boj.or.jp/en/announcements/release/rss/index.xml</link>
+    <description>Bank of Japan operational and policy announcements</description>
+    <item>
+      <guid>boj-2026-03-30-ycc</guid>
+      <title>BOJ operational notice keeps yield-curve control watch in focus</title>
+      <link>https://www.boj.or.jp/en/announcements/release_2026/rel260330a.htm</link>
+      <description>Market participants monitored implications for exporters and domestic rate sensitivity.</description>
+      <pubDate>Mon, 30 Mar 2026 01:20:00 GMT</pubDate>
+      <category>central-bank</category>
+    </item>
+    <item>
+      <guid>boj-2026-03-30-currency</guid>
+      <title>BOJ commentary notes currency volatility and financial conditions</title>
+      <link>https://www.boj.or.jp/en/announcements/release_2026/rel260330b.htm</link>
+      <description>Officials highlighted watchfulness toward yen volatility and domestic funding conditions.</description>
+      <pubDate>Mon, 30 Mar 2026 04:05:00 GMT</pubDate>
+      <category>currency</category>
+    </item>
+  </channel>
+</rss>

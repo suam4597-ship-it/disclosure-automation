@@ -1,7 +1,5 @@
 name: GlobalPulse live staging poll
 
-# 폴 대상(소스 목록·스케줄 매핑)은 config/sources.yml 에서 읽는다.
-# 새 수집처/스케줄 추가는 이 파일이 아니라 config/sources.yml 을 수정한다.
 on:
   workflow_dispatch:
     inputs:
@@ -10,31 +8,26 @@ on:
         required: false
         default: "https://globalpulse-backend-staging.fly.dev"
       source_key:
-        description: "Source key or group alias (see config/sources.yml) to poll live"
+        description: "Source key to poll live"
         required: false
-        default: "sec_press_releases"
+        default: "sec_edgar_current_8k_filings"
       edition:
         description: "Digest edition to verify after poll"
         required: false
         default: "breaking"
   schedule:
-    # NOTE: cron 식은 config/sources.yml 의 groups[].schedule 과 1:1로 일치해야 한다.
-    # Run at minute 7 every hour. Keep this conservative for public RSS sources.
-    - cron: "7 * * * *"
-    # Run the verified India NSE candidate every 2 hours on weekdays in staging.
-    - cron: "37 */2 * * 1-5"
-    # Run the HKEX latest-listed-company candidate every 2 hours on weekdays in staging.
-    - cron: "22 */2 * * 1-5"
-    # Run the first EU listed-company disclosure canary every 4 hours on weekdays in staging.
-    - cron: "17 */4 * * 1-5"
-    # Run the Denmark DFSA OAM candidate as a separate staging-only canary on weekdays.
-    - cron: "47 */4 * * 1-5"
+    # US SEC EDGAR current 8-K filings registry cadence.
+    - cron: "*/10 * * * *"
+    # Japan TDnet disclosures registry cadence.
+    - cron: "*/15 * * * *"
+    # Greater China, India, and Europe staging canaries registry cadence.
+    - cron: "*/30 * * * *"
 
 permissions:
   contents: read
 
 concurrency:
-  group: globalpulse-live-staging-poll
+  group: globalpulse-live-staging-poll-${{ github.event.schedule || github.event.inputs.source_key || github.run_id }}
   cancel-in-progress: false
 
 jobs:
@@ -45,64 +38,74 @@ jobs:
       REQUESTED_SOURCE_KEY: ${{ github.event.inputs.source_key }}
       SCHEDULE_EXPR: ${{ github.event.schedule }}
       EDITION: ${{ github.event.inputs.edition || 'breaking' }}
+      EU_CANARY_SOURCES: >-
+        eu_france_info_financiere_oam
+        eu_spain_cnmv_inside_information
+        eu_spain_cnmv_other_relevant_information
+        eu_belgium_fsma_stori
+        uk_fca_nsm_regulated_information
+        ch_six_ser_official_notices
+        eu_euronext_company_press_releases
+        pt_cmvm_portal_info_privi
+      DENMARK_DFSA_OAM_CANARY_SOURCES: >-
+        dk_dfsa_oam_company_announcements
+      REGIONAL_30M_CADENCE_SOURCES: >-
+        hkex_latest_listed_company_information
+        tw_mops_daily_material_information
+        india_nse_announcements
+        eu_france_info_financiere_oam
+        eu_spain_cnmv_inside_information
+        eu_spain_cnmv_other_relevant_information
+        eu_belgium_fsma_stori
+        uk_fca_nsm_regulated_information
+        ch_six_ser_official_notices
+        eu_euronext_company_press_releases
+        pt_cmvm_portal_info_privi
+        dk_dfsa_oam_company_announcements
 
     steps:
-      - name: Checkout source registry
-        uses: actions/checkout@v4
-        with:
-          sparse-checkout: |
-            config/sources.yml
-          sparse-checkout-cone-mode: false
-
-      - name: Resolve sources from registry
+      - name: Resolve source
         run: |
-          python3 - <<'PY'
-          import os
-          import sys
+          if [ "${REQUESTED_SOURCE_KEY}" = "eu_scheduled_staging_canary" ]; then
+            resolved_source="eu_scheduled_staging_canary"
+            run_mode="eu_canary"
+          elif [ "${REQUESTED_SOURCE_KEY}" = "denmark_dfsa_oam_staging_canary" ]; then
+            resolved_source="denmark_dfsa_oam_staging_canary"
+            run_mode="denmark_dfsa_oam_canary"
+          elif [ -n "${REQUESTED_SOURCE_KEY}" ]; then
+            resolved_source="${REQUESTED_SOURCE_KEY}"
+            run_mode="single_source"
+          elif [ "${SCHEDULE_EXPR}" = "*/15 * * * *" ]; then
+            resolved_source="jp_tdnet_disclosures"
+            run_mode="single_source"
+          elif [ "${SCHEDULE_EXPR}" = "*/30 * * * *" ]; then
+            resolved_source="regional_30m_cadence_staging_sources"
+            run_mode="multi_source"
+          elif [ "${SCHEDULE_EXPR}" = "*/10 * * * *" ]; then
+            resolved_source="sec_edgar_current_8k_filings"
+            run_mode="single_source"
+          else
+            resolved_source="sec_edgar_current_8k_filings"
+            run_mode="single_source"
+          fi
 
-          import yaml
-
-          with open("config/sources.yml", "r", encoding="utf-8") as handle:
-              registry = yaml.safe_load(handle)
-
-          defaults = registry.get("defaults") or {}
-          known_sources = {entry["key"] for entry in registry.get("sources") or []}
-          groups = registry.get("groups") or []
-          by_alias = {group["alias"]: group for group in groups}
-          by_schedule = {group["schedule"]: group for group in groups}
-
-          requested = os.environ.get("REQUESTED_SOURCE_KEY", "").strip()
-          schedule = os.environ.get("SCHEDULE_EXPR", "").strip()
-
-          if requested and requested in by_alias:
-              group = by_alias[requested]
-          elif requested:
-              if requested not in known_sources:
-                  print(f"warning: source key {requested!r} is not in config/sources.yml", file=sys.stderr)
-              group = {"label": "single_source", "sources": [requested]}
-          elif schedule and schedule in by_schedule:
-              group = by_schedule[schedule]
-          else:
-              group = by_alias["hourly_default"]
-
-          sources = group["sources"]
-
-          cap = defaults.get("records_seen_cap", 25)
-
-          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env_out:
-              env_out.write(f"SOURCES={' '.join(sources)}\n")
-              env_out.write(f"RUN_LABEL={group['label']}\n")
-              env_out.write(f"RECORDS_SEEN_CAP={cap}\n")
-          PY
+          echo "SOURCE_KEY=${resolved_source}" >> "${GITHUB_ENV}"
+          echo "RUN_MODE=${run_mode}" >> "${GITHUB_ENV}"
 
       - name: Show target
         run: |
           echo "backend=${BACKEND_URL}"
-          echo "sources=${SOURCES}"
-          echo "run_label=${RUN_LABEL}"
+          echo "source=${SOURCE_KEY}"
+          echo "run_mode=${RUN_MODE}"
           echo "schedule=${SCHEDULE_EXPR}"
           echo "edition=${EDITION}"
-          echo "records_seen_cap=${RECORDS_SEEN_CAP}"
+          if [ "${RUN_MODE}" = "eu_canary" ]; then
+            echo "eu_canary_sources=${EU_CANARY_SOURCES}"
+          elif [ "${RUN_MODE}" = "denmark_dfsa_oam_canary" ]; then
+            echo "denmark_dfsa_oam_canary_sources=${DENMARK_DFSA_OAM_CANARY_SOURCES}"
+          elif [ "${RUN_MODE}" = "multi_source" ]; then
+            echo "regional_30m_cadence_sources=${REGIONAL_30M_CADENCE_SOURCES}"
+          fi
 
       - name: Health check
         run: |
@@ -113,17 +116,36 @@ jobs:
             exit 1
           fi
 
-      - name: Poll live sources
+      - name: Poll live source
         run: |
-          validate_poll_contract() {
-            POLL_JSON="$1" POLL_SOURCE="$2" python3 - <<'PY'
+          if [ "${RUN_MODE}" = "eu_canary" ] || [ "${RUN_MODE}" = "denmark_dfsa_oam_canary" ] || [ "${RUN_MODE}" = "multi_source" ]; then
+            failed=0
+            canary_sources="${EU_CANARY_SOURCES}"
+
+            if [ "${RUN_MODE}" = "denmark_dfsa_oam_canary" ]; then
+              canary_sources="${DENMARK_DFSA_OAM_CANARY_SOURCES}"
+            elif [ "${RUN_MODE}" = "multi_source" ]; then
+              canary_sources="${REGIONAL_30M_CADENCE_SOURCES}"
+            fi
+
+            for source in ${canary_sources}; do
+              output="poll-${source}.json"
+              status=$(curl -sS -o "${output}" -w "%{http_code}" -X POST "${BACKEND_URL}/api/admin/sources/${source}/poll?use_live_fetch=true&edition=${EDITION}")
+              echo "source=${source} poll status=${status}"
+              cat "${output}"
+
+              if [ "${status}" -lt 200 ] || [ "${status}" -ge 300 ]; then
+                failed=1
+                continue
+              fi
+
+              POLL_JSON="${output}" POLL_SOURCE="${source}" python3 - <<'PY' || failed=1
           import json
           import os
           import sys
 
           path = os.environ["POLL_JSON"]
           source = os.environ["POLL_SOURCE"]
-          cap = int(os.environ.get("RECORDS_SEEN_CAP", "25"))
 
           with open(path, "r", encoding="utf-8") as handle:
               payload = json.load(handle)
@@ -146,8 +168,8 @@ jobs:
 
           if not isinstance(records_seen, int):
               errors.append(f"{source}: records_seen is not an integer")
-          elif records_seen > cap:
-              errors.append(f"{source}: records_seen {records_seen} exceeds canary cap {cap}")
+          elif records_seen > 25:
+              errors.append(f"{source}: records_seen {records_seen} exceeds canary cap 25")
 
           if not isinstance(records_inserted, int):
               errors.append(f"{source}: records_inserted is not an integer")
@@ -166,50 +188,29 @@ jobs:
 
           print(f"{source}: poll contract pass")
           PY
-          }
-
-          poll_with_retry() {
-            source="$1"
-            output="$2"
-            poll_ok=0
-            status=000
-
-            for attempt in 1 2 3; do
-              status=$(curl -sS -o "${output}" -w "%{http_code}" -X POST "${BACKEND_URL}/api/admin/sources/${source}/poll?use_live_fetch=true&edition=${EDITION}" || true)
-              if [ -z "${status}" ]; then
-                status=000
-              fi
-
-              echo "source=${source} poll attempt=${attempt} status=${status}"
-              cat "${output}" || true
-
-              if [ "${status}" -ge 200 ] && [ "${status}" -lt 300 ] && validate_poll_contract "${output}" "${source}"; then
-                poll_ok=1
-                break
-              fi
-
-              if [ "${attempt}" -lt 3 ]; then
-                sleep $((attempt * 5))
-              fi
             done
 
-            if [ "${poll_ok}" != "1" ]; then
-              echo "source=${source} poll failed after retries"
-              return 1
+            exit "${failed}"
+          else
+            status=$(curl -sS -o poll.json -w "%{http_code}" -X POST "${BACKEND_URL}/api/admin/sources/${SOURCE_KEY}/poll?use_live_fetch=true&edition=${EDITION}")
+            echo "poll status=${status}"
+            cat poll.json
+            if [ "${status}" -lt 200 ] || [ "${status}" -ge 300 ]; then
+              exit 1
             fi
-          }
-
-          failed=0
-          for source in ${SOURCES}; do
-            if ! poll_with_retry "${source}" "poll-${source}.json"; then
-              failed=1
-            fi
-          done
-          exit "${failed}"
+          fi
 
       - name: Verify digest
         run: |
-          digest_output="digest-${RUN_LABEL}.json"
+          if [ "${RUN_MODE}" = "eu_canary" ]; then
+            digest_output="digest-eu-canary.json"
+          elif [ "${RUN_MODE}" = "denmark_dfsa_oam_canary" ]; then
+            digest_output="digest-denmark-dfsa-oam-canary.json"
+          elif [ "${RUN_MODE}" = "multi_source" ]; then
+            digest_output="digest-regional-30m-cadence.json"
+          else
+            digest_output="digest.json"
+          fi
 
           status=$(curl -sS -o "${digest_output}" -w "%{http_code}" "${BACKEND_URL}/api/feed/digest/latest?edition=${EDITION}")
           echo "digest status=${status}"
@@ -244,6 +245,8 @@ jobs:
           name: globalpulse-live-staging-poll-${{ github.run_id }}
           path: |
             health.json
+            poll.json
             poll-*.json
+            digest.json
             digest-*.json
           if-no-files-found: ignore

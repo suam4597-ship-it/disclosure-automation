@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>CNMV - Informacion privilegiada</title>
+    <link>https://www.cnmv.es/portal/informacion-privilegiada/consulta-ip</link>
+    <description>Fixture for Spain CNMV inside-information issuer disclosures.</description>
+    <item>
+      <guid>globalpulse-es-inside-20260508-001</guid>
+      <title>GLOBALPULSE ESPANA SA - Inside information about a material contract</title>
+      <link>https://example.com/globalpulse/fixtures/eu-spain-cnmv-inside-001.pdf</link>
+      <description>Inside information disclosure filed through CNMV by a listed issuer.</description>
+      <pubDate>Fri, 08 May 2026 07:20:00 GMT</pubDate>
+      <category>inside_information</category>
+    </item>
+    <item>
+      <guid>globalpulse-es-inside-20260508-002</guid>
+      <title>IBERIA RENEWABLES HOLDING SA - Inside information on financing agreement</title>
+      <link>https://example.com/globalpulse/fixtures/eu-spain-cnmv-inside-002.pdf</link>
+      <description>Listed-company inside information notice for a financing agreement.</description>
+      <pubDate>Fri, 08 May 2026 08:05:00 GMT</pubDate>
+      <category>inside_information</category>
+    </item>
+  </channel>
+</rss>

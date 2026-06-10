@@ -1,0 +1,53 @@
+{
+  "paging": {
+    "page": 1,
+    "pageSize": 5,
+    "totalCount": 51267,
+    "totalPages": 10254
+  },
+  "data": {
+    "type": "table",
+    "rows": [
+      {
+        "id": "300008701",
+        "HeadlineColumn": "Danske Bank A/S, transactions by persons discharging managerial responsibilities",
+        "IssuerColumn": "DANSKE BANK A/S",
+        "CategoryColumn": "Issuer",
+        "PublicationDateColumn": "08-05-2026 14:13:40",
+        "RegistrationDateColumn": "08-05-2026 14:13:44"
+      },
+      {
+        "id": "300008685",
+        "HeadlineColumn": "Share buy-back programme in SP Group A/S",
+        "IssuerColumn": "SP GROUP A/S",
+        "CategoryColumn": "Issuer",
+        "PublicationDateColumn": "08-05-2026 13:19:55",
+        "RegistrationDateColumn": "08-05-2026 13:19:54"
+      },
+      {
+        "id": "300008678",
+        "HeadlineColumn": "Approval of base prospectus for Nykredit Realkredit A/S (EMTN)",
+        "IssuerColumn": "NYKREDIT REALKREDIT A/S",
+        "CategoryColumn": "Prospectus",
+        "PublicationDateColumn": "08-05-2026 12:49:58",
+        "RegistrationDateColumn": "08-05-2026 12:49:57"
+      },
+      {
+        "id": "300008639",
+        "HeadlineColumn": "First Production Order for AI Infrastructure",
+        "IssuerColumn": "NAPATECH A/S",
+        "CategoryColumn": "Issuer",
+        "PublicationDateColumn": "08-05-2026 07:30:00",
+        "RegistrationDateColumn": "08-05-2026 09:32:38"
+      },
+      {
+        "id": "300008630",
+        "HeadlineColumn": "NNIT A/S: NNIT UPDATES 2026 OUTLOOK AND RELEASES PRELIMINARY FINANCIAL FIGURES FOR Q1 2026",
+        "IssuerColumn": "NNIT A/S",
+        "CategoryColumn": "Issuer",
+        "PublicationDateColumn": "07-05-2026 20:18:12",
+        "RegistrationDateColumn": "07-05-2026 20:18:14"
+      }
+    ]
+  }
+}

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>India Market Disclosures</title>
+    <item>
+      <title>Indian renewable developer files grid-scale storage contract disclosure</title>
+      <link>https://example.com/globalpulse/india/renewable-storage-contract-disclosure</link>
+      <guid>india-disclosure-20260508-renewable-storage-contract</guid>
+      <description>Exchange filing details a multi-year battery storage contract tied to renewable integration and capacity availability milestones.</description>
+      <pubDate>Fri, 08 May 2026 04:16:00 GMT</pubDate>
+      <category>disclosure</category>
+    </item>
+    <item>
+      <title>India IT services issuer updates margin guidance after large banking deal</title>
+      <link>https://example.com/globalpulse/india/it-services-margin-guidance</link>
+      <guid>india-disclosure-20260508-it-services-margin-guidance</guid>
+      <description>Disclosure updates operating margin assumptions following a large banking-sector technology services agreement.</description>
+      <pubDate>Fri, 08 May 2026 03:44:00 GMT</pubDate>
+      <category>disclosure</category>
+    </item>
+  </channel>
+</rss>

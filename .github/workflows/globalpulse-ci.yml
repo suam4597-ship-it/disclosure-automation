@@ -46,15 +46,13 @@ jobs:
               if group["alias"] in aliases:
                   errors.append(f"duplicate group alias: {group['alias']}")
               aliases.add(group["alias"])
-              if group["schedule"] in schedules:
-                  errors.append(f"duplicate group schedule: {group['schedule']}")
-              schedules.add(group["schedule"])
+              if "schedule" in group:
+                  if group["schedule"] in schedules:
+                      errors.append(f"duplicate group schedule: {group['schedule']}")
+                  schedules.add(group["schedule"])
               missing = [s for s in group["sources"] if s not in known]
               if missing:
                   errors.append(f"group {group['alias']} references unknown sources: {missing}")
-
-          if "hourly_default" not in aliases:
-              errors.append("groups must include hourly_default (workflow fallback)")
 
           # 워크플로우의 cron과 레지스트리 그룹 schedule이 1:1인지 확인
           workflow = open(".github/workflows/globalpulse-live-staging-poll.yml", encoding="utf-8").read()

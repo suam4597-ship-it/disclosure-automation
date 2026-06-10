@@ -1,0 +1,27 @@
+<rss version="2.0">
+  <channel>
+    <title>Zagreb Stock Exchange - Issuer news</title>
+    <description>Issuer news</description>
+    <link>https://eho.zse.hr</link>
+    <copyright>2026 zse.hr All rights reserved</copyright>
+    <pubDate>Sat, 09 May 2026 04:47:21 +0200</pubDate>
+    <lastBuildDate>Sat, 09 May 2026 00:00:07 +0200</lastBuildDate>
+    <ttl>15</ttl>
+    <item>
+      <title><![CDATA[Valamar Riviera d.d. - Notification on transaction by person discharging managerial responsibilities]]></title>
+      <description><![CDATA[]]></description>
+      <link>https://eho.zse.hr/en/issuer-announcements/view/66917</link>
+      <pubDateLocal>08.05.2026. 16:02</pubDateLocal>
+      <pubDate>Fri, 08 May 2026 16:02:21 +0200</pubDate>
+      <venues>XZAG</venues>
+    </item>
+    <item>
+      <title><![CDATA[KONČAR d.d. - Resignation of a Member of the Supervisory Board - correction ]]></title>
+      <description><![CDATA[On 8 May 2026, Mr. Igor Filipović submitted his resignation from the position of Member of the Supervisory Board of KONČAR Inc.]]></description>
+      <link>https://eho.zse.hr/en/issuer-announcements/view/66915</link>
+      <pubDateLocal>08.05.2026. 15:41</pubDateLocal>
+      <pubDate>Fri, 08 May 2026 15:41:41 +0200</pubDate>
+      <venues>XZAG</venues>
+    </item>
+  </channel>
+</rss>

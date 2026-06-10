@@ -1,5 +1,5 @@
 -- GlobalPulse core schema draft (PostgreSQL)
--- 설계 근거: docs/blueprint/investment_news_blueprint_v2.md
+-- 설계 근거: docs/blueprint/data_model_blueprint.md
 --
 -- 백엔드(fly.dev)가 이 스키마로 정렬되기 전까지는 "설계의 단일 기준" 역할을 한다.
 -- 모든 timestamptz 컬럼은 UTC 저장이 전제다. 타임존 변환은 표시 계층에서만 한다.

@@ -1,0 +1,135 @@
+{
+  "strategy": "pse_multi_isin_report_calendar_v1",
+  "universe": [
+    {
+      "market": "prime-market",
+      "isin": "CZ0005112300",
+      "detail_url": "https://www.pse.cz/en/detail/CZ0005112300",
+      "source_url": "https://www.pse.cz/en/market-data/shares/prime-market"
+    },
+    {
+      "market": "prime-market",
+      "isin": "CZ0009008942",
+      "detail_url": "https://www.pse.cz/en/detail/CZ0009008942",
+      "source_url": "https://www.pse.cz/en/market-data/shares/prime-market"
+    },
+    {
+      "market": "standard-market",
+      "isin": "NL0010391108",
+      "detail_url": "https://www.pse.cz/en/detail/NL0010391108",
+      "source_url": "https://www.pse.cz/en/market-data/shares/standard-market"
+    }
+  ],
+  "selected_isins": [
+    "CZ0005112300",
+    "CZ0009008942",
+    "NL0010391108"
+  ],
+  "responses": [
+    {
+      "isin": "CZ0005112300",
+      "market": "prime-market",
+      "url": "https://www.pse.cz/api/corporation-calendar?isin=CZ0005112300&order=date-DESC&lang=en",
+      "status_code": 200,
+      "bytes": 1315,
+      "records_seen": 6,
+      "records_kept": 3,
+      "data": [
+        {
+          "id": 3566197,
+          "date": "12.11.2026",
+          "isObligated": 0,
+          "size": null,
+          "extension": null,
+          "ref": null,
+          "name": "Financial report for Q3",
+          "instrumentIsin": "CZ0005112300",
+          "instrumentName": "CEZ",
+          "sizeFormatted": null
+        },
+        {
+          "id": 3566196,
+          "date": "28.04.2026",
+          "isObligated": 0,
+          "size": 8748139,
+          "extension": "PDF",
+          "ref": "Issuers.dta/Emitenti2/CEZXE012025.pdf",
+          "name": "Annual Financial Report",
+          "instrumentIsin": "CZ0005112300",
+          "instrumentName": "CEZ",
+          "sizeFormatted": "8.3 MB"
+        },
+        {
+          "id": 3566192,
+          "date": "12.03.2026",
+          "isObligated": 0,
+          "size": 4849120,
+          "extension": "ZIP",
+          "ref": "Issuers.dta/Emitenti2/CEZAE012025.zip",
+          "name": "Preliminary financial results",
+          "instrumentIsin": "CZ0005112300",
+          "instrumentName": "CEZ",
+          "sizeFormatted": "4.6 MB"
+        }
+      ]
+    },
+    {
+      "isin": "CZ0009008942",
+      "market": "prime-market",
+      "url": "https://www.pse.cz/api/corporation-calendar?isin=CZ0009008942&order=date-DESC&lang=en",
+      "status_code": 200,
+      "bytes": 1138,
+      "records_seen": 5,
+      "records_kept": 2,
+      "data": [
+        {
+          "id": 3566236,
+          "date": "27.04.2026",
+          "isObligated": 0,
+          "size": 13238154,
+          "extension": "PDF",
+          "ref": "Issuers.dta/Emitenti2/CZGCEXE012025.pdf",
+          "name": "Annual Financial Report",
+          "instrumentIsin": "CZ0009008942",
+          "instrumentName": "COLTCZ",
+          "sizeFormatted": "12.6 MB"
+        },
+        {
+          "id": 3566235,
+          "date": "27.04.2026",
+          "isObligated": 0,
+          "size": 999,
+          "extension": "PDF",
+          "ref": "Issuers.dta/Emitenti2/WRONG.pdf",
+          "name": "Wrong ISIN row",
+          "instrumentIsin": "CZ0000000000",
+          "instrumentName": "WRONG",
+          "sizeFormatted": "999 B"
+        }
+      ]
+    },
+    {
+      "isin": "NL0010391108",
+      "market": "standard-market",
+      "url": "https://www.pse.cz/api/corporation-calendar?isin=NL0010391108&order=date-DESC&lang=en",
+      "status_code": 200,
+      "bytes": 1125,
+      "records_seen": 5,
+      "records_kept": 1,
+      "data": [
+        {
+          "id": 3566222,
+          "date": "25.02.2026",
+          "isObligated": 0,
+          "size": 2334781,
+          "extension": "PDF",
+          "ref": "Issuers.dta/Emitenti2/PENAE012025.pdf",
+          "name": "Preliminary financial results",
+          "instrumentIsin": "NL0010391108",
+          "instrumentName": "PHOTON ENERGY",
+          "sizeFormatted": "2.2 MB"
+        }
+      ]
+    }
+  ]
+}

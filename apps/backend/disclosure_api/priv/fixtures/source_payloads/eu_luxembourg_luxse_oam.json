@@ -1,0 +1,39 @@
+{
+  "data": {
+    "oamSubmissionsSearch": {
+      "totalHits": 42889,
+      "submissions": [
+        {
+          "submissionId": 259040,
+          "submissionTypeLabel": "Managers’ transactions",
+          "actionsList": "IINI",
+          "publicationDate": "2026-05-08T16:30:20.970Z",
+          "referenceYear": null,
+          "referenceStartDate": "2026-05-07T00:00:00.000Z",
+          "referenceEndDate": null,
+          "issuerName": "APERAM"
+        },
+        {
+          "submissionId": 259036,
+          "submissionTypeLabel": "Quarterly financial report",
+          "actionsList": "IINI",
+          "publicationDate": "2026-05-08T13:48:57.380Z",
+          "referenceYear": null,
+          "referenceStartDate": "2026-01-01T00:00:00.000Z",
+          "referenceEndDate": "2026-03-31T00:00:00.000Z",
+          "issuerName": "INTESA SANPAOLO ASS S.P.A."
+        },
+        {
+          "submissionId": 259035,
+          "submissionTypeLabel": "Inside Information / Ad Hoc Information",
+          "actionsList": "IINI",
+          "publicationDate": "2026-05-08T13:23:30.020Z",
+          "referenceYear": null,
+          "referenceStartDate": "2026-05-08T00:00:00.000Z",
+          "referenceEndDate": null,
+          "issuerName": "DWR CYMRU (FINANCING) UK PLC"
+        }
+      ]
+    }
+  }
+}
