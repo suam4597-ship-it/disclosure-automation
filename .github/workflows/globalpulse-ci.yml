@@ -1,0 +1,120 @@
+name: GlobalPulse CI
+
+on:
+  push:
+    paths:
+      - "apps/backend/**"
+      - "config/sources.yml"
+      - ".github/workflows/globalpulse-ci.yml"
+      - ".github/workflows/globalpulse-live-staging-poll.yml"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dedup-tests:
+    name: Dedup pipeline tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run unit tests
+        working-directory: apps/backend/dedup
+        run: python3 -m unittest discover -s tests -t . -v
+
+  config-validation:
+    name: Registry and contract validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate sources.yml and openapi.yml
+        run: |
+          python3 - <<'PY'
+          import re
+          import sys
+
+          import yaml
+
+          registry = yaml.safe_load(open("config/sources.yml", encoding="utf-8"))
+          known = {entry["key"] for entry in registry["sources"]}
+          errors = []
+
+          aliases = set()
+          schedules = set()
+          for group in registry.get("groups") or []:
+              if group["alias"] in aliases:
+                  errors.append(f"duplicate group alias: {group['alias']}")
+              aliases.add(group["alias"])
+              if group["schedule"] in schedules:
+                  errors.append(f"duplicate group schedule: {group['schedule']}")
+              schedules.add(group["schedule"])
+              missing = [s for s in group["sources"] if s not in known]
+              if missing:
+                  errors.append(f"group {group['alias']} references unknown sources: {missing}")
+
+          if "hourly_default" not in aliases:
+              errors.append("groups must include hourly_default (workflow fallback)")
+
+          # 워크플로우의 cron과 레지스트리 그룹 schedule이 1:1인지 확인
+          workflow = open(".github/workflows/globalpulse-live-staging-poll.yml", encoding="utf-8").read()
+          crons = set(re.findall(r'- cron: "([^"]+)"', workflow))
+          if crons != schedules:
+              errors.append(f"workflow crons {sorted(crons)} != registry schedules {sorted(schedules)}")
+
+          openapi = yaml.safe_load(open("apps/backend/openapi.yml", encoding="utf-8"))
+          for path in ("/api/health", "/api/admin/sources/{source_key}/poll", "/api/feed/digest/latest"):
+              if path not in openapi.get("paths", {}):
+                  errors.append(f"openapi.yml missing path: {path}")
+
+          if errors:
+              print("\n".join(errors))
+              sys.exit(1)
+          print(f"registry ok: {len(known)} sources, {len(aliases)} groups; openapi ok")
+          PY
+
+  schema-validation:
+    name: PostgreSQL schema and seed
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: ci
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply schema and seed
+        run: |
+          createdb gp_ci
+          psql -d gp_ci -v ON_ERROR_STOP=1 -f apps/backend/schema/0001_core_schema.sql
+          psql -d gp_ci -v ON_ERROR_STOP=1 -f apps/backend/schema/0002_issuer_seed.sql
+      - name: Verify constraints and seed counts
+        run: |
+          psql -d gp_ci -v ON_ERROR_STOP=1 <<'SQL'
+          DO $$
+          DECLARE
+            issuer_count integer;
+            identifier_count integer;
+          BEGIN
+            SELECT count(*) INTO issuer_count FROM issuer;
+            SELECT count(*) INTO identifier_count FROM issuer_identifier;
+            IF issuer_count < 10 THEN
+              RAISE EXCEPTION 'expected at least 10 seeded issuers, got %', issuer_count;
+            END IF;
+            IF identifier_count < 25 THEN
+              RAISE EXCEPTION 'expected at least 25 seeded identifiers, got %', identifier_count;
+            END IF;
+          END $$;
+          SQL
+          echo "schema and seed contract pass"

@@ -7,3 +7,6 @@ build/
 .vscode/
 .dev.vars*
 *.log
+
+__pycache__/
+*.pyc

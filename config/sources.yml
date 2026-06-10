@@ -1,0 +1,143 @@
+# GlobalPulse 수집처 명단 (Source Registry)
+#
+# 새 수집처 추가 = 이 파일에 한 줄(블록) 추가. 워크플로우/코드 수정 불필요.
+# 설계 근거: docs/blueprint/investment_news_blueprint_v2.md 6장.
+#
+# status 승격 단계: disabled -> fixture -> canary -> production
+# records_seen_cap: 캐너리 단계에서 1회 폴 수집 상한 (폴 계약 검증에 사용)
+
+defaults:
+  backend_url: "https://globalpulse-backend-staging.fly.dev"
+  edition: "breaking"
+  records_seen_cap: 25
+
+sources:
+  - key: sec_press_releases
+    name: "US SEC press releases"
+    region: americas
+    timezone: America/New_York
+    status: canary
+
+  - key: india_nse_announcements
+    name: "India NSE corporate announcements"
+    region: asia_pacific
+    timezone: Asia/Kolkata
+    status: canary
+
+  - key: hkex_latest_listed_company_information
+    name: "HKEX latest listed company information"
+    region: greater_china
+    timezone: Asia/Hong_Kong
+    status: canary
+
+  - key: eu_france_info_financiere_oam
+    name: "France info-financiere OAM"
+    region: eu_central
+    timezone: Europe/Paris
+    status: canary
+
+  - key: eu_spain_cnmv_inside_information
+    name: "Spain CNMV inside information"
+    region: eu_south
+    timezone: Europe/Madrid
+    status: canary
+
+  - key: eu_spain_cnmv_other_relevant_information
+    name: "Spain CNMV other relevant information"
+    region: eu_south
+    timezone: Europe/Madrid
+    status: canary
+
+  - key: eu_belgium_fsma_stori
+    name: "Belgium FSMA STORI"
+    region: eu_central
+    timezone: Europe/Brussels
+    status: canary
+
+  - key: uk_fca_nsm_regulated_information
+    name: "UK FCA NSM regulated information"
+    region: eu_north
+    timezone: Europe/London
+    status: canary
+
+  - key: ch_six_ser_official_notices
+    name: "Switzerland SIX SER official notices"
+    region: eu_central
+    timezone: Europe/Zurich
+    status: canary
+
+  - key: eu_euronext_company_press_releases
+    name: "Euronext company press releases"
+    region: eu_central
+    timezone: Europe/Paris
+    status: canary
+
+  - key: pt_cmvm_portal_info_privi
+    name: "Portugal CMVM privileged information"
+    region: eu_south
+    timezone: Europe/Lisbon
+    status: canary
+
+  - key: dk_dfsa_oam_company_announcements
+    name: "Denmark DFSA OAM company announcements"
+    region: eu_north
+    timezone: Europe/Copenhagen
+    status: canary
+
+  - key: eu_north_disclosures
+    name: "EU north regional fixture"
+    region: eu_north
+    timezone: Europe/Copenhagen
+    status: fixture
+
+  - key: eu_central_disclosures
+    name: "EU central regional fixture"
+    region: eu_central
+    timezone: Europe/Paris
+    status: fixture
+
+  - key: eu_south_disclosures
+    name: "EU south regional fixture"
+    region: eu_south
+    timezone: Europe/Madrid
+    status: fixture
+
+# 스케줄 그룹: live-staging-poll 워크플로우가 schedule cron 식 또는
+# workflow_dispatch의 source_key(그룹 별칭 허용)를 이 표에서 찾아 폴 대상을 정한다.
+groups:
+  - alias: hourly_default
+    schedule: "7 * * * *"
+    label: default
+    sources:
+      - sec_press_releases
+
+  - alias: india_nse_staging
+    schedule: "37 */2 * * 1-5"
+    label: india_nse
+    sources:
+      - india_nse_announcements
+
+  - alias: hkex_staging
+    schedule: "22 */2 * * 1-5"
+    label: hkex
+    sources:
+      - hkex_latest_listed_company_information
+
+  - alias: eu_scheduled_staging_canary
+    schedule: "17 */4 * * 1-5"
+    label: eu_canary
+    sources:
+      - eu_france_info_financiere_oam
+      - eu_spain_cnmv_inside_information
+      - eu_spain_cnmv_other_relevant_information
+      - eu_belgium_fsma_stori
+      - uk_fca_nsm_regulated_information
+      - ch_six_ser_official_notices
+      - eu_euronext_company_press_releases
+      - pt_cmvm_portal_info_privi
+
+  - alias: denmark_dfsa_oam_staging_canary
+    schedule: "47 */4 * * 1-5"
+    label: denmark_dfsa_oam_canary
+    sources:
+      - dk_dfsa_oam_company_announcements
