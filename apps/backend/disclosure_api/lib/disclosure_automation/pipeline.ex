@@ -1,0 +1,15356 @@
+defmodule DisclosureAutomation.Canonicalizer do
+  @moduledoc false
+
+  @regional_business_summary_version "regional_business_area_v2"
+  @regional_profile_source_version "regional_profile_source_v1"
+
+  @sec_submission_profile_headers [
+    {~c"user-agent", ~c"disclosure-automation-phase1 suam4597@gmail.com"}
+  ]
+  @sec_submission_profile_timeout_ms 2_000
+  @issuer_reference_timeout_ms 4_000
+  @issuer_reference_headers [
+    {~c"user-agent", ~c"disclosure-automation-phase1 suam4597@gmail.com"},
+    {~c"accept", ~c"text/html,application/xhtml+xml,application/xml,text/csv,*/*"}
+  ]
+  @india_nse_equity_list_url ~c"https://archives.nseindia.com/content/equities/EQUITY_L.csv"
+
+  def canonicalize_document(document, source, attrs \\ %{}) do
+    attrs = Map.new(attrs)
+    entity_profile = entity_profile(document, source)
+
+    published_at =
+      document[:published_at] || Map.get(document, "published_at") || DateTime.utc_now()
+
+    digest_date = Map.get(attrs, :digest_date, DateTime.to_date(published_at))
+    edition = Map.get(attrs, :edition, "breaking")
+    story_seed = document[:external_id] || document[:url] || document[:title] || "story"
+
+    %{
+      digest_date: digest_date,
+      edition: edition,
+      story_key: "#{edition}-#{Date.to_iso8601(digest_date)}-#{slug(story_seed)}",
+      headline: document[:title] || "Untitled",
+      summary: canonical_summary(document),
+      canonical_url: document[:url],
+      published_at: published_at,
+      tickers: entity_profile_tickers(entity_profile),
+      regions: infer_regions(source),
+      sectors: infer_sectors(source),
+      sentiment_label: "neutral",
+      relevance_score: Decimal.new("0.900"),
+      duplicate_group_key: "#{source.source_key}-#{slug(story_seed)}",
+      status: "ready",
+      metadata:
+        %{
+          "source_type" => source.source_type,
+          "coverage_tags" => source.coverage_tags || [],
+          "category" => document[:category],
+          "fetch_mode" => Map.get(attrs, :fetch_mode)
+        }
+        |> maybe_put_entity_profile(entity_profile)
+    }
+  end
+
+  defp maybe_put_entity_profile(metadata, nil), do: metadata
+
+  defp maybe_put_entity_profile(metadata, profile) when map_size(profile) == 0, do: metadata
+
+  defp maybe_put_entity_profile(metadata, profile),
+    do: Map.put(metadata, "entity_profile", profile)
+
+  defp entity_profile_tickers(nil), do: []
+
+  defp entity_profile_tickers(profile) do
+    primary = Map.get(profile, "ticker") || Map.get(profile, "identifier_label")
+
+    [
+      primary,
+      prefixed_entity_identifier("CIK", Map.get(profile, "cik")),
+      prefixed_entity_identifier("ISIN", Map.get(profile, "isin")),
+      prefixed_entity_identifier("LEI", Map.get(profile, "lei")),
+      if(primary,
+        do: nil,
+        else: prefixed_entity_identifier("Code", Map.get(profile, "local_code"))
+      )
+    ]
+    |> Enum.filter(&present_entity_value?/1)
+    |> Enum.uniq()
+    |> Enum.take(3)
+  end
+
+  def prewarm_entity_profiles(records, source) when is_list(records) do
+    source_key = source_value(source, :source_key) || ""
+
+    if String.contains?(source_key, "sec_edgar") do
+      prewarm_sec_submission_profiles(records)
+    end
+
+    if String.contains?(source_key, "india_nse") do
+      prewarm_india_nse_equity_symbols()
+    end
+
+    if String.contains?(source_key, "euronext_company_press_releases") do
+      prewarm_euronext_company_profiles(records)
+    end
+
+    records
+  end
+
+  defp prewarm_sec_submission_profiles(records) do
+    records
+    |> Enum.map(fn record ->
+      title = document_value(record, :title)
+      summary = document_value(record, :summary)
+      url = document_value(record, :url)
+
+      sec_cik_from_text(title) || sec_cik_from_text(summary) || sec_cik_from_url(url)
+    end)
+    |> Enum.filter(&present_entity_value?/1)
+    |> Enum.uniq()
+    |> Enum.each(fn cik ->
+      Process.put({:sec_submission_profile, cik}, fetch_sec_submission_profile(cik))
+    end)
+  end
+
+  defp prewarm_india_nse_equity_symbols do
+    unless Process.get(:india_nse_equity_symbols) do
+      Process.put(:india_nse_equity_symbols, fetch_india_nse_equity_symbols())
+    end
+  end
+
+  defp prewarm_euronext_company_profiles(records) do
+    records
+    |> Enum.map(&document_value(&1, :url))
+    |> Enum.filter(&euronext_company_news_url?/1)
+    |> Enum.uniq()
+    |> Enum.each(fn url ->
+      Process.put({:euronext_company_profile, url}, fetch_euronext_company_profile(url))
+    end)
+  end
+
+  defp prefixed_entity_identifier(_prefix, nil), do: nil
+  defp prefixed_entity_identifier(_prefix, ""), do: nil
+  defp prefixed_entity_identifier(prefix, value), do: "#{prefix}:#{value}"
+
+  defp entity_profile(document, source) do
+    title = document_value(document, :title)
+    summary = document_value(document, :summary)
+    url = document_value(document, :url)
+    source_key = source_value(source, :source_key) || ""
+    regions = infer_regions(source)
+
+    cond do
+      String.contains?(source_key, "sec_edgar") ->
+        sec_entity_profile(title, summary, url)
+
+      String.contains?(source_key, "hkex") ->
+        hkex_entity_profile(title, summary, url)
+
+      String.contains?(source_key, "jp_tdnet") ->
+        labeled_entity_profile(title, summary, "TDnet", hd(regions), "JP", url)
+
+      String.contains?(source_key, "tw_mops") ->
+        labeled_entity_profile(title, summary, "Taiwan MOPS", hd(regions), "TW", url)
+
+      String.contains?(source_key, "india_nse") ->
+        labeled_entity_profile(title, summary, "NSE India", hd(regions), "NSE", url)
+
+      String.contains?(source_key, "set_thailand") ->
+        labeled_entity_profile(title, summary, "SET Thailand", hd(regions), "SET", url)
+
+      true ->
+        labeled_entity_profile(
+          title,
+          summary,
+          source_exchange_label(source_key),
+          hd(regions),
+          nil,
+          url
+        )
+    end
+  end
+
+  defp sec_entity_profile(title, summary, url) do
+    cik = sec_cik_from_text(title) || sec_cik_from_text(summary) || sec_cik_from_url(url)
+    sec_profile = sec_submission_profile(cik)
+
+    ticker =
+      first_present_entity_value([
+        labeled_value(summary, "Ticker"),
+        labeled_value(summary, "Trading symbol"),
+        sec_submission_profile_list(sec_profile, "tickers")
+      ])
+
+    exchange =
+      first_present_entity_value([
+        labeled_value(summary, "Exchange"),
+        sec_submission_profile_list(sec_profile, "exchanges")
+      ])
+
+    cusip = labeled_value(summary, "CUSIP")
+    sic = clean_entity_text(sec_profile["sic"])
+    sic_description = clean_entity_text(sec_profile["sic_description"])
+
+    company =
+      sec_company_from_title(title) || labeled_value(summary, "Company") ||
+        labeled_value(summary, "Issuer") || clean_entity_text(sec_profile["name"])
+
+    identifier =
+      sec_ticker_label(exchange, ticker) || prefixed_entity_identifier("CIK", cik) ||
+        prefixed_entity_identifier("CUSIP", cusip)
+
+    build_entity_profile(%{
+      "display_name" => company,
+      "region" => "us",
+      "exchange" => sec_exchange_label(exchange),
+      "cik" => cik,
+      "cusip" => cusip,
+      "sic" => sic,
+      "sic_description" => sic_description,
+      "ticker" => sec_ticker_label(exchange, ticker),
+      "identifier_label" => identifier,
+      "business_summary_ko" => sec_business_summary(company, sic_description),
+      "profile_source_label" => "SEC EDGAR company submissions",
+      "profile_source_url" => sec_company_profile_url(cik) || url,
+      "profile_source_kind" => "official_regulatory_profile",
+      "profile_source_basis" => "SEC submissions profile and filing metadata",
+      "profile_source_version" => @regional_profile_source_version,
+      "source" => "rule_based_from_disclosure",
+      "confidence" => if(cik || ticker || cusip, do: "high", else: "medium")
+    })
+  end
+
+  defp hkex_entity_profile(title, summary, url) do
+    issuer = labeled_value(summary, "Issuer")
+    {code, name} = code_name_pair(issuer)
+    fallback_name = company_from_title(title)
+    code = code || leading_code(title)
+    name = name || fallback_name
+    identifier = if code, do: "HKEX:#{code}"
+    profile_source = regional_profile_source("HKEX", "hk", "HKEX", code, url, %{})
+
+    build_entity_profile(
+      Map.merge(
+        %{
+          "display_name" => name,
+          "region" => "hk",
+          "exchange" => "HKEX",
+          "local_code" => code,
+          "ticker" => identifier,
+          "identifier_label" => identifier,
+          "business_summary_ko" => regional_business_summary(name, "홍콩거래소", title, summary),
+          "business_summary_version" => @regional_business_summary_version,
+          "source" => "rule_based_from_disclosure",
+          "confidence" => if(code, do: "high", else: "medium")
+        },
+        profile_source
+      )
+    )
+  end
+
+  defp labeled_entity_profile(title, summary, exchange, region, ticker_prefix, url) do
+    company =
+      labeled_value(summary, "Company") || labeled_value(summary, "Issuer") ||
+        company_from_title(title)
+
+    enriched_profile = enriched_entity_profile(url)
+
+    symbol =
+      first_present_entity_value([
+        labeled_value(summary, "Ticker"),
+        labeled_value(summary, "Trading symbol"),
+        labeled_value(summary, "Symbol"),
+        labeled_value(summary, "Code"),
+        Map.get(enriched_profile, "symbol"),
+        india_nse_symbol_for_company(company),
+        leading_code(title),
+        symbol_from_url(url)
+      ])
+      |> normalize_market_symbol(ticker_prefix)
+
+    isin = labeled_value(summary, "ISIN") || Map.get(enriched_profile, "isin")
+    lei = labeled_value(summary, "LEI") || Map.get(enriched_profile, "lei")
+    ticker = entity_ticker_label(ticker_prefix || exchange, symbol)
+
+    source_local_code =
+      if(symbol || isin || lei, do: nil, else: source_local_issuer_code(company))
+
+    identifier =
+      ticker || prefixed_entity_identifier("ISIN", isin) || prefixed_entity_identifier("LEI", lei) ||
+        entity_ticker_label(ticker_prefix || exchange, source_local_code)
+
+    profile_source =
+      regional_profile_source(
+        exchange,
+        region,
+        ticker_prefix,
+        symbol || source_local_code,
+        url,
+        enriched_profile
+      )
+
+    build_entity_profile(
+      Map.merge(
+        %{
+          "display_name" => clean_entity_text(company),
+          "region" => region,
+          "exchange" => exchange,
+          "local_code" => clean_entity_text(symbol || source_local_code),
+          "isin" => clean_entity_text(isin),
+          "lei" => clean_entity_text(lei),
+          "ticker" => ticker,
+          "identifier_label" => identifier,
+          "identifier_kind" => entity_identifier_kind(symbol, isin, lei, source_local_code),
+          "business_summary_ko" => regional_business_summary(company, exchange, title, summary),
+          "business_summary_version" => @regional_business_summary_version,
+          "source" => entity_profile_source(enriched_profile),
+          "confidence" => if(symbol || isin || lei, do: "medium", else: "source_local")
+        },
+        profile_source
+      )
+    )
+  end
+
+  defp enriched_entity_profile(nil), do: %{}
+
+  defp enriched_entity_profile(url) do
+    Process.get({:euronext_company_profile, url}) || %{}
+  end
+
+  defp entity_profile_source(%{"source" => source}) when is_binary(source), do: source
+  defp entity_profile_source(_profile), do: "rule_based_from_disclosure"
+
+  defp entity_identifier_kind(symbol, _isin, _lei, _source_local_code)
+       when is_binary(symbol) and symbol != "",
+       do: "ticker"
+
+  defp entity_identifier_kind(_symbol, isin, _lei, _source_local_code)
+       when is_binary(isin) and isin != "",
+       do: "isin"
+
+  defp entity_identifier_kind(_symbol, _isin, lei, _source_local_code)
+       when is_binary(lei) and lei != "",
+       do: "lei"
+
+  defp entity_identifier_kind(_symbol, _isin, _lei, source_local_code)
+       when is_binary(source_local_code) and source_local_code != "",
+       do: "source_local_issuer"
+
+  defp entity_identifier_kind(_symbol, _isin, _lei, _source_local_code), do: nil
+
+  defp sec_company_profile_url(nil), do: nil
+  defp sec_company_profile_url(""), do: nil
+  defp sec_company_profile_url(cik), do: "https://www.sec.gov/edgar/browse/?CIK=#{cik}"
+
+  defp regional_profile_source(exchange, region, ticker_prefix, symbol, url, enriched_profile) do
+    source_url =
+      Map.get(enriched_profile, "profile_source_url") ||
+        regional_profile_source_url(exchange, region, ticker_prefix, symbol, url)
+
+    source_label =
+      Map.get(enriched_profile, "profile_source_label") ||
+        regional_profile_source_label(exchange, region, ticker_prefix)
+
+    source_kind =
+      Map.get(enriched_profile, "profile_source_kind") ||
+        regional_profile_source_kind(exchange, region, ticker_prefix, source_url)
+
+    source_basis =
+      Map.get(enriched_profile, "profile_source_basis") ||
+        regional_profile_source_basis(exchange, region, ticker_prefix)
+
+    build_entity_profile(%{
+      "profile_source_label" => source_label,
+      "profile_source_url" => source_url,
+      "profile_source_kind" => source_kind,
+      "profile_source_basis" => source_basis,
+      "profile_source_version" => @regional_profile_source_version
+    })
+  end
+
+  defp regional_profile_source_label(_exchange, _region, "JP"),
+    do: "JPX listed company reference / TDnet disclosure"
+
+  defp regional_profile_source_label(_exchange, _region, "TW"),
+    do: "Taiwan MOPS company basic profile"
+
+  defp regional_profile_source_label(_exchange, _region, "NSE"),
+    do: "NSE India equity quote/profile"
+
+  defp regional_profile_source_label(_exchange, _region, "SET"),
+    do: "SET listed company profile"
+
+  defp regional_profile_source_label("HKEX", _region, _prefix),
+    do: "HKEXnews listed company disclosure"
+
+  defp regional_profile_source_label(exchange, region, _prefix) do
+    cond do
+      String.contains?(exchange || "", "Euronext") -> "Euronext Live company page"
+      region == "eu" -> "#{exchange} official regulated-information source"
+      true -> "#{exchange} official disclosure source"
+    end
+  end
+
+  defp regional_profile_source_kind(_exchange, _region, ticker_prefix, _source_url)
+       when ticker_prefix in ["JP", "TW", "NSE", "SET"],
+       do: "official_exchange_profile"
+
+  defp regional_profile_source_kind(exchange, "eu", _prefix, source_url) do
+    if String.contains?(exchange || "", "Euronext") and present_entity_value?(source_url),
+      do: "official_exchange_profile",
+      else: "official_regulated_information_source"
+  end
+
+  defp regional_profile_source_kind(_exchange, _region, _prefix, _source_url),
+    do: "official_disclosure_reference"
+
+  defp regional_profile_source_basis(_exchange, _region, "JP"),
+    do: "JPX issuer code reference plus TDnet timely disclosure metadata"
+
+  defp regional_profile_source_basis(_exchange, _region, "TW"),
+    do: "MOPS company basic data and material information metadata"
+
+  defp regional_profile_source_basis(_exchange, _region, "NSE"),
+    do: "NSE equity symbol reference plus NSE announcement metadata"
+
+  defp regional_profile_source_basis(_exchange, _region, "SET"),
+    do: "SET listed company profile and company news metadata"
+
+  defp regional_profile_source_basis("HKEX", _region, _prefix),
+    do: "HKEXnews issuer code and listed-company disclosure metadata"
+
+  defp regional_profile_source_basis(exchange, "eu", _prefix) do
+    if String.contains?(exchange || "", "Euronext"),
+      do: "Euronext Live issuer page and company-news metadata",
+      else: "Official OAM / regulated-information metadata"
+  end
+
+  defp regional_profile_source_basis(exchange, _region, _prefix),
+    do: "#{exchange} disclosure metadata"
+
+  defp regional_profile_source_url(_exchange, _region, "JP", symbol, url) do
+    code = clean_entity_text(symbol)
+
+    cond do
+      present_entity_value?(code) ->
+        "https://quote.jpx.co.jp/jpxhp/main/index.aspx?F=stock_search"
+
+      present_entity_value?(url) ->
+        url
+
+      true ->
+        "https://www.jpx.co.jp/english/markets/"
+    end
+  end
+
+  defp regional_profile_source_url(_exchange, _region, "TW", symbol, url) do
+    code = clean_entity_text(symbol)
+
+    cond do
+      present_entity_value?(code) ->
+        "https://mops.twse.com.tw/mops/web/t05st03"
+
+      present_entity_value?(url) ->
+        url
+
+      true ->
+        "https://mops.twse.com.tw/mops/web/index"
+    end
+  end
+
+  defp regional_profile_source_url(_exchange, _region, "NSE", symbol, url) do
+    code = clean_entity_text(symbol)
+
+    cond do
+      present_entity_value?(code) ->
+        "https://www.nseindia.com/get-quotes/equity?symbol=#{URI.encode_www_form(code)}"
+
+      present_entity_value?(url) ->
+        url
+
+      true ->
+        "https://www.nseindia.com/"
+    end
+  end
+
+  defp regional_profile_source_url(_exchange, _region, "SET", symbol, url) do
+    code = clean_entity_text(symbol)
+
+    cond do
+      present_entity_value?(code) ->
+        "https://www.set.or.th/en/market/product/stock/quote/#{URI.encode_www_form(code)}/factsheet"
+
+      present_entity_value?(url) ->
+        url
+
+      true ->
+        "https://www.set.or.th/en/market/product/stock/search"
+    end
+  end
+
+  defp regional_profile_source_url("HKEX", _region, _prefix, _symbol, url) do
+    if present_entity_value?(url), do: url, else: "https://www.hkexnews.hk/index.htm"
+  end
+
+  defp regional_profile_source_url(exchange, "eu", _prefix, _symbol, url) do
+    cond do
+      present_entity_value?(url) ->
+        url
+
+      String.contains?(exchange || "", "Euronext") ->
+        "https://live.euronext.com/en/products/equities/list"
+
+      true ->
+        nil
+    end
+  end
+
+  defp regional_profile_source_url(_exchange, _region, _prefix, _symbol, url), do: url
+
+  defp symbol_from_url(nil), do: nil
+
+  defp symbol_from_url(url) do
+    case Regex.run(~r/\/corporate\/(?:xbrl\/)?([A-Z0-9.\-]+)_\d/i, url) do
+      [_match, symbol] -> clean_entity_text(symbol)
+      _ -> nil
+    end
+  end
+
+  defp build_entity_profile(values) do
+    values
+    |> Enum.reject(fn {_key, value} -> not present_entity_value?(value) end)
+    |> Map.new()
+  end
+
+  defp entity_ticker_label(_prefix, nil), do: nil
+  defp entity_ticker_label(_prefix, ""), do: nil
+
+  defp entity_ticker_label(prefix, symbol) do
+    prefix = clean_entity_text(prefix)
+    symbol = clean_entity_text(symbol)
+
+    cond do
+      not present_entity_value?(symbol) -> nil
+      not present_entity_value?(prefix) -> symbol
+      String.contains?(symbol, ":") -> symbol
+      true -> "#{prefix}:#{symbol}"
+    end
+  end
+
+  defp normalize_market_symbol(nil, _prefix), do: nil
+
+  defp normalize_market_symbol(symbol, "JP") do
+    symbol = clean_entity_text(symbol)
+
+    case Regex.run(~r/^(\d{4})0$/u, symbol || "") do
+      [_match, code] -> code
+      _ -> symbol
+    end
+  end
+
+  defp normalize_market_symbol(symbol, _prefix), do: clean_entity_text(symbol)
+
+  defp india_nse_symbol_for_company(company) do
+    symbols = Process.get(:india_nse_equity_symbols) || %{}
+
+    company
+    |> issuer_lookup_keys()
+    |> Enum.find_value(&Map.get(symbols, &1))
+  end
+
+  defp fetch_india_nse_equity_symbols do
+    ensure_http_started()
+
+    http_options = [
+      timeout: @issuer_reference_timeout_ms,
+      connect_timeout: @issuer_reference_timeout_ms
+    ]
+
+    case :httpc.request(
+           :get,
+           {@india_nse_equity_list_url, @issuer_reference_headers},
+           http_options,
+           body_format: :binary
+         ) do
+      {:ok, {{_, status, _}, _headers, body}} when status in 200..299 ->
+        body
+        |> to_string()
+        |> String.split(~r/\r?\n/u, trim: true)
+        |> Enum.drop(1)
+        |> Enum.reduce(%{}, fn row, acc ->
+          case parse_comma_csv_row(row) do
+            [symbol, company | _rest] ->
+              put_issuer_symbol(acc, company, symbol)
+
+            _ ->
+              acc
+          end
+        end)
+
+      _ ->
+        %{}
+    end
+  end
+
+  defp put_issuer_symbol(acc, company, symbol) do
+    symbol = clean_entity_text(symbol)
+
+    if present_entity_value?(symbol) do
+      company
+      |> issuer_lookup_keys()
+      |> Enum.reduce(acc, &Map.put_new(&2, &1, symbol))
+    else
+      acc
+    end
+  end
+
+  defp fetch_euronext_company_profile(url) do
+    ensure_http_started()
+
+    http_options = [
+      timeout: @issuer_reference_timeout_ms,
+      connect_timeout: @issuer_reference_timeout_ms
+    ]
+
+    case :httpc.request(:get, {String.to_charlist(url), @issuer_reference_headers}, http_options,
+           body_format: :binary
+         ) do
+      {:ok, {{_, status, _}, _headers, body}} when status in 200..299 ->
+        html = to_string(body)
+
+        %{
+          "isin" => html_attribute_value(html, "data-isin"),
+          "symbol" => html_labeled_value(html, "Symbol"),
+          "profile_source_label" => "Euronext Live company page",
+          "profile_source_url" => url,
+          "profile_source_kind" => "official_exchange_profile",
+          "profile_source_basis" => "Euronext Live issuer page metadata",
+          "profile_source_version" => @regional_profile_source_version,
+          "source" => "euronext_company_page_enrichment"
+        }
+        |> build_entity_profile()
+
+      _ ->
+        %{}
+    end
+  end
+
+  defp euronext_company_news_url?(url) do
+    url = clean_entity_text(url) || ""
+    String.contains?(url, "live.euronext.com") and String.contains?(url, "/company-news/")
+  end
+
+  defp html_attribute_value(html, attribute) do
+    attribute = Regex.escape(attribute)
+
+    case Regex.run(~r/#{attribute}="([^"]+)"/iu, html || "") do
+      [_match, value] -> clean_entity_text(value)
+      _ -> nil
+    end
+  end
+
+  defp html_labeled_value(html, label) do
+    label = Regex.escape(label)
+
+    case Regex.run(~r/<h3[^>]*>\s*#{label}\s*<\/h3>\s*<p[^>]*>\s*([^<]+)\s*<\/p>/isu, html || "") do
+      [_match, value] -> clean_entity_text(value)
+      _ -> nil
+    end
+  end
+
+  defp ensure_http_started do
+    _ = Application.ensure_all_started(:ssl)
+    _ = Application.ensure_all_started(:inets)
+    :ok
+  end
+
+  defp issuer_lookup_keys(value) do
+    value = clean_entity_text(value)
+
+    [
+      issuer_lookup_key(value, false),
+      issuer_lookup_key(value, true)
+    ]
+    |> Enum.filter(&present_entity_value?/1)
+    |> Enum.uniq()
+  end
+
+  defp source_local_issuer_code(company) do
+    company
+    |> issuer_lookup_key(true)
+    |> case do
+      nil ->
+        nil
+
+      value ->
+        value
+        |> String.upcase()
+        |> String.replace(~r/[^A-Z0-9]+/u, "-")
+        |> String.trim("-")
+        |> String.slice(0, 32)
+        |> empty_to_nil()
+    end
+  end
+
+  defp issuer_lookup_key(nil, _drop_suffixes), do: nil
+
+  defp issuer_lookup_key(value, drop_suffixes) do
+    value =
+      value
+      |> String.downcase()
+      |> String.replace("&", " and ")
+      |> String.replace(~r/[^a-z0-9]+/u, " ")
+
+    value =
+      if drop_suffixes do
+        String.replace(
+          value,
+          ~r/\b(limited|ltd|inc|corp|corporation|company|co|plc|sa|s a|ag|asa|group|holdings|holding)\b/u,
+          " "
+        )
+      else
+        value
+      end
+
+    value
+    |> String.replace(~r/\s+/u, " ")
+    |> String.trim()
+    |> empty_to_nil()
+  end
+
+  defp parse_comma_csv_row(row) do
+    row
+    |> to_charlist()
+    |> parse_comma_csv_chars([], [], false)
+    |> Enum.reverse()
+    |> Enum.map(fn field ->
+      field
+      |> Enum.reverse()
+      |> to_string()
+      |> String.replace("\"\"", "\"")
+      |> clean_entity_text()
+    end)
+  end
+
+  defp parse_comma_csv_chars([], current, fields, _quoted), do: [current | fields]
+
+  defp parse_comma_csv_chars([?", ?" | rest], current, fields, true) do
+    parse_comma_csv_chars(rest, [?" | current], fields, true)
+  end
+
+  defp parse_comma_csv_chars([?" | rest], current, fields, quoted) do
+    parse_comma_csv_chars(rest, current, fields, not quoted)
+  end
+
+  defp parse_comma_csv_chars([?, | rest], current, fields, false) do
+    parse_comma_csv_chars(rest, [], [current | fields], false)
+  end
+
+  defp parse_comma_csv_chars([char | rest], current, fields, quoted) do
+    parse_comma_csv_chars(rest, [char | current], fields, quoted)
+  end
+
+  defp sec_submission_profile(nil), do: %{}
+
+  defp sec_submission_profile(cik) do
+    cache_key = {:sec_submission_profile, cik}
+
+    case Process.get(cache_key) do
+      nil -> %{}
+      profile -> profile
+    end
+  end
+
+  defp fetch_sec_submission_profile(cik) do
+    _ = Application.ensure_all_started(:ssl)
+    _ = Application.ensure_all_started(:inets)
+
+    # Keep SEC profile enrichment below the published fair-access request ceiling.
+    Process.sleep(120)
+
+    url = ~c"https://data.sec.gov/submissions/CIK#{cik}.json"
+
+    http_options = [
+      timeout: @sec_submission_profile_timeout_ms,
+      connect_timeout: @sec_submission_profile_timeout_ms
+    ]
+
+    case :httpc.request(:get, {url, @sec_submission_profile_headers}, http_options,
+           body_format: :binary
+         ) do
+      {:ok, {{_, status, _}, _headers, body}} when status in 200..299 ->
+        case Jason.decode(body) do
+          {:ok, data} ->
+            %{
+              "name" => data["name"],
+              "tickers" => data["tickers"],
+              "exchanges" => data["exchanges"],
+              "sic" => data["sic"],
+              "sic_description" => data["sicDescription"]
+            }
+
+          _ ->
+            %{}
+        end
+
+      _ ->
+        %{}
+    end
+  end
+
+  defp sec_submission_profile_list(profile, key) when is_map(profile) do
+    case Map.get(profile, key) do
+      values when is_list(values) -> values
+      value -> [value]
+    end
+  end
+
+  defp sec_submission_profile_list(_profile, _key), do: []
+
+  defp first_present_entity_value(values) when is_list(values) do
+    Enum.find_value(values, fn
+      value when is_list(value) ->
+        first_present_entity_value(value)
+
+      value ->
+        value
+        |> clean_entity_text()
+        |> case do
+          nil -> nil
+          "" -> nil
+          text -> text
+        end
+    end)
+  end
+
+  defp first_present_entity_value(value), do: first_present_entity_value([value])
+
+  defp sec_ticker_label(exchange, ticker) do
+    entity_ticker_label(sec_exchange_label(exchange), ticker)
+  end
+
+  defp sec_exchange_label(exchange) do
+    exchange = clean_entity_text(exchange)
+    normalized = String.downcase(exchange || "")
+
+    cond do
+      normalized == "" -> "SEC"
+      String.contains?(normalized, "nasdaq") -> "NASDAQ"
+      String.contains?(normalized, "nyse") -> "NYSE"
+      String.contains?(normalized, "amex") -> "NYSEAMERICAN"
+      String.contains?(normalized, "otc") -> "OTC"
+      true -> exchange
+    end
+  end
+
+  defp sec_business_summary(company, sic_description) do
+    entity_business_summary(
+      company,
+      "SEC SIC 기준 #{sec_sic_description_ko(sic_description)}"
+    )
+  end
+
+  defp sec_sic_description_ko(nil), do: "미국 상장/보고 기업"
+  defp sec_sic_description_ko(""), do: "미국 상장/보고 기업"
+
+  defp sec_sic_description_ko(description) do
+    description = clean_entity_text(description)
+    normalized = String.downcase(description || "")
+
+    cond do
+      Regex.match?(~r/blank checks?/u, normalized) ->
+        "기업인수목적회사(SPAC/blank check company)"
+
+      Regex.match?(
+        ~r/pharmaceutical|medicinal|biological products?|diagnostic|medical/u,
+        normalized
+      ) ->
+        "바이오·의약품 또는 헬스케어 업종"
+
+      Regex.match?(~r/computer|software|semiconductor|electronic|technology/u, normalized) ->
+        "기술·소프트웨어 또는 전자장비 업종"
+
+      Regex.match?(~r/oil|gas|petroleum|mining|metal|energy|electric services/u, normalized) ->
+        "에너지·자원 또는 유틸리티 업종"
+
+      Regex.match?(
+        ~r/real estate|reit|mortgage|investment advice|investment|finance|loan|bank|insurance/u,
+        normalized
+      ) ->
+        "금융·투자 또는 부동산 관련 업종"
+
+      Regex.match?(~r/retail|wholesale|apparel|food|restaurant|consumer/u, normalized) ->
+        "소비재·유통 또는 외식 관련 업종"
+
+      Regex.match?(
+        ~r/manufactur|machinery|industrial|motor vehicle|aircraft|transportation/u,
+        normalized
+      ) ->
+        "제조·산업재 또는 운송장비 업종"
+
+      Regex.match?(
+        ~r/business services|services|advertising|communications|entertainment|hotel/u,
+        normalized
+      ) ->
+        "서비스·미디어 또는 커뮤니케이션 업종"
+
+      true ->
+        "‘#{description}’ 산업분류에 속한 회사"
+    end
+  end
+
+  defp entity_business_summary(nil, _description), do: nil
+  defp entity_business_summary("", _description), do: nil
+
+  defp entity_business_summary(company, description) do
+    company = clean_entity_text(company)
+    description = clean_entity_text(description)
+
+    cond do
+      not present_entity_value?(company) or not present_entity_value?(description) ->
+        nil
+
+      Regex.match?(~r/(입니다|합니다|됩니다|있습니다|없습니다|않았습니다|했습니다)\.?$/u, description) ->
+        "#{company}는 #{description}"
+
+      true ->
+        "#{company}는 #{description}입니다."
+    end
+  end
+
+  defp regional_business_summary(company, exchange, title, summary) do
+    text = entity_join_non_empty([company, title, summary], " ")
+
+    case infer_business_area_ko(text) do
+      nil ->
+        entity_business_summary(
+          company,
+          "#{exchange} 공시 기준 상장사입니다. 세부 업종은 원천 feed에서 제공되지 않았습니다."
+        )
+
+      business_area ->
+        entity_business_summary(
+          company,
+          "#{business_area} 분야 기업(회사명/공시 키워드 기준)"
+        )
+    end
+  end
+
+  defp entity_join_non_empty(values, separator) do
+    values
+    |> Enum.map(&clean_entity_text/1)
+    |> Enum.filter(&present_entity_value?/1)
+    |> Enum.join(separator)
+  end
+
+  defp infer_business_area_ko(nil), do: nil
+
+  defp infer_business_area_ko(text) do
+    normalized = (clean_entity_text(text) || "") |> String.downcase()
+
+    cond do
+      business_area = known_business_area_ko(normalized) ->
+        business_area
+
+      business_match?(
+        normalized,
+        ~r/bank|banco|은행|銀行|insurance|life insurance|보険|保険|assurance|fincorp|finance|financial|mortgage|siena mortgages|trust|fund|etf|etn|21shares|vontobel|ubs|bnp|santander|citigroup/u
+      ) ->
+        "금융·보험·증권"
+
+      business_match?(
+        normalized,
+        ~r/power|solar|energy|electric|utilities|utility|gail|transformer|rectifier|drilling|rig|offshore|renewable|電力|発電|太陽光|에너지|전력|가스|gas|oil|petroleum|green notes/u
+      ) ->
+        "에너지·전력 인프라"
+
+      business_match?(
+        normalized,
+        ~r/pharma|pharmaceutical|medical|medic|health|healthcare|bio|biocare|lab|therapeutics|drug|diagnostic|병원|의료|제약|바이오|薬|醫|医|生物/u
+      ) ->
+        "바이오·제약·헬스케어"
+
+      business_match?(
+        normalized,
+        ~r/semiconductor|electron|electronics|technology|tech|software|digital|e-commerce|commerce|internet|ai\b|data|通信|電子|半導体|テック|科技|기술|소프트웨어|전자상거래/u
+      ) ->
+        "기술·전자·디지털"
+
+      business_match?(
+        normalized,
+        ~r/food|foods|beverage|coffee|restaurant|consumer|retail|apparel|fashion|luxury|brands|puig|cosmetic|jewelry|jewellery|수산|식품|食品|飲料|商事|상사|wholesale|유통|소비재/u
+      ) ->
+        "소비재·식품·유통"
+
+      business_match?(
+        normalized,
+        ~r/real estate|property|properties|house|housing|hotel|hotels|reit|infrastructure|infra|construction|建設|不動産|地產|地产|物業|物业|工程|부동산|건설|주거/u
+      ) ->
+        "부동산·건설·인프라"
+
+      business_match?(
+        normalized,
+        ~r/airlines|airways|aviation|transport|shipping|logistics|rail|railway|motor|auto|automobile|mobility|항공|운송|자동차|自動車/u
+      ) ->
+        "운송·자동차"
+
+      business_match?(
+        normalized,
+        ~r/manufactur|industrial|industries|engineer|engineering|machinery|machine|equipment|steel|metal|mining|minerals|materials|irrigation|cast|foundry|forging|chemical|cement|lmw|工業|機械|製造|材料|化工|化學|鋼|산업재|제조|기계|철강|금속|광업/u
+      ) ->
+        "산업재·제조·소재"
+
+      business_match?(
+        normalized,
+        ~r/media|entertainment|game|gaming|advertising|publication|publishing|education|service|services|consulting|서비스|미디어|교육|엔터/u
+      ) ->
+        "서비스·미디어"
+
+      business_match?(normalized, ~r/holdings?|holding|group|hd\b|ホールディングス|ＨＤ|ｈｄ|지주/u) ->
+        "지주회사·투자"
+
+      true ->
+        nil
+    end
+  end
+
+  defp business_match?(text, regex), do: Regex.match?(regex, text || "")
+
+  defp known_business_area_ko(text) do
+    cond do
+      business_match?(
+        text,
+        ~r/ares private markets|siena mortgages|21shares|vontobel|ubs|bnp|santander|citigroup/u
+      ) ->
+        "금융·보험·증권"
+
+      business_match?(text, ~r/alpex solar|fujiyama power|seamec|drilling rig|zen-260/u) ->
+        "에너지·전력 인프라"
+
+      business_match?(text, ~r/ch biotech|zai lab|austar|hofseth biocare|bastide|therapeutics/u) ->
+        "바이오·제약·헬스케어"
+
+      business_match?(text, ~r/konaka|コナカ|redax|レダックス|mowi|石光商事|光・彩|puig/u) ->
+        "소비재·식품·유통"
+
+      business_match?(text, ~r/zxzn qi-house|エリアリンク|area link/u) ->
+        "부동산·건설·인프라"
+
+      business_match?(
+        text,
+        ~r/katakura|片倉|dee development engineers|karnika industries|felix industries|nelcast|mtar|transformers and rectifiers|lmw|中工/u
+      ) ->
+        "산업재·제조·소재"
+
+      business_match?(text, ~r/better collective|teleperformance|\btp\b|tep:/u) ->
+        "서비스·미디어"
+
+      business_match?(text, ~r/sdhg|shandong hi-speed/u) ->
+        "운송·자동차"
+
+      true ->
+        nil
+    end
+  end
+
+  defp source_exchange_label(source_key) do
+    cond do
+      String.contains?(source_key, "india_nse") -> "NSE India"
+      String.contains?(source_key, "set_thailand") -> "SET Thailand"
+      String.contains?(source_key, "euronext") -> "Euronext"
+      String.contains?(source_key, "fca_nsm") -> "FCA NSM"
+      String.contains?(source_key, "cnmv") -> "CNMV"
+      String.contains?(source_key, "cmvm") -> "CMVM"
+      String.contains?(source_key, "fsma") -> "FSMA STORI"
+      String.contains?(source_key, "dfsa") -> "DFSA OAM"
+      String.contains?(source_key, "bvb") -> "Bucharest Stock Exchange"
+      String.contains?(source_key, "sase") -> "Sarajevo Stock Exchange"
+      String.contains?(source_key, "belex") -> "Belgrade Stock Exchange"
+      true -> source_key
+    end
+  end
+
+  defp source_value(source, key) do
+    source
+    |> Map.get(key)
+    |> clean_entity_text()
+  end
+
+  defp document_value(document, key) do
+    (Map.get(document, key) || Map.get(document, to_string(key)))
+    |> clean_entity_text()
+  end
+
+  defp labeled_value(nil, _label), do: nil
+
+  defp labeled_value(text, label) do
+    escaped = Regex.escape(label)
+
+    case Regex.run(~r/(?:^|\|)\s*#{escaped}:\s*([^|]+)/iu, text) do
+      [_match, value] -> clean_entity_text(value)
+      _ -> nil
+    end
+  end
+
+  defp code_name_pair(nil), do: {nil, nil}
+
+  defp code_name_pair(value) do
+    value = clean_entity_text(value)
+
+    case Regex.run(~r/^([0-9A-Z.\-]{2,12})\s+(.+)$/u, value) do
+      [_match, code, name] -> {clean_entity_text(code), clean_entity_text(name)}
+      _ -> {nil, value}
+    end
+  end
+
+  defp leading_code(nil), do: nil
+
+  defp leading_code(value) do
+    case Regex.run(~r/^([0-9A-Z.\-]{2,12})\s+-\s+/u, value) do
+      [_match, code] -> clean_entity_text(code)
+      _ -> nil
+    end
+  end
+
+  defp sec_cik_from_text(nil), do: nil
+
+  defp sec_cik_from_text(value) do
+    case Regex.run(~r/\((\d{6,10})\)\s*\((?:Filer|Subject)\)/i, value) ||
+           Regex.run(~r/\bCIK:?\s*(\d{6,10})\b/i, value) do
+      [_match, cik] -> String.pad_leading(cik, 10, "0")
+      _ -> nil
+    end
+  end
+
+  defp sec_cik_from_url(nil), do: nil
+
+  defp sec_cik_from_url(url) do
+    case Regex.run(~r/\/Archives\/edgar\/data\/(\d+)\//i, url) do
+      [_match, cik] -> String.pad_leading(cik, 10, "0")
+      _ -> nil
+    end
+  end
+
+  defp sec_company_from_title(nil), do: nil
+
+  defp sec_company_from_title(title) do
+    title
+    |> String.replace(
+      ~r/^(?:8-K|8-K\/A|10-Q|10-K|10-Q\/A|10-K\/A|S-1|S-1\/A|S-1MEF|F-1|F-1\/A|F-10|F-10\/A|S-4|S-4\/A|F-4|F-4\/A|Schedule TO|SC 13D(?:\/A)?|SC 13G(?:\/A)?|SC TO-[A-Z](?:\/A)?)\s*-\s*/i,
+      ""
+    )
+    |> String.replace(
+      ~r/^(?:13F institutional accumulation|Form 4 insider purchase cluster|Schedule 13D strategic ownership|Schedule 13G increased ownership|S-4 merger\/exchange registration|F-4 merger\/exchange registration|Schedule TO tender offer)\s+-\s*/i,
+      ""
+    )
+    |> String.replace(~r/\s*\(\d{6,10}\)\s*\((?:Filer|Subject)\).*$/i, "")
+    |> clean_entity_text()
+    |> empty_to_nil()
+  end
+
+  defp company_from_title(nil), do: nil
+
+  defp company_from_title(title) do
+    title = clean_entity_text(title)
+
+    parts =
+      title
+      |> String.split(~r/\s+-\s+/u, parts: 3)
+      |> Enum.map(&clean_entity_text/1)
+      |> Enum.filter(&present_entity_value?/1)
+
+    case parts do
+      [code, company | _rest] ->
+        if exchange_code_like?(code),
+          do: clean_company_name(company),
+          else: company_from_leading_clause(code)
+
+      [company | _rest] ->
+        company_from_leading_clause(company)
+
+      _ ->
+        nil
+    end
+  end
+
+  defp exchange_code_like?(value) do
+    value = clean_entity_text(value) || ""
+
+    Regex.match?(~r/^[0-9A-Z.\-]{2,12}$/u, value) and
+      Regex.match?(~r/\d/u, value)
+  end
+
+  defp company_from_leading_clause(nil), do: nil
+
+  defp company_from_leading_clause(value) do
+    value = clean_entity_text(value)
+
+    cond do
+      not present_entity_value?(value) ->
+        nil
+
+      match =
+          Regex.run(
+            ~r/^(.{2,80}?(?:ASA|A\/S|SA|S\.A\.|AG|SE|N\.V\.|PLC|LTD|LIMITED|INC\.?|CORP\.?|GROUP|HOLDINGS?))\s*[:;]\s+/iu,
+            value
+          ) ->
+        match |> List.last() |> clean_company_name()
+
+      match =
+          Regex.run(
+            ~r/^(.{2,80}?)\s+(?:sells|announces|reports|signs|launches|publishes)\b/iu,
+            value
+          ) ->
+        match |> List.last() |> clean_company_name()
+
+      true ->
+        clean_company_name(value)
+    end
+  end
+
+  defp clean_company_name(value) do
+    value
+    |> clean_entity_text()
+    |> case do
+      nil -> nil
+      text -> text |> String.replace(~r/[;:,]+$/u, "") |> clean_entity_text()
+    end
+  end
+
+  defp clean_entity_text(nil), do: nil
+
+  defp clean_entity_text(value) do
+    value
+    |> to_string()
+    |> String.replace(~r/<[^>]+>/u, " ")
+    |> String.replace(~r/\s+/u, " ")
+    |> String.trim()
+    |> empty_to_nil()
+  end
+
+  defp empty_to_nil(""), do: nil
+  defp empty_to_nil(value), do: value
+
+  defp present_entity_value?(value), do: is_binary(value) and String.trim(value) != ""
+
+  defp infer_regions(source) do
+    tags = Enum.map(source.coverage_tags || [], &String.downcase/1)
+
+    cond do
+      "global" in tags -> ["global"]
+      "kr" in tags or "korea" in tags -> ["kr"]
+      "jp" in tags or "japan" in tags -> ["jp"]
+      "greater_china" in tags or "cn_tw" in tags -> ["greater_china"]
+      "hk" in tags or "hong_kong" in tags or "hongkong" in tags -> ["hk"]
+      "cn" in tags or "china" in tags -> ["cn"]
+      "tw" in tags or "taiwan" in tags -> ["tw"]
+      "eu_north" in tags or "europe_north" in tags -> ["eu_north"]
+      "eu_central" in tags or "europe_central" in tags -> ["eu_central"]
+      "eu_south" in tags or "europe_south" in tags -> ["eu_south"]
+      "uk" in tags or "united_kingdom" in tags -> ["uk"]
+      "ch" in tags or "switzerland" in tags -> ["ch"]
+      "tr" in tags or "turkey" in tags -> ["tr"]
+      "eu" in tags or "europe" in tags -> ["eu"]
+      "asean" in tags or "southeast_asia" in tags -> ["asean"]
+      "india" in tags or "in" in tags -> ["india"]
+      "anz" in tags or "australia_nz" in tags -> ["anz"]
+      "apac" in tags -> ["apac"]
+      "us" in tags or "usa" in tags or "americas" in tags -> ["us"]
+      Enum.any?(tags, &(&1 in ["macro", "rates", "regulatory", "markets"])) -> ["us"]
+      true -> ["global"]
+    end
+  end
+
+  defp infer_sectors(source) do
+    tags = Enum.map(source.coverage_tags || [], &String.downcase/1)
+
+    cond do
+      Enum.any?(tags, &(&1 in ["regulatory", "enforcement"])) -> ["regulation"]
+      Enum.any?(tags, &(&1 in ["markets", "exchange"])) -> ["markets"]
+      true -> tags
+    end
+  end
+
+  defp canonical_summary(document) do
+    document
+    |> Map.get(:summary)
+    |> case do
+      summary when is_binary(summary) ->
+        case String.trim(summary) do
+          "" -> "Summary unavailable from source feed."
+          value -> value
+        end
+
+      _summary ->
+        "Summary unavailable from source feed."
+    end
+  end
+
+  defp slug(value) do
+    value
+    |> to_string()
+    |> String.downcase()
+    |> String.replace(~r/[^a-z0-9]+/u, "-")
+    |> String.trim("-")
+    |> case do
+      "" -> "story"
+      slug -> slug
+    end
+  end
+end
+
+defmodule DisclosureAutomation.Parser do
+  @moduledoc false
+
+  alias DisclosureAutomation.ParserCapabilities
+
+  @afm_reporting_csv_limit 25
+  @emarket_storage_html_limit 25
+  @emarket_storage_base_url "https://www.emarketstorage.it"
+  @luxse_oam_search_url "https://www.luxse.com/issuer-services-overview/oam/oam-search"
+  @fsma_stori_download_url "https://webapi.fsma.be/api/v1/en/stori/download"
+  @fca_nsm_artefacts_base_url "https://data.fca.org.uk/artefacts/"
+  @fca_nsm_search_url "https://data.fca.org.uk/#/nsm/nationalstoragemechanism"
+  @wiener_borse_announcements_url "https://www.wienerborse.at/en/legal/announcements/"
+  @xetra_newsboard_url "https://www.xetra.com/xetra-en/newsroom/xetra-newsboard/"
+  @oslo_newsweb_message_url "https://newsweb.oslobors.no/message/"
+  @gpw_espi_ebi_report_base_url "https://www.gpw.pl/"
+  @bse_issuers_news_url "https://www.bse.hu/issuers_news"
+  @bvb_current_reports_url "https://bvb.ro/FinancialInstruments/SelectedData/CurrentReports"
+  @ceri_search_url "https://ceri.nbs.sk/search"
+  @ceri_document_base_url "https://ceri.nbs.sk/static/data/"
+  @ee_oam_base_url "https://oam.fi.ee"
+  @lt_oam_base_url "https://www.oam.lt"
+  @lv_csri_base_url "https://csri.investinfo.lv"
+  @cmvm_portal_url "https://www.cmvm.pt/PInstitucional/PortalInstitucional?Input_language=en-US"
+  @oekb_oam_detail_base_url "https://my.oekb.at/kapitalmarkt-services/kms-output/oamn/iic/detail?doc-id="
+  @oekb_oam_download_base_url "https://my.oekb.at/issuer-info/rest/public/meldedaten/download/"
+  @oekb_oam_list_url "https://my.oekb.at/kapitalmarkt-services/kms-output/oamn/iic/list"
+  @pse_news_base_url "https://www.pse.cz/en/news/"
+  @pse_detail_base_url "https://www.pse.cz/en/detail/"
+  @de_company_register_publication_url "https://www.unternehmensregister.de/en/publication?payload="
+  @de_company_register_strategy "germany_company_register_token_preflight_v1"
+  @malta_mse_base_url "https://www.borzamalta.com.mt"
+  @x3news_base_url "https://www.x3news.com/"
+  @kap_base_url "https://www.kap.org.tr"
+  @cse_oam_base_url "https://publicoam.cse.com.cy"
+  @mse_base_url "https://www.mse.mk"
+  @seinet_document_base_url "https://www.seinet.com.mk/en/document/"
+  @mnse_base_url "https://www.mnse.me"
+  @md_msi_base_url "https://emitent-msi.market.md"
+  @dfsa_oam_module_id "9217fa13-5d9a-46c6-9921-69ee7e6cfaf6"
+  @dfsa_oam_details_base_url "https://appft.gold.extension.gopublic.dk/api/#{@dfsa_oam_module_id}/details/"
+  @belex_base_url "https://www.belex.rs"
+  @blse_strategy "blse_multi_issuer_news_rss_v1"
+  @sase_strategy "sase_multi_issuer_announcements_xml_v1"
+  @sase_profile_base_url "https://www.sase.ba/v1/en-us/Market/Issuers-Securities/Issuer-profile/symbol/"
+  @set_thailand_base_url "https://www.set.or.th"
+  @tw_mops_material_info_base_url "https://mops.twse.com.tw/mops"
+  @tdnet_public_base_url "https://www.release.tdnet.info/inbs/"
+
+  def parse(parser_key, raw_payload, opts \\ [])
+      when is_binary(parser_key) and is_binary(raw_payload) do
+    case ParserCapabilities.get(parser_key, opts) do
+      {:ok, capability} ->
+        case parse_by_key(parser_key, raw_payload) do
+          {:ok, records} -> {:ok, limit_records(records, capability, opts)}
+          {:error, _reason} = error -> error
+        end
+
+      :error ->
+        {:error, {:unknown_parser_key, parser_key}}
+    end
+  end
+
+  defp parse_by_key("rss_v1", raw_payload), do: parse_rss(raw_payload)
+
+  defp parse_by_key("euronext_company_pr_rss_v1", raw_payload),
+    do: parse_euronext_company_pr_rss(raw_payload)
+
+  defp parse_by_key("info_financiere_oam_v1", raw_payload), do: parse_info_financiere(raw_payload)
+
+  defp parse_by_key("afm_financial_reporting_csv_v1", raw_payload),
+    do: parse_afm_reporting(raw_payload)
+
+  defp parse_by_key("emarket_storage_html_v1", raw_payload),
+    do: parse_emarket_storage(raw_payload)
+
+  defp parse_by_key("luxse_oam_graphql_v1", raw_payload),
+    do: parse_luxse_oam(raw_payload)
+
+  defp parse_by_key("fsma_stori_api_v1", raw_payload), do: parse_fsma_stori(raw_payload)
+
+  defp parse_by_key("fca_nsm_search_api_v1", raw_payload), do: parse_fca_nsm_search(raw_payload)
+
+  defp parse_by_key("cmvm_portal_info_privi_json_v1", raw_payload),
+    do: parse_cmvm_portal_info_privi(raw_payload)
+
+  defp parse_by_key("oekb_oam_issuer_info_json_v1", raw_payload),
+    do: parse_oekb_oam_issuer_info(raw_payload)
+
+  defp parse_by_key("cse_oam_listing_versions_json_v1", raw_payload),
+    do: parse_cse_oam_listing_versions(raw_payload)
+
+  defp parse_by_key("blse_multi_issuer_news_rss_v1", raw_payload),
+    do: parse_blse_multi_issuer_news(raw_payload)
+
+  defp parse_by_key("pse_multi_isin_issuer_news_json_v1", raw_payload),
+    do: parse_pse_multi_isin_issuer_news(raw_payload)
+
+  defp parse_by_key("pse_multi_isin_issuer_report_calendar_json_v1", raw_payload),
+    do: parse_pse_multi_isin_issuer_report_calendar(raw_payload)
+
+  defp parse_by_key("germany_company_register_capital_market_flight_v1", raw_payload),
+    do: parse_de_company_register_capital_market(raw_payload)
+
+  defp parse_by_key("nasdaq_nordic_cns_jsonp_v1", raw_payload),
+    do: parse_nasdaq_nordic_cns(raw_payload)
+
+  defp parse_by_key("oslo_newsweb_json_v1", raw_payload),
+    do: parse_oslo_newsweb(raw_payload)
+
+  defp parse_by_key("gpw_espi_ebi_html_v1", raw_payload),
+    do: parse_gpw_espi_ebi(raw_payload)
+
+  defp parse_by_key("bse_issuers_news_html_v1", raw_payload),
+    do: parse_bse_issuers_news(raw_payload)
+
+  defp parse_by_key("bvb_current_reports_html_v1", raw_payload),
+    do: parse_bvb_current_reports(raw_payload)
+
+  defp parse_by_key("ceri_regulated_information_html_v1", raw_payload),
+    do: parse_ceri_regulated_information(raw_payload)
+
+  defp parse_by_key("ee_oam_market_announcements_html_v1", raw_payload),
+    do: parse_ee_oam_market_announcements(raw_payload)
+
+  defp parse_by_key("lt_oam_regulated_information_html_v1", raw_payload),
+    do: parse_lt_oam_regulated_information(raw_payload)
+
+  defp parse_by_key("lv_csri_regulated_information_html_v1", raw_payload),
+    do: parse_lv_csri_regulated_information(raw_payload)
+
+  defp parse_by_key("wiener_borse_announcements_html_v1", raw_payload),
+    do: parse_wiener_borse_announcements(raw_payload)
+
+  defp parse_by_key("xetra_newsboard_html_v1", raw_payload),
+    do: parse_xetra_newsboard(raw_payload)
+
+  defp parse_by_key("malta_mse_announcements_html_v1", raw_payload),
+    do: parse_malta_mse_announcements(raw_payload)
+
+  defp parse_by_key("bg_x3news_issuer_disclosures_html_v1", raw_payload),
+    do: parse_x3news_issuer_disclosures(raw_payload)
+
+  defp parse_by_key("kap_company_notifications_html_v1", raw_payload),
+    do: parse_kap_company_notifications(raw_payload)
+
+  defp parse_by_key("mse_free_market_announcements_html_v1", raw_payload),
+    do: parse_mse_free_market_announcements(raw_payload)
+
+  defp parse_by_key("seinet_public_documents_json_v1", raw_payload),
+    do: parse_seinet_public_documents(raw_payload)
+
+  defp parse_by_key("mnse_corporate_news_html_v1", raw_payload),
+    do: parse_mnse_corporate_news(raw_payload)
+
+  defp parse_by_key("md_msi_regulated_information_html_v1", raw_payload),
+    do: parse_md_msi_regulated_information(raw_payload)
+
+  defp parse_by_key("dfsa_oam_company_announcements_json_v1", raw_payload),
+    do: parse_dfsa_oam_company_announcements(raw_payload)
+
+  defp parse_by_key("set_thailand_company_news_json_v1", raw_payload),
+    do: parse_set_thailand_company_news(raw_payload)
+
+  defp parse_by_key("tw_mops_daily_material_info_json_v1", raw_payload),
+    do: parse_tw_mops_daily_material_info(raw_payload)
+
+  defp parse_by_key("tdnet_public_list_html_v1", raw_payload),
+    do: parse_tdnet_public_list(raw_payload)
+
+  defp parse_by_key("hkex_latest_listed_company_info_json_v1", raw_payload),
+    do: parse_hkex_latest_listed_company_info(raw_payload)
+
+  defp parse_by_key("belex_issuer_news_html_v1", raw_payload),
+    do: parse_belex_issuer_news(raw_payload)
+
+  defp parse_by_key("sase_multi_issuer_announcements_xml_v1", raw_payload),
+    do: parse_sase_multi_issuer_announcements(raw_payload)
+
+  defp parse_by_key(parser_key, _raw_payload), do: {:error, {:unsupported_parser_key, parser_key}}
+
+  defp limit_records(records, capability, opts) when is_list(records) and is_map(capability) do
+    capability_limit =
+      positive_int(
+        Map.get(capability, "max_items_per_poll") || Map.get(capability, :max_items_per_poll)
+      )
+
+    source_limit = positive_int(Keyword.get(opts, :max_items_per_poll))
+
+    case effective_limit(capability_limit, source_limit) do
+      nil -> records
+      max_items -> Enum.take(records, max_items)
+    end
+  end
+
+  defp effective_limit(nil, nil), do: nil
+  defp effective_limit(nil, source_limit), do: source_limit
+  defp effective_limit(capability_limit, nil), do: capability_limit
+  defp effective_limit(capability_limit, source_limit), do: min(capability_limit, source_limit)
+
+  defp positive_int(value) when is_integer(value) and value > 0, do: value
+
+  defp positive_int(value) when is_binary(value) do
+    case Integer.parse(value) do
+      {parsed, ""} when parsed > 0 -> parsed
+      _ -> nil
+    end
+  end
+
+  defp positive_int(_value), do: nil
+
+  defp parse_rss(raw_payload) do
+    with {:ok, document} <- parse_xml(raw_payload) do
+      items =
+        rss_item_nodes(document)
+        |> Enum.map(&parse_item/1)
+        |> Enum.filter(&(&1.url && &1.title))
+
+      {:ok, items}
+    end
+  end
+
+  defp parse_euronext_company_pr_rss(raw_payload) do
+    with {:ok, records} <- parse_rss(raw_payload) do
+      records =
+        records
+        |> euronext_prefer_english_records()
+        |> Enum.map(&clean_euronext_company_pr_record/1)
+
+      {:ok, records}
+    end
+  end
+
+  defp euronext_prefer_english_records(records) do
+    english_records =
+      Enum.filter(records, fn record ->
+        record
+        |> Map.get(:url)
+        |> case do
+          url when is_binary(url) -> String.contains?(url, "/en/")
+          _ -> false
+        end
+      end)
+
+    case english_records do
+      [] -> records
+      _records -> english_records
+    end
+  end
+
+  defp clean_euronext_company_pr_record(record) do
+    Map.update(record, :summary, nil, fn summary ->
+      summary
+      |> euronext_company_pr_summary(record[:title])
+      |> case do
+        nil -> "Euronext company press release."
+        cleaned -> cleaned
+      end
+    end)
+  end
+
+  defp euronext_company_pr_summary(summary, title) when is_binary(summary) do
+    summary
+    |> decode_html_entities()
+    |> String.replace(~r/<[^>]+>/, " ")
+    |> decode_html_entities()
+    |> String.replace(~r/<[^>]+>/, " ")
+    |> String.replace(~r/https?:\/\/\S+/u, " ")
+    |> String.replace(~r/[\w.-]+">\s*/u, " ")
+    |> String.replace(~r/\bmaster_of_puppets\b/u, " ")
+    |> String.replace(~r/\s+/u, " ")
+    |> String.trim()
+    |> euronext_after_language_marker()
+    |> trim_euronext_summary_prefix(title)
+    |> String.slice(0, 360)
+    |> String.trim()
+    |> case do
+      "" -> nil
+      cleaned -> cleaned
+    end
+  end
+
+  defp euronext_company_pr_summary(_summary, _title), do: nil
+
+  defp euronext_after_language_marker(summary) do
+    case Regex.split(
+           ~r/\bLanguage\s+(?:English|French|Dutch|Portuguese|Italian|Norwegian)\s+/u,
+           summary,
+           parts: 2
+         ) do
+      [_before, after_marker] -> after_marker
+      _parts -> summary
+    end
+  end
+
+  defp trim_euronext_summary_prefix(summary, title) when is_binary(title) do
+    summary
+    |> String.replace_prefix(title, "")
+    |> String.trim()
+    |> String.replace(~r/^html\s+xmlns=.*?\bbody\s*;?\s*/iu, "")
+    |> String.replace(~r/^Stocks\s+/u, "")
+    |> String.replace(~r/^Bonds\s+Stocks\s+/u, "")
+    |> String.replace(~r/^Fri\s+\d{2}\/\d{2}\/\d{4}\s+-\s+\d{2}:\d{2}\s+/u, "")
+    |> String.replace(~r/^ven\s+\d{2}\/\d{2}\/\d{4}\s+-\s+\d{2}:\d{2}\s+/u, "")
+    |> String.replace(~r/^[\s;:,-]+/u, "")
+  end
+
+  defp trim_euronext_summary_prefix(summary, _title), do: summary
+
+  defp rss_item_nodes(document) do
+    [
+      ~c"/rss/channel/item",
+      ~c"/rss/Channel/item",
+      ~c"/rss/channel/Item",
+      ~c"/rss/Channel/Item",
+      ~c"/*[local-name()='feed']/*[local-name()='entry']"
+    ]
+    |> Enum.flat_map(&:xmerl_xpath.string(&1, document))
+  end
+
+  defp parse_info_financiere(raw_payload) do
+    with {:ok, decoded} <- Jason.decode(raw_payload),
+         records when is_list(records) <- info_financiere_records(decoded) do
+      items =
+        records
+        |> Enum.map(&parse_info_financiere_record/1)
+        |> Enum.filter(&(&1.url && &1.title))
+
+      {:ok, items}
+    else
+      {:error, error} -> {:error, {:invalid_json, error}}
+      _ -> {:error, {:invalid_json_shape, "info_financiere_oam_v1"}}
+    end
+  end
+
+  defp info_financiere_records(%{"results" => records}) when is_list(records), do: records
+
+  defp info_financiere_records(%{"records" => records}) when is_list(records) do
+    Enum.map(records, fn
+      %{"fields" => fields} when is_map(fields) -> fields
+      record -> record
+    end)
+  end
+
+  defp info_financiere_records(records) when is_list(records), do: records
+  defp info_financiere_records(_decoded), do: nil
+
+  defp parse_info_financiere_record(record) when is_map(record) do
+    company = string_field(record, "identificationsociete_iso_nom_soc")
+    issuer_title = string_field(record, "informationdeposee_inf_tit_inf")
+
+    type =
+      string_field(record, "type_of_information") || string_field(record, "type_d_information")
+
+    subtype =
+      string_field(record, "subtype_of_information") ||
+        string_field(record, "sous_type_d_information")
+
+    isin = string_field(record, "identificationsociete_iso_cd_isi")
+    ticker = string_field(record, "identificationsociete_iso_code_tkr_iso_cd_tkr")
+    language = string_field(record, "informationdeposee_inf_lng_inf")
+
+    %{
+      external_id:
+        string_field(record, "uin_idt_uin") || string_field(record, "url_de_recuperation"),
+      title: join_non_empty([company, issuer_title || subtype || type], " - "),
+      url: string_field(record, "url_de_recuperation"),
+      summary:
+        join_non_empty(
+          [
+            type,
+            subtype,
+            prefixed("ISIN", isin),
+            prefixed("Ticker", ticker),
+            prefixed("Language", language)
+          ],
+          " | "
+        ),
+      published_at:
+        datetime_field(record, [
+          "informationdeposee_inf_dat_emt",
+          "uin_dat_amf",
+          "uin_dat_mar"
+        ]),
+      category: subtype || type
+    }
+  end
+
+  defp parse_info_financiere_record(_record) do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: DateTime.utc_now(),
+      category: nil
+    }
+  end
+
+  defp parse_afm_reporting(raw_payload) do
+    items =
+      raw_payload
+      |> afm_csv_to_utf8()
+      |> String.split(~r/\r?\n/, trim: true)
+      |> Enum.drop(1)
+      |> Enum.take(@afm_reporting_csv_limit)
+      |> Enum.map(&parse_afm_reporting_record/1)
+      |> Enum.filter(&(&1.url && &1.title))
+
+    {:ok, items}
+  end
+
+  defp afm_csv_to_utf8(raw_payload) do
+    if String.valid?(raw_payload) do
+      raw_payload
+    else
+      :unicode.characters_to_binary(raw_payload, :latin1, :utf8)
+    end
+  end
+
+  defp parse_afm_reporting_record(row) do
+    case parse_afm_csv_row(row) do
+      [published_at_text, issuer, year, category | _rest] ->
+        %{
+          external_id: join_non_empty([published_at_text, issuer, year, category], "|"),
+          title: join_non_empty([issuer, category], " - "),
+          url: afm_reporting_register_url(),
+          summary:
+            join_non_empty(
+              [
+                prefixed("Reporting year", year),
+                prefixed("Document type", category)
+              ],
+              " | "
+            ),
+          published_at: parse_afm_datetime(published_at_text),
+          category: category
+        }
+
+      _ ->
+        empty_afm_reporting_record()
+    end
+  end
+
+  defp empty_afm_reporting_record do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: DateTime.utc_now(),
+      category: nil
+    }
+  end
+
+  defp afm_reporting_register_url do
+    "https://www.afm.nl/en/sector/registers/meldingenregisters/financiele-verslaggeving"
+  end
+
+  defp parse_emarket_storage(raw_payload) do
+    items =
+      raw_payload
+      |> String.split(~r/<div class="views-row">/)
+      |> Enum.drop(1)
+      |> Enum.take(@emarket_storage_html_limit)
+      |> Enum.map(&parse_emarket_storage_row/1)
+      |> Enum.filter(&(&1.url && &1.title))
+
+    {:ok, items}
+  end
+
+  defp parse_emarket_storage_row(row) do
+    pdf_path =
+      regex_capture(row, ~r/href="(\/sites\/default\/files\/comunicati\/[^"]+\.pdf)"/)
+
+    company = regex_capture(row, ~r/<div class="news-azienda">.*?<a[^>]*>(.*?)<\/a>/s)
+    title = regex_capture(row, ~r/<div class="news-title">.*?<a[^>]*>(.*?)<\/a>/s)
+    published_at_text = regex_capture(row, ~r/<time[^>]*>(.*?)<\/time>/s)
+    protocol = regex_capture(row, ~r/data-protocollo="([^"]+)"/)
+
+    %{
+      external_id: protocol || pdf_path,
+      title: join_non_empty([company, title], " - "),
+      url: emarket_storage_url(pdf_path),
+      summary: join_non_empty(["Comunicati Regolamentati", prefixed("Issuer", company)], " | "),
+      published_at: parse_emarket_storage_datetime(published_at_text),
+      category: "Comunicati Regolamentati"
+    }
+  end
+
+  defp emarket_storage_url(nil), do: nil
+  defp emarket_storage_url("http" <> _rest = url), do: url
+  defp emarket_storage_url("/" <> _rest = path), do: @emarket_storage_base_url <> path
+  defp emarket_storage_url(path), do: @emarket_storage_base_url <> "/" <> path
+
+  defp parse_luxse_oam(raw_payload) do
+    with {:ok, decoded} <- Jason.decode(raw_payload),
+         records when is_list(records) <- luxse_oam_records(decoded) do
+      items =
+        records
+        |> Enum.map(&parse_luxse_oam_record/1)
+        |> Enum.filter(&(&1.url && &1.title))
+
+      {:ok, items}
+    else
+      {:error, error} -> {:error, {:invalid_json, error}}
+      _ -> {:error, {:invalid_json_shape, "luxse_oam_graphql_v1"}}
+    end
+  end
+
+  defp luxse_oam_records(%{
+         "data" => %{"oamSubmissionsSearch" => %{"submissions" => records}}
+       })
+       when is_list(records),
+       do: records
+
+  defp luxse_oam_records(_decoded), do: nil
+
+  defp parse_luxse_oam_record(record) when is_map(record) do
+    issuer = string_field(record, "issuerName")
+    category = string_field(record, "submissionTypeLabel")
+
+    %{
+      external_id: string_field(record, "submissionId"),
+      title: join_non_empty([issuer, category], " - "),
+      url: @luxse_oam_search_url,
+      summary:
+        join_non_empty(
+          [
+            "LuxSE OAM",
+            prefixed("Action", string_field(record, "actionsList")),
+            prefixed("Reference year", string_field(record, "referenceYear")),
+            prefixed("Reference period", luxse_reference_period(record))
+          ],
+          " | "
+        ),
+      published_at:
+        parse_iso8601_datetime(string_field(record, "publicationDate")) || DateTime.utc_now(),
+      category: category
+    }
+  end
+
+  defp parse_luxse_oam_record(_record) do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: DateTime.utc_now(),
+      category: nil
+    }
+  end
+
+  defp luxse_reference_period(record) do
+    join_non_empty(
+      [
+        iso_date_part(string_field(record, "referenceStartDate")),
+        iso_date_part(string_field(record, "referenceEndDate"))
+      ],
+      " to "
+    )
+  end
+
+  defp iso_date_part(nil), do: nil
+  defp iso_date_part(value), do: String.slice(value, 0, 10)
+
+  defp parse_fsma_stori(raw_payload) do
+    with {:ok, decoded} <- Jason.decode(raw_payload),
+         records when is_list(records) <- fsma_stori_records(decoded) do
+      items =
+        records
+        |> Enum.map(&parse_fsma_stori_record/1)
+        |> Enum.filter(&(&1.url && &1.title))
+
+      {:ok, items}
+    else
+      {:error, error} -> {:error, {:invalid_json, error}}
+      _ -> {:error, {:invalid_json_shape, "fsma_stori_api_v1"}}
+    end
+  end
+
+  defp fsma_stori_records(%{"storiResultItems" => records}) when is_list(records), do: records
+
+  defp fsma_stori_records(%{"data" => %{"storiResultItems" => records}}) when is_list(records),
+    do: records
+
+  defp fsma_stori_records(_decoded), do: nil
+
+  defp parse_fsma_stori_record(record) when is_map(record) do
+    company_name = string_field(record, "companyName")
+    topic_name = string_field(record, "reportingTopicName")
+    document_title = string_field(record, "documentTitle")
+    document = fsma_stori_primary_document(record)
+
+    %{
+      external_id: fsma_stori_external_id(record, document),
+      title: join_non_empty([company_name, document_title || topic_name], " - "),
+      url: fsma_stori_document_url(document),
+      summary: fsma_stori_summary(record, document),
+      published_at: fsma_stori_datetime(record),
+      category: topic_name
+    }
+  end
+
+  defp parse_fsma_stori_record(_record) do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: DateTime.utc_now(),
+      category: nil
+    }
+  end
+
+  defp fsma_stori_primary_document(record) do
+    record
+    |> Map.get("mainDocuments", [])
+    |> case do
+      [document | _rest] when is_map(document) -> document
+      _documents -> nil
+    end
+  end
+
+  defp fsma_stori_external_id(record, document) do
+    string_field(record, "requiredReportingTopicId") ||
+      string_field(document || %{}, "fileDataId") ||
+      join_non_empty(
+        [
+          string_field(record, "companyName"),
+          string_field(record, "reportingTopicName"),
+          string_field(record, "datePublication")
+        ],
+        "-"
+      )
+  end
+
+  defp fsma_stori_datetime(record) do
+    ["datePublication", "dateReceived"]
+    |> Enum.find_value(fn key ->
+      record
+      |> string_field(key)
+      |> parse_fsma_stori_datetime()
+    end)
+    |> case do
+      nil -> DateTime.utc_now()
+      datetime -> datetime
+    end
+  end
+
+  defp parse_fsma_stori_datetime(nil), do: nil
+
+  defp parse_fsma_stori_datetime(value) do
+    parse_iso8601_datetime(value) || parse_naive_iso8601_datetime(value)
+  end
+
+  defp parse_naive_iso8601_datetime(value) do
+    with {:ok, naive_datetime} <- NaiveDateTime.from_iso8601(value),
+         {:ok, datetime} <- DateTime.from_naive(naive_datetime, "Etc/UTC") do
+      datetime
+    else
+      _ -> nil
+    end
+  end
+
+  defp fsma_stori_document_url(nil), do: "https://www.fsma.be/en/stori"
+
+  defp fsma_stori_document_url(document) do
+    case string_field(document, "fileDataId") do
+      nil -> "https://www.fsma.be/en/stori"
+      file_data_id -> "#{@fsma_stori_download_url}?fileDataId=#{file_data_id}"
+    end
+  end
+
+  defp fsma_stori_summary(record, document) do
+    documents =
+      record
+      |> Map.get("mainDocuments", [])
+      |> Enum.map(&string_field(&1, "originalFileName"))
+      |> Enum.reject(&is_nil/1)
+      |> Enum.take(3)
+      |> Enum.join(", ")
+
+    isin_codes =
+      record
+      |> Map.get("isinCodes", [])
+      |> Enum.map(&string_field(&1, "code"))
+      |> Enum.reject(&is_nil/1)
+      |> Enum.take(3)
+      |> Enum.join(", ")
+
+    join_non_empty(
+      [
+        "FSMA STORI regulated information",
+        prefixed("Topic", string_field(record, "reportingTopicName")),
+        prefixed("Document", string_field(document || %{}, "originalFileName") || documents),
+        prefixed("ISIN", isin_codes)
+      ],
+      " | "
+    )
+  end
+
+  defp parse_fca_nsm_search(raw_payload) do
+    with {:ok, decoded} <- Jason.decode(raw_payload),
+         records when is_list(records) <- fca_nsm_records(decoded) do
+      items =
+        records
+        |> Enum.map(&parse_fca_nsm_record/1)
+        |> Enum.filter(&(&1.url && &1.title))
+
+      {:ok, items}
+    else
+      {:error, error} -> {:error, {:invalid_json, error}}
+      _ -> {:error, {:invalid_json_shape, "fca_nsm_search_api_v1"}}
+    end
+  end
+
+  defp fca_nsm_records(%{"hits" => %{"hits" => records}}) when is_list(records), do: records
+
+  defp fca_nsm_records(%{"data" => %{"hits" => %{"hits" => records}}}) when is_list(records),
+    do: records
+
+  defp fca_nsm_records(_decoded), do: nil
+
+  defp parse_fca_nsm_record(%{"_source" => record}) when is_map(record),
+    do: parse_fca_nsm_record(record)
+
+  defp parse_fca_nsm_record(record) when is_map(record) do
+    company = string_field(record, "company")
+    headline = string_field(record, "headline")
+
+    %{
+      external_id:
+        string_field(record, "disclosure_id") ||
+          string_field(record, "seq_id") ||
+          string_field(record, "download_link"),
+      title: fca_nsm_title(company, headline),
+      url: fca_nsm_url(string_field(record, "download_link")),
+      summary: fca_nsm_summary(record),
+      published_at:
+        datetime_field(record, ["publication_date", "submitted_date", "document_date"]),
+      category: string_field(record, "type")
+    }
+  end
+
+  defp parse_fca_nsm_record(_record) do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: DateTime.utc_now(),
+      category: nil
+    }
+  end
+
+  defp fca_nsm_title(nil, headline), do: headline
+  defp fca_nsm_title(company, nil), do: company
+
+  defp fca_nsm_title(company, headline) do
+    if String.downcase(company) == String.downcase(headline) do
+      headline
+    else
+      join_non_empty([company, headline], " - ")
+    end
+  end
+
+  defp fca_nsm_url(nil), do: @fca_nsm_search_url
+  defp fca_nsm_url("http" <> _rest = url), do: url
+  defp fca_nsm_url("/" <> rest), do: @fca_nsm_artefacts_base_url <> rest
+  defp fca_nsm_url(path), do: @fca_nsm_artefacts_base_url <> path
+
+  defp fca_nsm_summary(record) do
+    join_non_empty(
+      [
+        "FCA NSM regulated information",
+        prefixed("Category", string_field(record, "type")),
+        prefixed("Source", string_field(record, "source")),
+        prefixed("LEI", string_field(record, "lei")),
+        prefixed("ESEF", string_field(record, "tag_esef"))
+      ],
+      " | "
+    )
+  end
+
+  defp parse_cmvm_portal_info_privi(raw_payload) do
+    with {:ok, decoded} <- Jason.decode(raw_payload),
+         records when is_list(records) <- cmvm_portal_info_privi_records(decoded) do
+      items =
+        records
+        |> Enum.map(&parse_cmvm_portal_info_privi_record/1)
+        |> Enum.filter(&(&1.url && &1.title))
+
+      {:ok, items}
+    else
+      {:error, error} -> {:error, {:invalid_json, error}}
+      _ -> {:error, {:invalid_json_shape, "cmvm_portal_info_privi_json_v1"}}
+    end
+  end
+
+  defp cmvm_portal_info_privi_records(%{
+         "data" => %{"InfoPrivi" => %{"List" => records}}
+       })
+       when is_list(records),
+       do: records
+
+  defp cmvm_portal_info_privi_records(_decoded), do: nil
+
+  defp parse_cmvm_portal_info_privi_record(record) when is_map(record) do
+    description = string_field(record, "Desc")
+    {issuer, headline} = cmvm_portal_info_privi_description_parts(description)
+    id = string_field(record, "Id")
+    table = string_field(record, "Table")
+
+    %{
+      external_id: join_non_empty(["cmvm", table, id], ":"),
+      title: cmvm_portal_info_privi_title(issuer, headline, description),
+      url: cmvm_portal_info_privi_url(id, table),
+      summary: cmvm_portal_info_privi_summary(record, issuer, headline),
+      published_at: cmvm_portal_info_privi_datetime(record),
+      category: string_field(record, "Tipo")
+    }
+  end
+
+  defp parse_cmvm_portal_info_privi_record(_record) do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: DateTime.utc_now(),
+      category: nil
+    }
+  end
+
+  defp cmvm_portal_info_privi_description_parts(nil), do: {nil, nil}
+
+  defp cmvm_portal_info_privi_description_parts(description) do
+    case Regex.run(~r/^(.+?)\s+informs on:\s+(.+)$/iu, description, capture: :all_but_first) do
+      [issuer, headline] -> {String.trim(issuer), String.trim(headline)}
+      _ -> {nil, description}
+    end
+  end
+
+  defp cmvm_portal_info_privi_title(nil, nil, fallback), do: fallback
+  defp cmvm_portal_info_privi_title(nil, headline, _fallback), do: headline
+  defp cmvm_portal_info_privi_title(issuer, nil, _fallback), do: issuer
+  defp cmvm_portal_info_privi_title(issuer, headline, _fallback), do: issuer <> " - " <> headline
+
+  defp cmvm_portal_info_privi_url(nil, _table), do: @cmvm_portal_url
+
+  defp cmvm_portal_info_privi_url(id, table) do
+    fragment =
+      ["cmvm-info-privi", table, id]
+      |> Enum.reject(&is_nil/1)
+      |> Enum.join("-")
+      |> String.downcase()
+      |> String.replace(~r/[^a-z0-9_-]+/, "-")
+      |> String.trim("-")
+
+    @cmvm_portal_url <> "#" <> fragment
+  end
+
+  defp cmvm_portal_info_privi_summary(record, issuer, headline) do
+    join_non_empty(
+      [
+        "CMVM inside information and other issuer information",
+        prefixed("Issuer", issuer),
+        prefixed("Disclosure", headline),
+        prefixed("Category", string_field(record, "Tipo")),
+        prefixed("Record table", string_field(record, "Table"))
+      ],
+      " | "
+    )
+  end
+
+  defp cmvm_portal_info_privi_datetime(record) do
+    date = string_field(record, "Date")
+    time = string_field(record, "Time") || "00:00:00"
+
+    with value when is_binary(value) <- date,
+         [_, year_text, month_text, day_text, hour_text, minute_text, second_text] <-
+           Regex.run(
+             ~r/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2}):(\d{2})$/,
+             value <> " " <> time
+           ),
+         {year, ""} <- Integer.parse(year_text),
+         {month, ""} <- Integer.parse(month_text),
+         {day, ""} <- Integer.parse(day_text),
+         {hour, ""} <- Integer.parse(hour_text),
+         {minute, ""} <- Integer.parse(minute_text),
+         {second, ""} <- Integer.parse(second_text),
+         {:ok, datetime} <- build_utc_datetime(year, month, day, hour, minute, second) do
+      cmvm_apply_lisbon_zone(datetime)
+    else
+      _ -> DateTime.utc_now()
+    end
+  end
+
+  defp cmvm_apply_lisbon_zone(%DateTime{month: month} = datetime) when month in 4..10,
+    do: DateTime.add(datetime, -3_600, :second)
+
+  defp cmvm_apply_lisbon_zone(datetime), do: datetime
+
+  defp parse_oekb_oam_issuer_info(raw_payload) do
+    with {:ok, decoded} <- Jason.decode(raw_payload),
+         records when is_list(records) <- oekb_oam_issuer_info_records(decoded) do
+      items =
+        records
+        |> Enum.map(&parse_oekb_oam_issuer_info_record/1)
+        |> Enum.filter(&(&1.url && &1.title))
+
+      {:ok, items}
+    else
+      {:error, error} -> {:error, {:invalid_json, error}}
+      _ -> {:error, {:invalid_json_shape, "oekb_oam_issuer_info_json_v1"}}
+    end
+  end
+
+  defp oekb_oam_issuer_info_records(%{"dokumente" => records}) when is_list(records),
+    do: records
+
+  defp oekb_oam_issuer_info_records(_decoded), do: nil
+
+  defp parse_oekb_oam_issuer_info_record(record) when is_map(record) do
+    issuer = record |> Map.get("emittent", %{}) |> string_field("name")
+    title = string_field(record, "titel")
+    file_id = oekb_oam_first_file_id(record)
+
+    %{
+      external_id: join_non_empty(["oekb", string_field(record, "id") || file_id], ":"),
+      title: oekb_oam_title(issuer, title),
+      url: oekb_oam_url(string_field(record, "id"), file_id),
+      summary: oekb_oam_summary(record, issuer),
+      published_at: oekb_oam_datetime(record),
+      category: string_field(record, "meldetypCode")
+    }
+  end
+
+  defp parse_oekb_oam_issuer_info_record(_record) do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: DateTime.utc_now(),
+      category: nil
+    }
+  end
+
+  defp oekb_oam_title(nil, title), do: title
+  defp oekb_oam_title(issuer, nil), do: issuer
+
+  defp oekb_oam_title(issuer, title) do
+    if String.contains?(String.downcase(title), String.downcase(issuer)) do
+      title
+    else
+      join_non_empty([issuer, title], " - ")
+    end
+  end
+
+  defp oekb_oam_url(nil, nil), do: @oekb_oam_list_url
+
+  defp oekb_oam_url(_record_id, file_id) when is_binary(file_id),
+    do: @oekb_oam_download_base_url <> file_id
+
+  defp oekb_oam_url(record_id, nil), do: @oekb_oam_detail_base_url <> record_id
+
+  defp oekb_oam_summary(record, issuer) do
+    files =
+      record
+      |> Map.get("dateien", [])
+      |> Enum.map(&string_field(&1, "dateiname"))
+      |> Enum.reject(&is_nil/1)
+      |> Enum.take(3)
+      |> Enum.join(", ")
+
+    isin_values =
+      record
+      |> Map.get("isinBezug", [])
+      |> oekb_oam_string_list()
+      |> Enum.take(3)
+      |> Enum.join(", ")
+
+    join_non_empty(
+      [
+        "OeKB OAM Issuer Info regulated information",
+        prefixed("Issuer", issuer),
+        prefixed("Type", string_field(record, "meldetypCode")),
+        prefixed("Obligation", string_field(record, "meldeTypType")),
+        prefixed("Language", string_field(record, "sprachcode")),
+        prefixed("ISIN", isin_values),
+        prefixed("Files", files)
+      ],
+      " | "
+    )
+  end
+
+  defp oekb_oam_first_file_id(%{"dateien" => files}) when is_list(files) do
+    Enum.find_value(files, &string_field(&1, "id"))
+  end
+
+  defp oekb_oam_first_file_id(_record), do: nil
+
+  defp oekb_oam_string_list(values) when is_list(values) do
+    values
+    |> Enum.map(fn
+      value when is_binary(value) ->
+        value
+        |> String.trim()
+        |> case do
+          "" -> nil
+          cleaned -> cleaned
+        end
+
+      _value ->
+        nil
+    end)
+    |> Enum.reject(&is_nil/1)
+  end
+
+  defp oekb_oam_string_list(_values), do: []
+
+  defp parse_cse_oam_listing_versions(raw_payload) do
+    with {:ok, decoded} <- Jason.decode(raw_payload),
+         records when is_list(records) <- cse_oam_listing_version_records(decoded) do
+      items =
+        records
+        |> Enum.filter(&cse_oam_listed_record?/1)
+        |> Enum.map(&parse_cse_oam_listing_version_record/1)
+        |> Enum.filter(&(&1.url && &1.title && &1.published_at))
+
+      {:ok, items}
+    else
+      {:error, error} -> {:error, {:invalid_json, error}}
+      _ -> {:error, {:invalid_json_shape, "cse_oam_listing_versions_json_v1"}}
+    end
+  end
+
+  defp cse_oam_listing_version_records(%{"content" => records}) when is_list(records),
+    do: records
+
+  defp cse_oam_listing_version_records(_decoded), do: nil
+
+  defp cse_oam_listed_record?(record) when is_map(record) do
+    Map.get(record, "isListed") == true or Map.get(record, "listed") == true or
+      Map.get(record, "listedComplete") == true
+  end
+
+  defp cse_oam_listed_record?(_record), do: false
+
+  defp parse_cse_oam_listing_version_record(record) when is_map(record) do
+    issuer = string_field(record, "listedCompanyEnglish") || string_field(record, "companyNameEn")
+    headline = string_field(record, "nameEnglish") || string_field(record, "name")
+    category = string_field(record, "infoCategoriesNameEnglish")
+
+    %{
+      external_id: join_non_empty(["cse-oam", string_field(record, "id")], ":"),
+      title: join_non_empty([issuer, headline], " - "),
+      url: cse_oam_listing_version_url(record),
+      summary: cse_oam_listing_version_summary(record, category),
+      published_at: cse_oam_listing_version_datetime(record),
+      category: category
+    }
+  end
+
+  defp parse_cse_oam_listing_version_record(_record) do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: DateTime.utc_now(),
+      category: nil
+    }
+  end
+
+  defp cse_oam_listing_version_url(record) do
+    id = string_field(record, "id")
+
+    if id do
+      @cse_oam_base_url <>
+        "/card-details/" <> id <> "/" <> cse_oam_translation_segment(record, id)
+    end
+  end
+
+  defp cse_oam_translation_segment(record, id) do
+    case string_field(record, "translationId") do
+      nil -> id <> "tr"
+      "0" -> id <> "tr"
+      translation_id -> translation_id <> "tr"
+    end
+  end
+
+  defp cse_oam_listing_version_summary(record, category) do
+    body =
+      (string_field(record, "translationVersionContent") || string_field(record, "versionContent"))
+      |> cse_oam_body_excerpt()
+
+    join_non_empty(
+      [
+        "CSE OAM",
+        prefixed("Category", category),
+        prefixed("Security", string_field(record, "securityCodesCode")),
+        prefixed("Market", string_field(record, "marketTypesDescription")),
+        body
+      ],
+      " | "
+    )
+  end
+
+  defp cse_oam_body_excerpt(nil), do: nil
+
+  defp cse_oam_body_excerpt(value) do
+    value
+    |> clean_html()
+    |> case do
+      nil -> nil
+      cleaned -> cleaned |> String.slice(0, 360) |> String.trim()
+    end
+  end
+
+  defp cse_oam_listing_version_datetime(record) do
+    cse_oam_epoch_millis(record, "publicationTimestamp") ||
+      cse_oam_epoch_millis(record, "translationRegistryTimestamp") ||
+      DateTime.utc_now()
+  end
+
+  defp cse_oam_epoch_millis(record, key) do
+    record
+    |> Map.get(key)
+    |> case do
+      value when is_integer(value) -> value
+      value when is_binary(value) -> parse_epoch_millis(value)
+      _ -> nil
+    end
+    |> case do
+      value when is_integer(value) ->
+        case DateTime.from_unix(value, :millisecond) do
+          {:ok, datetime} ->
+            if DateTime.compare(datetime, DateTime.add(DateTime.utc_now(), 86_400, :second)) ==
+                 :gt,
+               do: nil,
+               else: datetime
+
+          _ ->
+            nil
+        end
+
+      _ ->
+        nil
+    end
+  end
+
+  defp parse_epoch_millis(value) do
+    case Integer.parse(value) do
+      {parsed, ""} -> parsed
+      _ -> nil
+    end
+  end
+
+  defp parse_de_company_register_capital_market(raw_payload) do
+    with {:ok, decoded} <- Jason.decode(raw_payload),
+         true <- Map.get(decoded, "strategy") == @de_company_register_strategy,
+         responses when is_list(responses) <- Map.get(decoded, "responses") do
+      items =
+        responses
+        |> Enum.flat_map(&parse_de_company_register_response/1)
+        |> Enum.filter(&(&1.url && &1.title && &1.published_at))
+
+      {:ok, items}
+    else
+      {:error, error} ->
+        {:error, {:invalid_json, error}}
+
+      false ->
+        {:error, {:invalid_json_shape, "germany_company_register_capital_market_flight_v1"}}
+
+      _ ->
+        {:error, {:invalid_json_shape, "germany_company_register_capital_market_flight_v1"}}
+    end
+  end
+
+  defp parse_de_company_register_response(%{"data" => rows}) when is_list(rows) do
+    Enum.map(rows, &parse_de_company_register_record/1)
+  end
+
+  defp parse_de_company_register_response(_response), do: []
+
+  defp parse_de_company_register_record(record) when is_map(record) do
+    payload = string_field(record, "encryptedPayload")
+    issuer = string_field(record, "companyNameAtTimeOfPublication")
+    title = string_field(record, "title")
+    source_date = string_field(record, "sourceDate")
+    category = de_company_register_category(record)
+
+    %{
+      external_id: de_company_register_external_id(payload),
+      title: title,
+      url: de_company_register_publication_url(payload),
+      summary: de_company_register_summary(record, issuer, source_date, category),
+      published_at: parse_de_company_register_date(source_date),
+      category: category
+    }
+  end
+
+  defp parse_de_company_register_record(_record) do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: nil,
+      category: nil
+    }
+  end
+
+  defp de_company_register_external_id(nil), do: nil
+
+  defp de_company_register_external_id(payload) do
+    digest =
+      :sha256
+      |> :crypto.hash(payload)
+      |> Base.encode16(case: :lower)
+      |> String.slice(0, 32)
+
+    "de-company-register:" <> digest
+  end
+
+  defp de_company_register_publication_url(nil), do: nil
+
+  defp de_company_register_publication_url(payload) do
+    @de_company_register_publication_url <> URI.encode(payload, &URI.char_unreserved?/1)
+  end
+
+  defp de_company_register_summary(record, issuer, source_date, category) do
+    join_non_empty(
+      [
+        "Germany Company Register capital-market information",
+        prefixed("Issuer", issuer),
+        prefixed("Source", string_field(record, "sourceName")),
+        prefixed("Date", source_date),
+        prefixed("Category", category),
+        prefixed("Language", string_field(record, "language")),
+        prefixed("PDF", string_field(record, "hasPdf"))
+      ],
+      " | "
+    )
+  end
+
+  defp de_company_register_category(record) do
+    category_id = de_company_register_nested_id(record, "publicationCategory")
+    type_id = de_company_register_nested_id(record, "publicationType")
+
+    cond do
+      category_id == "69" -> "Securities"
+      category_id == "70" -> "Securities acquisition and takeover"
+      category_id == "79" -> "Insider information"
+      category_id == "80" -> "Managers' transactions"
+      category_id == "81" -> "Voting rights announcement"
+      category_id == "82" -> "Prospectus notice"
+      category_id == "83" -> "Miscellaneous capital-market information"
+      category_id == "85" -> "Accounting / financial report"
+      category_id == "87" -> "Country of origin"
+      category_id == "90" -> "Further financial report"
+      category_id -> "Capital-market information category " <> category_id
+      type_id -> "Capital-market information type " <> type_id
+      true -> "Capital-market information"
+    end
+  end
+
+  defp de_company_register_nested_id(record, key) do
+    case Map.get(record, key) do
+      %{"id" => value} when is_integer(value) or is_binary(value) -> to_string(value)
+      %{id: value} when is_integer(value) or is_binary(value) -> to_string(value)
+      _ -> string_field(record, key <> "Id")
+    end
+  end
+
+  defp parse_de_company_register_date(nil), do: nil
+
+  defp parse_de_company_register_date(value) do
+    with [_, year_text, month_text, day_text] <- Regex.run(~r/^(\d{4})-(\d{2})-(\d{2})$/, value),
+         {year, ""} <- Integer.parse(year_text),
+         {month, ""} <- Integer.parse(month_text),
+         {day, ""} <- Integer.parse(day_text),
+         {:ok, datetime} <- build_utc_datetime(year, month, day, 0, 0, 0) do
+      datetime
+    else
+      _ -> nil
+    end
+  end
+
+  defp parse_blse_multi_issuer_news(raw_payload) do
+    with {:ok, decoded} <- Jason.decode(raw_payload),
+         true <- Map.get(decoded, "strategy") == @blse_strategy,
+         records when is_list(records) <- blse_multi_issuer_news_records(decoded) do
+      items =
+        records
+        |> Enum.flat_map(&parse_blse_issuer_news_response/1)
+        |> Enum.filter(&(&1.url && &1.title))
+
+      {:ok, items}
+    else
+      {:error, error} -> {:error, {:invalid_json, error}}
+      false -> {:error, {:invalid_json_shape, "blse_multi_issuer_news_rss_v1"}}
+      _ -> {:error, {:invalid_json_shape, "blse_multi_issuer_news_rss_v1"}}
+    end
+  end
+
+  defp blse_multi_issuer_news_records(%{"responses" => records}) when is_list(records),
+    do: records
+
+  defp blse_multi_issuer_news_records(_decoded), do: nil
+
+  defp parse_blse_issuer_news_response(
+         %{"code" => code, "issuer" => issuer, "data" => rss} = response
+       )
+       when is_binary(rss) do
+    case parse_rss(rss) do
+      {:ok, records} ->
+        records
+        |> blse_take_kept_records(Map.get(response, "records_kept"))
+        |> Enum.map(&parse_blse_issuer_news_record(&1, code, issuer))
+
+      _error ->
+        []
+    end
+  end
+
+  defp parse_blse_issuer_news_response(_response), do: []
+
+  defp blse_take_kept_records(records, limit) when is_integer(limit) and limit > 0,
+    do: Enum.take(records, limit)
+
+  defp blse_take_kept_records(records, _limit), do: records
+
+  defp parse_blse_issuer_news_record(record, code, issuer) do
+    url = Map.get(record, :url)
+
+    %{
+      record
+      | external_id: join_non_empty(["blse", code, blse_document_id(url)], ":"),
+        summary: blse_issuer_news_summary(record, code, issuer),
+        category: "issuer_news"
+    }
+  end
+
+  defp blse_document_id(url) when is_binary(url) do
+    case Regex.run(~r/[?&]id=(\d+)/i, url, capture: :all_but_first) do
+      [id] -> id
+      _ -> url
+    end
+  end
+
+  defp blse_document_id(_url), do: nil
+
+  defp blse_issuer_news_summary(record, code, issuer) do
+    description =
+      record
+      |> Map.get(:summary)
+      |> blse_clean_summary()
+
+    join_non_empty(
+      [
+        description || "BLSE issuer announcement.",
+        prefixed("Issuer", issuer),
+        prefixed("Code", code)
+      ],
+      " | "
+    )
+  end
+
+  defp blse_clean_summary(nil), do: nil
+
+  defp blse_clean_summary(value) do
+    value
+    |> decode_html_entities()
+    |> String.replace("&rsquo;", "'")
+    |> String.replace("&ldquo;", "\"")
+    |> String.replace("&rdquo;", "\"")
+    |> String.replace("&scaron;", "s")
+    |> String.replace("&Scaron;", "S")
+    |> String.replace(~r/<[^>]+>/, " ")
+    |> String.replace(~r/\s+/u, " ")
+    |> String.trim()
+    |> String.slice(0, 320)
+    |> case do
+      "" -> nil
+      cleaned -> cleaned
+    end
+  end
+
+  defp parse_pse_multi_isin_issuer_news(raw_payload) do
+    with {:ok, decoded} <- Jason.decode(raw_payload),
+         records when is_list(records) <- pse_multi_isin_news_records(decoded) do
+      items =
+        records
+        |> Enum.flat_map(&parse_pse_multi_isin_news_response/1)
+        |> Enum.filter(&(&1.url && &1.title))
+
+      {:ok, items}
+    else
+      {:error, error} -> {:error, {:invalid_json, error}}
+      _ -> {:error, {:invalid_json_shape, "pse_multi_isin_issuer_news_json_v1"}}
+    end
+  end
+
+  defp pse_multi_isin_news_records(%{"responses" => records}) when is_list(records),
+    do: records
+
+  defp pse_multi_isin_news_records(_decoded), do: nil
+
+  defp parse_pse_multi_isin_news_response(%{"isin" => query_isin, "data" => rows})
+       when is_binary(query_isin) and is_list(rows) do
+    rows
+    |> Enum.filter(&pse_news_matches_query_isin?(&1, query_isin))
+    |> Enum.map(&parse_pse_issuer_news_record(&1, query_isin))
+  end
+
+  defp parse_pse_multi_isin_news_response(_response), do: []
+
+  defp parse_pse_issuer_news_record(record, query_isin) when is_map(record) do
+    slug = string_field(record, "slug")
+
+    %{
+      external_id: join_non_empty(["pse-news", query_isin, string_field(record, "id")], ":"),
+      title: string_field(record, "title"),
+      url: pse_issuer_news_url(slug, query_isin),
+      summary: pse_issuer_news_summary(record, query_isin),
+      published_at: pse_issuer_news_datetime(record),
+      category: string_field(record, "type")
+    }
+  end
+
+  defp pse_issuer_news_url(nil, query_isin), do: @pse_detail_base_url <> query_isin
+  defp pse_issuer_news_url(slug, _query_isin), do: @pse_news_base_url <> slug
+
+  defp parse_pse_multi_isin_issuer_report_calendar(raw_payload) do
+    with {:ok, decoded} <- Jason.decode(raw_payload),
+         records when is_list(records) <- pse_multi_isin_calendar_records(decoded) do
+      items =
+        records
+        |> Enum.flat_map(&parse_pse_multi_isin_calendar_response/1)
+        |> Enum.filter(&(&1.url && &1.title && &1.published_at))
+
+      {:ok, items}
+    else
+      {:error, error} -> {:error, {:invalid_json, error}}
+      _ -> {:error, {:invalid_json_shape, "pse_multi_isin_issuer_report_calendar_json_v1"}}
+    end
+  end
+
+  defp pse_multi_isin_calendar_records(%{"responses" => records}) when is_list(records),
+    do: records
+
+  defp pse_multi_isin_calendar_records(_decoded), do: nil
+
+  defp parse_pse_multi_isin_calendar_response(%{"isin" => query_isin, "data" => rows})
+       when is_binary(query_isin) and is_list(rows) do
+    rows
+    |> Enum.filter(&pse_report_calendar_row?(&1, query_isin))
+    |> Enum.map(&parse_pse_report_calendar_record(&1, query_isin))
+  end
+
+  defp parse_pse_multi_isin_calendar_response(_response), do: []
+
+  defp pse_report_calendar_row?(record, query_isin) when is_map(record) do
+    pse_report_calendar_matches_query_isin?(record, query_isin) and
+      not is_nil(string_field(record, "ref")) and
+      not is_nil(parse_pse_report_calendar_date(string_field(record, "date")))
+  end
+
+  defp pse_report_calendar_row?(_record, _query_isin), do: false
+
+  defp pse_report_calendar_matches_query_isin?(record, query_isin) do
+    record
+    |> string_field("instrumentIsin")
+    |> case do
+      nil -> true
+      isin -> normalize_isin(isin) == normalize_isin(query_isin)
+    end
+  end
+
+  defp parse_pse_report_calendar_record(record, query_isin) when is_map(record) do
+    ref = string_field(record, "ref")
+    title = string_field(record, "name")
+
+    %{
+      external_id:
+        join_non_empty(
+          ["pse-report-calendar", query_isin, string_field(record, "id") || ref],
+          ":"
+        ),
+      title: title,
+      url: pse_report_calendar_url(query_isin, ref),
+      summary: pse_report_calendar_summary(record, query_isin),
+      published_at: parse_pse_report_calendar_date(string_field(record, "date")),
+      category: "PSE issuer report"
+    }
+  end
+
+  defp pse_report_calendar_url(_query_isin, nil), do: nil
+
+  defp pse_report_calendar_url(query_isin, ref) do
+    @pse_detail_base_url <> query_isin <> "?do=download&path=" <> ref
+  end
+
+  defp pse_report_calendar_summary(record, query_isin) do
+    join_non_empty(
+      [
+        "Prague Stock Exchange issuer report calendar document",
+        prefixed("Issuer", string_field(record, "instrumentName")),
+        prefixed("ISIN", query_isin),
+        prefixed("Date", string_field(record, "date")),
+        prefixed("Extension", string_field(record, "extension")),
+        prefixed("Size", string_field(record, "sizeFormatted")),
+        prefixed("File", string_field(record, "ref"))
+      ],
+      " | "
+    )
+  end
+
+  defp parse_pse_report_calendar_date(nil), do: nil
+
+  defp parse_pse_report_calendar_date(value) do
+    with [_, day_text, month_text, year_text] <-
+           Regex.run(~r/^(\d{2})\.(\d{2})\.(\d{4})$/, value),
+         {year, ""} <- Integer.parse(year_text),
+         {month, ""} <- Integer.parse(month_text),
+         {day, ""} <- Integer.parse(day_text),
+         {:ok, datetime} <- build_utc_datetime(year, month, day, 0, 0, 0),
+         true <-
+           DateTime.compare(datetime, DateTime.add(DateTime.utc_now(), 86_400, :second)) != :gt do
+      datetime
+    else
+      _ -> nil
+    end
+  end
+
+  defp pse_issuer_news_summary(record, query_isin) do
+    join_non_empty(
+      [
+        "Prague Stock Exchange issuer news",
+        prefixed("ISIN", query_isin),
+        prefixed("Type", string_field(record, "type")),
+        prefixed("Source", string_field(record, "source")),
+        pse_bounded_text(string_field(record, "content"))
+      ],
+      " | "
+    )
+  end
+
+  defp pse_bounded_text(nil), do: nil
+
+  defp pse_bounded_text(value) do
+    value
+    |> clean_html()
+    |> case do
+      nil -> nil
+      cleaned -> String.slice(cleaned, 0, 500)
+    end
+  end
+
+  defp pse_news_matches_query_isin?(record, query_isin) when is_map(record) do
+    query_isin = normalize_isin(query_isin)
+
+    record
+    |> string_field("isin")
+    |> pse_isin_list()
+    |> Enum.member?(query_isin)
+  end
+
+  defp pse_news_matches_query_isin?(_record, _query_isin), do: false
+
+  defp pse_isin_list(nil), do: []
+
+  defp pse_isin_list(value) do
+    value
+    |> String.split(",")
+    |> Enum.map(&normalize_isin/1)
+    |> Enum.reject(&(&1 == ""))
+  end
+
+  defp normalize_isin(value) when is_binary(value) do
+    value
+    |> String.trim()
+    |> String.upcase()
+  end
+
+  defp normalize_isin(_value), do: ""
+
+  defp pse_issuer_news_datetime(record) do
+    record
+    |> string_field("publishedAt")
+    |> parse_pse_news_datetime()
+    |> case do
+      nil -> DateTime.utc_now()
+      datetime -> datetime
+    end
+  end
+
+  defp parse_pse_news_datetime(nil), do: nil
+
+  defp parse_pse_news_datetime(value) do
+    with [_, year_text, month_text, day_text, hour_text, minute_text, second_text] <-
+           Regex.run(
+             ~r/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2}):(\d{2})$/,
+             value
+           ),
+         {year, ""} <- Integer.parse(year_text),
+         {month, ""} <- Integer.parse(month_text),
+         {day, ""} <- Integer.parse(day_text),
+         {hour, ""} <- Integer.parse(hour_text),
+         {minute, ""} <- Integer.parse(minute_text),
+         {second, ""} <- Integer.parse(second_text),
+         {:ok, datetime} <- build_utc_datetime(year, month, day, hour, minute, second) do
+      pse_apply_prague_zone(datetime)
+    else
+      _ -> parse_iso8601_datetime(value)
+    end
+  end
+
+  defp pse_apply_prague_zone(%DateTime{month: month} = datetime) when month in 4..10,
+    do: DateTime.add(datetime, -7_200, :second)
+
+  defp pse_apply_prague_zone(datetime), do: DateTime.add(datetime, -3_600, :second)
+
+  defp oekb_oam_datetime(record) do
+    record
+    |> Map.get("uploadzeitpunkt")
+    |> oekb_oam_unix_ms_datetime()
+    |> case do
+      %DateTime{} = datetime -> datetime
+      nil -> DateTime.utc_now()
+    end
+  end
+
+  defp oekb_oam_unix_ms_datetime(value) when is_integer(value) do
+    case DateTime.from_unix(value, :millisecond) do
+      {:ok, datetime} ->
+        if DateTime.compare(datetime, DateTime.add(DateTime.utc_now(), 86_400, :second)) == :gt do
+          nil
+        else
+          datetime
+        end
+
+      _ ->
+        nil
+    end
+  end
+
+  defp oekb_oam_unix_ms_datetime(value) when is_binary(value) do
+    case Integer.parse(value) do
+      {parsed, ""} -> oekb_oam_unix_ms_datetime(parsed)
+      _ -> nil
+    end
+  end
+
+  defp oekb_oam_unix_ms_datetime(_value), do: nil
+
+  defp parse_nasdaq_nordic_cns(raw_payload) do
+    with {:ok, decoded} <- decode_json_or_jsonp(raw_payload),
+         records when is_list(records) <- nasdaq_nordic_cns_records(decoded) do
+      items =
+        records
+        |> Enum.map(&parse_nasdaq_nordic_cns_record/1)
+        |> Enum.filter(&(&1.url && &1.title))
+
+      {:ok, items}
+    else
+      {:error, error} -> {:error, {:invalid_jsonp, error}}
+      _ -> {:error, {:invalid_json_shape, "nasdaq_nordic_cns_jsonp_v1"}}
+    end
+  end
+
+  defp decode_json_or_jsonp(raw_payload) do
+    raw_payload
+    |> String.trim()
+    |> case do
+      "" ->
+        {:error, :empty_payload}
+
+      payload ->
+        json =
+          case Regex.run(~r/^\s*[A-Za-z_$][\w.$]*\((.*)\)\s*;?\s*$/s, payload) do
+            [_, wrapped_json] -> wrapped_json
+            _no_callback -> payload
+          end
+
+        Jason.decode(json)
+    end
+  end
+
+  defp nasdaq_nordic_cns_records(%{"results" => %{"item" => records}})
+       when is_list(records),
+       do: records
+
+  defp nasdaq_nordic_cns_records(%{"results" => %{"item" => record}})
+       when is_map(record),
+       do: [record]
+
+  defp nasdaq_nordic_cns_records(_decoded), do: nil
+
+  defp parse_nasdaq_nordic_cns_record(record) when is_map(record) do
+    company = string_field(record, "company")
+    headline = string_field(record, "headline")
+    category = string_field(record, "cnsCategory")
+    market = string_field(record, "market")
+    language = string_field(record, "language")
+
+    %{
+      external_id: string_field(record, "disclosureId") || string_field(record, "messageUrl"),
+      title: nasdaq_nordic_cns_title(company, headline),
+      url: string_field(record, "messageUrl"),
+      summary:
+        join_non_empty(
+          [
+            "Nasdaq Nordic company news",
+            prefixed("Category", category),
+            prefixed("Market", market),
+            prefixed("Language", language),
+            prefixed("Attachments", nasdaq_nordic_attachment_count(record))
+          ],
+          " | "
+        ),
+      published_at:
+        parse_nasdaq_nordic_cns_datetime(
+          string_field(record, "published") || string_field(record, "releaseTime")
+        ),
+      category: category
+    }
+  end
+
+  defp parse_nasdaq_nordic_cns_record(_record) do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: DateTime.utc_now(),
+      category: nil
+    }
+  end
+
+  defp nasdaq_nordic_cns_title(company, headline)
+       when is_binary(company) and is_binary(headline) do
+    if String.contains?(String.downcase(headline), String.downcase(company)) do
+      headline
+    else
+      join_non_empty([company, headline], " - ")
+    end
+  end
+
+  defp nasdaq_nordic_cns_title(company, headline), do: join_non_empty([company, headline], " - ")
+
+  defp nasdaq_nordic_attachment_count(%{"attachment" => attachments}) when is_list(attachments),
+    do: Integer.to_string(length(attachments))
+
+  defp nasdaq_nordic_attachment_count(_record), do: nil
+
+  defp parse_nasdaq_nordic_cns_datetime(nil), do: DateTime.utc_now()
+
+  defp parse_nasdaq_nordic_cns_datetime(value) do
+    with [_, year_text, month_text, day_text, hour_text, minute_text, second_text] <-
+           Regex.run(
+             ~r/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/,
+             value
+           ),
+         {year, ""} <- Integer.parse(year_text),
+         {month, ""} <- Integer.parse(month_text),
+         {day, ""} <- Integer.parse(day_text),
+         {hour, ""} <- Integer.parse(hour_text),
+         {minute, ""} <- Integer.parse(minute_text),
+         {second, ""} <- Integer.parse(second_text),
+         {:ok, datetime} <- build_utc_datetime(year, month, day, hour, minute, second) do
+      datetime
+    else
+      _ -> DateTime.utc_now()
+    end
+  end
+
+  defp parse_oslo_newsweb(raw_payload) do
+    with {:ok, decoded} <- Jason.decode(raw_payload),
+         records when is_list(records) <- oslo_newsweb_records(decoded) do
+      items =
+        records
+        |> Enum.map(&parse_oslo_newsweb_record/1)
+        |> Enum.filter(&(&1.url && &1.title))
+
+      {:ok, items}
+    else
+      {:error, error} -> {:error, {:invalid_json, error}}
+      _ -> {:error, {:invalid_json_shape, "oslo_newsweb_json_v1"}}
+    end
+  end
+
+  defp oslo_newsweb_records(%{"data" => %{"messages" => records}}) when is_list(records),
+    do: records
+
+  defp oslo_newsweb_records(_decoded), do: nil
+
+  defp parse_oslo_newsweb_record(record) when is_map(record) do
+    issuer = string_field(record, "issuerName")
+    title = string_field(record, "title")
+    category = oslo_newsweb_category(record)
+    markets = oslo_newsweb_markets(record)
+
+    %{
+      external_id:
+        string_field(record, "clientAnnouncementId") || string_field(record, "messageId"),
+      title: oslo_newsweb_title(issuer, title),
+      url: oslo_newsweb_url(record),
+      summary:
+        join_non_empty(
+          [
+            "Oslo Bors NewsWeb issuer announcement",
+            prefixed("Issuer", issuer),
+            prefixed("Ticker", string_field(record, "issuerSign")),
+            prefixed("Market", markets),
+            prefixed("Category", category),
+            prefixed("Attachments", string_field(record, "numbAttachments"))
+          ],
+          " | "
+        ),
+      published_at:
+        parse_iso8601_datetime(string_field(record, "publishedTime")) || DateTime.utc_now(),
+      category: category
+    }
+  end
+
+  defp parse_oslo_newsweb_record(_record) do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: DateTime.utc_now(),
+      category: nil
+    }
+  end
+
+  defp oslo_newsweb_title(issuer, title) when is_binary(issuer) and is_binary(title) do
+    if String.contains?(String.downcase(title), String.downcase(issuer)) do
+      title
+    else
+      join_non_empty([issuer, title], " - ")
+    end
+  end
+
+  defp oslo_newsweb_title(issuer, title), do: join_non_empty([issuer, title], " - ")
+
+  defp oslo_newsweb_url(record) do
+    case string_field(record, "messageId") do
+      nil -> nil
+      message_id -> @oslo_newsweb_message_url <> message_id
+    end
+  end
+
+  defp oslo_newsweb_category(%{"category" => [first | _rest]}) when is_map(first) do
+    string_field(first, "category_en") || string_field(first, "category_no")
+  end
+
+  defp oslo_newsweb_category(%{"category" => first}) when is_map(first) do
+    string_field(first, "category_en") || string_field(first, "category_no")
+  end
+
+  defp oslo_newsweb_category(_record), do: nil
+
+  defp oslo_newsweb_markets(%{"markets" => markets}) when is_list(markets) do
+    markets
+    |> Enum.map(&to_string/1)
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.join(", ")
+    |> case do
+      "" -> nil
+      value -> value
+    end
+  end
+
+  defp oslo_newsweb_markets(_record), do: nil
+
+  defp parse_gpw_espi_ebi(raw_payload) do
+    items =
+      Regex.scan(
+        ~r/<li[^>]*>\s*<span class="date">(.*?)<\/span>(.*?)<\/li>/s,
+        raw_payload
+      )
+      |> Enum.map(&parse_gpw_espi_ebi_row/1)
+      |> Enum.filter(&(&1.url && &1.title))
+
+    {:ok, items}
+  end
+
+  defp parse_gpw_espi_ebi_row([_row, metadata_text, row_html]) do
+    href =
+      row_html
+      |> regex_capture_raw(~r/<a\s+href="([^"]*espi-ebi-report\?geru_id=[^"]+)"/s)
+      |> gpw_espi_ebi_url()
+
+    company =
+      regex_capture(
+        row_html,
+        ~r/<strong class="name">\s*<a[^>]*>\s*(.*?)\s*<\/a>\s*<\/strong>/s
+      )
+
+    report_title = regex_capture(row_html, ~r/<p[^>]*>\s*(.*?)\s*<\/p>/s)
+    metadata = gpw_espi_ebi_metadata(metadata_text)
+
+    %{
+      external_id: gpw_espi_ebi_external_id(href),
+      title: gpw_espi_ebi_title(company, report_title),
+      url: href,
+      summary: gpw_espi_ebi_summary(metadata),
+      published_at: gpw_espi_ebi_datetime(metadata["published_at"]),
+      category: gpw_espi_ebi_category(metadata)
+    }
+  end
+
+  defp parse_gpw_espi_ebi_row(_row), do: empty_gpw_espi_ebi_record()
+
+  defp empty_gpw_espi_ebi_record do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: DateTime.utc_now(),
+      category: nil
+    }
+  end
+
+  defp gpw_espi_ebi_metadata(nil), do: %{}
+
+  defp gpw_espi_ebi_metadata(value) do
+    parts =
+      value
+      |> clean_html()
+      |> case do
+        nil -> []
+        cleaned -> String.split(cleaned, "|", trim: true)
+      end
+      |> Enum.map(&String.trim/1)
+
+    %{
+      "published_at" => Enum.at(parts, 0),
+      "status" => Enum.at(parts, 1),
+      "system" => Enum.at(parts, 2),
+      "report_number" => Enum.at(parts, 3)
+    }
+  end
+
+  defp gpw_espi_ebi_title(nil, nil), do: nil
+  defp gpw_espi_ebi_title(company, nil), do: company
+  defp gpw_espi_ebi_title(nil, report_title), do: report_title
+  defp gpw_espi_ebi_title(company, report_title), do: company <> " - " <> report_title
+
+  defp gpw_espi_ebi_summary(metadata) do
+    join_non_empty(
+      [
+        "GPW ESPI/EBI company report",
+        prefixed("Status", metadata["status"]),
+        prefixed("System", metadata["system"]),
+        prefixed("Report", metadata["report_number"])
+      ],
+      " | "
+    )
+  end
+
+  defp gpw_espi_ebi_category(metadata) do
+    join_non_empty([metadata["system"], metadata["status"]], " ")
+  end
+
+  defp gpw_espi_ebi_external_id(nil), do: nil
+
+  defp gpw_espi_ebi_external_id(url) do
+    url
+    |> decode_html_entities()
+    |> URI.parse()
+    |> Map.get(:query)
+    |> case do
+      query when is_binary(query) -> URI.decode_query(query)
+      _query -> %{}
+    end
+    |> Map.get("geru_id")
+  end
+
+  defp gpw_espi_ebi_url(nil), do: nil
+
+  defp gpw_espi_ebi_url(raw_url) do
+    url = decode_html_entities(raw_url)
+
+    cond do
+      String.starts_with?(url, "http") ->
+        url
+
+      String.starts_with?(url, "/") ->
+        String.trim_trailing(@gpw_espi_ebi_report_base_url, "/") <> url
+
+      true ->
+        @gpw_espi_ebi_report_base_url <> url
+    end
+  end
+
+  defp gpw_espi_ebi_datetime(nil), do: DateTime.utc_now()
+
+  defp gpw_espi_ebi_datetime(value) do
+    with [_, day_text, month_text, year_text, hour_text, minute_text, second_text] <-
+           Regex.run(~r/^(\d{2})-(\d{2})-(\d{4}) (\d{2}):(\d{2}):(\d{2})$/, value),
+         {day, ""} <- Integer.parse(day_text),
+         {month, ""} <- Integer.parse(month_text),
+         {year, ""} <- Integer.parse(year_text),
+         {hour, ""} <- Integer.parse(hour_text),
+         {minute, ""} <- Integer.parse(minute_text),
+         {second, ""} <- Integer.parse(second_text),
+         {:ok, datetime} <- build_utc_datetime(year, month, day, hour, minute, second) do
+      gpw_apply_warsaw_zone(datetime)
+    else
+      _ -> DateTime.utc_now()
+    end
+  end
+
+  defp gpw_apply_warsaw_zone(%DateTime{month: month} = datetime) when month in 4..10,
+    do: DateTime.add(datetime, -7_200, :second)
+
+  defp gpw_apply_warsaw_zone(datetime), do: DateTime.add(datetime, -3_600, :second)
+
+  defp parse_bse_issuers_news(raw_payload) do
+    items =
+      Regex.scan(
+        ~r/<a href="([^"]*\/site\/newkib\/[^"]+)">(.*?)<\/a>/s,
+        raw_payload
+      )
+      |> Enum.map(&parse_bse_issuers_news_row/1)
+      |> Enum.filter(&(&1.url && &1.title))
+
+    {:ok, items}
+  end
+
+  defp parse_bse_issuers_news_row([_row, href, row_html]) do
+    issuer = regex_capture(row_html, ~r/<h2 class="issuer">\s*(.*?)\s*<\/h2>/s)
+    title = regex_capture(row_html, ~r/<div class="title">\s*(.*?)\s*<\/div>/s)
+
+    published_at_text =
+      regex_capture(row_html, ~r/<span class="list-date list-attribute">\s*(.*?)\s*<\/span>/s)
+
+    url = bse_issuers_news_url(href)
+
+    %{
+      external_id: bse_issuers_news_external_id(url),
+      title: bse_issuers_news_title(issuer, title),
+      url: url,
+      summary:
+        join_non_empty(
+          [
+            "Budapest Stock Exchange issuer news",
+            prefixed("Issuer", issuer)
+          ],
+          " | "
+        ),
+      published_at: parse_bse_issuers_news_datetime(published_at_text),
+      category: "Issuer news"
+    }
+  end
+
+  defp parse_bse_issuers_news_row(_row), do: empty_bse_issuers_news_record()
+
+  defp empty_bse_issuers_news_record do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: DateTime.utc_now(),
+      category: nil
+    }
+  end
+
+  defp bse_issuers_news_title(nil, nil), do: nil
+  defp bse_issuers_news_title(issuer, nil), do: issuer
+  defp bse_issuers_news_title(nil, title), do: title
+
+  defp bse_issuers_news_title(issuer, title) do
+    normalized_title = String.downcase(title)
+    normalized_issuer = String.downcase(issuer)
+
+    if normalized_title == normalized_issuer or
+         String.starts_with?(normalized_title, normalized_issuer <> " - ") do
+      title
+    else
+      issuer <> " - " <> title
+    end
+  end
+
+  defp bse_issuers_news_url(nil), do: nil
+
+  defp bse_issuers_news_url(raw_url) do
+    url = decode_html_entities(raw_url)
+
+    cond do
+      String.starts_with?(url, "http") -> url
+      String.starts_with?(url, "/") -> "https://www.bse.hu" <> url
+      true -> @bse_issuers_news_url
+    end
+  end
+
+  defp bse_issuers_news_external_id(nil), do: nil
+
+  defp bse_issuers_news_external_id(url) do
+    url
+    |> String.split("/")
+    |> List.last()
+    |> case do
+      nil -> nil
+      slug -> regex_capture(slug, ~r/_(\d+)$/) || slug
+    end
+  end
+
+  defp parse_bse_issuers_news_datetime(nil), do: DateTime.utc_now()
+
+  defp parse_bse_issuers_news_datetime(value) do
+    with [_, day_text, month_text, year_text, hour_text, minute_text] <-
+           Regex.run(~r/^(\d{2}) ([A-Za-z]+) (\d{4})\. (\d{2}):(\d{2})$/, value),
+         {day, ""} <- Integer.parse(day_text),
+         {:ok, month} <- xetra_month(month_text),
+         {year, ""} <- Integer.parse(year_text),
+         {hour, ""} <- Integer.parse(hour_text),
+         {minute, ""} <- Integer.parse(minute_text),
+         {:ok, datetime} <- build_utc_datetime(year, month, day, hour, minute, 0) do
+      bse_apply_budapest_zone(datetime)
+    else
+      _ -> DateTime.utc_now()
+    end
+  end
+
+  defp bse_apply_budapest_zone(%DateTime{month: month} = datetime) when month in 4..10,
+    do: DateTime.add(datetime, -7_200, :second)
+
+  defp bse_apply_budapest_zone(datetime), do: DateTime.add(datetime, -3_600, :second)
+
+  defp parse_bvb_current_reports(raw_payload) do
+    items =
+      Regex.scan(~r/<tr[^>]*>(.*?)<\/tr>/s, raw_payload)
+      |> Enum.map(&parse_bvb_current_report_row/1)
+      |> Enum.filter(&(&1.url && &1.title))
+
+    {:ok, items}
+  end
+
+  defp parse_bvb_current_report_row([_row, row_html]) do
+    cells =
+      Regex.scan(~r/<td[^>]*>(.*?)<\/td>/s, row_html)
+      |> Enum.map(fn [_cell, value] -> value end)
+
+    symbol = bvb_clean(Enum.at(cells, 6)) || bvb_symbol_from_visible_cell(Enum.at(cells, 0))
+    isin = bvb_clean(Enum.at(cells, 7))
+    company = bvb_clean(Enum.at(cells, 1))
+    description = bvb_current_report_description(row_html, Enum.at(cells, 8), Enum.at(cells, 2))
+    published_at_text = bvb_clean(Enum.at(cells, 3))
+    category = bvb_clean(Enum.at(cells, 4))
+    url = bvb_current_report_primary_url(row_html)
+
+    %{
+      external_id: bvb_current_report_external_id(url),
+      title: bvb_current_report_title(company, description),
+      url: url,
+      summary:
+        join_non_empty(
+          [
+            "Bucharest Stock Exchange current report",
+            prefixed("Issuer", company),
+            prefixed("Symbol", symbol),
+            prefixed("ISIN", isin),
+            prefixed("Document type", category)
+          ],
+          " | "
+        ),
+      published_at: parse_bvb_current_report_datetime(published_at_text),
+      category: category
+    }
+  end
+
+  defp parse_bvb_current_report_row(_row), do: empty_bvb_current_report_record()
+
+  defp empty_bvb_current_report_record do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: DateTime.utc_now(),
+      category: nil
+    }
+  end
+
+  defp bvb_clean(nil), do: nil
+  defp bvb_clean(value), do: clean_html(value)
+
+  defp bvb_symbol_from_visible_cell(nil), do: nil
+
+  defp bvb_symbol_from_visible_cell(cell_html) do
+    regex_capture(cell_html, ~r/<b>\s*(.*?)\s*<\/b>/s) || clean_html(cell_html)
+  end
+
+  defp bvb_current_report_description(row_html, hidden_description, visible_description) do
+    row_html
+    |> regex_capture_raw(~r/<input[^>]+value="([^"]+)"/s)
+    |> decode_bvb_attr()
+    |> case do
+      nil -> bvb_clean(hidden_description) || bvb_clean(visible_description)
+      value -> value
+    end
+  end
+
+  defp decode_bvb_attr(nil), do: nil
+
+  defp decode_bvb_attr(value) do
+    value
+    |> decode_html_entities()
+    |> String.replace(~r/\s+/u, " ")
+    |> String.trim()
+    |> case do
+      "" -> nil
+      decoded -> decoded
+    end
+  end
+
+  defp bvb_current_report_title(nil, nil), do: nil
+  defp bvb_current_report_title(company, nil), do: company
+  defp bvb_current_report_title(nil, description), do: description
+
+  defp bvb_current_report_title(company, description) do
+    if String.contains?(String.downcase(description), String.downcase(company)) do
+      description
+    else
+      company <> " - " <> description
+    end
+  end
+
+  defp bvb_current_report_primary_url(row_html) do
+    row_html
+    |> regex_capture_raw(
+      ~r/(https:\/\/bvb\.ro\/FinancialInstruments\/SelectedData\/NewsItem\/[^<;\s]+)/s
+    )
+    |> case do
+      nil ->
+        row_html
+        |> regex_capture_raw(
+          ~r/href=['"]([^'"]*\/FinancialInstruments\/SelectedData\/NewsItem\/[^'"]+)['"]/s
+        )
+        |> bvb_current_report_url()
+
+      url ->
+        bvb_current_report_url(url)
+    end
+    |> case do
+      nil ->
+        row_html
+        |> regex_capture_raw(~r/href=['"]([^'"]*(?:\/infocont\/|\/info\/Raportari\/)[^'"]+)['"]/s)
+        |> bvb_current_report_url()
+
+      url ->
+        url
+    end
+  end
+
+  defp bvb_current_report_url(nil), do: nil
+
+  defp bvb_current_report_url(raw_url) do
+    url = decode_html_entities(raw_url)
+
+    cond do
+      String.starts_with?(url, "http") -> url
+      String.starts_with?(url, "/") -> "https://bvb.ro" <> url
+      true -> @bvb_current_reports_url
+    end
+  end
+
+  defp bvb_current_report_external_id(nil), do: nil
+
+  defp bvb_current_report_external_id(url) do
+    url
+    |> URI.parse()
+    |> Map.get(:path)
+    |> case do
+      nil -> nil
+      path -> List.last(String.split(path, "/", trim: true))
+    end
+  end
+
+  defp parse_bvb_current_report_datetime(nil), do: DateTime.utc_now()
+
+  defp parse_bvb_current_report_datetime(value) do
+    with [_, day_text, month_text, year_text, hour_text, minute_text] <-
+           Regex.run(~r/^(\d{2})\.(\d{2})\.(\d{4}) (\d{2}):(\d{2})$/, value),
+         {day, ""} <- Integer.parse(day_text),
+         {month, ""} <- Integer.parse(month_text),
+         {year, ""} <- Integer.parse(year_text),
+         {hour, ""} <- Integer.parse(hour_text),
+         {minute, ""} <- Integer.parse(minute_text),
+         {:ok, datetime} <- build_utc_datetime(year, month, day, hour, minute, 0) do
+      bvb_apply_bucharest_zone(datetime)
+    else
+      _ -> DateTime.utc_now()
+    end
+  end
+
+  defp bvb_apply_bucharest_zone(%DateTime{month: month} = datetime) when month in 4..10,
+    do: DateTime.add(datetime, -10_800, :second)
+
+  defp bvb_apply_bucharest_zone(datetime), do: DateTime.add(datetime, -7_200, :second)
+
+  defp parse_ceri_regulated_information(raw_payload) do
+    items =
+      Regex.scan(
+        ~r/<tr class="(?:even|odd)">\s*<td rowspan="2"[^>]*>\s*<span class="ceridoc" id="img([^"]+)"[^>]*>.*?<\/span>\s*<\/td>\s*<td>(.*?)<\/td>\s*<td[^>]*title="([^"]*)"[^>]*>(.*?)<\/td>\s*<td[^>]*title="([^"]*)"[^>]*>(.*?)<\/td>\s*<td>(\d{2}\.\d{2}\.\d{4}\s+\d{2}:\d{2})<\/td>\s*<\/tr>\s*<tr class="(?:even|odd)">\s*<td colspan="4">\s*<span class="ceridoc" id="tit([^"]+)"[^>]*>(.*?)<\/span>\s*<\/td>\s*<\/tr>/s,
+        raw_payload
+      )
+      |> Enum.map(&parse_ceri_regulated_information_row/1)
+      |> Enum.filter(&(&1.url && &1.title))
+
+    {:ok, items}
+  end
+
+  defp parse_ceri_regulated_information_row([
+         _row,
+         file_id,
+         issuer,
+         mark_title,
+         mark,
+         category_title,
+         category,
+         published_at_text,
+         _title_file_id,
+         document_title
+       ]) do
+    issuer = clean_html(issuer)
+    document_title = clean_html(document_title)
+    category = clean_html(category)
+    regulated? = ceri_regulated_information?(mark_title, mark, category_title)
+    url = ceri_document_url(file_id)
+
+    %{
+      external_id: ceri_document_id(file_id),
+      title: ceri_title(issuer, document_title),
+      url: url,
+      summary:
+        join_non_empty(
+          [
+            "Slovakia CERI regulated information",
+            prefixed("Issuer", issuer),
+            prefixed("Document type", category),
+            if(regulated?, do: "Regulated information", else: nil)
+          ],
+          " | "
+        ),
+      published_at: parse_ceri_datetime(published_at_text),
+      category: category
+    }
+  end
+
+  defp parse_ceri_regulated_information_row(_row), do: empty_ceri_regulated_information_record()
+
+  defp empty_ceri_regulated_information_record do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: DateTime.utc_now(),
+      category: nil
+    }
+  end
+
+  defp ceri_regulated_information?(mark_title, mark, category_title) do
+    [mark_title, mark, category_title]
+    |> Enum.map(&(clean_html(&1) || ""))
+    |> Enum.any?(fn value ->
+      String.contains?(value, "Regulovan")
+    end)
+  end
+
+  defp ceri_title(nil, nil), do: nil
+  defp ceri_title(issuer, nil), do: issuer
+  defp ceri_title(nil, document_title), do: document_title
+  defp ceri_title(issuer, document_title), do: issuer <> " - " <> document_title
+
+  defp ceri_document_id(nil), do: nil
+
+  defp ceri_document_id(file_id) do
+    file_id
+    |> decode_html_entities()
+    |> String.replace_prefix("img", "")
+    |> String.replace_prefix("tit", "")
+  end
+
+  defp ceri_document_url(nil), do: nil
+
+  defp ceri_document_url(file_id) do
+    document_id = ceri_document_id(file_id)
+
+    case document_id do
+      nil ->
+        nil
+
+      <<prefix::binary-size(5), _rest::binary>> ->
+        @ceri_document_base_url <> prefix <> "/" <> document_id
+
+      _document_id ->
+        @ceri_search_url
+    end
+  end
+
+  defp parse_ceri_datetime(nil), do: DateTime.utc_now()
+
+  defp parse_ceri_datetime(value) do
+    with [_, day_text, month_text, year_text, hour_text, minute_text] <-
+           Regex.run(~r/^(\d{2})\.(\d{2})\.(\d{4})\s+(\d{2}):(\d{2})$/, value),
+         {day, ""} <- Integer.parse(day_text),
+         {month, ""} <- Integer.parse(month_text),
+         {year, ""} <- Integer.parse(year_text),
+         {hour, ""} <- Integer.parse(hour_text),
+         {minute, ""} <- Integer.parse(minute_text),
+         {:ok, datetime} <- build_utc_datetime(year, month, day, hour, minute, 0) do
+      ceri_apply_slovakia_zone(datetime)
+    else
+      _ -> DateTime.utc_now()
+    end
+  end
+
+  defp ceri_apply_slovakia_zone(%DateTime{month: month} = datetime) when month in 4..10,
+    do: DateTime.add(datetime, -7_200, :second)
+
+  defp ceri_apply_slovakia_zone(datetime), do: DateTime.add(datetime, -3_600, :second)
+
+  defp parse_ee_oam_market_announcements(raw_payload) do
+    items =
+      Regex.scan(
+        ~r/<tr class="(?:even|odd)">\s*<td><span class="text-nowrap">(\d{2}\.\d{2}\.\d{4}\s+\d{2}:\d{2}:\d{2})<\/span><\/td>\s*<td>(.*?)<\/td>\s*<td>(.*?)<\/td>\s*<td>(.*?)<\/td>\s*<td>.*?<\/td>\s*<td><a href="([^"]*\/en\/borsiteated\/\d+)">View<\/a><\/td>\s*<\/tr>/s,
+        raw_payload
+      )
+      |> Enum.map(&parse_ee_oam_market_announcement_row/1)
+      |> Enum.filter(&(&1.url && &1.title))
+
+    {:ok, items}
+  end
+
+  defp parse_ee_oam_market_announcement_row([
+         _row,
+         published_at_text,
+         issuer,
+         category,
+         title,
+         href
+       ]) do
+    issuer = clean_html(issuer)
+    category = clean_html(category)
+    title = clean_html(title)
+    url = ee_oam_market_announcement_url(href)
+
+    %{
+      external_id: ee_oam_market_announcement_external_id(url),
+      title: ee_oam_market_announcement_title(issuer, title),
+      url: url,
+      summary:
+        join_non_empty(
+          [
+            "Estonia OAM market announcement",
+            prefixed("Issuer", issuer),
+            prefixed("Document type", category)
+          ],
+          " | "
+        ),
+      published_at: parse_ee_oam_datetime(published_at_text),
+      category: category
+    }
+  end
+
+  defp parse_ee_oam_market_announcement_row(_row), do: empty_ee_oam_market_announcement()
+
+  defp empty_ee_oam_market_announcement do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: DateTime.utc_now(),
+      category: nil
+    }
+  end
+
+  defp ee_oam_market_announcement_title(nil, nil), do: nil
+  defp ee_oam_market_announcement_title(issuer, nil), do: issuer
+  defp ee_oam_market_announcement_title(nil, title), do: title
+  defp ee_oam_market_announcement_title(issuer, title), do: issuer <> " - " <> title
+
+  defp ee_oam_market_announcement_url(nil), do: nil
+
+  defp ee_oam_market_announcement_url(raw_url) do
+    url = decode_html_entities(raw_url)
+
+    cond do
+      String.starts_with?(url, "http") -> url
+      String.starts_with?(url, "/") -> @ee_oam_base_url <> url
+      true -> @ee_oam_base_url <> "/" <> url
+    end
+  end
+
+  defp ee_oam_market_announcement_external_id(nil), do: nil
+
+  defp ee_oam_market_announcement_external_id(url) do
+    url
+    |> URI.parse()
+    |> Map.get(:path)
+    |> case do
+      nil -> nil
+      path -> List.last(String.split(path, "/", trim: true))
+    end
+  end
+
+  defp parse_ee_oam_datetime(nil), do: DateTime.utc_now()
+
+  defp parse_ee_oam_datetime(value) do
+    with [_, day_text, month_text, year_text, hour_text, minute_text, second_text] <-
+           Regex.run(~r/^(\d{2})\.(\d{2})\.(\d{4})\s+(\d{2}):(\d{2}):(\d{2})$/, value),
+         {day, ""} <- Integer.parse(day_text),
+         {month, ""} <- Integer.parse(month_text),
+         {year, ""} <- Integer.parse(year_text),
+         {hour, ""} <- Integer.parse(hour_text),
+         {minute, ""} <- Integer.parse(minute_text),
+         {second, ""} <- Integer.parse(second_text),
+         {:ok, datetime} <- build_utc_datetime(year, month, day, hour, minute, second) do
+      ee_oam_apply_estonia_zone(datetime)
+    else
+      _ -> DateTime.utc_now()
+    end
+  end
+
+  defp ee_oam_apply_estonia_zone(%DateTime{month: month} = datetime) when month in 4..10,
+    do: DateTime.add(datetime, -10_800, :second)
+
+  defp ee_oam_apply_estonia_zone(datetime), do: DateTime.add(datetime, -7_200, :second)
+
+  defp parse_lt_oam_regulated_information(raw_payload) do
+    items =
+      Regex.scan(
+        ~r/<nef-table-row class="message-row">\s*<nef-table-cell class="table-published">.*?<span class="table-content"[^>]*>(.*?)<\/span>.*?<\/nef-table-cell>\s*<nef-table-cell class="table-company">.*?<span\s+class="table-content">(.*?)<\/span>.*?<\/nef-table-cell>\s*<nef-table-cell class="table-headline">.*?<nef-link href="([^"]+)"[^>]*>.*?<span class="table-link">(.*?)<\/span>.*?<\/nef-table-cell>\s*<nef-table-cell class="table-category">.*?<span class="table-content">(.*?)<\/span>.*?<\/nef-table-cell>\s*<\/nef-table-row>/s,
+        raw_payload
+      )
+      |> Enum.map(&parse_lt_oam_regulated_information_row/1)
+      |> Enum.filter(&(&1.url && &1.title))
+
+    {:ok, items}
+  end
+
+  defp parse_lt_oam_regulated_information_row([
+         _row,
+         published_at_text,
+         issuer,
+         href,
+         headline,
+         category
+       ]) do
+    issuer = clean_html(issuer)
+    headline = clean_html(headline)
+    category = clean_html(category)
+    url = lt_oam_regulated_information_url(href)
+
+    %{
+      external_id: lt_oam_regulated_information_external_id(url),
+      title: lt_oam_regulated_information_title(issuer, headline),
+      url: url,
+      summary:
+        join_non_empty(
+          [
+            "Lithuania OAM regulated information",
+            prefixed("Issuer", issuer),
+            prefixed("Message category", category)
+          ],
+          " | "
+        ),
+      published_at: parse_lt_oam_datetime(clean_html(published_at_text)),
+      category: category
+    }
+  end
+
+  defp parse_lt_oam_regulated_information_row(_row), do: empty_lt_oam_regulated_information()
+
+  defp empty_lt_oam_regulated_information do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: DateTime.utc_now(),
+      category: nil
+    }
+  end
+
+  defp lt_oam_regulated_information_title(nil, nil), do: nil
+  defp lt_oam_regulated_information_title(issuer, nil), do: issuer
+  defp lt_oam_regulated_information_title(nil, headline), do: headline
+  defp lt_oam_regulated_information_title(issuer, headline), do: issuer <> " - " <> headline
+
+  defp lt_oam_regulated_information_url(nil), do: nil
+
+  defp lt_oam_regulated_information_url(raw_url) do
+    url = decode_html_entities(raw_url)
+
+    cond do
+      String.starts_with?(url, "http") -> url
+      String.starts_with?(url, "/") -> @lt_oam_base_url <> url
+      true -> @lt_oam_base_url <> "/" <> url
+    end
+  end
+
+  defp lt_oam_regulated_information_external_id(nil), do: nil
+
+  defp lt_oam_regulated_information_external_id(url) do
+    url
+    |> URI.parse()
+    |> Map.get(:path)
+    |> case do
+      nil -> nil
+      path -> List.last(String.split(path, "/", trim: true))
+    end
+  end
+
+  defp parse_lt_oam_datetime(nil), do: DateTime.utc_now()
+
+  defp parse_lt_oam_datetime(value) do
+    with [_, year_text, month_text, day_text, hour_text, minute_text, second_text] <-
+           Regex.run(
+             ~r/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2}):(\d{2})(?:\s+[A-Z]+)?$/,
+             value
+           ),
+         {day, ""} <- Integer.parse(day_text),
+         {month, ""} <- Integer.parse(month_text),
+         {year, ""} <- Integer.parse(year_text),
+         {hour, ""} <- Integer.parse(hour_text),
+         {minute, ""} <- Integer.parse(minute_text),
+         {second, ""} <- Integer.parse(second_text),
+         {:ok, datetime} <- build_utc_datetime(year, month, day, hour, minute, second) do
+      lt_oam_apply_lithuania_zone(datetime)
+    else
+      _ -> DateTime.utc_now()
+    end
+  end
+
+  defp lt_oam_apply_lithuania_zone(%DateTime{month: month} = datetime) when month in 4..10,
+    do: DateTime.add(datetime, -10_800, :second)
+
+  defp lt_oam_apply_lithuania_zone(datetime), do: DateTime.add(datetime, -7_200, :second)
+
+  defp parse_lv_csri_regulated_information(raw_payload) do
+    items =
+      Regex.scan(
+        ~r/<tr>\s*<td>\s*(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\s*<\/td>\s*<td>\s*<a href="[^"]*">\s*(.*?)\s*<\/a>\s*<\/td>\s*<td>\s*(.*?)\s*<\/td>\s*<td>\s*(.*?)\s*<\/td>\s*<td>\s*<a href="([^"]+)">\s*(.*?)\s*<\/a>\s*<\/td>\s*<\/tr>/s,
+        raw_payload
+      )
+      |> Enum.map(&parse_lv_csri_regulated_information_row/1)
+      |> Enum.filter(&(&1.url && &1.title))
+
+    {:ok, items}
+  end
+
+  defp parse_lv_csri_regulated_information_row([
+         _row,
+         published_at_text,
+         issuer,
+         version,
+         language,
+         href,
+         title
+       ]) do
+    issuer = clean_html(issuer)
+    version = clean_html(version)
+    language = clean_html(language)
+    title = clean_html(title)
+    url = lv_csri_regulated_information_url(href)
+
+    %{
+      external_id: lv_csri_regulated_information_external_id(url),
+      title: lv_csri_regulated_information_title(issuer, title),
+      url: url,
+      summary:
+        join_non_empty(
+          [
+            "Latvia CSRI regulated information",
+            prefixed("Issuer", issuer),
+            prefixed("Language", language),
+            prefixed("Version", version)
+          ],
+          " | "
+        ),
+      published_at: parse_lv_csri_datetime(clean_html(published_at_text)),
+      category: "Regulated information"
+    }
+  end
+
+  defp parse_lv_csri_regulated_information_row(_row),
+    do: empty_lv_csri_regulated_information()
+
+  defp empty_lv_csri_regulated_information do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: DateTime.utc_now(),
+      category: nil
+    }
+  end
+
+  defp lv_csri_regulated_information_title(nil, nil), do: nil
+  defp lv_csri_regulated_information_title(issuer, nil), do: issuer
+  defp lv_csri_regulated_information_title(nil, title), do: title
+  defp lv_csri_regulated_information_title(issuer, title), do: issuer <> " - " <> title
+
+  defp lv_csri_regulated_information_url(nil), do: nil
+
+  defp lv_csri_regulated_information_url(raw_url) do
+    url = decode_html_entities(raw_url)
+
+    cond do
+      String.starts_with?(url, "http") -> url
+      String.starts_with?(url, "/") -> @lv_csri_base_url <> url
+      true -> @lv_csri_base_url <> "/" <> url
+    end
+  end
+
+  defp lv_csri_regulated_information_external_id(nil), do: nil
+
+  defp lv_csri_regulated_information_external_id(url) do
+    case URI.parse(url) do
+      %URI{query: query} when is_binary(query) ->
+        query
+        |> URI.decode_query()
+        |> Map.get("id")
+
+      %URI{path: path} when is_binary(path) ->
+        List.last(String.split(path, "/", trim: true))
+
+      _uri ->
+        nil
+    end
+  end
+
+  defp parse_lv_csri_datetime(nil), do: DateTime.utc_now()
+
+  defp parse_lv_csri_datetime(value) do
+    with [_, year_text, month_text, day_text, hour_text, minute_text, second_text] <-
+           Regex.run(~r/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2}):(\d{2})$/, value),
+         {day, ""} <- Integer.parse(day_text),
+         {month, ""} <- Integer.parse(month_text),
+         {year, ""} <- Integer.parse(year_text),
+         {hour, ""} <- Integer.parse(hour_text),
+         {minute, ""} <- Integer.parse(minute_text),
+         {second, ""} <- Integer.parse(second_text),
+         {:ok, datetime} <- build_utc_datetime(year, month, day, hour, minute, second) do
+      lv_csri_apply_latvia_zone(datetime)
+    else
+      _ -> DateTime.utc_now()
+    end
+  end
+
+  defp lv_csri_apply_latvia_zone(%DateTime{month: month} = datetime) when month in 4..10,
+    do: DateTime.add(datetime, -10_800, :second)
+
+  defp lv_csri_apply_latvia_zone(datetime), do: DateTime.add(datetime, -7_200, :second)
+
+  defp parse_wiener_borse_announcements(raw_payload) do
+    items =
+      Regex.scan(~r/<tr data-key="([^"]+)">(.*?)<\/tr>/s, raw_payload)
+      |> Enum.map(&parse_wiener_borse_announcement_row/1)
+      |> Enum.filter(&(&1.url && &1.title))
+
+    {:ok, items}
+  end
+
+  defp parse_wiener_borse_announcement_row([_row, row_id, row_html]) do
+    cells =
+      Regex.scan(~r/<td[^>]*>(.*?)<\/td>/s, row_html)
+      |> Enum.map(fn [_cell, value] -> clean_html(value) end)
+
+    href =
+      row_html
+      |> regex_capture_raw(~r/href="([^"]+)"/)
+      |> wiener_borse_url()
+
+    case cells do
+      [date_text, kind, company, security_type, category, market | _rest] ->
+        company = reject_placeholder(company)
+
+        %{
+          external_id: row_id || href,
+          title: wiener_borse_title(company, kind),
+          url: href,
+          summary:
+            join_non_empty(
+              [
+                "Vienna Stock Exchange announcement",
+                prefixed("Security", reject_placeholder(security_type)),
+                prefixed("Category", reject_placeholder(category)),
+                prefixed("Market", reject_placeholder(market))
+              ],
+              " | "
+            ),
+          published_at: parse_wiener_borse_date(date_text),
+          category: kind
+        }
+
+      _cells ->
+        empty_wiener_borse_announcement()
+    end
+  end
+
+  defp parse_wiener_borse_announcement_row(_row), do: empty_wiener_borse_announcement()
+
+  defp empty_wiener_borse_announcement do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: DateTime.utc_now(),
+      category: nil
+    }
+  end
+
+  defp reject_placeholder(nil), do: nil
+  defp reject_placeholder("-"), do: nil
+  defp reject_placeholder(value), do: value
+
+  defp wiener_borse_title(nil, _kind), do: nil
+  defp wiener_borse_title(company, kind), do: join_non_empty([company, kind], " - ")
+
+  defp wiener_borse_url(nil), do: nil
+
+  defp wiener_borse_url(raw_url) do
+    url = decode_html_entities(raw_url)
+
+    cond do
+      String.starts_with?(url, "http") -> url
+      String.starts_with?(url, "/") -> "https://www.wienerborse.at" <> url
+      true -> @wiener_borse_announcements_url
+    end
+  end
+
+  defp parse_wiener_borse_date(nil), do: DateTime.utc_now()
+
+  defp parse_wiener_borse_date(value) do
+    with [_, first_text, second_text, year_text] <-
+           Regex.run(~r/^(\d{2})\/(\d{2})\/(\d{4})$/, value),
+         datetime <- parse_wiener_borse_date_parts(first_text, second_text, year_text),
+         true <- not is_nil(datetime) do
+      datetime
+    else
+      _ -> DateTime.utc_now()
+    end
+  end
+
+  defp parse_wiener_borse_date_parts(first_text, second_text, year_text) do
+    # The English page renders current dates as MM/DD/YYYY, but fall back to DD/MM
+    # if the primary interpretation would land implausibly far in the future.
+    parse_wiener_borse_mmdd(first_text, second_text, year_text) ||
+      parse_wiener_borse_ddmm(first_text, second_text, year_text)
+  end
+
+  defp parse_wiener_borse_mmdd(month_text, day_text, year_text) do
+    build_wiener_borse_date(year_text, month_text, day_text)
+  end
+
+  defp parse_wiener_borse_ddmm(day_text, month_text, year_text) do
+    build_wiener_borse_date(year_text, month_text, day_text)
+  end
+
+  defp build_wiener_borse_date(year_text, month_text, day_text) do
+    with {year, ""} <- Integer.parse(year_text),
+         {month, ""} <- Integer.parse(month_text),
+         {day, ""} <- Integer.parse(day_text),
+         {:ok, datetime} <- build_utc_datetime(year, month, day, 0, 0, 0),
+         true <-
+           DateTime.compare(datetime, DateTime.add(DateTime.utc_now(), 86_400, :second)) != :gt do
+      datetime
+    else
+      _ -> nil
+    end
+  end
+
+  defp parse_xetra_newsboard(raw_payload) do
+    items =
+      Regex.scan(
+        ~r/<a class="teasable-search-result-link[^"]*" href="([^"]+)">(.*?)<\/a>/s,
+        raw_payload
+      )
+      |> Enum.map(&parse_xetra_newsboard_row/1)
+      |> Enum.filter(&(&1.url && &1.title))
+
+    {:ok, items}
+  end
+
+  defp parse_xetra_newsboard_row([_row, href, row_html]) do
+    published_at_text =
+      regex_capture(row_html, ~r/<p class="search-result-date">(.*?)<\/p>/s)
+
+    venue =
+      regex_capture(row_html, ~r/<h2 class="search-result-tagline">\s*(.*?)\s*<\/h2>/s)
+
+    title =
+      regex_capture(row_html, ~r/<h1 class="search-result-description[^"]*">\s*(.*?)\s*<\/h1>/s)
+
+    if xetra_newsboard_company_notice?(title) do
+      %{
+        external_id: xetra_newsboard_external_id(href),
+        title: title,
+        url: xetra_newsboard_url(href),
+        summary:
+          join_non_empty(
+            [
+              "Xetra Frankfurt Newsboard announcement",
+              prefixed("Venue", venue),
+              prefixed("Notice type", xetra_newsboard_notice_type(title))
+            ],
+            " | "
+          ),
+        published_at: parse_xetra_newsboard_datetime(published_at_text),
+        category: xetra_newsboard_notice_type(title)
+      }
+    else
+      empty_xetra_newsboard_record()
+    end
+  end
+
+  defp parse_xetra_newsboard_row(_row), do: empty_xetra_newsboard_record()
+
+  defp empty_xetra_newsboard_record do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: DateTime.utc_now(),
+      category: nil
+    }
+  end
+
+  defp xetra_newsboard_company_notice?(nil), do: false
+
+  defp xetra_newsboard_company_notice?(title) do
+    normalized = String.downcase(title)
+
+    Enum.any?(
+      [
+        "dividend",
+        "capital adjustment",
+        "instrument_suspension",
+        "new instrument",
+        "deletion of instruments",
+        "isin change",
+        "aussetzung",
+        "suspension",
+        "wiederaufnahme",
+        "resumption"
+      ],
+      &String.contains?(normalized, &1)
+    ) and not String.contains?(normalized, "service is down")
+  end
+
+  defp xetra_newsboard_external_id(nil), do: nil
+
+  defp xetra_newsboard_external_id(href) do
+    href
+    |> decode_html_entities()
+    |> String.split("-")
+    |> List.last()
+  end
+
+  defp xetra_newsboard_url(nil), do: nil
+
+  defp xetra_newsboard_url(raw_url) do
+    url = decode_html_entities(raw_url)
+
+    cond do
+      String.starts_with?(url, "http") -> url
+      String.starts_with?(url, "/") -> "https://www.cashmarket.deutsche-boerse.com" <> url
+      true -> @xetra_newsboard_url
+    end
+  end
+
+  defp xetra_newsboard_notice_type(nil), do: nil
+
+  defp xetra_newsboard_notice_type(title) do
+    normalized = String.downcase(title)
+
+    cond do
+      String.contains?(normalized, "dividend") ->
+        "Dividend"
+
+      String.contains?(normalized, "capital adjustment") ->
+        "Capital adjustment"
+
+      String.contains?(normalized, "new instrument") ->
+        "New instrument"
+
+      String.contains?(normalized, "deletion of instruments") ->
+        "Deletion of instruments"
+
+      String.contains?(normalized, "isin change") ->
+        "ISIN change"
+
+      String.contains?(normalized, "wiederaufnahme") or String.contains?(normalized, "resumption") ->
+        "Resumption"
+
+      String.contains?(normalized, "aussetzung") or String.contains?(normalized, "suspension") ->
+        "Suspension"
+
+      true ->
+        "Exchange notice"
+    end
+  end
+
+  defp parse_xetra_newsboard_datetime(nil), do: DateTime.utc_now()
+
+  defp parse_xetra_newsboard_datetime(value) do
+    with [_, month_text, day_text, year_text, hour_text, minute_text, second_text, am_pm, zone] <-
+           Regex.run(
+             ~r/^([A-Za-z]+) (\d{2}), (\d{4}) (\d{2}):(\d{2}):(\d{2}) ([AP]M) (CEST|CET)$/,
+             value
+           ),
+         {:ok, month} <- xetra_month(month_text),
+         {day, ""} <- Integer.parse(day_text),
+         {year, ""} <- Integer.parse(year_text),
+         {hour_12, ""} <- Integer.parse(hour_text),
+         {minute, ""} <- Integer.parse(minute_text),
+         {second, ""} <- Integer.parse(second_text),
+         hour <- xetra_24_hour(hour_12, am_pm),
+         {:ok, datetime} <- build_utc_datetime(year, month, day, hour, minute, second) do
+      xetra_apply_zone(datetime, zone)
+    else
+      _ -> DateTime.utc_now()
+    end
+  end
+
+  defp xetra_month("January"), do: {:ok, 1}
+  defp xetra_month("February"), do: {:ok, 2}
+  defp xetra_month("March"), do: {:ok, 3}
+  defp xetra_month("April"), do: {:ok, 4}
+  defp xetra_month("May"), do: {:ok, 5}
+  defp xetra_month("June"), do: {:ok, 6}
+  defp xetra_month("July"), do: {:ok, 7}
+  defp xetra_month("August"), do: {:ok, 8}
+  defp xetra_month("September"), do: {:ok, 9}
+  defp xetra_month("October"), do: {:ok, 10}
+  defp xetra_month("November"), do: {:ok, 11}
+  defp xetra_month("December"), do: {:ok, 12}
+  defp xetra_month(_month), do: :error
+
+  defp xetra_24_hour(12, "AM"), do: 0
+  defp xetra_24_hour(12, "PM"), do: 12
+  defp xetra_24_hour(hour, "PM"), do: hour + 12
+  defp xetra_24_hour(hour, _am_pm), do: hour
+
+  defp xetra_apply_zone(datetime, "CEST"), do: DateTime.add(datetime, -7_200, :second)
+  defp xetra_apply_zone(datetime, "CET"), do: DateTime.add(datetime, -3_600, :second)
+  defp xetra_apply_zone(datetime, _zone), do: datetime
+
+  defp parse_malta_mse_announcements(raw_payload) do
+    items =
+      Regex.scan(~r/<a\s+href="([^"]+)"[^>]*class="box event-box"[^>]*>(.*?)<\/a>/s, raw_payload)
+      |> Enum.map(&parse_malta_mse_announcement_row/1)
+      |> Enum.filter(&(&1.url && &1.title))
+
+    {:ok, items}
+  end
+
+  defp parse_malta_mse_announcement_row([_row, href, row_html]) do
+    issuer = regex_capture(row_html, ~r/<h3[^>]*>\s*(.*?)\s*<\/h3>/s)
+    headline = regex_capture(row_html, ~r/<p[^>]*>\s*(.*?)\s*<\/p>/s)
+    date_text = regex_capture(row_html, ~r/<date[^>]*>\s*(.*?)\s*<\/date>/s)
+    url = malta_mse_url(href)
+
+    %{
+      external_id: malta_mse_external_id(url),
+      title: join_non_empty([issuer, headline], " - "),
+      url: url,
+      summary:
+        join_non_empty(
+          [
+            "Malta Stock Exchange announcement",
+            prefixed("Issuer", issuer),
+            prefixed("Announcement", headline)
+          ],
+          " | "
+        ),
+      published_at: parse_malta_mse_date(date_text),
+      category: headline
+    }
+  end
+
+  defp parse_malta_mse_announcement_row(_row), do: empty_malta_mse_announcement()
+
+  defp empty_malta_mse_announcement do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: DateTime.utc_now(),
+      category: nil
+    }
+  end
+
+  defp malta_mse_external_id(nil), do: nil
+
+  defp malta_mse_external_id(url) do
+    url
+    |> String.split("/")
+    |> List.last()
+  end
+
+  defp malta_mse_url(nil), do: nil
+
+  defp malta_mse_url(raw_url) do
+    url = decode_html_entities(raw_url)
+
+    cond do
+      String.starts_with?(url, "http") -> url
+      String.starts_with?(url, "/") -> @malta_mse_base_url <> url
+      true -> @malta_mse_base_url <> "/news-and-articles/announcements"
+    end
+  end
+
+  defp parse_malta_mse_date(nil), do: DateTime.utc_now()
+
+  defp parse_malta_mse_date(value) do
+    with [_, day_text, month_text, year_text] <- Regex.run(~r/^(\d{2})-(\d{2})-(\d{4})$/, value),
+         {year, ""} <- Integer.parse(year_text),
+         {month, ""} <- Integer.parse(month_text),
+         {day, ""} <- Integer.parse(day_text),
+         {:ok, datetime} <- build_utc_datetime(year, month, day, 0, 0, 0),
+         true <-
+           DateTime.compare(datetime, DateTime.add(DateTime.utc_now(), 86_400, :second)) != :gt do
+      datetime
+    else
+      _ -> DateTime.utc_now()
+    end
+  end
+
+  defp parse_x3news_issuer_disclosures(raw_payload) do
+    items =
+      Regex.scan(
+        ~r/<div class="news-row">\s*(.*?)<div id="newsContainer_\d+"[^>]*><\/div>\s*<\/div>/s,
+        raw_payload
+      )
+      |> Enum.map(&parse_x3news_issuer_disclosure_row/1)
+      |> Enum.filter(&(&1.url && &1.title))
+
+    {:ok, items}
+  end
+
+  defp parse_x3news_issuer_disclosure_row([_row, row_html]) do
+    external_id = regex_capture_raw(row_html, ~r/showNews\('\d+',\s*(\d+)\);/)
+    issuer = x3news_text(regex_capture_raw(row_html, ~r/<div><b>\s*(.*?)\s*<\/b><\/div>/s))
+
+    headline =
+      x3news_text(
+        regex_capture_raw(
+          row_html,
+          ~r/<div class="newsHeaderLink show-date-on-right">\s*(.*?)\s*<\/div>/s
+        )
+      )
+
+    date_text =
+      x3news_text(
+        regex_capture_raw(row_html, ~r/<span\s+style="float:right;">\s*(.*?)\s*<\/span>/s)
+      )
+
+    url = x3news_url(external_id)
+
+    %{
+      external_id: prefixed("x3news", external_id),
+      title: x3news_title(issuer, headline),
+      url: url,
+      summary:
+        join_non_empty(
+          [
+            "Bulgaria X3News issuer disclosure",
+            prefixed("Issuer", issuer),
+            prefixed("Disclosure", headline)
+          ],
+          " | "
+        ),
+      published_at: parse_x3news_datetime(date_text),
+      category: headline
+    }
+  end
+
+  defp parse_x3news_issuer_disclosure_row(_row), do: empty_x3news_issuer_disclosure()
+
+  defp empty_x3news_issuer_disclosure do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: DateTime.utc_now(),
+      category: nil
+    }
+  end
+
+  defp x3news_title(nil, nil), do: nil
+  defp x3news_title(issuer, nil), do: issuer
+  defp x3news_title(nil, headline), do: headline
+
+  defp x3news_title(issuer, headline) do
+    normalized_issuer = String.downcase(issuer)
+    normalized_headline = String.downcase(headline)
+
+    if String.starts_with?(normalized_headline, normalized_issuer) do
+      headline
+    else
+      issuer <> " - " <> headline
+    end
+  end
+
+  defp x3news_url(nil), do: nil
+
+  defp x3news_url(external_id) do
+    @x3news_base_url <> "?page=ShowNews&ExtriID=" <> external_id <> "&output=ajax"
+  end
+
+  defp x3news_text(nil), do: nil
+
+  defp x3news_text(value) do
+    value
+    |> x3news_utf8()
+    |> String.replace(~r/<[^>]+>/, " ")
+    |> decode_html_entities()
+    |> String.replace(~r/\s+/u, " ")
+    |> String.trim()
+    |> case do
+      "" -> nil
+      cleaned -> cleaned
+    end
+  end
+
+  defp x3news_utf8(value) do
+    if String.valid?(value) do
+      value
+    else
+      :unicode.characters_to_binary(value, :latin1, :utf8)
+    end
+  end
+
+  defp parse_x3news_datetime(nil), do: DateTime.utc_now()
+
+  defp parse_x3news_datetime(value) do
+    with [_, day_text, month_text, year_text, hour_text, minute_text] <-
+           Regex.run(~r/^(\d{2})-(\d{2})-(\d{4}) (\d{2}):(\d{2})$/, value),
+         {day, ""} <- Integer.parse(day_text),
+         {month, ""} <- Integer.parse(month_text),
+         {year, ""} <- Integer.parse(year_text),
+         {hour, ""} <- Integer.parse(hour_text),
+         {minute, ""} <- Integer.parse(minute_text),
+         {:ok, datetime} <- build_utc_datetime(year, month, day, hour, minute, 0) do
+      x3news_apply_sofia_zone(datetime)
+    else
+      _ -> DateTime.utc_now()
+    end
+  end
+
+  defp x3news_apply_sofia_zone(%DateTime{month: month} = datetime) when month in 4..10,
+    do: DateTime.add(datetime, -10_800, :second)
+
+  defp x3news_apply_sofia_zone(datetime), do: DateTime.add(datetime, -7_200, :second)
+
+  defp parse_kap_company_notifications(raw_payload) do
+    with {:ok, data_json} <- kap_company_notifications_data_json(raw_payload),
+         {:ok, rows} <- Jason.decode(data_json) do
+      items =
+        rows
+        |> Enum.map(&parse_kap_company_notification_row/1)
+        |> Enum.filter(&(&1.url && &1.title))
+
+      {:ok, items}
+    else
+      {:error, _reason} = error -> error
+      _ -> {:error, {:invalid_html_shape, "kap_company_notifications_html_v1"}}
+    end
+  end
+
+  defp kap_company_notifications_data_json(raw_payload) do
+    case Regex.run(~r/\\"data\\":(\[.*?\]),\\"SERVER_BASE_URL\\"/s, raw_payload) do
+      [_, escaped_json] ->
+        Jason.decode(<<?", escaped_json::binary, ?">>)
+
+      _ ->
+        {:error, {:invalid_html_shape, "kap_company_notifications_html_v1"}}
+    end
+  end
+
+  defp parse_kap_company_notification_row(%{"disclosureBasic" => basic})
+       when is_map(basic) do
+    external_id =
+      basic
+      |> Map.get("disclosureIndex")
+      |> kap_string()
+
+    issuer = kap_clean_text(Map.get(basic, "companyTitle"))
+    title = kap_clean_text(Map.get(basic, "title"))
+    summary = kap_clean_text(Map.get(basic, "summary"))
+    stock_code = kap_clean_text(Map.get(basic, "stockCode"))
+    disclosure_class = kap_clean_text(Map.get(basic, "disclosureClass"))
+    publish_date = kap_clean_text(Map.get(basic, "publishDate"))
+
+    %{
+      external_id: prefixed("kap", external_id),
+      title: join_non_empty([issuer, title], " - "),
+      url: kap_notification_url(external_id),
+      summary:
+        join_non_empty(
+          [
+            "Turkey KAP company notification",
+            prefixed("Code", stock_code),
+            prefixed("Type", disclosure_class),
+            prefixed("Summary", summary)
+          ],
+          " | "
+        ),
+      published_at: parse_kap_datetime(publish_date),
+      category: disclosure_class || title
+    }
+  end
+
+  defp parse_kap_company_notification_row(_row), do: empty_kap_company_notification()
+
+  defp empty_kap_company_notification do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: DateTime.utc_now(),
+      category: nil
+    }
+  end
+
+  defp kap_string(nil), do: nil
+  defp kap_string(value) when is_binary(value), do: value
+  defp kap_string(value), do: to_string(value)
+
+  defp kap_notification_url(nil), do: nil
+
+  defp kap_notification_url(external_id) do
+    @kap_base_url <> "/en/Bildirim/" <> external_id
+  end
+
+  defp kap_clean_text(nil), do: nil
+
+  defp kap_clean_text(value) do
+    value
+    |> to_string()
+    |> decode_html_entities()
+    |> String.replace(~r/\\n/u, " ")
+    |> String.replace(~r/\s+/u, " ")
+    |> String.trim()
+    |> case do
+      "" -> nil
+      cleaned -> cleaned
+    end
+  end
+
+  defp parse_kap_datetime(nil), do: DateTime.utc_now()
+
+  defp parse_kap_datetime(value) do
+    with [_, day_text, month_text, year_text, hour_text, minute_text, second_text] <-
+           Regex.run(~r/^(\d{2})\.(\d{2})\.(\d{4}) (\d{2}):(\d{2}):(\d{2})$/, value),
+         {day, ""} <- Integer.parse(day_text),
+         {month, ""} <- Integer.parse(month_text),
+         {year, ""} <- Integer.parse(year_text),
+         {hour, ""} <- Integer.parse(hour_text),
+         {minute, ""} <- Integer.parse(minute_text),
+         {second, ""} <- Integer.parse(second_text),
+         {:ok, datetime} <- build_utc_datetime(year, month, day, hour, minute, second) do
+      DateTime.add(datetime, -10_800, :second)
+    else
+      _ -> DateTime.utc_now()
+    end
+  end
+
+  defp parse_mse_free_market_announcements(raw_payload) do
+    items =
+      Regex.scan(
+        ~r/<div class="container-announcement166b">\s*<a href="([^"]+)">\s*<ul class="flex-container">\s*<li class="flex-item-1x4">\s*<h4>\s*(.*?)\s*<\/h4>\s*<\/li>\s*<li class="flex-item-3x4">\s*<h4>\s*(.*?)\s*<\/h4>/s,
+        raw_payload
+      )
+      |> Enum.map(&parse_mse_free_market_announcement_row/1)
+      |> Enum.filter(&(&1.url && &1.title))
+
+    {:ok, items}
+  end
+
+  defp parse_mse_free_market_announcement_row([_row, href, published_at_text, title_html]) do
+    title = clean_html(title_html)
+    {issuer, category} = mse_free_market_title_parts(title)
+    url = mse_url(href)
+
+    %{
+      external_id: mse_free_market_external_id(url),
+      title: title,
+      url: url,
+      summary:
+        join_non_empty(
+          [
+            "Macedonian Stock Exchange free-market company announcement",
+            prefixed("Issuer", issuer),
+            prefixed("Announcement", category)
+          ],
+          " | "
+        ),
+      published_at: parse_mse_free_market_date(clean_html(published_at_text)),
+      category: category
+    }
+  end
+
+  defp parse_mse_free_market_announcement_row(_row), do: empty_mse_free_market_announcement()
+
+  defp empty_mse_free_market_announcement do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: DateTime.utc_now(),
+      category: nil
+    }
+  end
+
+  defp mse_free_market_title_parts(nil), do: {nil, nil}
+
+  defp mse_free_market_title_parts(title) do
+    case String.split(title, " - ", parts: 2) do
+      [issuer, category] -> {blank_to_nil(issuer), blank_to_nil(category)}
+      [value] -> {nil, blank_to_nil(value)}
+      _parts -> {nil, nil}
+    end
+  end
+
+  defp mse_url(nil), do: nil
+
+  defp mse_url(raw_url) do
+    url = decode_html_entities(raw_url)
+
+    cond do
+      String.starts_with?(url, "http") -> url
+      String.starts_with?(url, "/") -> @mse_base_url <> url
+      true -> @mse_base_url <> "/" <> url
+    end
+  end
+
+  defp mse_free_market_external_id(nil), do: nil
+
+  defp mse_free_market_external_id(url) do
+    url
+    |> URI.parse()
+    |> Map.get(:path)
+    |> case do
+      nil -> nil
+      path -> path |> String.split("/", trim: true) |> Enum.join("-")
+    end
+  end
+
+  defp parse_mse_free_market_date(nil), do: DateTime.utc_now()
+
+  defp parse_mse_free_market_date(value) do
+    with [_, month_text, day_text, year_text] <-
+           Regex.run(~r/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/, value),
+         {year, ""} <- Integer.parse(year_text),
+         {month, ""} <- Integer.parse(month_text),
+         {day, ""} <- Integer.parse(day_text),
+         {:ok, datetime} <- build_utc_datetime(year, month, day, 0, 0, 0),
+         true <-
+           DateTime.compare(datetime, DateTime.add(DateTime.utc_now(), 86_400, :second)) != :gt do
+      datetime
+    else
+      _ -> DateTime.utc_now()
+    end
+  end
+
+  defp parse_afm_csv_row(row) do
+    row
+    |> String.trim()
+    |> String.trim_leading("\"")
+    |> String.trim_trailing("\"")
+    |> String.split("\";\"")
+    |> Enum.map(&String.replace(&1, "\"\"", "\""))
+  end
+
+  defp blank_to_nil(nil), do: nil
+
+  defp blank_to_nil(value) do
+    value
+    |> to_string()
+    |> String.trim()
+    |> case do
+      "" -> nil
+      trimmed -> trimmed
+    end
+  end
+
+  defp parse_seinet_public_documents(raw_payload) do
+    with {:ok, decoded} <- Jason.decode(raw_payload),
+         true <- Map.get(decoded, "isSuccess") == true,
+         records when is_list(records) <- Map.get(decoded, "data") do
+      items =
+        records
+        |> Enum.map(&parse_seinet_public_document/1)
+        |> Enum.filter(&(&1.url && &1.title && &1.published_at))
+
+      {:ok, items}
+    else
+      {:error, error} -> {:error, {:invalid_json, error}}
+      false -> {:error, {:invalid_json_shape, "seinet_public_documents_json_v1"}}
+      _ -> {:error, {:invalid_json_shape, "seinet_public_documents_json_v1"}}
+    end
+  end
+
+  defp parse_seinet_public_document(record) when is_map(record) do
+    document_id = string_field(record, "documentId")
+    issuer = seinet_issuer_name(record)
+    layout = seinet_layout_description(record)
+    content = record |> string_field("content") |> seinet_clean_content()
+
+    %{
+      external_id:
+        join_non_empty(["seinet", string_field(record, "publicId") || document_id], ":"),
+      title: join_non_empty([issuer, layout], " - "),
+      url: seinet_document_url(document_id),
+      summary:
+        join_non_empty(
+          [
+            "SEI-NET listed-company disclosure",
+            prefixed("Issuer", issuer),
+            prefixed("Layout", layout),
+            prefixed("Published", string_field(record, "publishedDate")),
+            content
+          ],
+          " | "
+        ),
+      published_at: seinet_document_datetime(record),
+      category: layout
+    }
+  end
+
+  defp parse_seinet_public_document(_record) do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: nil,
+      category: nil
+    }
+  end
+
+  defp seinet_issuer_name(record) do
+    record
+    |> Map.get("issuer")
+    |> case do
+      issuer when is_map(issuer) ->
+        localized_term_field(issuer, "displayName", 2) ||
+          localized_term_field(issuer, "displayName", 1) ||
+          string_field(issuer, "code")
+
+      _issuer ->
+        nil
+    end
+  end
+
+  defp seinet_layout_description(record) do
+    record
+    |> Map.get("layout")
+    |> case do
+      layout when is_map(layout) ->
+        string_field(layout, "description") ||
+          localized_term_field(layout, "description", 2) ||
+          localized_term_field(layout, "description", 1)
+
+      _layout ->
+        nil
+    end
+  end
+
+  defp localized_term_field(entity, key, language_id) when is_map(entity) do
+    entity
+    |> Map.get("localizedTerms", [])
+    |> Enum.find_value(fn
+      %{"languageId" => ^language_id} = term -> string_field(term, key)
+      _term -> nil
+    end)
+  end
+
+  defp localized_term_field(_entity, _key, _language_id), do: nil
+
+  defp seinet_document_url(nil), do: nil
+  defp seinet_document_url(document_id), do: @seinet_document_base_url <> URI.encode(document_id)
+
+  defp seinet_document_datetime(record) do
+    ["publishedDate", "requestPublishDate"]
+    |> Enum.find_value(fn key ->
+      record
+      |> string_field(key)
+      |> then(&(parse_iso8601_datetime(&1) || parse_naive_iso8601_datetime(&1)))
+    end)
+    |> case do
+      nil -> DateTime.utc_now()
+      datetime -> datetime
+    end
+  end
+
+  defp seinet_excerpt(nil), do: nil
+
+  defp seinet_excerpt(value) do
+    value
+    |> String.slice(0, 320)
+    |> String.trim()
+    |> case do
+      "" -> nil
+      excerpt -> excerpt
+    end
+  end
+
+  defp seinet_clean_content(nil), do: nil
+  defp seinet_clean_content(value), do: value |> clean_html() |> seinet_excerpt()
+
+  defp parse_mnse_corporate_news(raw_payload) do
+    items =
+      Regex.scan(
+        ~r/<td class="td_color1_01 novosti"[^>]*>\s*<span class="novostiDate">\s*(.*?)\s*<\/span>\s*<br\s*\/?>\s*<a href="([^"]+)"[^>]*>\s*(.*?)\s*<\/a>/is,
+        raw_payload
+      )
+      |> Enum.map(&parse_mnse_corporate_news_row/1)
+      |> Enum.filter(&(&1.url && &1.title && &1.published_at))
+
+    {:ok, items}
+  end
+
+  defp parse_mnse_corporate_news_row([_row, date_issuer_html, href, title_html]) do
+    date_issuer = clean_html(date_issuer_html)
+    {date_text, issuer} = mnse_date_issuer_parts(date_issuer)
+    title = clean_html(title_html)
+    url = mnse_url(href)
+
+    %{
+      external_id: mnse_external_id(url),
+      title: title,
+      url: url,
+      summary:
+        join_non_empty(
+          [
+            "Montenegro Stock Exchange corporate issuer announcement",
+            prefixed("Issuer", issuer),
+            prefixed("Published", date_text)
+          ],
+          " | "
+        ),
+      published_at: parse_mnse_datetime(date_text),
+      category: "corporate_news"
+    }
+  end
+
+  defp parse_mnse_corporate_news_row(_row) do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: nil,
+      category: nil
+    }
+  end
+
+  defp mnse_date_issuer_parts(nil), do: {nil, nil}
+
+  defp mnse_date_issuer_parts(value) do
+    case String.split(value, "|", parts: 2) do
+      [date_text, issuer] -> {String.trim(date_text), blank_to_nil(issuer)}
+      [date_text] -> {String.trim(date_text), nil}
+      _parts -> {nil, nil}
+    end
+  end
+
+  defp mnse_url(nil), do: nil
+
+  defp mnse_url(raw_url) do
+    url = decode_html_entities(raw_url)
+
+    cond do
+      String.starts_with?(url, "http") -> url
+      String.starts_with?(url, "/") -> @mnse_base_url <> url
+      true -> @mnse_base_url <> "/" <> url
+    end
+  end
+
+  defp mnse_external_id(nil), do: nil
+
+  defp mnse_external_id(url) do
+    url
+    |> URI.parse()
+    |> case do
+      %URI{path: path, query: query} when is_binary(path) ->
+        join_non_empty([path |> String.split("/", trim: true) |> Enum.join("-"), query], "?")
+
+      _uri ->
+        url
+    end
+  end
+
+  defp parse_mnse_datetime(nil), do: DateTime.utc_now()
+
+  defp parse_mnse_datetime(value) do
+    with [_, day_text, month_text, year_text, hour_text, minute_text] <-
+           Regex.run(~r/(\d{2})\/(\d{2})\/(\d{2})\s+(\d{2}):(\d{2})/, value),
+         {day, ""} <- Integer.parse(day_text),
+         {month, ""} <- Integer.parse(month_text),
+         {year, ""} <- Integer.parse("20" <> year_text),
+         {hour, ""} <- Integer.parse(hour_text),
+         {minute, ""} <- Integer.parse(minute_text),
+         {:ok, datetime} <- build_utc_datetime(year, month, day, hour, minute, 0),
+         true <-
+           DateTime.compare(datetime, DateTime.add(DateTime.utc_now(), 86_400, :second)) != :gt do
+      datetime
+    else
+      _ -> DateTime.utc_now()
+    end
+  end
+
+  defp parse_md_msi_regulated_information(raw_payload) do
+    rows =
+      Regex.scan(
+        ~r/<tr>\s*<td>(.*?)<\/td>\s*<td>(.*?)<\/td>\s*<td>(.*?)<\/td>\s*<td>\s*<a[^>]+href="([^"]+)"[^>]*>/is,
+        raw_payload
+      )
+
+    items =
+      rows
+      |> Enum.map(&parse_md_msi_regulated_information_row/1)
+      |> Enum.filter(&(&1.url && &1.title && &1.published_at))
+
+    {:ok, items}
+  end
+
+  defp parse_md_msi_regulated_information_row([
+         _row,
+         company_html,
+         document_type_html,
+         date_html,
+         href
+       ]) do
+    company = clean_html(company_html)
+    document_type = clean_html(document_type_html)
+    date_text = clean_html(date_html)
+    url = md_msi_url(href)
+
+    %{
+      external_id: md_msi_external_id(url),
+      title: join_non_empty([company, document_type], " - "),
+      url: url,
+      summary:
+        join_non_empty(
+          [
+            "Moldova MSI regulated issuer information",
+            prefixed("Issuer", company),
+            prefixed("Document type", document_type),
+            prefixed("Published", date_text)
+          ],
+          " | "
+        ),
+      published_at: parse_md_msi_date(date_text),
+      category: document_type
+    }
+  end
+
+  defp parse_md_msi_regulated_information_row(_row) do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: nil,
+      category: nil
+    }
+  end
+
+  defp md_msi_url(nil), do: nil
+
+  defp md_msi_url(raw_url) do
+    url = decode_html_entities(raw_url)
+
+    cond do
+      String.starts_with?(url, "http") -> url
+      String.starts_with?(url, "/") -> @md_msi_base_url <> url
+      true -> @md_msi_base_url <> "/" <> url
+    end
+  end
+
+  defp md_msi_external_id(nil), do: nil
+
+  defp md_msi_external_id(url) do
+    url
+    |> URI.parse()
+    |> case do
+      %URI{path: path} when is_binary(path) ->
+        path |> String.split("/", trim: true) |> Enum.join("-")
+
+      _uri ->
+        url
+    end
+  end
+
+  defp parse_md_msi_date(nil), do: DateTime.utc_now()
+
+  defp parse_md_msi_date(value) do
+    with [_, day_text, month_text, year_text] <- Regex.run(~r/(\d{2})\/(\d{2})\/(\d{4})/, value),
+         {day, ""} <- Integer.parse(day_text),
+         {month, ""} <- Integer.parse(month_text),
+         {year, ""} <- Integer.parse(year_text),
+         {:ok, datetime} <- build_utc_datetime(year, month, day, 0, 0, 0),
+         true <-
+           DateTime.compare(datetime, DateTime.add(DateTime.utc_now(), 86_400, :second)) != :gt do
+      datetime
+    else
+      _ -> DateTime.utc_now()
+    end
+  end
+
+  defp parse_dfsa_oam_company_announcements(raw_payload) do
+    with {:ok, decoded} <- Jason.decode(raw_payload),
+         %{"data" => %{"rows" => rows}} when is_list(rows) <- decoded do
+      items =
+        rows
+        |> Enum.map(&parse_dfsa_oam_company_announcement_row/1)
+        |> Enum.filter(&(&1.url && &1.title && &1.published_at))
+
+      {:ok, items}
+    else
+      {:error, reason} -> {:error, {:invalid_dfsa_oam_company_announcements_json, reason}}
+      _shape -> {:error, :unexpected_dfsa_oam_company_announcements_shape}
+    end
+  end
+
+  defp parse_dfsa_oam_company_announcement_row(%{} = row) do
+    id = string_field(row, "id")
+    title = string_field(row, "HeadlineColumn")
+    issuer = string_field(row, "IssuerColumn")
+    category = string_field(row, "CategoryColumn")
+    published_text = string_field(row, "PublicationDateColumn")
+
+    %{
+      external_id: "dfsa-oam-#{id}",
+      title: title,
+      url: dfsa_oam_details_url(id),
+      summary:
+        join_non_empty(
+          [
+            "Danish FSA OAM company announcement",
+            prefixed("Issuer", issuer),
+            prefixed("Type", category),
+            prefixed("Published", published_text)
+          ],
+          " | "
+        ),
+      published_at: parse_dfsa_oam_datetime(published_text),
+      category: category
+    }
+  end
+
+  defp parse_dfsa_oam_company_announcement_row(_row) do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: nil,
+      category: nil
+    }
+  end
+
+  defp dfsa_oam_details_url(""), do: nil
+  defp dfsa_oam_details_url(nil), do: nil
+  defp dfsa_oam_details_url(id), do: @dfsa_oam_details_base_url <> id
+
+  defp parse_dfsa_oam_datetime(nil), do: DateTime.utc_now()
+
+  defp parse_dfsa_oam_datetime(value) do
+    with [_, day_text, month_text, year_text, hour_text, minute_text, second_text] <-
+           Regex.run(~r/(\d{2})-(\d{2})-(\d{4})\s+(\d{2}):(\d{2}):(\d{2})/, value),
+         {day, ""} <- Integer.parse(day_text),
+         {month, ""} <- Integer.parse(month_text),
+         {year, ""} <- Integer.parse(year_text),
+         {hour, ""} <- Integer.parse(hour_text),
+         {minute, ""} <- Integer.parse(minute_text),
+         {second, ""} <- Integer.parse(second_text),
+         {:ok, datetime} <- build_utc_datetime(year, month, day, hour, minute, second),
+         true <-
+           DateTime.compare(datetime, DateTime.add(DateTime.utc_now(), 86_400, :second)) != :gt do
+      datetime
+    else
+      _ -> DateTime.utc_now()
+    end
+  end
+
+  defp parse_set_thailand_company_news(raw_payload) do
+    with {:ok, decoded} <- raw_payload |> trim_utf8_bom() |> Jason.decode() do
+      items =
+        decoded
+        |> set_thailand_company_news_records()
+        |> Enum.map(&parse_set_thailand_company_news_record/1)
+        |> Enum.filter(&(&1.url && &1.title && &1.published_at))
+
+      {:ok, items}
+    else
+      {:error, reason} -> {:error, {:invalid_set_thailand_company_news_json, reason}}
+      _shape -> {:error, :unexpected_set_thailand_company_news_shape}
+    end
+  end
+
+  defp set_thailand_company_news_records(%{} = decoded) do
+    group_records =
+      decoded
+      |> Map.get("newsGroups", [])
+      |> case do
+        groups when is_list(groups) ->
+          Enum.flat_map(groups, &set_thailand_company_news_group_records/1)
+
+        _groups ->
+          []
+      end
+
+    paginated_records =
+      decoded
+      |> get_in(["paginateNews", "newsInfoList"])
+      |> case do
+        records when is_list(records) ->
+          Enum.map(records, &Map.put(&1, "_group", "Latest Company News"))
+
+        _records ->
+          []
+      end
+
+    group_records ++ paginated_records
+  end
+
+  defp set_thailand_company_news_group_records(%{"newsInfoList" => records} = group)
+       when is_list(records) do
+    group_name = string_field(group, "group")
+
+    records
+    |> Enum.filter(&is_map/1)
+    |> Enum.map(&Map.put(&1, "_group", group_name))
+  end
+
+  defp set_thailand_company_news_group_records(_group), do: []
+
+  defp parse_set_thailand_company_news_record(%{} = record) do
+    id = string_field(record, "id")
+    symbol = string_field(record, "symbol")
+    source = string_field(record, "source")
+    headline = string_field(record, "headline")
+    group = string_field(record, "_group")
+    tag = string_field(record, "tag")
+    product = string_field(record, "product")
+    published_text = string_field(record, "datetime")
+
+    %{
+      external_id: set_thailand_company_news_external_id(id),
+      title: join_non_empty([symbol, headline], " - "),
+      url: set_thailand_company_news_url(record),
+      summary:
+        join_non_empty(
+          [
+            "SET Thailand company news",
+            prefixed("Symbol", symbol),
+            prefixed("Source", source),
+            prefixed("Group", group),
+            prefixed("Tag", tag),
+            prefixed("Product", product),
+            prefixed("Published", published_text)
+          ],
+          " | "
+        ),
+      published_at: parse_set_thailand_company_news_datetime(published_text),
+      category: group || tag || "company_news"
+    }
+  end
+
+  defp parse_set_thailand_company_news_record(_record) do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: nil,
+      category: nil
+    }
+  end
+
+  defp set_thailand_company_news_external_id(nil), do: nil
+  defp set_thailand_company_news_external_id(id), do: "set-thailand:" <> id
+
+  defp set_thailand_company_news_url(record) do
+    record
+    |> string_field("url")
+    |> case do
+      @set_thailand_base_url <> "/" <> _path = url -> url
+      _url -> nil
+    end
+  end
+
+  defp parse_set_thailand_company_news_datetime(nil), do: DateTime.utc_now()
+
+  defp parse_set_thailand_company_news_datetime(value) do
+    parse_iso8601_datetime(value) || DateTime.utc_now()
+  end
+
+  defp parse_tw_mops_daily_material_info(raw_payload) do
+    with {:ok, decoded} <- raw_payload |> trim_utf8_bom() |> Jason.decode(),
+         rows <- tw_mops_daily_material_info_rows(decoded),
+         true <- is_list(rows) do
+      items =
+        rows
+        |> Enum.map(&parse_tw_mops_daily_material_info_row/1)
+        |> Enum.filter(&(&1.url && &1.title && &1.published_at))
+
+      {:ok, items}
+    else
+      {:error, reason} -> {:error, {:invalid_tw_mops_daily_material_info_json, reason}}
+      _shape -> {:error, :unexpected_tw_mops_daily_material_info_shape}
+    end
+  end
+
+  defp tw_mops_daily_material_info_rows(%{"result" => %{"data" => rows}}) when is_list(rows),
+    do: rows
+
+  defp tw_mops_daily_material_info_rows(rows) when is_list(rows), do: rows
+  defp tw_mops_daily_material_info_rows(_decoded), do: nil
+
+  defp parse_tw_mops_daily_material_info_row([
+         date_text,
+         time_text,
+         company_id,
+         company_name,
+         headline | rest
+       ]) do
+    detail = Enum.at(rest, 0)
+    detail_params = tw_mops_detail_params(detail)
+    enter_date = string_field(detail_params, "enterDate")
+    serial_number = string_field(detail_params, "serialNumber")
+    company_id = to_clean_string(company_id)
+    company_name = to_clean_string(company_name)
+    headline = clean_html(to_clean_string(headline))
+
+    %{
+      external_id:
+        join_non_empty(
+          [
+            "tw-mops",
+            company_id,
+            enter_date || tw_mops_compact_roc_date(date_text),
+            serial_number
+          ],
+          ":"
+        ),
+      title: join_non_empty([company_id, company_name, headline], " - "),
+      url: tw_mops_material_info_url(date_text),
+      summary:
+        join_non_empty(
+          [
+            "Taiwan MOPS daily material information",
+            prefixed("Company", join_non_empty([company_id, company_name], " ")),
+            prefixed("Published", join_non_empty([date_text, time_text], " ")),
+            prefixed("Market", string_field(detail_params, "marketKind"))
+          ],
+          " | "
+        ),
+      published_at: parse_tw_mops_datetime(date_text, time_text),
+      category: "material_information"
+    }
+  end
+
+  defp parse_tw_mops_daily_material_info_row(%{} = row) do
+    parse_tw_mops_openapi_material_info_row(row)
+  end
+
+  defp parse_tw_mops_daily_material_info_row(row) do
+    parse_tw_mops_openapi_material_info_row(row)
+  end
+
+  defp parse_tw_mops_openapi_material_info_row(%{} = row) do
+    disclosure_date = string_field(row, "出表日期")
+    speech_date = string_field(row, "發言日期")
+    speech_time = string_field(row, "發言時間")
+    company_id = string_field(row, "公司代號")
+    company_name = string_field(row, "公司名稱")
+    subject = string_field(row, "主旨 ") || string_field(row, "主旨")
+    article = string_field(row, "符合條款")
+    event_date = string_field(row, "事實發生日")
+    description = string_field(row, "說明")
+
+    %{
+      external_id:
+        join_non_empty(["tw-mops", company_id, speech_date, speech_time, article], ":"),
+      title: join_non_empty([company_id, company_name, subject], " - "),
+      url: tw_mops_material_info_url_from_compact_date(speech_date || disclosure_date),
+      summary:
+        join_non_empty(
+          [
+            "Taiwan TWSE OpenAPI daily material information",
+            prefixed("Company", join_non_empty([company_id, company_name], " ")),
+            prefixed("Published", join_non_empty([speech_date, speech_time], " ")),
+            prefixed("Article", article),
+            prefixed("Event date", event_date),
+            prefixed("Description", description)
+          ],
+          " | "
+        ),
+      published_at: parse_tw_mops_openapi_datetime(speech_date || disclosure_date, speech_time),
+      category: "material_information"
+    }
+  end
+
+  defp parse_tw_mops_openapi_material_info_row(_row) do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: nil,
+      category: nil
+    }
+  end
+
+  defp tw_mops_detail_params(%{"parameters" => params}) when is_map(params), do: params
+  defp tw_mops_detail_params(_detail), do: %{}
+
+  defp tw_mops_material_info_url(date_text) do
+    case parse_tw_mops_roc_date_parts(date_text) do
+      {year, month, day} ->
+        @tw_mops_material_info_base_url <>
+          "/#/web/t05st02?year=#{year}&month=#{month}&day=#{pad2(day)}"
+
+      nil ->
+        @tw_mops_material_info_base_url <> "/#/web/t05st02"
+    end
+  end
+
+  defp tw_mops_material_info_url_from_compact_date(date_text) do
+    case parse_tw_mops_compact_roc_date_parts(date_text) do
+      {year, month, day} ->
+        @tw_mops_material_info_base_url <>
+          "/#/web/t05st02?year=#{year}&month=#{month}&day=#{pad2(day)}"
+
+      nil ->
+        @tw_mops_material_info_base_url <> "/#/web/t05st02"
+    end
+  end
+
+  defp tw_mops_compact_roc_date(date_text) do
+    case parse_tw_mops_roc_date_parts(date_text) do
+      {year, month, day} -> "#{year}#{pad2(month)}#{pad2(day)}"
+      nil -> nil
+    end
+  end
+
+  defp parse_tw_mops_datetime(date_text, time_text) do
+    with {roc_year, month, day} <- parse_tw_mops_roc_date_parts(date_text),
+         {hour, minute, second} <- parse_hms(time_text),
+         {:ok, date} <- Date.new(roc_year + 1911, month, day),
+         {:ok, time} <- Time.new(hour, minute, second),
+         {:ok, naive} <- NaiveDateTime.new(date, time) do
+      naive
+      |> DateTime.from_naive!("Etc/UTC")
+      |> DateTime.add(-8 * 60 * 60, :second)
+    else
+      _ -> DateTime.utc_now()
+    end
+  end
+
+  defp parse_tw_mops_openapi_datetime(date_text, time_text) do
+    with {roc_year, month, day} <- parse_tw_mops_compact_roc_date_parts(date_text),
+         {hour, minute, second} <- parse_tw_mops_compact_time(time_text),
+         {:ok, date} <- Date.new(roc_year + 1911, month, day),
+         {:ok, time} <- Time.new(hour, minute, second),
+         {:ok, naive} <- NaiveDateTime.new(date, time) do
+      naive
+      |> DateTime.from_naive!("Etc/UTC")
+      |> DateTime.add(-8 * 60 * 60, :second)
+    else
+      _ -> DateTime.utc_now()
+    end
+  end
+
+  defp parse_tw_mops_roc_date_parts(value) do
+    value = to_clean_string(value)
+
+    with [_, year_text, month_text, day_text] <-
+           Regex.run(~r/^(\d{2,3})\/(\d{1,2})\/(\d{1,2})$/, value),
+         {year, ""} <- Integer.parse(year_text),
+         {month, ""} <- Integer.parse(month_text),
+         {day, ""} <- Integer.parse(day_text) do
+      {year, month, day}
+    else
+      _ -> nil
+    end
+  end
+
+  defp parse_tw_mops_compact_roc_date_parts(value) do
+    value = to_clean_string(value)
+
+    with [_, year_text, month_text, day_text] <-
+           Regex.run(~r/^(\d{3})(\d{2})(\d{2})$/, value),
+         {year, ""} <- Integer.parse(year_text),
+         {month, ""} <- Integer.parse(month_text),
+         {day, ""} <- Integer.parse(day_text) do
+      {year, month, day}
+    else
+      _ -> nil
+    end
+  end
+
+  defp parse_tw_mops_compact_time(value) do
+    value =
+      value
+      |> to_clean_string()
+      |> String.pad_leading(6, "0")
+
+    with [_, hour_text, minute_text, second_text] <-
+           Regex.run(~r/^(\d{2})(\d{2})(\d{2})$/, value),
+         {hour, ""} <- Integer.parse(hour_text),
+         {minute, ""} <- Integer.parse(minute_text),
+         {second, ""} <- Integer.parse(second_text) do
+      {hour, minute, second}
+    else
+      _ -> nil
+    end
+  end
+
+  defp parse_tdnet_public_list(raw_payload) do
+    disclosure_date = tdnet_public_list_disclosure_date(raw_payload)
+
+    items =
+      ~r/<tr>\s*<td[^>]*\bkjTime\b[^>]*>(.*?)<\/td>\s*<td[^>]*\bkjCode\b[^>]*>(.*?)<\/td>\s*<td[^>]*\bkjName\b[^>]*>(.*?)<\/td>\s*<td[^>]*\bkjTitle\b[^>]*>\s*<a\s+href="([^"]+)"[^>]*>(.*?)<\/a>\s*<\/td>\s*<td[^>]*\bkjXbrl\b[^>]*>(.*?)<\/td>\s*<td[^>]*\bkjPlace\b[^>]*>(.*?)<\/td>/su
+      |> Regex.scan(raw_payload, capture: :all_but_first)
+      |> Enum.map(&parse_tdnet_public_list_row(&1, disclosure_date))
+      |> Enum.filter(&(&1.url && &1.title && &1.published_at))
+
+    {:ok, items}
+  end
+
+  defp parse_tdnet_public_list_row(
+         [time_text, code_html, company_html, href, title_html, xbrl_html, place_html],
+         disclosure_date
+       ) do
+    code = clean_html(code_html)
+    company = clean_html(company_html)
+    title = clean_html(title_html)
+    url = tdnet_public_list_absolute_url(href)
+    exchange = clean_html(place_html)
+
+    %{
+      external_id: tdnet_public_list_external_id(url),
+      title: join_non_empty([company, title], " - "),
+      url: url,
+      summary:
+        join_non_empty(
+          [
+            "TDnet official timely disclosure",
+            prefixed("Code", code),
+            prefixed("Company", company),
+            prefixed("Exchange", exchange),
+            prefixed("XBRL", tdnet_public_list_xbrl(xbrl_html))
+          ],
+          " | "
+        ),
+      published_at: tdnet_public_list_datetime(disclosure_date, time_text),
+      category: "disclosure"
+    }
+  end
+
+  defp parse_tdnet_public_list_row(_row, _disclosure_date) do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: nil,
+      category: nil
+    }
+  end
+
+  defp tdnet_public_list_disclosure_date(raw_payload) do
+    with [_, year_text, month_text, day_text] <-
+           Regex.run(
+             ~r/id="kaiji-date-1"[^>]*>\s*(\d{4})\D+(\d{1,2})\D+(\d{1,2})\D*\s*<\/div>/u,
+             raw_payload
+           ),
+         {year, ""} <- Integer.parse(year_text),
+         {month, ""} <- Integer.parse(month_text),
+         {day, ""} <- Integer.parse(day_text),
+         {:ok, date} <- Date.new(year, month, day) do
+      date
+    else
+      _ -> Date.utc_today()
+    end
+  end
+
+  defp tdnet_public_list_datetime(%Date{} = date, time_text) do
+    with {hour, minute, second} <- parse_tdnet_public_time(time_text),
+         {:ok, time} <- Time.new(hour, minute, second),
+         {:ok, naive} <- NaiveDateTime.new(date, time) do
+      naive
+      |> DateTime.from_naive!("Etc/UTC")
+      |> DateTime.add(-9 * 60 * 60, :second)
+    else
+      _ -> DateTime.utc_now()
+    end
+  end
+
+  defp parse_tdnet_public_time(time_text) do
+    with value when is_binary(value) <- to_clean_string(time_text),
+         [_, hour_text, minute_text] <- Regex.run(~r/^(\d{1,2}):(\d{2})$/, value),
+         {hour, ""} <- Integer.parse(hour_text),
+         {minute, ""} <- Integer.parse(minute_text) do
+      {hour, minute, 0}
+    else
+      _ -> parse_hms(time_text)
+    end
+  end
+
+  defp tdnet_public_list_absolute_url(href) do
+    @tdnet_public_base_url
+    |> URI.merge(decode_html_entities(href))
+    |> URI.to_string()
+  end
+
+  defp tdnet_public_list_external_id(url) do
+    url
+    |> URI.parse()
+    |> Map.get(:path, "")
+    |> Path.basename()
+    |> String.replace_suffix(".pdf", "")
+  end
+
+  defp tdnet_public_list_xbrl(xbrl_html) do
+    case clean_html(xbrl_html) do
+      nil -> nil
+      "" -> nil
+      value -> value
+    end
+  end
+
+  defp parse_hkex_latest_listed_company_info(raw_payload) do
+    with {:ok, %{"newsInfo" => records}} <- Jason.decode(raw_payload),
+         true <- is_list(records) do
+      items =
+        records
+        |> Enum.filter(&is_map/1)
+        |> Enum.map(&parse_hkex_latest_listed_company_record/1)
+        |> Enum.filter(&(&1.external_id && &1.url && &1.title && &1.published_at))
+
+      {:ok, items}
+    else
+      {:error, reason} -> {:error, {:invalid_hkex_latest_listed_company_json, reason}}
+      _shape -> {:error, :unexpected_hkex_latest_listed_company_shape}
+    end
+  end
+
+  defp parse_hkex_latest_listed_company_record(%{} = record) do
+    url = hkex_latest_listed_company_url(record)
+    stock = hkex_latest_listed_company_stock(record)
+    issuer_code = hkex_latest_listed_company_issuer_code(stock)
+    issuer_name = hkex_latest_listed_company_issuer_name(stock)
+    title = clean_html(string_field(record, "title"))
+    summary = clean_html(string_field(record, "sTxt"))
+    document_type = hkex_latest_listed_company_document_type(record)
+    size = hkex_latest_listed_company_clean_metadata(record, "size")
+    published_text = hkex_latest_listed_company_published_text(record)
+
+    %{
+      external_id: hkex_latest_listed_company_external_id(record, url),
+      title: join_non_empty([issuer_code, issuer_name, title || summary], " - "),
+      url: url,
+      summary:
+        join_non_empty(
+          [
+            "HKEX Latest Listed Company Information",
+            prefixed("Issuer", join_non_empty([issuer_code, issuer_name], " ")),
+            prefixed("Category", summary),
+            prefixed("Document", document_type),
+            prefixed("Size", size),
+            prefixed("Published", published_text)
+          ],
+          " | "
+        ),
+      published_at: parse_hkex_latest_listed_company_datetime(record),
+      category: "latest_submissions"
+    }
+  end
+
+  defp hkex_latest_listed_company_url(record) do
+    record
+    |> string_field("webPath")
+    |> case do
+      "https://www1.hkexnews.hk/listedco/listconews/" <> _path = url -> url
+      _url -> nil
+    end
+  end
+
+  defp hkex_latest_listed_company_external_id(record, url) do
+    cond do
+      document_id = hkex_latest_listed_company_document_id(url) ->
+        "hkex-llci:" <> document_id
+
+      news_id = string_field(record, "newsId") ->
+        "hkex-llci:news-" <> news_id
+
+      true ->
+        nil
+    end
+  end
+
+  defp hkex_latest_listed_company_document_id(nil), do: nil
+
+  defp hkex_latest_listed_company_document_id(url) do
+    case Regex.run(~r/\/(\d+)\.(?:pdf|htm|html)$/i, url) do
+      [_, document_id] -> document_id
+      _ -> nil
+    end
+  end
+
+  defp hkex_latest_listed_company_stock(%{"stock" => [%{} = stock | _rest]}), do: stock
+  defp hkex_latest_listed_company_stock(%{"stock" => stock}) when is_binary(stock), do: stock
+  defp hkex_latest_listed_company_stock(_record), do: nil
+
+  defp hkex_latest_listed_company_issuer_code(%{} = stock), do: string_field(stock, "sc")
+
+  defp hkex_latest_listed_company_issuer_code(stock) when is_binary(stock) do
+    case Regex.run(~r/^(\d{4,5})\b/, String.trim(stock)) do
+      [_, code] -> code
+      _ -> nil
+    end
+  end
+
+  defp hkex_latest_listed_company_issuer_code(_stock), do: nil
+
+  defp hkex_latest_listed_company_issuer_name(%{} = stock), do: string_field(stock, "sn")
+
+  defp hkex_latest_listed_company_issuer_name(stock) when is_binary(stock) do
+    stock
+    |> String.replace(~r/^\d{4,5}\s*/, "")
+    |> to_clean_string()
+  end
+
+  defp hkex_latest_listed_company_issuer_name(_stock), do: nil
+
+  defp hkex_latest_listed_company_document_type(record) do
+    record
+    |> hkex_latest_listed_company_clean_metadata("ext")
+    |> case do
+      nil -> nil
+      value -> String.downcase(value)
+    end
+  end
+
+  defp hkex_latest_listed_company_clean_metadata(record, key) do
+    record
+    |> string_field(key)
+    |> case do
+      nil -> nil
+      value when value in ["NaN", "nan", "N/A", "n/a"] -> nil
+      value -> value
+    end
+  end
+
+  defp hkex_latest_listed_company_published_text(record) do
+    join_non_empty(
+      [
+        string_field(record, "relY"),
+        string_field(record, "relM"),
+        string_field(record, "relD"),
+        string_field(record, "relTime")
+      ],
+      "-"
+    )
+  end
+
+  defp parse_hkex_latest_listed_company_datetime(record) do
+    with {year, ""} <- parse_hkex_integer_field(record, "relY"),
+         {month, ""} <- parse_hkex_integer_field(record, "relM"),
+         {day, ""} <- parse_hkex_integer_field(record, "relD"),
+         {hour, minute} <- parse_hkex_hour_minute(string_field(record, "relTime")),
+         {:ok, hong_kong_local_as_utc} <- build_utc_datetime(year, month, day, hour, minute, 0) do
+      DateTime.add(hong_kong_local_as_utc, -8 * 60 * 60, :second)
+    else
+      _ -> DateTime.utc_now()
+    end
+  end
+
+  defp parse_hkex_integer_field(record, key) do
+    case string_field(record, key) do
+      value when is_binary(value) -> Integer.parse(value)
+      _value -> :error
+    end
+  end
+
+  defp parse_hkex_hour_minute(value) do
+    with value when is_binary(value) <- value,
+         [_, hour_text, minute_text] <- Regex.run(~r/^(\d{1,2}):(\d{2})$/, value),
+         {hour, ""} <- Integer.parse(hour_text),
+         {minute, ""} <- Integer.parse(minute_text) do
+      {hour, minute}
+    else
+      _ -> nil
+    end
+  end
+
+  defp parse_hms(value) do
+    value = to_clean_string(value)
+
+    with [_, hour_text, minute_text, second_text] <-
+           Regex.run(~r/^(\d{1,2}):(\d{2}):(\d{2})$/, value),
+         {hour, ""} <- Integer.parse(hour_text),
+         {minute, ""} <- Integer.parse(minute_text),
+         {second, ""} <- Integer.parse(second_text) do
+      {hour, minute, second}
+    else
+      _ -> nil
+    end
+  end
+
+  defp parse_belex_issuer_news(raw_payload) do
+    table_html = regex_capture_raw(raw_payload, ~r/<table\s+id=["']t5["'][^>]*>(.*?)<\/table>/is)
+
+    items =
+      (table_html || raw_payload)
+      |> then(
+        &Regex.scan(
+          ~r/<tr[^>]*>\s*<td\s+class=["']date["'][^>]*>\s*(.*?)\s*<\/td>\s*<td\s+class=["']vest["'][^>]*>\s*<a\s+href=["']([^"']+)["'][^>]*>\s*(.*?)\s*<\/a>/is,
+          &1
+        )
+      )
+      |> Enum.map(&parse_belex_issuer_news_row/1)
+      |> Enum.filter(&(&1.url && &1.title && &1.published_at))
+
+    {:ok, items}
+  end
+
+  defp parse_belex_issuer_news_row([_row, date_html, href, title_html]) do
+    date_text = clean_html(date_html)
+    raw_title = clean_html(title_html)
+    {symbol, title} = belex_title_parts(raw_title)
+    url = belex_url(href)
+
+    %{
+      external_id: belex_external_id(symbol, date_text, title),
+      title: title,
+      url: url,
+      summary:
+        join_non_empty(
+          [
+            "Belgrade Stock Exchange issuer news",
+            prefixed("Symbol", symbol),
+            prefixed("Published", date_text)
+          ],
+          " | "
+        ),
+      published_at: parse_belex_date(date_text),
+      category: "issuer_news"
+    }
+  end
+
+  defp parse_belex_issuer_news_row(_row) do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: nil,
+      category: nil
+    }
+  end
+
+  defp belex_title_parts(nil), do: {nil, nil}
+
+  defp belex_title_parts(value) do
+    case Regex.run(~r/^([A-Z0-9]+)\s+-\s+(.+)$/u, value) do
+      [_match, symbol, title] -> {symbol, String.trim(title)}
+      _ -> {nil, value}
+    end
+  end
+
+  defp belex_url(nil), do: nil
+
+  defp belex_url(raw_url) do
+    url = decode_html_entities(raw_url)
+
+    cond do
+      String.starts_with?(url, "http") -> url
+      String.starts_with?(url, "/") -> @belex_base_url <> url
+      true -> @belex_base_url <> "/" <> url
+    end
+  end
+
+  defp belex_external_id(symbol, date_text, title) do
+    [symbol, date_text, title]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.map(&belex_external_id_part/1)
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.join(":")
+    |> case do
+      "" -> nil
+      value -> "belex:" <> value
+    end
+  end
+
+  defp belex_external_id_part(value) do
+    value
+    |> to_string()
+    |> String.downcase()
+    |> String.replace(~r/[^a-z0-9]+/u, "-")
+    |> String.trim("-")
+  end
+
+  defp parse_belex_date(nil), do: DateTime.utc_now()
+
+  defp parse_belex_date(value) do
+    with [_, day_text, month_text, year_text] <-
+           Regex.run(~r/^(\d{2})\.(\d{2})\.(\d{4})\./, value),
+         {day, ""} <- Integer.parse(day_text),
+         {month, ""} <- Integer.parse(month_text),
+         {year, ""} <- Integer.parse(year_text),
+         {:ok, datetime} <- build_utc_datetime(year, month, day, 0, 0, 0),
+         true <-
+           DateTime.compare(datetime, DateTime.add(DateTime.utc_now(), 86_400, :second)) != :gt do
+      datetime
+    else
+      _ -> DateTime.utc_now()
+    end
+  end
+
+  defp parse_sase_multi_issuer_announcements(raw_payload) do
+    with {:ok, decoded} <- Jason.decode(raw_payload),
+         true <- Map.get(decoded, "strategy") == @sase_strategy,
+         responses when is_list(responses) <- Map.get(decoded, "responses") do
+      items =
+        responses
+        |> Enum.flat_map(&parse_sase_issuer_announcement_response/1)
+        |> Enum.filter(&(&1.url && &1.title && &1.published_at))
+
+      {:ok, items}
+    else
+      {:error, error} -> {:error, {:invalid_json, error}}
+      false -> {:error, {:invalid_json_shape, "sase_multi_issuer_announcements_xml_v1"}}
+      _ -> {:error, {:invalid_json_shape, "sase_multi_issuer_announcements_xml_v1"}}
+    end
+  end
+
+  defp parse_sase_issuer_announcement_response(%{
+         "issuer_code" => issuer_code,
+         "issuer" => issuer,
+         "data" => data
+       })
+       when is_binary(data) do
+    data
+    |> then(&Regex.scan(~r/<ANNOUNCEMENT>(.*?)<\/ANNOUNCEMENT>/s, &1))
+    |> Enum.map(&parse_sase_issuer_announcement(&1, issuer_code, issuer))
+  end
+
+  defp parse_sase_issuer_announcement_response(_response), do: []
+
+  defp parse_sase_issuer_announcement([_row, row], issuer_code, issuer) do
+    id = sase_xml_tag(row, "Id")
+    company_id = sase_xml_tag(row, "CompanyId") || issuer_code
+    subject = sase_xml_tag(row, "Subject")
+    document_link = sase_xml_tag(row, "Link")
+    announcement_type = sase_xml_tag(row, "AnnouncementTypeId")
+    event_date = sase_xml_tag(row, "DateOfEvent")
+
+    %{
+      external_id: join_non_empty(["sase", company_id, id], ":"),
+      title: subject,
+      url: sase_issuer_profile_url(company_id),
+      summary:
+        join_non_empty(
+          [
+            "Sarajevo Stock Exchange issuer announcement",
+            prefixed("Issuer", issuer),
+            prefixed("CompanyId", company_id),
+            prefixed("Document", sase_clean_document_link(document_link)),
+            prefixed("Event date", event_date)
+          ],
+          " | "
+        ),
+      published_at: parse_sase_datetime(sase_xml_tag(row, "AnnouncementDate")),
+      category: announcement_type
+    }
+  end
+
+  defp parse_sase_issuer_announcement(_row, _issuer_code, _issuer) do
+    %{
+      external_id: nil,
+      title: nil,
+      url: nil,
+      summary: nil,
+      published_at: nil,
+      category: nil
+    }
+  end
+
+  defp sase_xml_tag(row, tag) do
+    case Regex.run(~r/<#{tag}>(.*?)<\/#{tag}>/s, row, capture: :all_but_first) do
+      [value] ->
+        value
+        |> decode_html_entities()
+        |> String.trim()
+        |> case do
+          "" -> nil
+          trimmed -> trimmed
+        end
+
+      _ ->
+        nil
+    end
+  end
+
+  defp sase_issuer_profile_url(nil), do: @sase_profile_base_url
+
+  defp sase_issuer_profile_url(company_id) do
+    @sase_profile_base_url <> URI.encode_www_form(company_id)
+  end
+
+  defp sase_clean_document_link(nil), do: nil
+
+  defp sase_clean_document_link(value) do
+    value
+    |> String.replace(";", "")
+    |> String.trim()
+    |> case do
+      "" -> nil
+      cleaned -> cleaned
+    end
+  end
+
+  defp parse_sase_datetime(nil), do: DateTime.utc_now()
+
+  defp parse_sase_datetime(value) do
+    parse_iso8601_datetime(value) || parse_naive_iso8601_datetime(value) || DateTime.utc_now()
+  end
+
+  defp string_field(record, key) do
+    record
+    |> Map.get(key)
+    |> case do
+      value when is_binary(value) -> String.trim(value)
+      value when is_integer(value) or is_float(value) -> to_string(value)
+      _ -> nil
+    end
+    |> case do
+      "" -> nil
+      value -> value
+    end
+  end
+
+  defp to_clean_string(value) when is_binary(value) do
+    value
+    |> String.replace(~r/\s+/u, " ")
+    |> String.trim()
+    |> case do
+      "" -> nil
+      cleaned -> cleaned
+    end
+  end
+
+  defp to_clean_string(value) when is_integer(value) or is_float(value), do: to_string(value)
+  defp to_clean_string(_value), do: nil
+
+  defp trim_utf8_bom(<<0xEF, 0xBB, 0xBF, rest::binary>>), do: rest
+  defp trim_utf8_bom(value), do: value
+
+  defp regex_capture(raw, regex) do
+    case Regex.run(regex, raw, capture: :all_but_first) do
+      [value | _rest] -> clean_html(value)
+      _ -> nil
+    end
+  end
+
+  defp regex_capture_raw(raw, regex) do
+    case Regex.run(regex, raw, capture: :all_but_first) do
+      [value | _rest] -> value
+      _ -> nil
+    end
+  end
+
+  defp clean_html(nil), do: nil
+
+  defp clean_html(value) do
+    value
+    |> String.replace(~r/<[^>]+>/, " ")
+    |> decode_html_entities()
+    |> String.replace(~r/\s+/u, " ")
+    |> String.trim()
+    |> case do
+      "" -> nil
+      cleaned -> cleaned
+    end
+  end
+
+  defp decode_html_entities(value) do
+    decoded =
+      value
+      |> String.replace("&quot;", "\"")
+      |> String.replace("&#039;", "'")
+      |> String.replace("&apos;", "'")
+      |> String.replace("&amp;", "&")
+      |> String.replace("&nbsp;", " ")
+      |> String.replace("&lt;", "<")
+      |> String.replace("&gt;", ">")
+
+    decoded
+    |> then(&Regex.replace(~r/&#(\d+);/, &1, fn _match, code -> decode_decimal_entity(code) end))
+    |> then(
+      &Regex.replace(~r/&#x([0-9a-fA-F]+);/, &1, fn _match, code -> decode_hex_entity(code) end)
+    )
+  end
+
+  defp decode_decimal_entity(code_text) do
+    code_text
+    |> Integer.parse()
+    |> case do
+      {code, ""} -> unicode_codepoint(code)
+      _ -> ""
+    end
+  rescue
+    _ -> ""
+  end
+
+  defp decode_hex_entity(code_text) do
+    code_text
+    |> Integer.parse(16)
+    |> case do
+      {code, ""} -> unicode_codepoint(code)
+      _ -> ""
+    end
+  rescue
+    _ -> ""
+  end
+
+  defp unicode_codepoint(code) when code in 0..0x10FFFF, do: <<code::utf8>>
+  defp unicode_codepoint(_code), do: ""
+
+  defp datetime_field(record, keys) do
+    keys
+    |> Enum.find_value(&parse_iso8601_datetime(string_field(record, &1)))
+    |> case do
+      nil -> DateTime.utc_now()
+      datetime -> datetime
+    end
+  end
+
+  defp parse_iso8601_datetime(nil), do: nil
+
+  defp parse_iso8601_datetime(value) do
+    case DateTime.from_iso8601(value) do
+      {:ok, datetime, _offset} ->
+        if DateTime.compare(datetime, DateTime.add(DateTime.utc_now(), 86_400, :second)) == :gt do
+          nil
+        else
+          datetime
+        end
+
+      _ ->
+        nil
+    end
+  end
+
+  defp parse_afm_datetime(nil), do: DateTime.utc_now()
+
+  defp parse_afm_datetime(value) do
+    with [_, year_text, month_text, day_text, hour_text, minute_text, second_text] <-
+           Regex.run(
+             ~r/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/,
+             value
+           ),
+         {year, ""} <- Integer.parse(year_text),
+         {month, ""} <- Integer.parse(month_text),
+         {day, ""} <- Integer.parse(day_text),
+         {hour, ""} <- Integer.parse(hour_text),
+         {minute, ""} <- Integer.parse(minute_text),
+         {second, ""} <- Integer.parse(second_text),
+         {:ok, datetime} <- build_utc_datetime(year, month, day, hour, minute, second) do
+      datetime
+    else
+      _ -> DateTime.utc_now()
+    end
+  end
+
+  defp parse_emarket_storage_datetime(nil), do: DateTime.utc_now()
+
+  defp parse_emarket_storage_datetime(value) do
+    with [_, day_text, month_text, year_text, hour_text, minute_text] <-
+           Regex.run(~r/^(\d{2})\/(\d{2})\/(\d{4}) - (\d{2}):(\d{2})$/, value),
+         {year, ""} <- Integer.parse(year_text),
+         {month, ""} <- Integer.parse(month_text),
+         {day, ""} <- Integer.parse(day_text),
+         {hour, ""} <- Integer.parse(hour_text),
+         {minute, ""} <- Integer.parse(minute_text),
+         {:ok, datetime} <- build_utc_datetime(year, month, day, hour, minute, 0) do
+      datetime
+    else
+      _ -> DateTime.utc_now()
+    end
+  end
+
+  defp prefixed(_label, nil), do: nil
+  defp prefixed(_label, ""), do: nil
+  defp prefixed(label, value), do: "#{label}: #{value}"
+
+  defp join_non_empty(values, separator) do
+    values
+    |> Enum.reject(&is_nil/1)
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.join(separator)
+    |> case do
+      "" -> nil
+      value -> value
+    end
+  end
+
+  defp pad2(value) when is_integer(value) and value < 10, do: "0#{value}"
+  defp pad2(value), do: to_string(value)
+
+  defp parse_xml(raw_payload) do
+    try do
+      {document, _rest} =
+        raw_payload
+        |> normalize_xml_payload()
+        |> :xmerl_scan.string(quiet: true)
+
+      {:ok, document}
+    rescue
+      error -> {:error, {:invalid_xml, error}}
+    catch
+      kind, reason -> {:error, {:invalid_xml, {kind, reason}}}
+    end
+  end
+
+  defp normalize_xml_payload(raw_payload) do
+    raw_payload
+    |> String.replace(<<0xEF, 0xBB, 0xBF>>, "")
+    |> String.replace("…", "...")
+    |> String.replace("‘", "'")
+    |> String.replace("’", "'")
+    |> String.replace("“", "\"")
+    |> String.replace("”", "\"")
+    |> String.replace("–", "-")
+    |> String.replace("—", "-")
+    |> String.replace(<<0xC2, 0xA0>>, " ")
+    # xmerl expects encoded XML bytes so the XML declaration can drive UTF-8 decoding.
+    |> :binary.bin_to_list()
+  end
+
+  defp parse_item(item) do
+    link =
+      xpath_string_any(item, [
+        ~c"string(link)",
+        ~c"string(Link)",
+        ~c"string(link/@href)",
+        ~c"string(*[local-name()='link']/@href)"
+      ])
+
+    title =
+      xpath_string_any(item, [
+        ~c"string(title)",
+        ~c"string(Title)",
+        ~c"string(*[local-name()='title'])"
+      ])
+
+    summary =
+      xpath_string_any(item, [
+        ~c"string(description)",
+        ~c"string(Description)",
+        ~c"string(summary)",
+        ~c"string(content)",
+        ~c"string(*[local-name()='summary'])",
+        ~c"string(*[local-name()='content'])"
+      ])
+
+    %{
+      external_id:
+        xpath_string_any(item, [
+          ~c"string(guid)",
+          ~c"string(Guid)",
+          ~c"string(id)",
+          ~c"string(*[local-name()='id'])"
+        ]) || link,
+      title: clean_html(title),
+      url: link,
+      summary: clean_html(summary),
+      published_at:
+        xpath_pub_date_any(item, [
+          ~c"string(pubDate)",
+          ~c"string(PubDate)",
+          ~c"string(a10:updated)",
+          ~c"string(a10:published)",
+          ~c"string(updated)",
+          ~c"string(Updated)",
+          ~c"string(published)",
+          ~c"string(Published)",
+          ~c"string(*[local-name()='updated'])",
+          ~c"string(*[local-name()='published'])"
+        ]),
+      category:
+        xpath_string_any(item, [
+          ~c"string(category)",
+          ~c"string(Category)",
+          ~c"string(category/@term)",
+          ~c"string(category/@label)",
+          ~c"string(*[local-name()='category']/@term)",
+          ~c"string(*[local-name()='category']/@label)"
+        ])
+    }
+  end
+
+  defp xpath_string_any(node, queries) do
+    Enum.find_value(queries, &xpath_string(node, &1))
+  end
+
+  defp xpath_string(node, query) do
+    query
+    |> :xmerl_xpath.string(node)
+    |> xpath_value()
+    |> to_string()
+    |> String.trim()
+    |> case do
+      "" -> nil
+      value -> value
+    end
+  end
+
+  defp xpath_value({:xmlObj, :string, value}), do: value
+  defp xpath_value(value), do: value
+
+  defp xpath_pub_date_any(node, queries) do
+    Enum.find_value(queries, fn query ->
+      case xpath_string(node, query) do
+        nil -> nil
+        pub_date -> parse_pub_date(pub_date)
+      end
+    end) || DateTime.utc_now()
+  end
+
+  defp parse_pub_date(pub_date) do
+    case :httpd_util.convert_request_date(String.to_charlist(pub_date)) do
+      {{year, month, day}, {hour, minute, second}} ->
+        case build_utc_datetime(year, month, day, hour, minute, second) do
+          {:ok, datetime} -> datetime
+          :error -> nil
+        end
+
+      _ ->
+        parse_iso8601_pub_date(pub_date) || parse_rfc1123_pub_date_without_zone(pub_date) ||
+          parse_short_month_pub_date(pub_date)
+    end
+  end
+
+  defp parse_iso8601_pub_date(pub_date) do
+    case DateTime.from_iso8601(pub_date) do
+      {:ok, datetime, _offset} -> datetime
+      _ -> nil
+    end
+  end
+
+  defp parse_rfc1123_pub_date_without_zone(pub_date) do
+    with [_, _weekday, day_text, month_text, year_text, hour_text, minute_text, second_text] <-
+           Regex.run(
+             ~r/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun),\s+(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4})\s+(\d{2}):(\d{2}):(\d{2})\s*$/u,
+             pub_date
+           ),
+         {day, ""} <- Integer.parse(day_text),
+         {:ok, month} <- month_number(month_text),
+         {year, ""} <- Integer.parse(year_text),
+         {hour, ""} <- Integer.parse(hour_text),
+         {minute, ""} <- Integer.parse(minute_text),
+         {second, ""} <- Integer.parse(second_text),
+         {:ok, datetime} <- build_utc_datetime(year, month, day, hour, minute, second) do
+      datetime
+    else
+      _ -> nil
+    end
+  end
+
+  defp parse_short_month_pub_date(pub_date) do
+    with [_, day_text, month_text, year_text, hour_text, minute_text, second_text] <-
+           Regex.run(~r/^(\d{1,2})-([A-Za-z]{3})-(\d{4}) (\d{2}):(\d{2}):(\d{2})$/, pub_date),
+         {day, ""} <- Integer.parse(day_text),
+         {:ok, month} <- month_number(month_text),
+         {year, ""} <- Integer.parse(year_text),
+         {hour, ""} <- Integer.parse(hour_text),
+         {minute, ""} <- Integer.parse(minute_text),
+         {second, ""} <- Integer.parse(second_text),
+         {:ok, datetime} <- build_utc_datetime(year, month, day, hour, minute, second) do
+      datetime
+    else
+      _ -> DateTime.utc_now()
+    end
+  end
+
+  defp month_number(month) do
+    case String.downcase(month) do
+      "jan" -> {:ok, 1}
+      "feb" -> {:ok, 2}
+      "mar" -> {:ok, 3}
+      "apr" -> {:ok, 4}
+      "may" -> {:ok, 5}
+      "jun" -> {:ok, 6}
+      "jul" -> {:ok, 7}
+      "aug" -> {:ok, 8}
+      "sep" -> {:ok, 9}
+      "oct" -> {:ok, 10}
+      "nov" -> {:ok, 11}
+      "dec" -> {:ok, 12}
+      _ -> :error
+    end
+  end
+
+  defp build_utc_datetime(year, month, day, hour, minute, second) do
+    with {:ok, naive} <- NaiveDateTime.new(year, month, day, hour, minute, second, {0, 6}),
+         {:ok, datetime} <- DateTime.from_naive(naive, "Etc/UTC") do
+      {:ok, datetime}
+    else
+      _ -> :error
+    end
+  end
+end
+
+defmodule DisclosureAutomation.Jobs do
+  @moduledoc false
+
+  def enqueue(worker_module, args, opts \\ []) when is_atom(worker_module) and is_map(args) do
+    queue = Keyword.get(opts, :queue)
+
+    job_opts =
+      if queue do
+        [queue: queue]
+      else
+        []
+      end
+
+    case Oban.insert(worker_module.new(args, job_opts)) do
+      {:ok, oban_job} ->
+        {:ok,
+         %{
+           status: "accepted",
+           job: %{
+             id: oban_job.id,
+             queue: oban_job.queue,
+             worker: oban_job.worker,
+             args: oban_job.args
+           }
+         }}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+end
+
+defmodule DisclosureAutomation.Ingestion do
+  @moduledoc false
+
+  import Ecto.Query
+
+  alias DisclosureAutomation.Canonicalizer
+  alias DisclosureAutomation.Fixtures
+  alias DisclosureAutomation.Http
+  alias DisclosureAutomation.Parser
+  alias DisclosureAutomation.Repo
+  alias DisclosureAutomation.Schema.CanonicalFeedItem
+  alias DisclosureAutomation.Schema.IngestionRun
+  alias DisclosureAutomation.Schema.RawDocument
+  alias DisclosureAutomation.Schema.SourceRegistry
+  alias DisclosureAutomation.Sources
+
+  @default_live_headers [{"user-agent", "disclosure-automation-phase1"}]
+  @pse_default_issuer_universe_urls [
+    "https://www.pse.cz/en/market-data/shares/prime-market",
+    "https://www.pse.cz/en/market-data/shares/standard-market",
+    "https://www.pse.cz/en/market-data/shares/start-market",
+    "https://www.pse.cz/en/market-data/shares/free-market"
+  ]
+  @pse_news_url_template "https://www.pse.cz/api/news?lang=en&type=pse&page=1&homepage=0&searchKey=&dateFrom=&dateTo=&isin={isin}"
+  @pse_calendar_url_template "https://www.pse.cz/api/corporation-calendar?isin={isin}&order=date-DESC&lang=en"
+  @de_company_register_support_url "https://www.unternehmensregister.de/en/search/capital-market-info"
+  @de_company_register_token_url "https://www.unternehmensregister.de/api/search-token"
+  @de_company_register_search_url_template "https://www.unternehmensregister.de/en/search?formType=CAPITAL_MARKET&searchToken={token}&sourceDateFrom={source_date_from}&sourceDateTo={source_date_to}&from={from}"
+  @de_company_register_strategy "germany_company_register_token_preflight_v1"
+  @blse_strategy "blse_multi_issuer_news_rss_v1"
+  @sase_strategy "sase_multi_issuer_announcements_xml_v1"
+  @set_thailand_company_news_strategy "set_thailand_company_news_json_v1"
+  @tw_mops_material_info_strategy "tw_mops_daily_material_info_json_v1"
+  @tdnet_public_list_strategy "tdnet_public_list_html_v1"
+  @set_thailand_base_url "https://www.set.or.th"
+  @tdnet_public_list_url_template "https://www.release.tdnet.info/inbs/I_list_001_{date}.html"
+  @blse_ticker_url "https://services.blberza.com/blse/ticker.ashx?LangId=3&TickerTypeId=1&filter=all&ct=xml"
+  @blse_issuer_news_url_template "https://www.blberza.com/pages/IssuerNewsRss.aspx?Code={code}&LangId=3"
+  @sec_edgar_current_8k_source_key "sec_edgar_current_8k_filings"
+  @sec_edgar_form4_cluster_source_key "sec_edgar_form4_clustered_insider_buys"
+  @sec_edgar_current_10q_source_key "sec_edgar_current_10q_reports"
+  @sec_edgar_current_10k_source_key "sec_edgar_current_10k_reports"
+  @sec_edgar_current_s1_source_key "sec_edgar_current_s1_registration_statements"
+  @sec_edgar_current_f1_source_key "sec_edgar_current_f1_registration_statements"
+  @sec_edgar_current_13d_source_key "sec_edgar_current_13d_activist_ownership"
+  @sec_edgar_current_13g_source_key "sec_edgar_current_13g_increased_ownership"
+  @sec_edgar_current_s4_source_key "sec_edgar_current_s4_merger_registration_statements"
+  @sec_edgar_current_f4_source_key "sec_edgar_current_f4_merger_registration_statements"
+  @sec_edgar_current_schedule_to_source_key "sec_edgar_current_schedule_to_tender_offers"
+  @sec_edgar_13f_accumulation_source_key "sec_edgar_13f_institutional_accumulation"
+  @sec_edgar_periodic_report_source_keys [
+    @sec_edgar_current_10q_source_key,
+    @sec_edgar_current_10k_source_key
+  ]
+  @sec_edgar_periodic_revenue_xbrl_tags [
+    "RevenueFromContractWithCustomerExcludingAssessedTax",
+    "RevenueFromContractWithCustomerIncludingAssessedTax",
+    "Revenues",
+    "SalesRevenueNet",
+    "SalesRevenueGoodsNet",
+    "SalesRevenueServicesNet",
+    "SalesRevenueGoodsGross",
+    "SalesRevenueServicesGross",
+    "RegulatedAndUnregulatedOperatingRevenue",
+    "RealEstateRevenueNet",
+    "OperatingLeasesIncomeStatementLeaseRevenue",
+    "LeaseIncome",
+    "RentalIncome",
+    "InterestIncomeOperating",
+    "GrossInvestmentIncomeOperating",
+    "InterestIncomeOperatingPaidInCash",
+    "InterestIncomeOperatingPaidInKind",
+    "InterestIncomeExpenseOperatingNet",
+    "InterestIncomeAfterProvisionForLoanLoss",
+    "InterestAndDividendIncomeOperating",
+    "InvestmentIncomeInterest",
+    "InvestmentIncomeInterestAndDividend",
+    "InvestmentIncomeInvestmentExpense",
+    "InvestmentIncomeNet",
+    "InvestmentIncomeOperatingAfterExpenseAndTax",
+    "NoninterestIncome",
+    "OtherIncome",
+    "InsuranceRevenue",
+    "PremiumsEarnedNet"
+  ]
+  @sec_edgar_periodic_operating_income_xbrl_tags [
+    "OperatingIncomeLoss",
+    "IncomeLossFromOperations",
+    "IncomeFromOperations",
+    "OperatingProfitLoss",
+    "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+    "IncomeLossFromContinuingOperationsBeforeIncomeTaxes"
+  ]
+  @sec_edgar_periodic_net_income_xbrl_tags [
+    "NetIncomeLoss",
+    "ProfitLoss",
+    "NetIncomeLossAttributableToParent",
+    "NetIncomeLossAvailableToCommonStockholdersBasic",
+    "NetIncomeLossAvailableToCommonStockholdersDiluted",
+    "NetIncomeLossAvailableToCommonStockholdersBasicAndDiluted",
+    "IncomeLossFromContinuingOperations",
+    "IncomeLossFromContinuingOperationsIncludingPortionAttributableToNoncontrollingInterest"
+  ]
+  @sec_edgar_periodic_eps_xbrl_tags [
+    "EarningsPerShareDiluted",
+    "EarningsPerShareBasic",
+    "EarningsPerShareBasicAndDiluted",
+    "EarningsPerShareDilutedContinuingOperations",
+    "EarningsPerShareBasicContinuingOperations",
+    "IncomeLossFromContinuingOperationsPerDilutedShare",
+    "IncomeLossFromContinuingOperationsPerBasicShare",
+    "IncomeLossFromContinuingOperationsPerBasicAndDilutedShare",
+    "InvestmentCompanyInvestmentIncomeLossPerShare"
+  ]
+  @sec_edgar_registration_source_keys [
+    @sec_edgar_current_s1_source_key,
+    @sec_edgar_current_f1_source_key
+  ]
+  @sec_edgar_ma_registration_source_keys [
+    @sec_edgar_current_s4_source_key,
+    @sec_edgar_current_f4_source_key
+  ]
+  @sec_edgar_detail_fetch_default_limit 10
+  @sec_edgar_detail_fetch_default_timeout_ms 8_000
+  @sec_edgar_detail_fetch_default_max_bytes 2_000_000
+  @sec_edgar_current_8k_detail_fetch_min_max_bytes 4_000_000
+  @sec_edgar_periodic_report_detail_fetch_min_limit 10
+  @sec_edgar_periodic_report_detail_fetch_min_max_bytes 8_000_000
+  @sec_edgar_periodic_report_detail_fetch_min_timeout_ms 10_000
+  @sec_edgar_form4_cluster_min_owners 3
+  @sec_edgar_form4_cluster_window_days 7
+  @sec_edgar_item_heading_regex ~r/\bItem\s+[1-9]\.\d{2}\b/i
+
+  def poll_source(source_key, opts \\ []) when is_binary(source_key) do
+    trigger_kind = Keyword.get(opts, :trigger_kind, "manual")
+    edition = Keyword.get(opts, :edition, "breaking")
+    use_live_fetch = Keyword.get(opts, :use_live_fetch, true)
+
+    with {:ok, %SourceRegistry{} = source} <- Sources.get_source_by_key(source_key),
+         {:ok, payload} <- load_payload(source, use_live_fetch: use_live_fetch),
+         {:ok, records} <-
+           Parser.parse(source.parser_key, payload.raw_payload,
+             cache: parser_cache(),
+             max_items_per_poll: source_max_items_per_poll(source)
+           ) do
+      records = maybe_enrich_live_records(source, records, payload.fetch_info)
+      records = Canonicalizer.prewarm_entity_profiles(records, source)
+
+      result =
+        Repo.transaction(fn ->
+          {:ok, run} =
+            %IngestionRun{}
+            |> IngestionRun.changeset(%{
+              source_registry_id: source.id,
+              run_key: Ecto.UUID.generate(),
+              trigger_kind: trigger_kind,
+              status: "running",
+              request_url: source.base_url,
+              queued_at: DateTime.utc_now(),
+              started_at: DateTime.utc_now(),
+              http_status: payload.http_status,
+              meta: %{"fetch" => payload.fetch_info}
+            })
+            |> Repo.insert()
+
+          persisted =
+            records
+            |> Enum.with_index(1)
+            |> Enum.map(fn {record, rank} ->
+              {:ok, raw_document} = upsert_raw_document(run, source, record)
+
+              {:ok, canonical_item} =
+                upsert_canonical_item(
+                  raw_document,
+                  source,
+                  record,
+                  edition,
+                  rank,
+                  payload.fetch_info
+                )
+
+              %{raw_document: raw_document, canonical_item: canonical_item}
+            end)
+
+          raw_document_ids =
+            persisted
+            |> Enum.map(& &1.raw_document.id)
+            |> Enum.uniq()
+
+          canonical_item_keys =
+            persisted
+            |> Enum.map(& &1.canonical_item.story_key)
+            |> Enum.uniq()
+
+          unique_persisted =
+            Enum.uniq_by(persisted, & &1.raw_document.id)
+
+          latest_published_at =
+            unique_persisted
+            |> Enum.map(& &1.raw_document.published_at)
+            |> Enum.reject(&is_nil/1)
+            |> case do
+              [] -> DateTime.utc_now()
+              values -> Enum.max_by(values, &DateTime.to_unix/1)
+            end
+
+          run
+          |> IngestionRun.changeset(%{
+            status: "succeeded",
+            finished_at: DateTime.utc_now(),
+            records_seen: length(records),
+            records_inserted: length(raw_document_ids),
+            records_updated: max(length(records) - length(raw_document_ids), 0),
+            records_rejected: 0
+          })
+          |> Repo.update!()
+
+          {:ok, _source} = Sources.mark_poll_success(source, latest_published_at)
+
+          %{
+            source_key: source.source_key,
+            edition: edition,
+            fetch: payload.fetch_info,
+            records_seen: length(records),
+            records_inserted: length(raw_document_ids),
+            raw_documents: raw_document_ids,
+            canonical_items: canonical_item_keys
+          }
+        end)
+
+      case result do
+        {:ok, poll_result} -> {:ok, poll_result}
+        {:error, reason} -> handle_failure(source, reason)
+      end
+    else
+      {:error, reason} = error ->
+        maybe_mark_lookup_failure(source_key, reason)
+        error
+    end
+  end
+
+  def backfill_sec_periodic_report_summaries(opts \\ []) do
+    archive_only? = Keyword.get(opts, :archive_only, false)
+    edition = Keyword.get(opts, :edition, "breaking")
+    limit = sec_edgar_backfill_positive_int(Keyword.get(opts, :limit)) || 20
+    offset = sec_edgar_backfill_nonnegative_int(Keyword.get(opts, :offset)) || 0
+    max_size_mb = sec_edgar_backfill_positive_int(Keyword.get(opts, :max_size_mb)) || 8
+    raw_only? = Keyword.get(opts, :raw_only, false)
+
+    recent_date_limit =
+      sec_edgar_backfill_positive_int(Keyword.get(opts, :recent_date_limit)) || 3
+
+    cutoff = Date.utc_today() |> Date.add(-recent_date_limit)
+
+    base_filter =
+      dynamic(
+        [item, source],
+        source.source_key in ^@sec_edgar_periodic_report_source_keys and
+          item.edition == ^edition and item.digest_date >= ^cutoff
+      )
+
+    candidate_filter =
+      if raw_only? do
+        dynamic([item, _source], ^base_filter and like(item.summary, "Filed:%"))
+      else
+        base_filter
+      end
+
+    candidates =
+      Repo.all(
+        from(item in CanonicalFeedItem,
+          join: source in SourceRegistry,
+          on: source.id == item.source_registry_id,
+          where: ^candidate_filter,
+          order_by: [desc: item.published_at],
+          limit: ^limit,
+          offset: ^offset,
+          select: {item, source}
+        )
+      )
+
+    results =
+      Enum.map(candidates, fn {item, source} ->
+        if not archive_only? and sec_edgar_backfill_item_too_large?(item, max_size_mb) do
+          %{
+            status: "skipped_too_large",
+            headline: item.headline,
+            source_key: source.source_key,
+            max_size_mb: max_size_mb
+          }
+        else
+          record = %{
+            title: item.headline,
+            summary: item.summary,
+            url: item.canonical_url,
+            category: Map.get(item.metadata || %{}, "category"),
+            published_at: item.published_at
+          }
+
+          enriched_record =
+            if archive_only? do
+              enrich_sec_edgar_periodic_report_record_from_bounded_fallbacks(source, record)
+            else
+              enrich_sec_edgar_periodic_report_record(source, record)
+            end
+
+          case enriched_record do
+            %{summary: summary} when is_binary(summary) and summary != item.summary ->
+              now = DateTime.utc_now()
+
+              {updated, _rows} =
+                Repo.update_all(
+                  from(existing in CanonicalFeedItem, where: existing.id == ^item.id),
+                  set: [summary: summary, updated_at: now]
+                )
+
+              %{
+                status: "updated",
+                updated: updated,
+                headline: item.headline,
+                source_key: source.source_key
+              }
+
+            _record ->
+              %{status: "unchanged", headline: item.headline, source_key: source.source_key}
+          end
+        end
+      end)
+
+    %{
+      status: "completed",
+      candidates: length(candidates),
+      offset: offset,
+      updated: Enum.count(results, &(Map.get(&1, :status) == "updated")),
+      unchanged: Enum.count(results, &(Map.get(&1, :status) == "unchanged")),
+      skipped_too_large: Enum.count(results, &(Map.get(&1, :status) == "skipped_too_large")),
+      results: results
+    }
+  end
+
+  def backfill_sec_periodic_report_archive_summaries(opts \\ []) do
+    opts
+    |> Keyword.put(:archive_only, true)
+    |> backfill_sec_periodic_report_summaries()
+  end
+
+  def backfill_sec_8k_summaries(opts \\ []) do
+    edition = Keyword.get(opts, :edition, "breaking")
+    limit = sec_edgar_backfill_positive_int(Keyword.get(opts, :limit)) || 100
+    offset = sec_edgar_backfill_nonnegative_int(Keyword.get(opts, :offset)) || 0
+
+    recent_date_limit =
+      sec_edgar_backfill_positive_int(Keyword.get(opts, :recent_date_limit)) || 3
+
+    cutoff = Date.utc_today() |> Date.add(-recent_date_limit)
+
+    candidates =
+      Repo.all(
+        from(item in CanonicalFeedItem,
+          join: source in SourceRegistry,
+          on: source.id == item.source_registry_id,
+          where:
+            source.source_key == ^@sec_edgar_current_8k_source_key and
+              item.edition == ^edition and item.digest_date >= ^cutoff,
+          order_by: [desc: item.published_at],
+          limit: ^limit,
+          offset: ^offset,
+          select: {item, source}
+        )
+      )
+
+    results =
+      Enum.map(candidates, fn {item, source} ->
+        try do
+          record = %{
+            title: item.headline,
+            summary: item.summary,
+            url: item.canonical_url,
+            category: Map.get(item.metadata || %{}, "category"),
+            published_at: item.published_at
+          }
+
+          case enrich_sec_edgar_8k_record(source, record) do
+            %{summary: summary} when is_binary(summary) and summary != item.summary ->
+              now = DateTime.utc_now()
+
+              {updated, _rows} =
+                Repo.update_all(
+                  from(existing in CanonicalFeedItem, where: existing.id == ^item.id),
+                  set: [summary: summary, updated_at: now]
+                )
+
+              %{
+                status: "updated",
+                updated: updated,
+                headline: item.headline,
+                source_key: source.source_key
+              }
+
+            _record ->
+              %{status: "unchanged", headline: item.headline, source_key: source.source_key}
+          end
+        rescue
+          error ->
+            %{
+              status: "error",
+              headline: item.headline,
+              source_key: source.source_key,
+              reason: Exception.message(error)
+            }
+        end
+      end)
+
+    %{
+      status: "completed",
+      candidates: length(candidates),
+      offset: offset,
+      updated: Enum.count(results, &(Map.get(&1, :status) == "updated")),
+      unchanged: Enum.count(results, &(Map.get(&1, :status) == "unchanged")),
+      errors: Enum.count(results, &(Map.get(&1, :status) == "error")),
+      results: results
+    }
+  end
+
+  defp sec_edgar_backfill_positive_int(value) when is_integer(value) and value > 0, do: value
+
+  defp sec_edgar_backfill_positive_int(value) when is_binary(value) do
+    case Integer.parse(value) do
+      {parsed, ""} when parsed > 0 -> parsed
+      _error -> nil
+    end
+  end
+
+  defp sec_edgar_backfill_positive_int(_value), do: nil
+
+  defp sec_edgar_backfill_nonnegative_int(value) when is_integer(value) and value >= 0, do: value
+
+  defp sec_edgar_backfill_nonnegative_int(value) when is_binary(value) do
+    case Integer.parse(value) do
+      {parsed, ""} when parsed >= 0 -> parsed
+      _error -> nil
+    end
+  end
+
+  defp sec_edgar_backfill_nonnegative_int(_value), do: nil
+
+  defp sec_edgar_backfill_item_too_large?(item, max_size_mb) do
+    case Regex.run(~r/\bSize:\s*(\d+(?:\.\d+)?)\s*MB\b/i, item.summary || "") do
+      [_match, size] ->
+        case Float.parse(size) do
+          {parsed, _rest} -> parsed > max_size_mb
+          _error -> false
+        end
+
+      _match ->
+        false
+    end
+  end
+
+  def archive_raw_documents_before(%DateTime{} = cutoff) do
+    {count, _} =
+      from(document in RawDocument, where: document.inserted_at < ^cutoff)
+      |> Repo.update_all(set: [status: "archived"])
+
+    {:ok, %{archived_before: cutoff, archived_count: count}}
+  end
+
+  defp maybe_mark_lookup_failure(source_key, reason) do
+    with {:ok, source} <- Sources.get_source_by_key(source_key) do
+      Sources.mark_poll_failure(source, reason)
+    end
+  end
+
+  defp handle_failure(source, reason) do
+    _ = Sources.mark_poll_failure(source, reason)
+    {:error, reason}
+  end
+
+  defp maybe_enrich_live_records(
+         %SourceRegistry{source_key: @sec_edgar_current_8k_source_key} = source,
+         records,
+         %{"mode" => "live"}
+       )
+       when is_list(records) do
+    limit = sec_edgar_detail_fetch_limit(source)
+
+    records
+    |> Enum.with_index(1)
+    |> Enum.map(fn {record, index} ->
+      if index <= limit do
+        enrich_sec_edgar_8k_record(source, record)
+      else
+        record
+      end
+    end)
+  end
+
+  defp maybe_enrich_live_records(
+         %SourceRegistry{source_key: @sec_edgar_form4_cluster_source_key} = source,
+         records,
+         %{"mode" => "live"}
+       )
+       when is_list(records) do
+    source
+    |> sec_edgar_form4_buy_reports(records)
+    |> sec_edgar_form4_cluster_records(source)
+  end
+
+  defp maybe_enrich_live_records(
+         %SourceRegistry{source_key: @sec_edgar_form4_cluster_source_key},
+         _records,
+         _fetch_info
+       ) do
+    []
+  end
+
+  defp maybe_enrich_live_records(
+         %SourceRegistry{source_key: @sec_edgar_13f_accumulation_source_key} = source,
+         records,
+         %{"mode" => "live"}
+       )
+       when is_list(records) do
+    sec_edgar_13f_accumulation_records(source, records)
+  end
+
+  defp maybe_enrich_live_records(
+         %SourceRegistry{source_key: @sec_edgar_13f_accumulation_source_key},
+         _records,
+         _fetch_info
+       ) do
+    []
+  end
+
+  defp maybe_enrich_live_records(
+         %SourceRegistry{source_key: source_key} = source,
+         records,
+         %{"mode" => "live"}
+       )
+       when source_key in @sec_edgar_periodic_report_source_keys and is_list(records) do
+    limit = sec_edgar_detail_fetch_limit(source)
+
+    records
+    |> Enum.with_index(1)
+    |> Enum.map(fn {record, index} ->
+      if index <= limit do
+        enrich_sec_edgar_periodic_report_record(source, record)
+      else
+        record
+      end
+    end)
+  end
+
+  defp maybe_enrich_live_records(
+         %SourceRegistry{source_key: source_key} = source,
+         records,
+         %{"mode" => "live"}
+       )
+       when source_key in @sec_edgar_registration_source_keys and is_list(records) do
+    limit = sec_edgar_detail_fetch_limit(source)
+
+    records
+    |> Enum.with_index(1)
+    |> Enum.map(fn {record, index} ->
+      if index <= limit do
+        enrich_sec_edgar_registration_record(source, record)
+      else
+        record
+      end
+    end)
+  end
+
+  defp maybe_enrich_live_records(
+         %SourceRegistry{source_key: @sec_edgar_current_13d_source_key} = source,
+         records,
+         %{"mode" => "live"}
+       )
+       when is_list(records) do
+    limit = sec_edgar_detail_fetch_limit(source)
+
+    records
+    |> Enum.with_index(1)
+    |> Enum.map(fn {record, index} ->
+      if index <= limit do
+        enrich_sec_edgar_13d_record(source, record)
+      else
+        record
+      end
+    end)
+  end
+
+  defp maybe_enrich_live_records(
+         %SourceRegistry{source_key: @sec_edgar_current_13g_source_key} = source,
+         records,
+         %{"mode" => "live"}
+       )
+       when is_list(records) do
+    limit = sec_edgar_detail_fetch_limit(source)
+
+    records
+    |> Enum.with_index(1)
+    |> Enum.flat_map(fn {record, index} ->
+      if index <= limit do
+        case enrich_sec_edgar_13g_record(source, record) do
+          nil -> []
+          enriched -> [enriched]
+        end
+      else
+        []
+      end
+    end)
+  end
+
+  defp maybe_enrich_live_records(
+         %SourceRegistry{source_key: source_key} = source,
+         records,
+         %{"mode" => "live"}
+       )
+       when source_key in @sec_edgar_ma_registration_source_keys and is_list(records) do
+    limit = sec_edgar_detail_fetch_limit(source)
+
+    records
+    |> Enum.with_index(1)
+    |> Enum.map(fn {record, index} ->
+      if index <= limit do
+        enrich_sec_edgar_ma_registration_record(source, record)
+      else
+        record
+      end
+    end)
+  end
+
+  defp maybe_enrich_live_records(
+         %SourceRegistry{source_key: @sec_edgar_current_schedule_to_source_key} = source,
+         records,
+         %{"mode" => "live"}
+       )
+       when is_list(records) do
+    limit = sec_edgar_detail_fetch_limit(source)
+
+    records
+    |> Enum.with_index(1)
+    |> Enum.map(fn {record, index} ->
+      if index <= limit do
+        enrich_sec_edgar_tender_offer_record(source, record)
+      else
+        record
+      end
+    end)
+  end
+
+  defp maybe_enrich_live_records(_source, records, _fetch_info), do: records
+
+  defp enrich_sec_edgar_8k_record(source, record) when is_map(record) do
+    with {:ok, raw_submission} <- sec_edgar_fetch_submission_text(source, record),
+         {:ok, summary} <- sec_edgar_filing_body_summary(raw_submission, record) do
+      Map.put(record, :summary, summary)
+    else
+      _reason -> record
+    end
+  end
+
+  defp enrich_sec_edgar_8k_record(_source, record), do: record
+
+  defp enrich_sec_edgar_periodic_report_record(source, record) when is_map(record) do
+    case enrich_sec_edgar_periodic_report_record_from_bounded_fallbacks(source, record) do
+      %{summary: _summary} = record ->
+        record
+
+      _record ->
+        with {:ok, raw_submission} <- sec_edgar_fetch_submission_text(source, record),
+             {:ok, summary} <- sec_edgar_periodic_report_summary(raw_submission, record) do
+          Map.put(record, :summary, summary)
+        else
+          _reason -> record
+        end
+    end
+  end
+
+  defp enrich_sec_edgar_periodic_report_record(_source, record), do: record
+
+  defp enrich_sec_edgar_periodic_report_record_from_bounded_fallbacks(source, record)
+       when is_map(record) do
+    case sec_edgar_periodic_report_summary_from_archive_document(source, record) do
+      {:ok, summary} ->
+        Map.put(record, :summary, summary)
+
+      {:error, _archive_reason} ->
+        case sec_edgar_periodic_report_summary_from_companyconcept(source, record) do
+          {:ok, summary} ->
+            Map.put(record, :summary, summary)
+
+          {:error, _companyconcept_reason} ->
+            case sec_edgar_periodic_report_amendment_summary_from_archive_document(source, record) do
+              {:ok, summary} -> Map.put(record, :summary, summary)
+              {:error, _amendment_reason} -> record
+            end
+        end
+    end
+  end
+
+  defp enrich_sec_edgar_periodic_report_record_from_bounded_fallbacks(_source, record) do
+    record
+  end
+
+  defp enrich_sec_edgar_registration_record(source, record) when is_map(record) do
+    with {:ok, raw_submission} <- sec_edgar_fetch_submission_text(source, record),
+         {:ok, summary} <- sec_edgar_registration_statement_summary(raw_submission, record) do
+      Map.put(record, :summary, summary)
+    else
+      _reason -> record
+    end
+  end
+
+  defp enrich_sec_edgar_registration_record(_source, record), do: record
+
+  defp enrich_sec_edgar_13d_record(source, record) when is_map(record) do
+    with {:ok, raw_submission} <- sec_edgar_fetch_submission_text(source, record),
+         {:ok, summary} <- sec_edgar_schedule_13d_summary(raw_submission, record) do
+      Map.put(record, :summary, summary)
+    else
+      _reason -> record
+    end
+  end
+
+  defp enrich_sec_edgar_13d_record(_source, record), do: record
+
+  defp enrich_sec_edgar_13g_record(source, record) when is_map(record) do
+    with {:ok, raw_submission} <- sec_edgar_fetch_submission_text(source, record),
+         {:ok, summary} <- sec_edgar_schedule_13g_increase_summary(raw_submission, record) do
+      Map.put(record, :summary, summary)
+    else
+      _reason -> nil
+    end
+  end
+
+  defp enrich_sec_edgar_13g_record(_source, _record), do: nil
+
+  defp enrich_sec_edgar_ma_registration_record(source, record) when is_map(record) do
+    with {:ok, raw_submission} <- sec_edgar_fetch_submission_text(source, record),
+         {:ok, summary} <- sec_edgar_ma_registration_summary(raw_submission, record) do
+      Map.put(record, :summary, summary)
+    else
+      _reason -> record
+    end
+  end
+
+  defp enrich_sec_edgar_ma_registration_record(_source, record), do: record
+
+  defp enrich_sec_edgar_tender_offer_record(source, record) when is_map(record) do
+    with {:ok, raw_submission} <- sec_edgar_fetch_submission_text(source, record),
+         {:ok, summary} <- sec_edgar_tender_offer_summary(raw_submission, record) do
+      Map.put(record, :summary, summary)
+    else
+      _reason -> record
+    end
+  end
+
+  defp enrich_sec_edgar_tender_offer_record(_source, record), do: record
+
+  defp sec_edgar_fetch_submission_text(source, record) do
+    max_bytes = sec_edgar_detail_fetch_max_bytes(source)
+
+    with url when is_binary(url) <- sec_edgar_complete_submission_text_url(record),
+         false <- sec_edgar_record_declared_too_large?(record, max_bytes),
+         {:ok, response} <-
+           Http.fetch(url,
+             headers: source_live_headers(source),
+             timeout: sec_edgar_detail_fetch_timeout(source)
+           ),
+         status when status in 200..299 <- response.status_code,
+         body when is_binary(body) <- response.body,
+         true <- byte_size(body) <= max_bytes do
+      {:ok, body}
+    else
+      value when value in [true, false] -> {:error, :sec_edgar_submission_too_large}
+      _reason -> {:error, :sec_edgar_submission_fetch_failed}
+    end
+  end
+
+  defp sec_edgar_record_declared_too_large?(record, max_bytes) when is_map(record) do
+    summary = Map.get(record, :summary) || Map.get(record, "summary") || ""
+
+    case Regex.run(~r/\bSize:\s*(\d+(?:\.\d+)?)\s*(KB|MB|GB)\b/i, summary) do
+      [_match, size, unit] ->
+        case Float.parse(size) do
+          {parsed, _rest} ->
+            sec_edgar_declared_size_bytes(parsed, unit) > max_bytes
+
+          _error ->
+            false
+        end
+
+      _match ->
+        false
+    end
+  end
+
+  defp sec_edgar_record_declared_too_large?(_record, _max_bytes), do: false
+
+  defp sec_edgar_declared_size_bytes(size, unit) do
+    multiplier =
+      case String.upcase(to_string(unit)) do
+        "GB" -> 1_000_000_000
+        "MB" -> 1_000_000
+        "KB" -> 1_000
+        _unit -> 1
+      end
+
+    trunc(size * multiplier)
+  end
+
+  defp sec_edgar_periodic_report_summary_from_archive_document(source, record) do
+    with {:ok, candidate_urls} <- sec_edgar_archive_document_candidate_urls(source, record) do
+      companyfacts = sec_edgar_companyfacts_for_record(source, record)
+
+      candidate_urls
+      |> Enum.reduce_while(
+        {:error, :sec_edgar_archive_document_summary_unavailable},
+        fn url, _acc ->
+          case sec_edgar_fetch_archive_document(source, url) do
+            {:ok, archive_document} ->
+              case sec_edgar_periodic_report_summary(archive_document, record, companyfacts) do
+                {:ok, summary} ->
+                  {:halt, {:ok, summary}}
+
+                {:error, _reason} ->
+                  {:cont, {:error, :sec_edgar_archive_document_summary_unavailable}}
+              end
+
+            {:error, _reason} ->
+              {:cont, {:error, :sec_edgar_archive_document_fetch_failed}}
+          end
+        end
+      )
+    else
+      _reason -> {:error, :sec_edgar_archive_index_unavailable}
+    end
+  end
+
+  defp sec_edgar_periodic_report_amendment_summary_from_archive_document(source, record) do
+    if sec_edgar_periodic_amendment?(record) do
+      with {:ok, candidate_urls} <- sec_edgar_archive_document_candidate_urls(source, record) do
+        candidate_urls
+        |> Enum.reduce_while(
+          {:error, :sec_edgar_periodic_amendment_summary_unavailable},
+          fn url, _acc ->
+            case sec_edgar_fetch_archive_document(source, url) do
+              {:ok, archive_document} ->
+                case sec_edgar_periodic_amendment_summary(archive_document, record) do
+                  {:ok, summary} ->
+                    {:halt, {:ok, summary}}
+
+                  {:error, _reason} ->
+                    {:cont, {:error, :sec_edgar_periodic_amendment_summary_unavailable}}
+                end
+
+              {:error, _reason} ->
+                {:cont, {:error, :sec_edgar_archive_document_fetch_failed}}
+            end
+          end
+        )
+      else
+        _reason -> {:error, :sec_edgar_archive_index_unavailable}
+      end
+    else
+      {:error, :sec_edgar_periodic_not_amendment}
+    end
+  end
+
+  defp sec_edgar_archive_document_candidate_urls(source, record) do
+    with base_url when is_binary(base_url) <- sec_edgar_archive_directory_url(record),
+         {:ok, response} <-
+           Http.fetch("#{base_url}/index.json",
+             headers: source_live_headers(source),
+             timeout: sec_edgar_detail_fetch_timeout(source)
+           ),
+         status when status in 200..299 <- response.status_code,
+         body when is_binary(body) <- response.body,
+         true <- byte_size(body) <= sec_edgar_detail_fetch_max_bytes(source),
+         {:ok, decoded} <- Jason.decode(body) do
+      candidates =
+        decoded
+        |> get_in(["directory", "item"])
+        |> sec_edgar_archive_document_candidates()
+        |> Enum.map(fn name -> "#{base_url}/#{name}" end)
+        |> Enum.take(sec_edgar_archive_document_fetch_limit(source))
+
+      case candidates do
+        [] -> {:error, :sec_edgar_archive_document_candidates_unavailable}
+        values -> {:ok, values}
+      end
+    else
+      false -> {:error, :sec_edgar_archive_index_too_large}
+      _reason -> {:error, :sec_edgar_archive_index_fetch_failed}
+    end
+  end
+
+  defp sec_edgar_archive_document_candidates(items) when is_list(items) do
+    items
+    |> Enum.flat_map(fn
+      %{"name" => name, "size" => size} -> [{name, size}]
+      %{name: name, size: size} -> [{name, size}]
+      _item -> []
+    end)
+    |> Enum.filter(fn {name, size} ->
+      sec_edgar_archive_document_candidate_name?(name) and
+        sec_edgar_archive_document_candidate_size?(size)
+    end)
+    |> Enum.sort_by(fn {name, size} ->
+      {sec_edgar_archive_document_candidate_rank(name), sec_edgar_archive_document_size(size)}
+    end)
+    |> Enum.map(fn {name, _size} -> name end)
+  end
+
+  defp sec_edgar_archive_document_candidates(_items), do: []
+
+  defp sec_edgar_archive_document_candidate_name?(name) when is_binary(name) do
+    normalized = String.downcase(name)
+
+    allowed_extension? =
+      String.ends_with?(normalized, ".htm") or
+        String.ends_with?(normalized, ".html") or
+        String.ends_with?(normalized, ".xml")
+
+    excluded? =
+      String.contains?(normalized, "-index") or
+        String.contains?(normalized, "-headers") or
+        String.ends_with?(normalized, ".xsd") or
+        String.ends_with?(normalized, "_cal.xml") or
+        String.ends_with?(normalized, "_def.xml") or
+        String.ends_with?(normalized, "_lab.xml") or
+        String.ends_with?(normalized, "_pre.xml") or
+        normalized in ["filingsummary.xml", "show.js", "report.css"] or
+        Regex.match?(~r/^r\d+\.htm$/i, normalized) or
+        String.starts_with?(normalized, "exhibit")
+
+    allowed_extension? and not excluded?
+  end
+
+  defp sec_edgar_archive_document_candidate_name?(_name), do: false
+
+  defp sec_edgar_archive_document_candidate_size?(size) do
+    sec_edgar_archive_document_size(size) in 1..@sec_edgar_periodic_report_detail_fetch_min_max_bytes
+  end
+
+  defp sec_edgar_archive_document_size(size) when is_integer(size), do: size
+
+  defp sec_edgar_archive_document_size(size) when is_binary(size) do
+    case Integer.parse(size) do
+      {parsed, _rest} -> parsed
+      :error -> 0
+    end
+  end
+
+  defp sec_edgar_archive_document_size(_size), do: 0
+
+  defp sec_edgar_archive_document_candidate_rank(name) when is_binary(name) do
+    normalized = String.downcase(name)
+
+    cond do
+      String.ends_with?(normalized, "_htm.xml") -> 0
+      Regex.match?(~r/\d{8}\.htm$/i, normalized) -> 1
+      Regex.match?(~r/\d{8}\.html$/i, normalized) -> 1
+      String.ends_with?(normalized, ".htm") -> 2
+      String.ends_with?(normalized, ".html") -> 2
+      String.ends_with?(normalized, ".xml") -> 3
+      true -> 9
+    end
+  end
+
+  defp sec_edgar_archive_document_candidate_rank(_name), do: 9
+
+  defp sec_edgar_archive_document_fetch_limit(source) do
+    source
+    |> sec_edgar_detail_fetch_limit()
+    |> min(3)
+    |> max(1)
+  end
+
+  defp sec_edgar_fetch_archive_document(source, url) when is_binary(url) do
+    with {:ok, response} <-
+           Http.fetch(url,
+             headers: source_live_headers(source),
+             timeout: sec_edgar_detail_fetch_timeout(source)
+           ),
+         status when status in 200..299 <- response.status_code,
+         body when is_binary(body) <- response.body,
+         true <- byte_size(body) <= sec_edgar_detail_fetch_max_bytes(source) do
+      {:ok, body}
+    else
+      false -> {:error, :sec_edgar_archive_document_too_large}
+      _reason -> {:error, :sec_edgar_archive_document_fetch_failed}
+    end
+  end
+
+  defp sec_edgar_fetch_archive_document(_source, _url) do
+    {:error, :sec_edgar_archive_document_url_unavailable}
+  end
+
+  defp sec_edgar_periodic_form_type(record) do
+    category = String.upcase(to_string(Map.get(record, :category) || ""))
+    title = String.upcase(to_string(Map.get(record, :title) || ""))
+
+    cond do
+      category in ["10-Q", "10-Q/A"] or String.starts_with?(title, "10-Q") -> "10-Q"
+      category in ["10-K", "10-K/A"] or String.starts_with?(title, "10-K") -> "10-K"
+      true -> category
+    end
+  end
+
+  defp sec_edgar_periodic_amendment?(record) when is_map(record) do
+    category =
+      String.upcase(to_string(Map.get(record, :category) || Map.get(record, "category") || ""))
+
+    title = String.upcase(to_string(Map.get(record, :title) || Map.get(record, "title") || ""))
+
+    String.ends_with?(category, "/A") or Regex.match?(~r/\b10-[QK]\/A\b/, title)
+  end
+
+  defp sec_edgar_periodic_amendment?(_record), do: false
+
+  defp sec_edgar_periodic_report_period(raw_submission, form_type) do
+    period_end =
+      case Regex.run(~r/CONFORMED PERIOD OF REPORT:\s*(\d{8})/i, raw_submission) do
+        [_match, <<year::binary-size(4), month::binary-size(2), day::binary-size(2)>>] ->
+          "#{year}-#{month}-#{day}"
+
+        _match ->
+          nil
+      end
+
+    with value when is_binary(value) <- period_end,
+         {:ok, date} <- Date.from_iso8601(value) do
+      suffix =
+        case form_type do
+          "10-K" -> "종료 회계연도"
+          "10-Q" -> "종료 분기"
+          _form_type -> "종료 기간"
+        end
+
+      "#{date.year}년 #{date.month}월 #{date.day}일 #{suffix}"
+    else
+      _reason -> nil
+    end
+  end
+
+  defp sec_edgar_xbrl_money_metric_detail(
+         raw_submission,
+         label,
+         tag_names,
+         form_type,
+         companyfacts
+       ) do
+    metrics = sec_edgar_xbrl_metric_values(raw_submission, tag_names, form_type)
+    trend_metrics = sec_edgar_metric_trend_metrics(metrics, companyfacts, tag_names)
+
+    metrics
+    |> sec_edgar_preferred_xbrl_metric(form_type)
+    |> case do
+      nil -> nil
+      metric -> sec_edgar_metric_detail(label, metric, trend_metrics, form_type, :money)
+    end
+  end
+
+  defp sec_edgar_xbrl_eps_detail(raw_submission, form_type, companyfacts) do
+    metrics =
+      sec_edgar_xbrl_metric_values(raw_submission, @sec_edgar_periodic_eps_xbrl_tags, form_type)
+
+    trend_metrics =
+      sec_edgar_metric_trend_metrics(metrics, companyfacts, @sec_edgar_periodic_eps_xbrl_tags)
+
+    metrics
+    |> sec_edgar_preferred_xbrl_metric(form_type)
+    |> case do
+      nil -> nil
+      metric -> sec_edgar_metric_detail("EPS", metric, trend_metrics, form_type, :per_share)
+    end
+  end
+
+  defp sec_edgar_metric_trend_metrics(metrics, companyfacts, tag_names) do
+    (metrics ++ sec_edgar_companyfacts_metric_history(companyfacts, tag_names))
+    |> sec_edgar_dedupe_periodic_metrics()
+  end
+
+  defp sec_edgar_companyfacts_metric_history(nil, _tag_names), do: []
+
+  defp sec_edgar_companyfacts_metric_history(companyfacts, tag_names) do
+    tag_priority = sec_edgar_xbrl_tag_priority(tag_names)
+
+    tag_names
+    |> Enum.flat_map(fn tag_name ->
+      case sec_edgar_companyfacts_concept(companyfacts, tag_name) do
+        %{} = concept ->
+          concept
+          |> sec_edgar_companyconcept_periodic_facts()
+          |> Enum.map(fn fact ->
+            tag_name
+            |> sec_edgar_companyconcept_metric_from_fact(fact)
+            |> sec_edgar_put_xbrl_tag_priority(tag_priority)
+          end)
+          |> Enum.reject(&is_nil/1)
+
+        _missing ->
+          []
+      end
+    end)
+  end
+
+  defp sec_edgar_companyfacts_metric_values(companyfacts, filing_ref, tag_names, form_type) do
+    tag_priority = sec_edgar_xbrl_tag_priority(tag_names)
+
+    tag_names
+    |> Enum.reduce_while([], fn tag_name, _acc ->
+      metrics =
+        case sec_edgar_companyfacts_concept(companyfacts, tag_name) do
+          %{} = concept ->
+            current_metrics =
+              concept
+              |> sec_edgar_companyconcept_facts_for_accession(filing_ref.accession, form_type)
+              |> Enum.map(fn fact ->
+                tag_name
+                |> sec_edgar_companyconcept_metric_from_fact(fact)
+                |> sec_edgar_put_xbrl_tag_priority(tag_priority)
+              end)
+              |> Enum.reject(&is_nil/1)
+
+            comparison_metrics =
+              concept
+              |> sec_edgar_companyconcept_periodic_facts()
+              |> Enum.reject(&(Map.get(&1, "accn") == filing_ref.accession))
+              |> Enum.map(fn fact ->
+                tag_name
+                |> sec_edgar_companyconcept_metric_from_fact(fact)
+                |> sec_edgar_put_xbrl_tag_priority(tag_priority)
+              end)
+              |> Enum.reject(&is_nil/1)
+
+            (current_metrics ++ comparison_metrics)
+            |> sec_edgar_dedupe_periodic_metrics()
+
+          _missing ->
+            []
+        end
+
+      current_available? =
+        metrics
+        |> Enum.any?(&(Map.get(&1, :accession) == filing_ref.accession))
+
+      case {current_available?, metrics} do
+        {true, values} -> {:halt, values}
+        _no_current -> {:cont, []}
+      end
+    end)
+  end
+
+  defp sec_edgar_companyfacts_concept(companyfacts, tag_name) do
+    companyfacts
+    |> Map.get("facts", %{})
+    |> Map.values()
+    |> Enum.find_value(fn
+      %{} = taxonomy -> Map.get(taxonomy, tag_name)
+      _taxonomy -> nil
+    end)
+  end
+
+  defp sec_edgar_companyconcept_periodic_facts(concept) do
+    concept
+    |> Map.get("units", %{})
+    |> Map.values()
+    |> List.flatten()
+    |> Enum.filter(fn fact ->
+      form = fact |> Map.get("form") |> to_string() |> String.upcase()
+      form in ["10-Q", "10-Q/A", "10-K", "10-K/A"]
+    end)
+  end
+
+  defp sec_edgar_dedupe_periodic_metrics(metrics) do
+    metrics
+    |> Enum.sort_by(fn metric ->
+      {
+        -sec_edgar_form_preference(Map.get(metric, :form)),
+        -sec_edgar_frame_preference(Map.get(metric, :context_ref)),
+        -Date.to_gregorian_days(Map.get(metric, :end_date) || ~D[0001-01-01])
+      }
+    end)
+    |> Enum.uniq_by(fn metric ->
+      {
+        Map.get(metric, :tag),
+        Map.get(metric, :start_date),
+        Map.get(metric, :end_date),
+        Map.get(metric, :duration_days),
+        metric |> Map.get(:value) |> Decimal.to_string(:normal)
+      }
+    end)
+  end
+
+  defp sec_edgar_form_preference(form) when is_binary(form) do
+    case String.upcase(form) do
+      "10-Q" -> 3
+      "10-K" -> 3
+      "10-Q/A" -> 2
+      "10-K/A" -> 2
+      _form -> 1
+    end
+  end
+
+  defp sec_edgar_form_preference(_form), do: 0
+
+  defp sec_edgar_frame_preference(frame) when is_binary(frame) do
+    if String.trim(frame) == "", do: 0, else: 1
+  end
+
+  defp sec_edgar_frame_preference(_frame), do: 0
+
+  defp sec_edgar_metric_detail(label, metric, metrics, form_type, value_type) do
+    value = sec_edgar_metric_value_label(metric, value_type)
+    trend = sec_edgar_metric_trend_suffix(metric, metrics, form_type, value_type)
+
+    case label do
+      "EPS" -> "EPS는 주당 #{value}#{trend}"
+      _label -> "#{label}은 #{value}#{trend}"
+    end
+  end
+
+  defp sec_edgar_metric_value_label(metric, :per_share) do
+    sec_edgar_decimal_per_share_label(Map.get(metric, :value))
+  end
+
+  defp sec_edgar_metric_value_label(metric, _value_type) do
+    sec_edgar_decimal_money_label(Map.get(metric, :value))
+  end
+
+  defp sec_edgar_metric_trend_suffix(metric, metrics, form_type, value_type) do
+    yoy_metric = sec_edgar_yoy_metric(metric, metrics)
+    qoq_metric = sec_edgar_qoq_metric(metric, metrics)
+    yoy_detail = sec_edgar_metric_change_detail("YoY", metric, yoy_metric, value_type)
+    qoq_detail = sec_edgar_metric_change_detail("QoQ", metric, qoq_metric, value_type)
+
+    [
+      yoy_detail || sec_edgar_metric_missing_trend_note("YoY", yoy_metric),
+      qoq_detail || sec_edgar_metric_missing_trend_note("QoQ", qoq_metric, form_type, metric)
+    ]
+    |> Enum.reject(&is_nil/1)
+    |> case do
+      [] -> ""
+      values -> " (#{Enum.join(values, ", ")})"
+    end
+  end
+
+  defp sec_edgar_yoy_metric(%{end_date: %Date{} = end_date} = metric, metrics) do
+    duration_days = Map.get(metric, :duration_days)
+    target_end = sec_edgar_shift_year(end_date, -1)
+    tolerance_days = if duration_days && duration_days > 250, do: 25, else: 10
+
+    sec_edgar_metric_near_end(metric, metrics, target_end, tolerance_days)
+  end
+
+  defp sec_edgar_yoy_metric(_metric, _metrics), do: nil
+
+  defp sec_edgar_qoq_metric(%{duration_days: days}, _metrics)
+       when is_integer(days) and days > 110,
+       do: nil
+
+  defp sec_edgar_qoq_metric(%{start_date: %Date{} = start_date} = metric, metrics) do
+    target_end = Date.add(start_date, -1)
+
+    sec_edgar_metric_near_end(metric, metrics, target_end, 15) ||
+      sec_edgar_derived_q4_metric(metric, metrics, target_end)
+  end
+
+  defp sec_edgar_qoq_metric(%{end_date: %Date{} = end_date} = metric, metrics) do
+    target_end = sec_edgar_shift_month(end_date, -3)
+
+    sec_edgar_metric_near_end(metric, metrics, target_end, 18) ||
+      sec_edgar_derived_q4_metric(metric, metrics, target_end)
+  end
+
+  defp sec_edgar_qoq_metric(_metric, _metrics), do: nil
+
+  defp sec_edgar_metric_near_end(current, metrics, target_end, tolerance_days) do
+    metrics
+    |> Enum.reject(&sec_edgar_same_metric_period?(&1, current))
+    |> Enum.filter(&(Map.get(&1, :tag) == Map.get(current, :tag)))
+    |> Enum.filter(&sec_edgar_metric_duration_compatible?(&1, current))
+    |> Enum.flat_map(fn candidate ->
+      case Map.get(candidate, :end_date) do
+        %Date{} = end_date ->
+          distance = abs(Date.diff(end_date, target_end))
+
+          if distance <= tolerance_days do
+            [{candidate, distance}]
+          else
+            []
+          end
+
+        _end_date ->
+          []
+      end
+    end)
+    |> Enum.sort_by(fn {candidate, distance} ->
+      {
+        distance,
+        -sec_edgar_periodic_duration_score(Map.get(candidate, :duration_days), "10-Q"),
+        -sec_edgar_form_preference(Map.get(candidate, :form)),
+        -sec_edgar_frame_preference(Map.get(candidate, :context_ref))
+      }
+    end)
+    |> List.first()
+    |> case do
+      {candidate, _distance} -> candidate
+      nil -> nil
+    end
+  end
+
+  defp sec_edgar_same_metric_period?(metric, current) do
+    Map.get(metric, :start_date) == Map.get(current, :start_date) and
+      Map.get(metric, :end_date) == Map.get(current, :end_date) and
+      Decimal.equal?(Map.get(metric, :value), Map.get(current, :value))
+  end
+
+  defp sec_edgar_metric_duration_compatible?(candidate, current) do
+    current_duration = Map.get(current, :duration_days)
+    candidate_duration = Map.get(candidate, :duration_days)
+
+    cond do
+      is_integer(current_duration) and current_duration > 250 ->
+        is_integer(candidate_duration) and candidate_duration > 250
+
+      is_integer(candidate_duration) ->
+        candidate_duration in 70..110
+
+      true ->
+        false
+    end
+  end
+
+  defp sec_edgar_derived_q4_metric(
+         %{tag: tag, start_date: %Date{month: 1, day: 1}},
+         metrics,
+         %Date{month: 12, day: 31} = target_end
+       ) do
+    annual =
+      metrics
+      |> Enum.find(fn candidate ->
+        Map.get(candidate, :tag) == tag and Map.get(candidate, :end_date) == target_end and
+          is_integer(Map.get(candidate, :duration_days)) and
+          Map.get(candidate, :duration_days) in 330..370
+      end)
+
+    nine_month =
+      metrics
+      |> Enum.find(fn candidate ->
+        Map.get(candidate, :tag) == tag and
+          Map.get(candidate, :end_date) == Date.add(target_end, -92) and
+          is_integer(Map.get(candidate, :duration_days)) and
+          Map.get(candidate, :duration_days) in 250..285
+      end)
+
+    case {annual, nine_month} do
+      {%{} = annual_metric, %{} = ytd_metric} ->
+        %{
+          tag: tag,
+          value: Decimal.sub(Map.get(annual_metric, :value), Map.get(ytd_metric, :value)),
+          context_ref: "derived-q4",
+          start_date: Date.add(Map.get(ytd_metric, :end_date), 1),
+          end_date: target_end,
+          duration_days: Date.diff(target_end, Map.get(ytd_metric, :end_date)),
+          form: Map.get(annual_metric, :form),
+          accession: Map.get(annual_metric, :accession),
+          tag_priority: Map.get(annual_metric, :tag_priority, 999)
+        }
+
+      _missing ->
+        nil
+    end
+  end
+
+  defp sec_edgar_derived_q4_metric(_metric, _metrics, _target_end), do: nil
+
+  defp sec_edgar_metric_change_detail(_label, _current, nil, _value_type), do: nil
+
+  defp sec_edgar_metric_change_detail(label, current, previous, _value_type) do
+    case sec_edgar_metric_percent_change(Map.get(current, :value), Map.get(previous, :value)) do
+      nil ->
+        nil
+
+      percent ->
+        "#{label} #{sec_edgar_signed_percent_label(percent)}"
+    end
+  end
+
+  defp sec_edgar_metric_missing_trend_note(label, nil), do: "#{label} 없음: 비교값 없음"
+
+  defp sec_edgar_metric_missing_trend_note(label, %{value: %Decimal{} = previous_value}) do
+    if Decimal.equal?(previous_value, Decimal.new(0)) do
+      "#{label} 없음: 이전값 0"
+    else
+      "#{label} 없음: 계산 불가"
+    end
+  end
+
+  defp sec_edgar_metric_missing_trend_note(label, _previous), do: "#{label} 없음: 계산 불가"
+
+  defp sec_edgar_metric_missing_trend_note("QoQ", previous, form_type, metric) do
+    if sec_edgar_annual_periodic_metric?(form_type, metric) do
+      "QoQ 없음: 연차보고서"
+    else
+      sec_edgar_metric_missing_trend_note("QoQ", previous)
+    end
+  end
+
+  defp sec_edgar_metric_missing_trend_note(label, previous, _form_type, _metric) do
+    sec_edgar_metric_missing_trend_note(label, previous)
+  end
+
+  defp sec_edgar_annual_periodic_metric?(form_type, metric) do
+    String.upcase(to_string(form_type)) in ["10-K", "10-K/A"] or
+      match?(days when is_integer(days) and days > 110, Map.get(metric, :duration_days))
+  end
+
+  defp sec_edgar_metric_percent_change(%Decimal{} = current, %Decimal{} = previous) do
+    if Decimal.equal?(previous, Decimal.new(0)) do
+      nil
+    else
+      current
+      |> Decimal.sub(previous)
+      |> Decimal.div(Decimal.abs(previous))
+      |> Decimal.mult(Decimal.new(100))
+    end
+  end
+
+  defp sec_edgar_metric_percent_change(_current, _previous), do: nil
+
+  defp sec_edgar_signed_percent_label(decimal) do
+    rounded = Decimal.round(decimal, 1)
+
+    sign =
+      case Decimal.compare(rounded, Decimal.new(0)) do
+        :gt -> "+"
+        _comparison -> ""
+      end
+
+    "#{sign}#{Decimal.to_string(rounded, :normal)}%"
+  end
+
+  defp sec_edgar_shift_year(%Date{} = date, offset) do
+    sec_edgar_clamped_date(date.year + offset, date.month, date.day)
+  end
+
+  defp sec_edgar_shift_month(%Date{} = date, offset) do
+    total_month = date.year * 12 + date.month - 1 + offset
+    year = div(total_month, 12)
+    month = rem(total_month, 12) + 1
+
+    sec_edgar_clamped_date(year, month, date.day)
+  end
+
+  defp sec_edgar_clamped_date(year, month, day) do
+    last_day = Date.days_in_month(%Date{year: year, month: month, day: 1})
+
+    {:ok, date} = Date.new(year, month, min(day, last_day))
+
+    date
+  end
+
+  defp sec_edgar_companyfacts_for_record(source, record) do
+    with %{cik: cik} <- sec_edgar_filing_ref(record),
+         {:ok, companyfacts} <- sec_edgar_fetch_companyfacts(source, cik) do
+      companyfacts
+    else
+      _reason -> nil
+    end
+  end
+
+  defp sec_edgar_fetch_companyfacts(source, cik) do
+    cik = sec_edgar_padded_cik(cik)
+    url = "https://data.sec.gov/api/xbrl/companyfacts/CIK#{cik}.json"
+
+    with {:ok, response} <-
+           Http.fetch(url,
+             headers: source_live_headers(source),
+             timeout: sec_edgar_detail_fetch_timeout(source)
+           ),
+         status when status in 200..299 <- response.status_code,
+         body when is_binary(body) <- response.body,
+         true <- byte_size(body) <= sec_edgar_detail_fetch_max_bytes(source),
+         {:ok, decoded} <- Jason.decode(body) do
+      {:ok, decoded}
+    else
+      false -> {:error, :sec_edgar_companyfacts_too_large}
+      _reason -> {:error, :sec_edgar_companyfacts_fetch_failed}
+    end
+  end
+
+  defp sec_edgar_companyconcept_facts_for_accession(concept, accession, form_type) do
+    concept
+    |> Map.get("units", %{})
+    |> Map.values()
+    |> List.flatten()
+    |> Enum.filter(fn fact ->
+      Map.get(fact, "accn") == accession and
+        sec_edgar_companyconcept_form_matches?(Map.get(fact, "form"), form_type)
+    end)
+  end
+
+  defp sec_edgar_companyconcept_form_matches?(form, form_type)
+       when is_binary(form) and is_binary(form_type) do
+    normalized_form = String.upcase(form)
+    normalized_type = String.upcase(form_type)
+
+    normalized_form == normalized_type or normalized_form == "#{normalized_type}/A"
+  end
+
+  defp sec_edgar_companyconcept_form_matches?(_form, _form_type), do: false
+
+  defp sec_edgar_companyconcept_metric_from_fact(tag_name, fact) when is_map(fact) do
+    with value when not is_nil(value) <- Map.get(fact, "val"),
+         {decimal, ""} <- Decimal.parse(to_string(value)) do
+      end_date = sec_edgar_companyconcept_date(Map.get(fact, "end"))
+      start_date = sec_edgar_companyconcept_start_date(fact, end_date)
+
+      %{
+        tag: tag_name,
+        value: decimal,
+        context_ref: Map.get(fact, "frame"),
+        start_date: start_date,
+        duration_days: sec_edgar_companyconcept_duration_days(start_date, end_date, fact),
+        end_date: end_date,
+        form: Map.get(fact, "form"),
+        accession: Map.get(fact, "accn")
+      }
+    else
+      _reason -> nil
+    end
+  end
+
+  defp sec_edgar_companyconcept_metric_from_fact(_tag_name, _fact), do: nil
+
+  defp sec_edgar_companyconcept_start_date(fact, end_date) do
+    sec_edgar_companyconcept_date(Map.get(fact, "start")) ||
+      sec_edgar_companyconcept_frame_start_date(Map.get(fact, "frame"), end_date)
+  end
+
+  defp sec_edgar_companyconcept_duration_days(start_date, end_date, fact) do
+    with %Date{} <- start_date,
+         %Date{} <- end_date do
+      Date.diff(end_date, start_date) + 1
+    else
+      _reason -> sec_edgar_companyconcept_frame_duration_days(Map.get(fact, "frame"))
+    end
+  end
+
+  defp sec_edgar_companyconcept_frame_start_date(frame, %Date{} = end_date)
+       when is_binary(frame) do
+    case Regex.run(~r/^CY(\d{4})Q([1-4])$/i, frame) do
+      [_match, year, quarter] ->
+        year = String.to_integer(year)
+
+        {month, day} =
+          case String.to_integer(quarter) do
+            1 -> {1, 1}
+            2 -> {4, 1}
+            3 -> {7, 1}
+            4 -> {10, 1}
+          end
+
+        case Date.new(year, month, day) do
+          {:ok, start_date} ->
+            if Date.compare(start_date, end_date) in [:lt, :eq], do: start_date, else: nil
+
+          _date ->
+            nil
+        end
+
+      _no_quarter_frame ->
+        nil
+    end
+  end
+
+  defp sec_edgar_companyconcept_frame_start_date(_frame, _end_date), do: nil
+
+  defp sec_edgar_companyconcept_frame_duration_days(frame) when is_binary(frame) do
+    if Regex.match?(~r/^CY\d{4}Q[1-4]$/i, frame), do: 92, else: nil
+  end
+
+  defp sec_edgar_companyconcept_frame_duration_days(_frame), do: nil
+
+  defp sec_edgar_companyconcept_date(value) when is_binary(value) do
+    case Date.from_iso8601(value) do
+      {:ok, date} -> date
+      {:error, _reason} -> nil
+    end
+  end
+
+  defp sec_edgar_companyconcept_date(_value), do: nil
+
+  defp sec_edgar_xbrl_metric_values(raw_submission, tag_names, _form_type)
+       when is_binary(raw_submission) do
+    contexts = sec_edgar_xbrl_contexts(raw_submission)
+    tag_priority = sec_edgar_xbrl_tag_priority(tag_names)
+    tag_names = MapSet.new(tag_names)
+
+    inline_metrics =
+      ~r/<(?:\w+:)?nonFraction\b([^>]*)>([\s\S]*?)<\/(?:\w+:)?nonFraction>/i
+      |> Regex.scan(raw_submission)
+      |> Enum.map(fn [_match, attrs, body] ->
+        local_name = sec_edgar_xbrl_local_name(attrs)
+
+        if local_name && MapSet.member?(tag_names, local_name) do
+          sec_edgar_xbrl_metric_from_fact(local_name, attrs, body, contexts)
+          |> sec_edgar_put_xbrl_tag_priority(tag_priority)
+        end
+      end)
+      |> Enum.reject(&is_nil/1)
+
+    standard_metrics =
+      sec_edgar_xbrl_standard_metric_values(raw_submission, tag_names, tag_priority, contexts)
+
+    inline_metrics ++ standard_metrics
+  end
+
+  defp sec_edgar_xbrl_metric_values(_raw_submission, _tag_names, _form_type), do: []
+
+  defp sec_edgar_xbrl_standard_metric_values(raw_submission, tag_names, tag_priority, contexts) do
+    ~r/<(?:[\w.-]+:)?([A-Za-z][\w.-]*)\b([^>]*)>([^<]{0,160})<\/(?:[\w.-]+:)?\1>/i
+    |> Regex.scan(raw_submission)
+    |> Enum.map(fn [_match, local_name, attrs, body] ->
+      if MapSet.member?(tag_names, local_name) do
+        sec_edgar_xbrl_metric_from_fact(local_name, attrs, body, contexts)
+        |> sec_edgar_put_xbrl_tag_priority(tag_priority)
+      end
+    end)
+    |> Enum.reject(&is_nil/1)
+  end
+
+  defp sec_edgar_xbrl_tag_priority(tag_names) do
+    tag_names
+    |> Enum.with_index()
+    |> Map.new()
+  end
+
+  defp sec_edgar_put_xbrl_tag_priority(nil, _tag_priority), do: nil
+
+  defp sec_edgar_put_xbrl_tag_priority(%{tag: tag} = metric, tag_priority) do
+    Map.put(metric, :tag_priority, Map.get(tag_priority, tag, 999))
+  end
+
+  defp sec_edgar_xbrl_metric_from_fact(local_name, attrs, body, contexts) do
+    context_ref = sec_edgar_xbrl_attr(attrs, "contextRef")
+    scale = sec_edgar_xbrl_scale(attrs)
+
+    with decimal when not is_nil(decimal) <- sec_edgar_xbrl_decimal(body),
+         context <- Map.get(contexts, context_ref, %{}) do
+      %{
+        tag: local_name,
+        value:
+          decimal
+          |> sec_edgar_apply_xbrl_scale(scale)
+          |> sec_edgar_apply_xbrl_sign(attrs),
+        context_ref: context_ref,
+        start_date: Map.get(context, :start_date),
+        duration_days: Map.get(context, :duration_days),
+        end_date: Map.get(context, :end_date)
+      }
+    end
+  end
+
+  defp sec_edgar_preferred_xbrl_metric([], _form_type), do: nil
+
+  defp sec_edgar_preferred_xbrl_metric(metrics, form_type) do
+    metrics
+    |> Enum.max_by(fn metric ->
+      end_date_score =
+        case metric.end_date do
+          %Date{} = date -> Date.to_gregorian_days(date)
+          _date -> 0
+        end
+
+      {
+        sec_edgar_periodic_duration_score(metric.duration_days, form_type),
+        end_date_score,
+        -Map.get(metric, :tag_priority, 999),
+        metric.value |> Decimal.abs() |> Decimal.to_float()
+      }
+    end)
+  end
+
+  defp sec_edgar_periodic_duration_score(days, "10-Q") when is_integer(days) do
+    cond do
+      days in 80..100 -> 3
+      days in 1..110 -> 2
+      days > 110 -> 1
+      true -> 0
+    end
+  end
+
+  defp sec_edgar_periodic_duration_score(days, "10-K") when is_integer(days) do
+    cond do
+      days in 330..370 -> 3
+      days > 250 -> 2
+      true -> 1
+    end
+  end
+
+  defp sec_edgar_periodic_duration_score(_days, _form_type), do: 0
+
+  defp sec_edgar_xbrl_contexts(raw_submission) do
+    ~r/<(?:\w+:)?context\b([^>]*)>([\s\S]*?)<\/(?:\w+:)?context>/i
+    |> Regex.scan(raw_submission)
+    |> Enum.reduce(%{}, fn [_match, attrs, body], acc ->
+      with id when is_binary(id) <- sec_edgar_xbrl_attr(attrs, "id") do
+        Map.put(acc, id, sec_edgar_xbrl_context_period(body))
+      else
+        _reason -> acc
+      end
+    end)
+  end
+
+  defp sec_edgar_xbrl_context_period(body) do
+    start_date = sec_edgar_xbrl_date_tag(body, "startDate")
+
+    end_date =
+      sec_edgar_xbrl_date_tag(body, "endDate") || sec_edgar_xbrl_date_tag(body, "instant")
+
+    duration_days =
+      if start_date && end_date do
+        Date.diff(end_date, start_date) + 1
+      end
+
+    %{start_date: start_date, end_date: end_date, duration_days: duration_days}
+  end
+
+  defp sec_edgar_xbrl_date_tag(body, tag) do
+    pattern = Regex.compile!("<(?:\\w+:)?#{Regex.escape(tag)}>(\\d{4}-\\d{2}-\\d{2})</", "i")
+
+    with [_match, value] <- Regex.run(pattern, body),
+         {:ok, date} <- Date.from_iso8601(value) do
+      date
+    else
+      _reason -> nil
+    end
+  end
+
+  defp sec_edgar_xbrl_local_name(attrs) do
+    case sec_edgar_xbrl_attr(attrs, "name") do
+      nil -> nil
+      value -> value |> String.split(":") |> List.last()
+    end
+  end
+
+  defp sec_edgar_xbrl_attr(attrs, name) do
+    pattern = Regex.compile!("\\b#{Regex.escape(name)}=[\"']([^\"']+)[\"']", "i")
+
+    case Regex.run(pattern, attrs) do
+      [_match, value] -> value
+      _match -> nil
+    end
+  end
+
+  defp sec_edgar_xbrl_scale(attrs) do
+    attrs
+    |> sec_edgar_xbrl_attr("scale")
+    |> case do
+      nil -> 0
+      value -> value
+    end
+    |> to_string()
+    |> Integer.parse()
+    |> case do
+      {scale, ""} -> scale
+      _error -> 0
+    end
+  end
+
+  defp sec_edgar_xbrl_decimal(body) do
+    text =
+      body
+      |> String.replace(~r/<[^>]+>/, "")
+      |> sec_edgar_decode_entities()
+      |> String.trim()
+
+    negative? = String.starts_with?(text, "(") and String.ends_with?(text, ")")
+
+    normalized =
+      text
+      |> String.replace(~r/[,$()\s]/, "")
+      |> String.replace(~r/[^\d.\-]/, "")
+
+    case Decimal.parse(normalized) do
+      {decimal, ""} when negative? -> Decimal.mult(decimal, Decimal.new("-1"))
+      {decimal, ""} -> decimal
+      _error -> nil
+    end
+  end
+
+  defp sec_edgar_apply_xbrl_scale(decimal, 0), do: decimal
+
+  defp sec_edgar_apply_xbrl_scale(decimal, scale) do
+    factor = Decimal.from_float(:math.pow(10, scale))
+    Decimal.mult(decimal, factor)
+  end
+
+  defp sec_edgar_apply_xbrl_sign(decimal, attrs) do
+    case sec_edgar_xbrl_attr(attrs, "sign") do
+      "-" ->
+        decimal
+        |> Decimal.to_string(:normal)
+        |> String.starts_with?("-")
+        |> case do
+          true -> decimal
+          false -> Decimal.mult(decimal, Decimal.new("-1"))
+        end
+
+      _sign ->
+        decimal
+    end
+  end
+
+  defp sec_edgar_guidance_detail(plain) do
+    plain
+    |> String.slice(0, 80_000)
+    |> String.split(~r/(?<=[.!?])\s+/u)
+    |> Enum.find(&sec_edgar_financial_guidance_sentence?/1)
+    |> case do
+      nil ->
+        "매출/이익 가이던스 문구는 본문에서 명확히 확인되지 않음"
+
+      sentence ->
+        sentence
+        |> String.slice(0, 260)
+        |> String.trim()
+        |> then(&"가이던스/전망 문구: #{&1}")
+    end
+  end
+
+  defp sec_edgar_financial_guidance_sentence?(sentence) do
+    sec_edgar_guidance_signal?(sentence) and
+      sec_edgar_guidance_metric?(sentence) and
+      not sec_edgar_non_financial_guidance_sentence?(sentence)
+  end
+
+  defp sec_edgar_guidance_signal?(sentence) do
+    sentence =~
+      ~r/\b(guidance|outlook|forecast|projection|projected)\b/i
+  end
+
+  defp sec_edgar_guidance_metric?(sentence) do
+    sentence =~
+      ~r/\b(revenue|revenues|net sales|sales|net income|operating income|earnings|EPS|margin|profit|EBITDA|adjusted EBITDA|cash flow)\b/i
+  end
+
+  defp sec_edgar_non_financial_guidance_sentence?(sentence) do
+    sentence =~
+      ~r/\b(accounting guidance|guidance addresses|fair value guidance|valuation techniques?|FASB|ASU|GAAP guidance|rate reconciliation|income taxes paid|deferred tax|tax assets?|tax liabilities?|taxable temporary differences?|projected future taxable income|tax planning strategies|risk factors?|could materially|may materially|adversely affect|federal government|government shutdown|debt ceiling|CODM|budget versus actual|variance analysis|segment measure|chief operating decision maker|forward[- ]looking statements?|safe harbor|Food and Drug Administration|FDA|product candidates?|foreign regulatory agencies?|governmental regulations?|clinical trials?|ultimately not approve|we are required to report|impairment|long[- ]lived assets?|recoverability|carrying value|asset group|trigger a review|business climate|legal factors|market price of the assets?|costs significantly in excess|discounted cash flows?)\b/i
+  end
+
+  defp sec_edgar_registration_form_type(record) do
+    category = String.upcase(to_string(Map.get(record, :category) || ""))
+    title = String.upcase(to_string(Map.get(record, :title) || ""))
+
+    cond do
+      category in ["S-1", "S-1/A"] or String.starts_with?(title, "S-1") -> "S-1"
+      category in ["F-10", "F-10/A"] or String.starts_with?(title, "F-10") -> "F-10"
+      category in ["F-1", "F-1/A"] or String.starts_with?(title, "F-1") -> "F-1"
+      true -> category
+    end
+  end
+
+  defp sec_edgar_registration_business_detail(plain) do
+    plain
+    |> String.slice(0, 35_000)
+    |> then(fn excerpt ->
+      Regex.run(
+        ~r/\b(We are|We operate|We provide|We develop|We offer|Our company is|Our business is)\b[^.!?]{40,360}[.!?]/i,
+        excerpt
+      )
+    end)
+    |> case do
+      [_match, _lead] = match ->
+        match
+        |> List.first()
+        |> sec_edgar_clean_sentence()
+        |> then(&"사업 설명: #{&1}")
+
+      _match ->
+        nil
+    end
+  end
+
+  defp sec_edgar_registration_amount_detail(plain) do
+    patterns = [
+      ~r/(?:proposed maximum aggregate offering price|maximum aggregate offering price|aggregate offering price)[^$]{0,120}\$([\d,.]+)\s*(million|billion)?/i,
+      ~r/(?:gross proceeds|net proceeds)[^$]{0,120}\$([\d,.]+)\s*(million|billion)?/i,
+      ~r/(?:offering of|public offering of)[^$]{0,120}\$([\d,.]+)\s*(million|billion)?/i
+    ]
+
+    case sec_edgar_money_capture(patterns, plain) do
+      nil -> nil
+      value -> "상장/공모 조달 규모: #{value}"
+    end
+  end
+
+  defp sec_edgar_registration_use_of_proceeds_detail(plain) do
+    section = sec_edgar_registration_section_after_heading(plain, "Use of Proceeds", 2_400)
+
+    value =
+      cond do
+        is_binary(section) and sec_edgar_deferred_proceeds_section?(section) ->
+          "구체적 금액/용도는 본문에 확정 기재되지 않았고, 관련 Prospectus Supplement에서 제시 예정"
+
+        is_binary(section) ->
+          sec_edgar_registration_use_sentence(section) ||
+            sec_edgar_registration_use_table_excerpt(section)
+
+        true ->
+          sec_edgar_registration_use_sentence(plain)
+      end
+
+    value
+    |> case do
+      nil ->
+        nil
+
+      value ->
+        value
+        |> sec_edgar_clean_sentence()
+        |> String.slice(0, 360)
+        |> then(&"조달자금 사용 목적: #{&1}")
+    end
+  end
+
+  defp sec_edgar_registration_price_detail(plain) do
+    patterns = [
+      ~r/(?:initial public offering price|public offering price|offering price)[^.;]{0,120}\$([\d,.]+)[^.;]{0,80}\bper\s+(?:ordinary\s+)?share/i,
+      ~r/(?:initial public offering price|public offering price|offering price)[^.;]{0,120}\$([\d,.]+)[^.;]{0,80}\bper\s+ADS/i,
+      ~r/(?:price per share|per share price)[^$]{0,120}\$([\d,.]+)/i,
+      ~r/\$([\d,.]+)\s+per\s+(?:ordinary\s+)?share/i,
+      ~r/\$([\d,.]+)\s+per\s+ADS/i
+    ]
+
+    case sec_edgar_money_capture(patterns, plain) do
+      nil -> nil
+      value -> "주당/ADS 공모 가격: #{value}"
+    end
+  end
+
+  defp sec_edgar_registration_overhang_detail(plain) do
+    value =
+      [
+        "Lock-Up Agreements",
+        "Lock-Up Agreement",
+        "Lock-up",
+        "Shares Eligible for Future Sale",
+        "Underwriting"
+      ]
+      |> Enum.find_value(fn heading ->
+        plain
+        |> sec_edgar_registration_section_after_heading(heading, 2_800)
+        |> sec_edgar_registration_lockup_excerpt()
+      end) ||
+        sec_edgar_registration_lockup_excerpt(plain)
+
+    value
+    |> case do
+      nil ->
+        nil
+
+      value ->
+        value
+        |> sec_edgar_clean_sentence()
+        |> then(&"오버행/lock-up 일정: #{&1}")
+    end
+  end
+
+  defp sec_edgar_registration_section_after_heading(plain, heading, length) do
+    plain
+    |> sec_edgar_sections_after_heading(heading, length)
+    |> Enum.reject(&sec_edgar_registration_toc_section?(&1, heading))
+    |> Enum.map(&sec_edgar_strip_heading_prefix(&1, heading))
+    |> Enum.map(
+      &sec_edgar_cut_before_any_heading(&1, sec_edgar_registration_stop_headings(heading))
+    )
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.find(&sec_edgar_registration_substantive_section?/1)
+  end
+
+  defp sec_edgar_sections_after_heading(plain, heading, length) do
+    pattern = Regex.compile!("\\b#{Regex.escape(heading)}\\b", "i")
+
+    pattern
+    |> Regex.scan(plain, return: :index)
+    |> Enum.map(fn [{start, _size}] ->
+      plain
+      |> binary_part(start, min(length, byte_size(plain) - start))
+      |> String.replace(~r/\s+/u, " ")
+      |> String.trim()
+    end)
+  end
+
+  defp sec_edgar_registration_toc_section?(section, heading) do
+    prefix = String.slice(section, 0, 520)
+    heading_pattern = Regex.compile!("^\\s*#{Regex.escape(heading)}\\s+\\d+\\s+", "i")
+
+    heading_hits =
+      sec_edgar_registration_all_headings()
+      |> Enum.count(fn candidate ->
+        Regex.match?(Regex.compile!("\\b#{Regex.escape(candidate)}\\b", "i"), prefix)
+      end)
+
+    Regex.match?(heading_pattern, prefix) or heading_hits >= 4
+  end
+
+  defp sec_edgar_registration_all_headings do
+    [
+      "The Company",
+      "Recent Developments",
+      "Consolidated Capitalization",
+      "Use of Proceeds",
+      "Description of Securities",
+      "Plan of Distribution",
+      "Earnings Coverage Ratios",
+      "Prior Sales",
+      "Trading Price and Volume",
+      "Risk Factors",
+      "Underwriting",
+      "Shares Eligible for Future Sale",
+      "Lock-Up Agreements",
+      "Lock-Up Agreement",
+      "Lock-up",
+      "Dilution"
+    ]
+  end
+
+  defp sec_edgar_registration_stop_headings(current_heading) do
+    sec_edgar_registration_all_headings()
+    |> Enum.reject(&(String.downcase(&1) == String.downcase(current_heading)))
+  end
+
+  defp sec_edgar_strip_heading_prefix(section, heading) do
+    heading_pattern =
+      Regex.compile!(
+        "^\\s*(?:[-–—]?\\s*\\d+\\s*[-–—]?\\s*)?#{Regex.escape(heading)}\\s*(?:\\d+\\s*)?",
+        "i"
+      )
+
+    section
+    |> String.replace(heading_pattern, "", global: false)
+    |> sec_edgar_clean_sentence()
+  end
+
+  defp sec_edgar_cut_before_any_heading(section, headings) do
+    cutoff =
+      headings
+      |> Enum.flat_map(fn heading ->
+        pattern = Regex.compile!("\\b#{Regex.escape(heading)}\\b", "i")
+
+        case Regex.run(pattern, section, return: :index) do
+          [{start, _size}] when start > 80 -> [start]
+          _match -> []
+        end
+      end)
+      |> Enum.sort()
+      |> List.first()
+
+    case cutoff do
+      nil -> section
+      index -> binary_part(section, 0, index)
+    end
+  end
+
+  defp sec_edgar_registration_substantive_section?(section) do
+    section =~ ~r/[a-z]{3,}/i and byte_size(section) > 40
+  end
+
+  defp sec_edgar_deferred_proceeds_section?(section) do
+    section =~
+      ~r/(?:will be|shall be)\s+(?:described|set forth|specified)\s+in\s+(?:the\s+)?(?:applicable\s+)?Prospectus Supplement|have not determined|has not yet determined|not currently known/i
+  end
+
+  defp sec_edgar_registration_use_sentence(section) do
+    section
+    |> sec_edgar_sentences()
+    |> Enum.reject(&sec_edgar_deferred_proceeds_section?/1)
+    |> Enum.filter(&sec_edgar_use_of_proceeds_sentence?/1)
+    |> Enum.take(2)
+    |> Enum.join(" ")
+    |> case do
+      "" -> nil
+      value -> value
+    end
+  end
+
+  defp sec_edgar_use_of_proceeds_sentence?(sentence) do
+    sentence =~
+      ~r/(use(?:d)? (?:the )?(?:net )?proceeds|intend(?:s)? to use|plan(?:s)? to use|expect(?:s)? to use|allocate|apply|repay|repayment|working capital|general corporate purposes|research and development|commercialization|acquisition|capital expenditures?|debt)/i
+  end
+
+  defp sec_edgar_registration_use_table_excerpt(section) do
+    cond do
+      section =~
+          ~r/\$|US\$|C\$|working capital|general corporate|repay|debt|acquisition|research|development|commercialization|capital expenditures?/i ->
+        section
+        |> sec_edgar_clean_sentence()
+        |> String.slice(0, 520)
+
+      true ->
+        nil
+    end
+  end
+
+  defp sec_edgar_registration_lockup_excerpt(nil), do: nil
+
+  defp sec_edgar_registration_lockup_excerpt(section) do
+    section
+    |> sec_edgar_sentences()
+    |> Enum.map(&sec_edgar_clean_sentence/1)
+    |> Enum.reject(&sec_edgar_generic_distribution_sentence?/1)
+    |> Enum.filter(&sec_edgar_lockup_or_overhang_sentence?/1)
+    |> Enum.take(2)
+    |> Enum.join(" ")
+    |> case do
+      "" -> nil
+      value -> value
+    end
+  end
+
+  defp sec_edgar_generic_distribution_sentence?(sentence) do
+    sentence =~ ~r/may be sold from time to time/i and
+      sentence =~ ~r/market prices|negotiated with purchasers|plan of distribution/i and
+      not Regex.match?(
+        ~r/lock[- ]?up|may not\s+(?:offer|sell|transfer|dispose|pledge)|agree(?:d)? not to\s+(?:offer|sell|transfer|dispose|pledge)|restricted from\s+(?:selling|transferring|disposing)|eligible for sale|days after/i,
+        sentence
+      )
+  end
+
+  defp sec_edgar_lockup_or_overhang_sentence?(sentence) do
+    has_lock_signal =
+      sentence =~
+        ~r/lock[- ]?up|eligible for sale|Rule\s+144|market standoff|(?:agree(?:d)?|undertake(?:s)?|will|may|shall)\s+not\s+(?:directly\s+or\s+indirectly\s+)?(?:offer|sell|contract to sell|pledge|transfer|dispose)|restricted from\s+(?:selling|transferring|disposing)/i
+
+    has_time_limit =
+      sentence =~
+        ~r/\b\d+\s+days?\b|until|through|ending|after this offering|following (?:the )?offering|after the date|expiration/i
+
+    has_sale_terms =
+      sentence =~
+        ~r/sell|sale|transfer|dispose|pledge|offer|short sale|eligible for sale|lock[- ]?up|shares|common stock|ordinary shares|ADSs/i
+
+    has_holder_or_shares =
+      sentence =~
+        ~r/directors?|officers?|stockholders?|shareholders?|holders?|selling stockholders?|affiliates?|insiders?|underwriters?|[\d,]+(?:\.\d+)?\s+(?:shares|ordinary shares|common stock|ADSs|Class [A-Z] shares)/i
+
+    has_lock_signal and has_time_limit and has_sale_terms and has_holder_or_shares
+  end
+
+  defp sec_edgar_schedule_13d_summary(raw_submission, record)
+       when is_binary(raw_submission) do
+    plain = sec_edgar_plain_text(raw_submission)
+    issuer = sec_edgar_issuer_name(record, plain)
+
+    details =
+      [
+        sec_edgar_reporting_owner_detail(plain),
+        sec_edgar_beneficial_ownership_amount_detail(plain),
+        sec_edgar_beneficial_ownership_percent_detail(plain),
+        sec_edgar_13d_purpose_detail(plain),
+        sec_edgar_13d_activism_signal_detail(plain)
+      ]
+
+    {:ok,
+     sec_edgar_summary_with_details(
+       "#{issuer}의 Schedule 13D에서 5% 이상 전략적/행동주의 보유지분 신호가 확인됐습니다",
+       details
+     )}
+  end
+
+  defp sec_edgar_schedule_13d_summary(_raw_submission, _record) do
+    {:error, :sec_edgar_13d_summary_unavailable}
+  end
+
+  defp sec_edgar_schedule_13g_increase_summary(raw_submission, record)
+       when is_binary(raw_submission) do
+    plain = sec_edgar_plain_text(raw_submission)
+
+    if sec_edgar_13g_increase_signal?(plain, record) do
+      issuer = sec_edgar_issuer_name(record, plain)
+
+      details =
+        [
+          sec_edgar_reporting_owner_detail(plain),
+          sec_edgar_beneficial_ownership_amount_detail(plain),
+          sec_edgar_beneficial_ownership_percent_detail(plain),
+          sec_edgar_13g_increase_detail(plain, record)
+        ]
+
+      {:ok,
+       sec_edgar_summary_with_details(
+         "#{issuer}의 Schedule 13G에서 신규 또는 증가한 5% 이상 보유지분 신호가 확인됐습니다",
+         details
+       )}
+    else
+      {:error, :sec_edgar_13g_without_increase_signal}
+    end
+  end
+
+  defp sec_edgar_schedule_13g_increase_summary(_raw_submission, _record) do
+    {:error, :sec_edgar_13g_summary_unavailable}
+  end
+
+  defp sec_edgar_ma_registration_summary(raw_submission, record)
+       when is_binary(raw_submission) do
+    plain = sec_edgar_plain_text(raw_submission)
+    issuer = sec_edgar_issuer_name(record, plain)
+    form_type = sec_edgar_ma_registration_form_type(record)
+
+    details =
+      [
+        sec_edgar_ma_target_detail(plain),
+        sec_edgar_ma_exchange_ratio_detail(plain),
+        sec_edgar_ma_consideration_detail(plain),
+        sec_edgar_ma_purpose_detail(plain)
+      ]
+
+    {:ok,
+     sec_edgar_summary_with_details(
+       "#{issuer}의 #{form_type} 주식교환/합병 등록서 핵심 조건을 확인했습니다",
+       details
+     )}
+  end
+
+  defp sec_edgar_ma_registration_summary(_raw_submission, _record) do
+    {:error, :sec_edgar_ma_registration_summary_unavailable}
+  end
+
+  defp sec_edgar_tender_offer_summary(raw_submission, record)
+       when is_binary(raw_submission) do
+    plain = sec_edgar_plain_text(raw_submission)
+    issuer = sec_edgar_issuer_name(record, plain)
+
+    details =
+      [
+        sec_edgar_tender_offeror_detail(plain),
+        sec_edgar_tender_price_detail(plain),
+        sec_edgar_tender_quantity_detail(plain),
+        sec_edgar_tender_terms_detail(plain),
+        sec_edgar_tender_purpose_detail(plain)
+      ]
+
+    {:ok,
+     sec_edgar_summary_with_details(
+       "#{issuer}의 Schedule TO 공개매수 또는 인수성 거래 조건을 확인했습니다",
+       details
+     )}
+  end
+
+  defp sec_edgar_tender_offer_summary(_raw_submission, _record) do
+    {:error, :sec_edgar_tender_offer_summary_unavailable}
+  end
+
+  defp sec_edgar_reporting_owner_detail(plain) do
+    [
+      ~r/(?:name(?:s)? of reporting person(?:s)?|reporting person)\s+([A-Z0-9 .,&'()\/-]{3,160})/i,
+      ~r/(?:filed by|joint filing agreement by)\s+([^.;]{3,160})(?:\.|;|,|$)/i
+    ]
+    |> sec_edgar_first_capture(plain)
+    |> sec_edgar_labeled_detail("신고자/보유자")
+  end
+
+  defp sec_edgar_beneficial_ownership_amount_detail(plain) do
+    [
+      ~r/(?:aggregate amount beneficially owned|amount beneficially owned)[^\d]{0,100}([\d,]+(?:\.\d+)?)/i,
+      ~r/beneficially owned[^.]{0,120}?([\d,]+)\s+shares/i
+    ]
+    |> sec_edgar_first_capture(plain)
+    |> sec_edgar_labeled_detail("보유 주식 수")
+  end
+
+  defp sec_edgar_beneficial_ownership_percent_detail(plain) do
+    [
+      ~r/(?:percent of class|percentage of class|percent of the class)[^%]{0,160}?(\d+(?:\.\d+)?)\s*%/i,
+      ~r/(\d+(?:\.\d+)?)\s*%\s+of\s+(?:the\s+)?(?:outstanding\s+)?(?:class|common stock|ordinary shares)/i
+    ]
+    |> sec_edgar_first_capture(plain)
+    |> case do
+      nil -> nil
+      value -> "보유 지분율: #{value}%"
+    end
+  end
+
+  defp sec_edgar_13d_purpose_detail(plain) do
+    plain
+    |> sec_edgar_section_after_any_heading(
+      ["Purpose of Transaction", "Purpose of the Transaction"],
+      1_800
+    )
+    |> case do
+      nil -> plain
+      section -> section
+    end
+    |> sec_edgar_sentence_matching(
+      ~r/(intend|plan|seek|engage|discuss|propose|strategic|board|management|acquire|merger|maximize|undervalued|shareholder value)/i,
+      420
+    )
+    |> sec_edgar_labeled_detail("목적/관여")
+  end
+
+  defp sec_edgar_13d_activism_signal_detail(plain) do
+    cond do
+      plain =~
+          ~r/\b(board|director|management|strategic alternatives|undervalued|maximize stockholder value|maximize shareholder value|activist|proxy|proposal)\b/i ->
+        "신호 초점: 행동주의 또는 전략적 관여 가능성"
+
+      plain =~ ~r/\b(control|merger|business combination|acquisition|takeover|tender offer)\b/i ->
+        "신호 초점: 지배권, M&A 또는 보유지분 변화 가능성"
+
+      true ->
+        "신호 초점: 13D는 단순 패시브 13G 보유가 아닌 적극적/전략적 지분으로 분류"
+    end
+  end
+
+  defp sec_edgar_13g_increase_signal?(plain, record) do
+    form_type = sec_edgar_schedule_form_type(record)
+
+    form_type == "SC 13G" or
+      plain =~
+        ~r/\b(increase[sd]?|increasing|acquired|acquisition|purchased|additional shares|beneficial ownership[^.]{0,80}increased|newly reporting|became the beneficial owner)\b/i
+  end
+
+  defp sec_edgar_13g_increase_detail(plain, record) do
+    cond do
+      sec_edgar_schedule_form_type(record) == "SC 13G" ->
+        "필터 조건: 최초 13G는 신규 5% 이상 보유지분 공시로 간주"
+
+      detail =
+          sec_edgar_sentence_matching(
+            plain,
+            ~r/(increase[sd]?|acquired|purchased|additional shares|beneficial ownership[^.]{0,80}increased|became the beneficial owner)/i,
+            360
+          ) ->
+        "필터 조건: #{sec_edgar_clean_sentence(detail)}"
+
+      true ->
+        nil
+    end
+  end
+
+  defp sec_edgar_schedule_form_type(record) do
+    category = String.upcase(to_string(Map.get(record, :category) || ""))
+    title = String.upcase(to_string(Map.get(record, :title) || ""))
+
+    cond do
+      String.contains?(category, "SC 13G/A") or String.starts_with?(title, "SC 13G/A") ->
+        "SC 13G/A"
+
+      String.contains?(category, "SC 13G") or String.starts_with?(title, "SC 13G") ->
+        "SC 13G"
+
+      String.contains?(category, "SC 13D/A") or String.starts_with?(title, "SC 13D/A") ->
+        "SC 13D/A"
+
+      String.contains?(category, "SC 13D") or String.starts_with?(title, "SC 13D") ->
+        "SC 13D"
+
+      true ->
+        category
+    end
+  end
+
+  defp sec_edgar_ma_registration_form_type(record) do
+    category = String.upcase(to_string(Map.get(record, :category) || ""))
+    title = String.upcase(to_string(Map.get(record, :title) || ""))
+
+    cond do
+      String.starts_with?(category, "F-4") or String.starts_with?(title, "F-4") -> "F-4"
+      String.starts_with?(category, "S-4") or String.starts_with?(title, "S-4") -> "S-4"
+      true -> category
+    end
+  end
+
+  defp sec_edgar_ma_target_detail(plain) do
+    [
+      ~r/(?:merger with|merge with|merged with|business combination with|combine with|combination with)\s+([^.;]{3,180})(?:\.|;|,|$)/i,
+      ~r/(?:acquisition of|acquire|acquiring)\s+([^.;]{3,180})(?:\.|;|,|$)/i,
+      ~r/(?:target company|company being acquired)\s+(?:is|:)?\s*([^.;]{3,180})(?:\.|;|,|$)/i
+    ]
+    |> sec_edgar_first_capture(plain)
+    |> sec_edgar_labeled_detail("교환/합병 대상")
+  end
+
+  defp sec_edgar_ma_exchange_ratio_detail(plain) do
+    plain
+    |> sec_edgar_sentence_matching(
+      ~r/(exchange ratio|for each share|converted into the right to receive|receive [\d.]+|stock[- ]for[- ]stock|ordinary shares|ADSs?)/i,
+      440
+    )
+    |> sec_edgar_labeled_detail("교환/합병 비율")
+  end
+
+  defp sec_edgar_ma_consideration_detail(plain) do
+    [
+      ~r/(?:aggregate merger consideration|transaction value|equity value|enterprise value)[^$]{0,160}\$([\d,.]+)\s*(million|billion)?/i,
+      ~r/(?:cash consideration|stock consideration)[^$]{0,160}\$([\d,.]+)\s*(million|billion)?/i
+    ]
+    |> sec_edgar_money_capture(plain)
+    |> sec_edgar_labeled_detail("거래가치/대가")
+  end
+
+  defp sec_edgar_ma_purpose_detail(plain) do
+    plain
+    |> sec_edgar_section_after_any_heading(
+      [
+        "Reasons for the Merger",
+        "Purpose of the Merger",
+        "Reasons for the Business Combination",
+        "Purpose of the Business Combination"
+      ],
+      1_800
+    )
+    |> case do
+      nil -> plain
+      section -> section
+    end
+    |> sec_edgar_sentence_matching(
+      ~r/(strategic|combine|combination|expected to|believe|enhance|accelerate|expand|scale|shareholder value|stockholder value)/i,
+      420
+    )
+    |> sec_edgar_labeled_detail("전략적 목적")
+  end
+
+  defp sec_edgar_tender_offeror_detail(plain) do
+    [
+      ~r/(?:offeror|purchaser|bidder)\s+(?:is|:)?\s*([^.;]{3,160})(?:\.|;|,|$)/i,
+      ~r/(?:commenced|announced)\s+(?:a\s+)?(?:cash\s+)?tender offer\s+(?:by|for|to acquire)?\s*([^.;]{3,160})(?:\.|;|,|$)/i
+    ]
+    |> sec_edgar_first_capture(plain)
+    |> sec_edgar_labeled_detail("공개매수자/인수자")
+  end
+
+  defp sec_edgar_tender_price_detail(plain) do
+    [
+      ~r/(?:offer price|purchase price|tender offer price|price per share)[^$]{0,140}\$([\d,.]+)/i,
+      ~r/\$([\d,.]+)\s+per\s+(?:share|ADS|unit)/i
+    ]
+    |> sec_edgar_money_capture(plain)
+    |> sec_edgar_labeled_detail("주당 공개매수가")
+  end
+
+  defp sec_edgar_tender_quantity_detail(plain) do
+    cond do
+      plain =~ ~r/\bany and all\b/i ->
+        "공개매수 수량: 발행주식/증권 전부"
+
+      quantity =
+          sec_edgar_first_capture(
+            [
+              ~r/(?:up to|for)\s+([\d,]+(?:\.\d+)?)\s+(?:shares|ADSs?|units)/i,
+              ~r/(?:maximum number of|maximum amount of)\s+([\d,]+(?:\.\d+)?)\s+(?:shares|ADSs?|units)/i
+            ],
+            plain
+          ) ->
+        "공개매수 수량: #{quantity}주/ADS/units"
+
+      true ->
+        nil
+    end
+  end
+
+  defp sec_edgar_tender_terms_detail(plain) do
+    plain
+    |> sec_edgar_section_after_any_heading(["Summary Term Sheet", "Terms of the Offer"], 1_600)
+    |> case do
+      nil -> plain
+      section -> section
+    end
+    |> sec_edgar_sentence_matching(
+      ~r/(expire|expiration|condition|tendered|withdrawal|minimum condition|closing)/i,
+      380
+    )
+    |> sec_edgar_labeled_detail("공개매수 조건")
+  end
+
+  defp sec_edgar_tender_purpose_detail(plain) do
+    plain
+    |> sec_edgar_section_after_any_heading(
+      ["Purpose of the Offer", "Purpose of the Transaction"],
+      1_500
+    )
+    |> case do
+      nil -> plain
+      section -> section
+    end
+    |> sec_edgar_sentence_matching(
+      ~r/(purpose|acquire|purchase|ownership|going private|business combination|strategic)/i,
+      380
+    )
+    |> sec_edgar_labeled_detail("공개매수 목적")
+  end
+
+  defp sec_edgar_section_after_any_heading(plain, headings, length) do
+    Enum.find_value(headings, &sec_edgar_section_after_heading(plain, &1, length))
+  end
+
+  defp sec_edgar_labeled_detail(nil, _label), do: nil
+  defp sec_edgar_labeled_detail("", _label), do: nil
+
+  defp sec_edgar_labeled_detail(value, label) when is_binary(value) do
+    "#{label}: #{sec_edgar_clean_sentence(value)}"
+  end
+
+  defp sec_edgar_section_after_heading(plain, heading, length) do
+    pattern = Regex.compile!("\\b#{Regex.escape(heading)}\\b", "i")
+
+    case Regex.run(pattern, plain, return: :index) do
+      [{start, _size}] ->
+        plain
+        |> binary_part(start, min(length, byte_size(plain) - start))
+        |> String.replace(~r/\s+/u, " ")
+        |> String.trim()
+
+      _match ->
+        nil
+    end
+  end
+
+  defp sec_edgar_sentence_matching(plain, pattern, max_length) do
+    plain
+    |> sec_edgar_sentences()
+    |> Enum.find(&Regex.match?(pattern, &1))
+    |> case do
+      nil -> nil
+      sentence -> sentence |> String.slice(0, max_length) |> String.trim()
+    end
+  end
+
+  defp sec_edgar_sentences(value) when is_binary(value) do
+    value
+    |> String.split(~r/(?<=[.!?])\s+/u)
+    |> Enum.map(&sec_edgar_clean_sentence/1)
+    |> Enum.reject(&(&1 == ""))
+  end
+
+  defp sec_edgar_sentences(_value), do: []
+
+  defp sec_edgar_money_capture(patterns, plain) do
+    patterns
+    |> Enum.find_value(fn pattern ->
+      case Regex.run(pattern, plain) do
+        [_match, amount, scale] -> sec_edgar_money_label(amount, scale)
+        [_match, amount] -> sec_edgar_money_label(amount, nil)
+        _match -> nil
+      end
+    end)
+  end
+
+  defp sec_edgar_clean_sentence(value) do
+    value
+    |> String.replace(~r/\s+/u, " ")
+    |> String.replace(~r/^[\s:;,-]+/u, "")
+    |> String.trim()
+  end
+
+  defp sec_edgar_form4_buy_reports(source, records) do
+    records
+    |> Enum.filter(&sec_edgar_form4_record?/1)
+    |> Enum.uniq_by(&(sec_edgar_accession_number(&1) || Map.get(&1, :url)))
+    |> Enum.take(sec_edgar_detail_fetch_limit(source))
+    |> Enum.map(&sec_edgar_form4_buy_report(source, &1))
+    |> Enum.reject(&is_nil/1)
+  end
+
+  defp sec_edgar_form4_record?(record) when is_map(record) do
+    String.upcase(to_string(Map.get(record, :category) || "")) == "4" or
+      to_string(Map.get(record, :title) || "") =~ ~r/^4\s+-/i
+  end
+
+  defp sec_edgar_form4_record?(_record), do: false
+
+  defp sec_edgar_form4_buy_report(source, record) do
+    with url when is_binary(url) <- sec_edgar_complete_submission_text_url(record),
+         {:ok, raw_submission} <- sec_edgar_fetch_submission_text(source, record),
+         {:ok, ownership_xml} <- sec_edgar_form4_ownership_xml(raw_submission),
+         {:ok, report} <- sec_edgar_form4_report_from_xml(ownership_xml, record, url) do
+      report
+    else
+      _reason -> nil
+    end
+  end
+
+  defp sec_edgar_form4_ownership_xml(raw_submission) when is_binary(raw_submission) do
+    case Regex.run(~r/<ownershipDocument[\s\S]*?<\/ownershipDocument>/i, raw_submission) do
+      [ownership_xml] -> {:ok, ownership_xml}
+      _match -> {:error, :ownership_document_not_found}
+    end
+  end
+
+  defp sec_edgar_form4_ownership_xml(_raw_submission), do: {:error, :ownership_document_not_found}
+
+  defp sec_edgar_form4_report_from_xml(xml, record, detail_url) do
+    issuer_name = sec_edgar_form4_tag_value(xml, "issuerName")
+    issuer_cik = sec_edgar_form4_tag_value(xml, "issuerCik")
+    ticker = sec_edgar_form4_tag_value(xml, "issuerTradingSymbol")
+    owner_name = sec_edgar_form4_tag_value(xml, "rptOwnerName")
+    roles = sec_edgar_form4_owner_roles(xml)
+    buy_transactions = sec_edgar_form4_buy_transactions(xml)
+
+    cond do
+      issuer_name in [nil, ""] ->
+        {:error, :issuer_missing}
+
+      owner_name in [nil, ""] ->
+        {:error, :reporting_owner_missing}
+
+      roles == [] ->
+        {:error, :insider_relationship_missing}
+
+      buy_transactions == [] ->
+        {:error, :purchase_transaction_missing}
+
+      true ->
+        {:ok,
+         %{
+           accession: sec_edgar_accession_number(record),
+           issuer_name: issuer_name,
+           issuer_cik: issuer_cik,
+           ticker: ticker,
+           owner_name: owner_name,
+           roles: roles,
+           transactions: buy_transactions,
+           latest_transaction_date: sec_edgar_form4_latest_transaction_date(buy_transactions),
+           total_shares: sec_edgar_form4_total_shares(buy_transactions),
+           total_value: sec_edgar_form4_total_value(buy_transactions),
+           url: detail_url,
+           published_at: Map.get(record, :published_at) || DateTime.utc_now()
+         }}
+    end
+  end
+
+  defp sec_edgar_form4_cluster_records(reports, source) do
+    reports
+    |> Enum.reject(&is_nil(&1.latest_transaction_date))
+    |> Enum.group_by(&(&1.issuer_cik || &1.issuer_name))
+    |> Enum.flat_map(fn {_issuer_key, issuer_reports} ->
+      issuer_reports
+      |> sec_edgar_form4_cluster_window(source)
+      |> case do
+        [] -> []
+        window_reports -> sec_edgar_form4_cluster_record(window_reports)
+      end
+    end)
+    |> Enum.sort_by(&DateTime.to_unix(&1.published_at), :desc)
+  end
+
+  defp sec_edgar_form4_cluster_window(issuer_reports, source) do
+    window_days =
+      source_config_positive_integer(
+        source,
+        "cluster_window_days",
+        :cluster_window_days,
+        @sec_edgar_form4_cluster_window_days
+      )
+
+    min_owners =
+      source_config_positive_integer(
+        source,
+        "cluster_min_reporting_owners",
+        :cluster_min_reporting_owners,
+        @sec_edgar_form4_cluster_min_owners
+      )
+
+    latest_date =
+      issuer_reports
+      |> Enum.map(& &1.latest_transaction_date)
+      |> Enum.max_by(&Date.to_gregorian_days/1, fn -> nil end)
+
+    if latest_date do
+      window =
+        Enum.filter(issuer_reports, fn report ->
+          Date.diff(latest_date, report.latest_transaction_date) < window_days
+        end)
+
+      owner_count =
+        window
+        |> Enum.map(& &1.owner_name)
+        |> Enum.uniq()
+        |> length()
+
+      if owner_count >= min_owners, do: window, else: []
+    else
+      []
+    end
+  end
+
+  defp sec_edgar_form4_cluster_record([]), do: []
+
+  defp sec_edgar_form4_cluster_record([first | _rest] = reports) do
+    latest_date =
+      reports
+      |> Enum.map(& &1.latest_transaction_date)
+      |> Enum.max_by(&Date.to_gregorian_days/1)
+
+    earliest_date =
+      reports
+      |> Enum.map(& &1.latest_transaction_date)
+      |> Enum.min_by(&Date.to_gregorian_days/1)
+
+    owners =
+      reports
+      |> Enum.map(& &1.owner_name)
+      |> Enum.uniq()
+
+    total_shares =
+      reports
+      |> Enum.map(& &1.total_shares)
+      |> Enum.reject(&is_nil/1)
+      |> Enum.reduce(Decimal.new("0"), &Decimal.add/2)
+
+    total_value =
+      reports
+      |> Enum.map(& &1.total_value)
+      |> Enum.reject(&is_nil/1)
+      |> Enum.reduce(Decimal.new("0"), &Decimal.add/2)
+
+    ticker = first.ticker && String.trim(first.ticker)
+    issuer = sec_edgar_form4_issuer_label(first.issuer_name, ticker)
+    owner_count = length(owners)
+    accession_seed = reports |> Enum.map(& &1.accession) |> Enum.reject(&is_nil/1) |> Enum.sort()
+
+    summary =
+      [
+        "#{Date.to_iso8601(earliest_date)}~#{Date.to_iso8601(latest_date)} 7일 창에서 #{owner_count}명의 내부자/임원/10% 이상 보유자가 Form 4 매수(P/A)를 신고했습니다",
+        "신고자: #{owners |> Enum.take(5) |> Enum.join(", ")}",
+        Decimal.compare(total_shares, Decimal.new("0")) == :gt &&
+          "합산 매수 주식 수: #{sec_edgar_decimal_share_label(total_shares)}",
+        Decimal.compare(total_value, Decimal.new("0")) == :gt &&
+          "가격이 확인된 거래 기준 추정 매수 규모: #{sec_edgar_decimal_money_label(total_value)}"
+      ]
+      |> Enum.reject(&(&1 in [nil, false, ""]))
+      |> Enum.join("; ")
+
+    [
+      %{
+        external_id:
+          "sec-form4-buy-cluster:" <>
+            Enum.join(
+              [
+                first.issuer_cik || sec_edgar_slug(first.issuer_name),
+                Date.to_iso8601(earliest_date),
+                Date.to_iso8601(latest_date),
+                sec_edgar_short_hash(Enum.join(accession_seed, "|"))
+              ],
+              ":"
+            ),
+        title: "Form 4 insider buy cluster - #{issuer}",
+        url: first.url,
+        summary: summary,
+        published_at: Enum.max_by(reports, &DateTime.to_unix(&1.published_at)).published_at,
+        category: "Form 4 insider purchase cluster"
+      }
+    ]
+  end
+
+  defp sec_edgar_13f_accumulation_records(source, records) do
+    records
+    |> Enum.filter(&sec_edgar_13f_record?/1)
+    |> Enum.uniq_by(&(sec_edgar_accession_number(&1) || Map.get(&1, :url)))
+    |> Enum.take(sec_edgar_detail_fetch_limit(source))
+    |> Enum.flat_map(&sec_edgar_13f_accumulation_changes(source, &1))
+    |> sec_edgar_13f_accumulation_signal_records(source)
+  end
+
+  defp sec_edgar_13f_record?(record) when is_map(record) do
+    category = String.upcase(to_string(Map.get(record, :category) || ""))
+    title = String.upcase(to_string(Map.get(record, :title) || ""))
+
+    category in ["13F-HR", "13F-HR/A"] or String.starts_with?(title, "13F-HR")
+  end
+
+  defp sec_edgar_13f_record?(_record), do: false
+
+  defp sec_edgar_13f_accumulation_changes(source, record) do
+    with {:ok, current_raw} <- sec_edgar_fetch_submission_text(source, record),
+         manager when is_binary(manager) <- sec_edgar_13f_manager_name(record, current_raw),
+         true <- sec_edgar_13f_notable_manager?(source, manager),
+         current_positions when current_positions != [] <- sec_edgar_13f_positions(current_raw),
+         {:ok, previous_raw} <-
+           sec_edgar_13f_previous_submission_text(source, record, current_raw),
+         previous_positions when previous_positions != [] <- sec_edgar_13f_positions(previous_raw) do
+      previous_by_cusip = Map.new(previous_positions, &{&1.cusip, &1})
+      min_increase_percent = sec_edgar_13f_min_increase_percent(source)
+
+      per_manager_limit =
+        source_config_positive_integer(source, "positions_per_manager", :positions_per_manager, 5)
+
+      current_positions
+      |> Enum.map(fn position ->
+        sec_edgar_13f_position_change(
+          record,
+          manager,
+          position,
+          Map.get(previous_by_cusip, position.cusip),
+          min_increase_percent
+        )
+      end)
+      |> Enum.reject(&is_nil/1)
+      |> Enum.sort_by(&sec_edgar_13f_change_sort_value/1, :desc)
+      |> Enum.take(per_manager_limit)
+    else
+      _reason -> []
+    end
+  end
+
+  defp sec_edgar_13f_accumulation_signal_records(changes, source) do
+    emit_limit = source_config_positive_integer(source, "emit_limit", :emit_limit, 40)
+
+    changes
+    |> Enum.group_by(& &1.cusip)
+    |> Enum.map(&sec_edgar_13f_accumulation_signal_record/1)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.sort_by(&sec_edgar_13f_record_sort_value/1, :desc)
+    |> Enum.take(emit_limit)
+  end
+
+  defp sec_edgar_13f_accumulation_signal_record({_cusip, []}), do: nil
+
+  defp sec_edgar_13f_accumulation_signal_record({cusip, changes}) do
+    latest_change = Enum.max_by(changes, &DateTime.to_unix(&1.published_at))
+    issuer = latest_change.issuer_name || "Unknown issuer"
+    managers = changes |> Enum.map(& &1.manager_name) |> Enum.uniq()
+    manager_count = length(managers)
+    top_change = Enum.max_by(changes, &sec_edgar_13f_change_sort_value/1)
+    change_labels = changes |> Enum.map(&sec_edgar_13f_change_detail/1) |> Enum.take(4)
+
+    headline =
+      if manager_count >= 2 do
+        "#{issuer}에서 유명 기관 #{manager_count}곳의 13F 동시 매수/비중 증가 신호가 확인됐습니다"
+      else
+        "#{issuer}에서 #{List.first(managers)}의 13F 보유지분 증가 신호가 확인됐습니다"
+      end
+
+    summary =
+      sec_edgar_summary_with_details(
+        headline,
+        [
+          "기관: #{Enum.join(Enum.take(managers, 6), ", ")}",
+          "신호: #{sec_edgar_13f_signal_label(manager_count, top_change.change_kind)}",
+          "CUSIP: #{cusip}",
+          "현재 13F 평가액: #{sec_edgar_13f_value_label(top_change.current_value_thousands)}"
+          | change_labels
+        ]
+      )
+
+    %{
+      external_id:
+        "sec-13f-accumulation:" <>
+          Enum.join(
+            [
+              cusip,
+              sec_edgar_short_hash(Enum.map_join(changes, "|", & &1.accession)),
+              latest_change.report_period || "latest"
+            ],
+            ":"
+          ),
+      title: "13F 보유지분 증가 - #{issuer}",
+      url: latest_change.url,
+      summary: summary,
+      published_at: latest_change.published_at,
+      category: "13F institutional accumulation"
+    }
+  end
+
+  defp sec_edgar_13f_position_change(record, manager, position, nil, _min_increase_percent) do
+    %{
+      accession:
+        sec_edgar_accession_number(record) || Map.get(record, :external_id) ||
+          Map.get(record, :url),
+      change_kind: "new_position",
+      manager_name: manager,
+      issuer_name: position.issuer_name,
+      cusip: position.cusip,
+      current_shares: position.shares,
+      previous_shares: nil,
+      current_value_thousands: position.value_thousands,
+      previous_value_thousands: nil,
+      increase_percent: nil,
+      report_period: sec_edgar_13f_report_period(record),
+      url: Map.get(record, :url),
+      published_at: Map.get(record, :published_at) || DateTime.utc_now()
+    }
+  end
+
+  defp sec_edgar_13f_position_change(record, manager, position, previous, min_increase_percent) do
+    with current_shares when not is_nil(current_shares) <- position.shares,
+         previous_shares when not is_nil(previous_shares) <- previous.shares,
+         :gt <- Decimal.compare(current_shares, previous_shares),
+         increase_percent <- sec_edgar_13f_increase_percent(current_shares, previous_shares),
+         true <-
+           Decimal.compare(increase_percent, Decimal.new(min_increase_percent)) in [:eq, :gt] do
+      %{
+        accession:
+          sec_edgar_accession_number(record) || Map.get(record, :external_id) ||
+            Map.get(record, :url),
+        change_kind: "increased_position",
+        manager_name: manager,
+        issuer_name: position.issuer_name,
+        cusip: position.cusip,
+        current_shares: current_shares,
+        previous_shares: previous_shares,
+        current_value_thousands: position.value_thousands,
+        previous_value_thousands: previous.value_thousands,
+        increase_percent: increase_percent,
+        report_period: sec_edgar_13f_report_period(record),
+        url: Map.get(record, :url),
+        published_at: Map.get(record, :published_at) || DateTime.utc_now()
+      }
+    else
+      _reason -> nil
+    end
+  end
+
+  defp sec_edgar_13f_change_detail(%{change_kind: "new_position"} = change) do
+    "신규 편입: #{change.manager_name}가 #{change.issuer_name} #{sec_edgar_13f_share_label(change.current_shares)} 보유를 보고했습니다"
+  end
+
+  defp sec_edgar_13f_change_detail(%{change_kind: "increased_position"} = change) do
+    "보유지분 증가: #{change.manager_name}가 보유 주식 수를 #{sec_edgar_13f_percent_label(change.increase_percent)} 늘렸습니다. 기존 #{sec_edgar_13f_share_label(change.previous_shares)} → 현재 #{sec_edgar_13f_share_label(change.current_shares)}"
+  end
+
+  defp sec_edgar_13f_signal_label(manager_count, _change_kind) when manager_count >= 2,
+    do: "여러 기관의 동시 매수/비중 증가"
+
+  defp sec_edgar_13f_signal_label(_manager_count, "new_position"), do: "신규 편입"
+  defp sec_edgar_13f_signal_label(_manager_count, "increased_position"), do: "보유지분 증가"
+  defp sec_edgar_13f_signal_label(_manager_count, value), do: value
+
+  defp sec_edgar_13f_change_sort_value(change) do
+    change.current_value_thousands
+    |> case do
+      nil -> Decimal.new("0")
+      value -> value
+    end
+    |> Decimal.to_float()
+  end
+
+  defp sec_edgar_13f_record_sort_value(record) do
+    [
+      record.summary =~ ~r/multiple institutions/i && 1_000_000_000,
+      sec_edgar_13f_change_sort_value(%{current_value_thousands: nil})
+    ]
+    |> Enum.reject(&(&1 in [nil, false]))
+    |> Enum.sum()
+    |> Kernel.+(DateTime.to_unix(record.published_at))
+  end
+
+  defp sec_edgar_13f_positions(raw_submission) when is_binary(raw_submission) do
+    ~r/<(?:\w+:)?infoTable\b[\s\S]*?<\/(?:\w+:)?infoTable>/i
+    |> Regex.scan(raw_submission)
+    |> Enum.map(fn [table] -> sec_edgar_13f_position(table) end)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.uniq_by(& &1.cusip)
+  end
+
+  defp sec_edgar_13f_positions(_raw_submission), do: []
+
+  defp sec_edgar_13f_position(table) do
+    cusip = sec_edgar_13f_tag_value(table, "cusip")
+
+    if is_binary(cusip) and cusip != "" do
+      %{
+        issuer_name: sec_edgar_13f_tag_value(table, "nameOfIssuer"),
+        title_class: sec_edgar_13f_tag_value(table, "titleOfClass"),
+        cusip: sec_edgar_13f_normalized_cusip(cusip),
+        value_thousands: sec_edgar_13f_decimal_value(table, "value"),
+        shares: sec_edgar_13f_decimal_value(table, "sshPrnamt")
+      }
+    end
+  end
+
+  defp sec_edgar_13f_tag_value(xml, tag) do
+    pattern =
+      Regex.compile!(
+        "<(?:\\w+:)?#{Regex.escape(tag)}\\b[^>]*>\\s*([^<]+?)\\s*</(?:\\w+:)?#{Regex.escape(tag)}>",
+        "i"
+      )
+
+    case Regex.run(pattern, xml) do
+      [_match, value] ->
+        value
+        |> sec_edgar_decode_entities()
+        |> sec_edgar_clean_phrase()
+        |> case do
+          "" -> nil
+          cleaned -> cleaned
+        end
+
+      _match ->
+        nil
+    end
+  end
+
+  defp sec_edgar_13f_decimal_value(xml, tag) do
+    with value when is_binary(value) <- sec_edgar_13f_tag_value(xml, tag) do
+      value
+      |> String.replace(~r/[,$\s]/, "")
+      |> Decimal.parse()
+      |> case do
+        {decimal, ""} -> decimal
+        _error -> nil
+      end
+    end
+  end
+
+  defp sec_edgar_13f_previous_submission_text(source, record, raw_submission) do
+    with cik when is_binary(cik) <- sec_edgar_13f_cik(record, raw_submission),
+         {:ok, accession} <-
+           sec_edgar_13f_previous_accession(source, cik, sec_edgar_accession_number(record)),
+         url <- sec_edgar_13f_submission_text_url(cik, accession),
+         {:ok, response} <-
+           Http.fetch(url,
+             headers: source_live_headers(source),
+             timeout: sec_edgar_detail_fetch_timeout(source)
+           ),
+         true <- response.status_code in 200..299,
+         body when is_binary(body) <- response.body,
+         true <- byte_size(body) <= sec_edgar_detail_fetch_max_bytes(source) do
+      {:ok, body}
+    else
+      _reason -> {:error, :sec_edgar_13f_previous_submission_unavailable}
+    end
+  end
+
+  defp sec_edgar_13f_previous_accession(source, cik, current_accession) do
+    url = "https://data.sec.gov/submissions/CIK#{String.pad_leading(cik, 10, "0")}.json"
+
+    with {:ok, response} <-
+           Http.fetch(url,
+             headers: source_live_headers(source),
+             timeout: sec_edgar_detail_fetch_timeout(source)
+           ),
+         true <- response.status_code in 200..299,
+         {:ok, payload} <- Jason.decode(response.body),
+         recent when is_map(recent) <- get_in(payload, ["filings", "recent"]),
+         accession when is_binary(accession) <-
+           sec_edgar_13f_find_previous_accession(recent, current_accession) do
+      {:ok, accession}
+    else
+      _reason -> {:error, :sec_edgar_13f_previous_accession_unavailable}
+    end
+  end
+
+  defp sec_edgar_13f_find_previous_accession(recent, current_accession) do
+    current_key = sec_edgar_13f_accession_key(current_accession)
+    forms = Map.get(recent, "form") || []
+    accessions = Map.get(recent, "accessionNumber") || []
+
+    forms
+    |> Enum.zip(accessions)
+    |> Enum.find_value(fn {form, accession} ->
+      accession_key = sec_edgar_13f_accession_key(accession)
+
+      if String.upcase(to_string(form)) in ["13F-HR", "13F-HR/A"] and accession_key != current_key do
+        accession
+      end
+    end)
+  end
+
+  defp sec_edgar_13f_submission_text_url(cik, accession) do
+    cik_path =
+      cik
+      |> String.trim_leading("0")
+      |> case do
+        "" -> cik
+        value -> value
+      end
+
+    accession_path = String.replace(accession, "-", "")
+    "https://www.sec.gov/Archives/edgar/data/#{cik_path}/#{accession_path}/#{accession}.txt"
+  end
+
+  defp sec_edgar_13f_manager_name(record, raw_submission) do
+    title = to_string(Map.get(record, :title) || "")
+
+    [
+      Regex.run(~r/^13F-HR(?:\/A)?\s*-\s*(.+?)\s+\(\d{6,10}\)\s+\(Filer\)/i, title),
+      Regex.run(~r/COMPANY CONFORMED NAME:\s*([^\n\r]+)/i, raw_submission)
+    ]
+    |> Enum.find_value(fn
+      [_match, value] -> value |> sec_edgar_clean_phrase() |> sec_edgar_title_case()
+      _match -> nil
+    end)
+  end
+
+  defp sec_edgar_13f_cik(record, raw_submission) do
+    [
+      Map.get(record, :url),
+      Map.get(record, :title),
+      raw_submission
+    ]
+    |> Enum.find_value(fn value ->
+      cond do
+        match = Regex.run(~r|/data/(\d{1,10})/|i, to_string(value || "")) ->
+          Enum.at(match, 1) |> String.pad_leading(10, "0")
+
+        match = Regex.run(~r/\((\d{6,10})\)\s+\(Filer\)/i, to_string(value || "")) ->
+          Enum.at(match, 1) |> String.pad_leading(10, "0")
+
+        match = Regex.run(~r/CENTRAL INDEX KEY:\s*(\d{1,10})/i, to_string(value || "")) ->
+          Enum.at(match, 1) |> String.pad_leading(10, "0")
+
+        true ->
+          nil
+      end
+    end)
+  end
+
+  defp sec_edgar_13f_notable_manager?(source, manager) do
+    notable_only? =
+      source_config_boolean(source, "notable_manager_only", :notable_manager_only, true)
+
+    if notable_only? do
+      manager_text = String.downcase(to_string(manager || ""))
+
+      source
+      |> source_config_string_list(
+        "notable_manager_patterns",
+        :notable_manager_patterns,
+        sec_edgar_13f_default_notable_manager_patterns()
+      )
+      |> Enum.any?(fn pattern -> Regex.match?(Regex.compile!(pattern, "i"), manager_text) end)
+    else
+      true
+    end
+  end
+
+  defp sec_edgar_13f_default_notable_manager_patterns do
+    [
+      "berkshire|buffett",
+      "pershing square|ackman",
+      "icahn",
+      "elliott",
+      "third point",
+      "tiger global|tiger management",
+      "viking global",
+      "appaloosa",
+      "coatue",
+      "d1 capital",
+      "lone pine",
+      "baupost",
+      "soros",
+      "bridgewater",
+      "citadel",
+      "millennium",
+      "point72",
+      "renaissance",
+      "jpmorgan|j\\.p\\.\\s*morgan",
+      "goldman sachs",
+      "morgan stanley",
+      "blackrock",
+      "vanguard",
+      "fidelity|fmr",
+      "capital research|capital world",
+      "temasek"
+    ]
+  end
+
+  defp sec_edgar_13f_min_increase_percent(source) do
+    source_config_positive_integer(source, "increase_min_percent", :increase_min_percent, 25)
+  end
+
+  defp sec_edgar_13f_increase_percent(current, previous) do
+    if Decimal.compare(previous, Decimal.new("0")) == :gt do
+      current
+      |> Decimal.sub(previous)
+      |> Decimal.div(previous)
+      |> Decimal.mult(Decimal.new("100"))
+    else
+      Decimal.new("100")
+    end
+  end
+
+  defp sec_edgar_13f_share_label(nil), do: "확인 불가"
+
+  defp sec_edgar_13f_share_label(decimal) do
+    decimal
+    |> Decimal.round(0)
+    |> Decimal.to_integer()
+    |> Integer.to_string()
+    |> sec_edgar_share_label()
+  end
+
+  defp sec_edgar_13f_percent_label(nil), do: "신규"
+
+  defp sec_edgar_13f_percent_label(decimal) do
+    decimal
+    |> Decimal.round(1)
+    |> Decimal.to_string(:normal)
+    |> Kernel.<>("%")
+  end
+
+  defp sec_edgar_13f_value_label(nil), do: "확인 불가"
+
+  defp sec_edgar_13f_value_label(value_thousands) do
+    value_thousands
+    |> Decimal.mult(Decimal.new("1000"))
+    |> sec_edgar_decimal_money_label()
+  end
+
+  defp sec_edgar_13f_normalized_cusip(value) do
+    value
+    |> to_string()
+    |> String.upcase()
+    |> String.replace(~r/[^A-Z0-9]/, "")
+  end
+
+  defp sec_edgar_13f_accession_key(value) do
+    value
+    |> to_string()
+    |> String.replace(~r/[^0-9]/, "")
+  end
+
+  defp sec_edgar_13f_report_period(record) do
+    [Map.get(record, :summary), Map.get(record, :title)]
+    |> Enum.find_value(fn value ->
+      case Regex.run(~r/\b(?:Period|Filed):\s*(\d{4}-\d{2}-\d{2})/i, to_string(value || "")) do
+        [_match, date] -> date
+        _match -> nil
+      end
+    end)
+  end
+
+  defp sec_edgar_form4_tag_value(xml, tag) do
+    pattern =
+      Regex.compile!(
+        "<#{Regex.escape(tag)}[^>]*>\\s*(?:<value[^>]*>)?\\s*([^<]+?)\\s*(?:</value>)?\\s*</#{Regex.escape(tag)}>",
+        "i"
+      )
+
+    case Regex.run(pattern, xml) do
+      [_match, value] ->
+        value
+        |> sec_edgar_decode_entities()
+        |> sec_edgar_clean_phrase()
+        |> case do
+          "" -> nil
+          cleaned -> cleaned
+        end
+
+      _match ->
+        nil
+    end
+  end
+
+  defp sec_edgar_form4_owner_roles(xml) do
+    [
+      sec_edgar_form4_truthy_tag?(xml, "isDirector") && "director",
+      sec_edgar_form4_truthy_tag?(xml, "isOfficer") &&
+        sec_edgar_form4_officer_role(xml),
+      sec_edgar_form4_truthy_tag?(xml, "isTenPercentOwner") && "10%+ holder",
+      sec_edgar_form4_truthy_tag?(xml, "isOther") && "other insider"
+    ]
+    |> Enum.reject(&(&1 in [nil, false, ""]))
+    |> Enum.uniq()
+  end
+
+  defp sec_edgar_form4_officer_role(xml) do
+    case sec_edgar_form4_tag_value(xml, "officerTitle") do
+      nil -> "officer"
+      title -> title
+    end
+  end
+
+  defp sec_edgar_form4_truthy_tag?(xml, tag) do
+    case sec_edgar_form4_tag_value(xml, tag) do
+      value when is_binary(value) -> String.downcase(value) in ["1", "true", "yes"]
+      _value -> false
+    end
+  end
+
+  defp sec_edgar_form4_buy_transactions(xml) do
+    ~r/<nonDerivativeTransaction[\s\S]*?<\/nonDerivativeTransaction>/i
+    |> Regex.scan(xml)
+    |> Enum.map(fn [transaction] -> sec_edgar_form4_buy_transaction(transaction) end)
+    |> Enum.reject(&is_nil/1)
+  end
+
+  defp sec_edgar_form4_buy_transaction(transaction) do
+    code = sec_edgar_form4_tag_value(transaction, "transactionCode")
+    acquired_disposed = sec_edgar_form4_tag_value(transaction, "transactionAcquiredDisposedCode")
+    date = sec_edgar_form4_date_value(transaction, "transactionDate")
+
+    if String.upcase(to_string(code)) == "P" and
+         String.upcase(to_string(acquired_disposed)) == "A" and date do
+      %{
+        date: date,
+        shares: sec_edgar_form4_decimal_value(transaction, "transactionShares"),
+        price: sec_edgar_form4_decimal_value(transaction, "transactionPricePerShare"),
+        security: sec_edgar_form4_tag_value(transaction, "securityTitle")
+      }
+    end
+  end
+
+  defp sec_edgar_form4_date_value(xml, tag) do
+    with value when is_binary(value) <- sec_edgar_form4_tag_value(xml, tag),
+         {:ok, date} <- Date.from_iso8601(value) do
+      date
+    else
+      _reason -> nil
+    end
+  end
+
+  defp sec_edgar_form4_decimal_value(xml, tag) do
+    with value when is_binary(value) <- sec_edgar_form4_tag_value(xml, tag) do
+      value
+      |> String.replace(",", "")
+      |> Decimal.parse()
+      |> case do
+        {decimal, ""} -> decimal
+        _error -> nil
+      end
+    end
+  end
+
+  defp sec_edgar_form4_latest_transaction_date(transactions) do
+    transactions
+    |> Enum.map(& &1.date)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.max_by(&Date.to_gregorian_days/1, fn -> nil end)
+  end
+
+  defp sec_edgar_form4_total_shares(transactions) do
+    transactions
+    |> Enum.map(& &1.shares)
+    |> Enum.reject(&is_nil/1)
+    |> case do
+      [] -> nil
+      values -> Enum.reduce(values, Decimal.new("0"), &Decimal.add/2)
+    end
+  end
+
+  defp sec_edgar_form4_total_value(transactions) do
+    values =
+      transactions
+      |> Enum.map(fn transaction ->
+        if transaction.shares && transaction.price do
+          Decimal.mult(transaction.shares, transaction.price)
+        end
+      end)
+      |> Enum.reject(&is_nil/1)
+
+    case values do
+      [] -> nil
+      values -> Enum.reduce(values, Decimal.new("0"), &Decimal.add/2)
+    end
+  end
+
+  defp sec_edgar_form4_issuer_label(issuer_name, ticker) do
+    cond do
+      is_binary(ticker) and ticker != "" -> "#{issuer_name} (#{ticker})"
+      true -> issuer_name
+    end
+  end
+
+  defp sec_edgar_decimal_share_label(decimal) do
+    decimal
+    |> Decimal.round(0)
+    |> Decimal.to_integer()
+    |> Integer.to_string()
+    |> sec_edgar_share_label()
+  end
+
+  defp sec_edgar_decimal_money_label(decimal) do
+    decimal
+    |> Decimal.round(0)
+    |> Decimal.to_integer()
+    |> Integer.to_string()
+    |> sec_edgar_group_number()
+    |> Kernel.<>("달러")
+  end
+
+  defp sec_edgar_decimal_per_share_label(decimal) do
+    rounded = Decimal.round(decimal, 2)
+
+    rounded =
+      if Decimal.equal?(rounded, Decimal.new(0)) do
+        Decimal.new(0)
+      else
+        rounded
+      end
+
+    rounded
+    |> Decimal.to_string(:normal)
+    |> Kernel.<>("달러")
+  end
+
+  defp sec_edgar_accession_number(record) when is_map(record) do
+    [
+      Map.get(record, :external_id),
+      Map.get(record, :summary),
+      Map.get(record, :url)
+    ]
+    |> Enum.find_value(fn value ->
+      case Regex.run(~r/(\d{10}-\d{2}-\d{6})/, to_string(value || "")) do
+        [_match, accession] -> accession
+        _match -> nil
+      end
+    end)
+  end
+
+  defp sec_edgar_accession_number(_record), do: nil
+
+  defp sec_edgar_short_hash(value) do
+    :sha256
+    |> :crypto.hash(value)
+    |> Base.encode16(case: :lower)
+    |> binary_part(0, 12)
+  end
+
+  defp sec_edgar_slug(value) do
+    value
+    |> to_string()
+    |> String.downcase()
+    |> String.replace(~r/[^a-z0-9]+/u, "-")
+    |> String.trim("-")
+    |> case do
+      "" -> "unknown"
+      slug -> slug
+    end
+  end
+
+  defp sec_edgar_complete_submission_text_url(%{url: url}) when is_binary(url) do
+    normalized_url =
+      url
+      |> String.split("?", parts: 2)
+      |> List.first()
+
+    case Regex.run(
+           ~r|^(https://www\.sec\.gov/Archives/edgar/data/\d+/\d+)/([^/]+?)-index\.html?$|i,
+           normalized_url
+         ) do
+      [_, base_url, accession_number] -> "#{base_url}/#{accession_number}.txt"
+      _match -> nil
+    end
+  end
+
+  defp sec_edgar_complete_submission_text_url(_record), do: nil
+
+  defp sec_edgar_archive_directory_url(%{url: url}) when is_binary(url) do
+    normalized_url =
+      url
+      |> String.split("?", parts: 2)
+      |> List.first()
+
+    case Regex.run(
+           ~r|^(https://www\.sec\.gov/Archives/edgar/data/\d+/\d+)/[^/]+?-index\.html?$|i,
+           normalized_url
+         ) do
+      [_, base_url] -> base_url
+      _match -> nil
+    end
+  end
+
+  defp sec_edgar_archive_directory_url(%{"url" => url}) when is_binary(url) do
+    sec_edgar_archive_directory_url(%{url: url})
+  end
+
+  defp sec_edgar_archive_directory_url(_record), do: nil
+
+  defp sec_edgar_filing_body_summary(raw_submission, record) when is_binary(raw_submission) do
+    plain = sec_edgar_plain_text(raw_submission)
+
+    with section when is_binary(section) <- sec_edgar_preferred_item_section(plain, record),
+         summary when is_binary(summary) <- sec_edgar_section_summary(section, record) do
+      {:ok, summary}
+    else
+      _reason -> {:error, :sec_edgar_summary_unavailable}
+    end
+  end
+
+  defp sec_edgar_filing_body_summary(_raw_submission, _record) do
+    {:error, :sec_edgar_summary_unavailable}
+  end
+
+  defp sec_edgar_periodic_report_summary_from_companyconcept(source, record) do
+    with %{cik: cik, accession: accession} <- sec_edgar_filing_ref(record),
+         {:ok, companyfacts} <- sec_edgar_fetch_companyfacts(source, cik) do
+      form_type = sec_edgar_periodic_form_type(record)
+      issuer = sec_edgar_issuer_name(record, "")
+      filing_ref = %{cik: cik, accession: accession}
+
+      metric_details =
+        sec_edgar_companyfacts_periodic_metric_details(companyfacts, filing_ref, form_type)
+
+      headline =
+        case form_type do
+          "10-Q" ->
+            "#{issuer}의 SEC XBRL companyconcept 기준 10-Q 분기보고서 핵심 재무지표를 확인했습니다"
+
+          "10-K" ->
+            "#{issuer}의 SEC XBRL companyconcept 기준 10-K 연차보고서 핵심 재무지표를 확인했습니다"
+
+          _form_type ->
+            "#{issuer}의 SEC XBRL companyconcept 기준 정기보고서 핵심 재무지표를 확인했습니다"
+        end
+
+      guidance =
+        "매출/이익 가이던스 문구는 대용량 XBRL fallback 경로에서 별도 확인되지 않음"
+
+      case metric_details do
+        [] ->
+          reason_detail =
+            sec_edgar_periodic_metric_unavailable_detail(companyfacts, record, form_type)
+
+          {:ok, sec_edgar_summary_with_details(headline, [reason_detail, guidance])}
+
+        details ->
+          {:ok, sec_edgar_summary_with_details(headline, details ++ [guidance])}
+      end
+    else
+      _reason -> {:error, :sec_edgar_companyfacts_ref_unavailable}
+    end
+  end
+
+  defp sec_edgar_companyfacts_periodic_metric_details(companyfacts, filing_ref, form_type)
+       when is_map(companyfacts) do
+    [
+      sec_edgar_companyfacts_money_metric_detail(
+        companyfacts,
+        filing_ref,
+        "매출액",
+        @sec_edgar_periodic_revenue_xbrl_tags,
+        form_type
+      ),
+      sec_edgar_companyfacts_money_metric_detail(
+        companyfacts,
+        filing_ref,
+        "영업이익",
+        @sec_edgar_periodic_operating_income_xbrl_tags,
+        form_type
+      ),
+      sec_edgar_companyfacts_money_metric_detail(
+        companyfacts,
+        filing_ref,
+        "순이익/순손실",
+        @sec_edgar_periodic_net_income_xbrl_tags,
+        form_type
+      ),
+      sec_edgar_companyfacts_eps_detail(companyfacts, filing_ref, form_type)
+    ]
+    |> Enum.reject(&is_nil/1)
+  end
+
+  defp sec_edgar_companyfacts_periodic_metric_details(
+         _companyfacts,
+         _filing_ref,
+         _form_type
+       ),
+       do: []
+
+  defp sec_edgar_periodic_companyfacts_metric_details(companyfacts, record, form_type) do
+    case sec_edgar_filing_ref(record) do
+      %{cik: cik, accession: accession} ->
+        sec_edgar_companyfacts_periodic_metric_details(
+          companyfacts,
+          %{cik: cik, accession: accession},
+          form_type
+        )
+
+      _missing_ref ->
+        []
+    end
+  end
+
+  defp sec_edgar_periodic_metric_unavailable_detail(companyfacts, record, form_type) do
+    tag_names = sec_edgar_periodic_metric_tag_names()
+
+    cond do
+      not is_map(companyfacts) ->
+        "재무 수치: 원문 XBRL에서 표준 손익계산서 값을 찾지 못함"
+
+      not sec_edgar_companyfacts_has_any_metric_concept?(companyfacts, tag_names) ->
+        "재무 수치: 표준 손익계산서 XBRL 태그 없음"
+
+      not sec_edgar_companyfacts_has_current_metric_fact?(
+        companyfacts,
+        record,
+        form_type,
+        tag_names
+      ) ->
+        "재무 수치: 현재 공시의 표준 손익계산서 XBRL 값 없음"
+
+      true ->
+        "재무 수치: 표준 XBRL 값이 후보 기준과 맞지 않음"
+    end
+  end
+
+  defp sec_edgar_periodic_metric_tag_names do
+    @sec_edgar_periodic_revenue_xbrl_tags ++
+      @sec_edgar_periodic_operating_income_xbrl_tags ++
+      @sec_edgar_periodic_net_income_xbrl_tags ++
+      @sec_edgar_periodic_eps_xbrl_tags
+  end
+
+  defp sec_edgar_companyfacts_has_any_metric_concept?(companyfacts, tag_names) do
+    Enum.any?(tag_names, fn tag_name ->
+      match?(%{}, sec_edgar_companyfacts_concept(companyfacts, tag_name))
+    end)
+  end
+
+  defp sec_edgar_companyfacts_has_current_metric_fact?(
+         companyfacts,
+         record,
+         form_type,
+         tag_names
+       ) do
+    with %{accession: accession} <- sec_edgar_filing_ref(record) do
+      Enum.any?(tag_names, fn tag_name ->
+        case sec_edgar_companyfacts_concept(companyfacts, tag_name) do
+          %{} = concept ->
+            concept
+            |> sec_edgar_companyconcept_facts_for_accession(accession, form_type)
+            |> Enum.any?()
+
+          _missing ->
+            false
+        end
+      end)
+    else
+      _missing_ref -> false
+    end
+  end
+
+  defp sec_edgar_companyfacts_money_metric_detail(
+         companyfacts,
+         filing_ref,
+         label,
+         tag_names,
+         form_type
+       ) do
+    metrics = sec_edgar_companyfacts_metric_values(companyfacts, filing_ref, tag_names, form_type)
+
+    metrics
+    |> sec_edgar_preferred_xbrl_metric(form_type)
+    |> case do
+      nil -> nil
+      metric -> sec_edgar_metric_detail(label, metric, metrics, form_type, :money)
+    end
+  end
+
+  defp sec_edgar_companyfacts_eps_detail(companyfacts, filing_ref, form_type) do
+    metrics =
+      sec_edgar_companyfacts_metric_values(
+        companyfacts,
+        filing_ref,
+        @sec_edgar_periodic_eps_xbrl_tags,
+        form_type
+      )
+
+    metrics
+    |> sec_edgar_preferred_xbrl_metric(form_type)
+    |> case do
+      nil -> nil
+      metric -> sec_edgar_metric_detail("EPS", metric, metrics, form_type, :per_share)
+    end
+  end
+
+  defp sec_edgar_xbrl_periodic_metric_details(raw_submission, form_type, companyfacts) do
+    [
+      sec_edgar_xbrl_money_metric_detail(
+        raw_submission,
+        "매출액",
+        @sec_edgar_periodic_revenue_xbrl_tags,
+        form_type,
+        companyfacts
+      ),
+      sec_edgar_xbrl_money_metric_detail(
+        raw_submission,
+        "영업이익",
+        @sec_edgar_periodic_operating_income_xbrl_tags,
+        form_type,
+        companyfacts
+      ),
+      sec_edgar_xbrl_money_metric_detail(
+        raw_submission,
+        "순이익/순손실",
+        @sec_edgar_periodic_net_income_xbrl_tags,
+        form_type,
+        companyfacts
+      ),
+      sec_edgar_xbrl_eps_detail(raw_submission, form_type, companyfacts)
+    ]
+    |> Enum.reject(&is_nil/1)
+  end
+
+  defp sec_edgar_periodic_report_summary(raw_submission, record)
+       when is_binary(raw_submission) do
+    sec_edgar_periodic_report_summary(raw_submission, record, nil)
+  end
+
+  defp sec_edgar_periodic_report_summary(_raw_submission, _record) do
+    {:error, :sec_edgar_periodic_summary_unavailable}
+  end
+
+  defp sec_edgar_periodic_report_summary(raw_submission, record, companyfacts)
+       when is_binary(raw_submission) do
+    form_type = sec_edgar_periodic_form_type(record)
+    plain = sec_edgar_plain_text(raw_submission)
+    issuer = sec_edgar_issuer_name(record, plain)
+    period = sec_edgar_periodic_report_period(raw_submission, form_type)
+
+    headline =
+      case {form_type, period} do
+        {"10-Q", period} when is_binary(period) ->
+          "#{issuer}의 #{period} 10-Q 분기보고서 핵심 재무지표를 확인했습니다"
+
+        {"10-K", period} when is_binary(period) ->
+          "#{issuer}의 #{period} 10-K 연차보고서 핵심 재무지표를 확인했습니다"
+
+        {"10-Q", _period} ->
+          "#{issuer}의 10-Q 분기보고서 핵심 재무지표를 확인했습니다"
+
+        {"10-K", _period} ->
+          "#{issuer}의 10-K 연차보고서 핵심 재무지표를 확인했습니다"
+
+        {_form_type, _period} ->
+          "#{issuer}의 SEC 정기보고서 핵심 재무지표를 확인했습니다"
+      end
+
+    metric_details =
+      sec_edgar_xbrl_periodic_metric_details(raw_submission, form_type, companyfacts)
+
+    case metric_details do
+      [] ->
+        companyfacts_details =
+          sec_edgar_periodic_companyfacts_metric_details(companyfacts, record, form_type)
+
+        guidance_detail = sec_edgar_guidance_detail(plain)
+
+        case companyfacts_details do
+          [] ->
+            reason_detail =
+              sec_edgar_periodic_metric_unavailable_detail(companyfacts, record, form_type)
+
+            {:ok, sec_edgar_summary_with_details(headline, [reason_detail, guidance_detail])}
+
+          details ->
+            {:ok, sec_edgar_summary_with_details(headline, details ++ [guidance_detail])}
+        end
+
+      details ->
+        guidance_detail = sec_edgar_guidance_detail(plain)
+
+        {:ok, sec_edgar_summary_with_details(headline, details ++ [guidance_detail])}
+    end
+  end
+
+  defp sec_edgar_periodic_report_summary(_raw_submission, _record, _companyfacts) do
+    {:error, :sec_edgar_periodic_summary_unavailable}
+  end
+
+  defp sec_edgar_periodic_amendment_summary(raw_submission, record)
+       when is_binary(raw_submission) and is_map(record) do
+    plain = sec_edgar_plain_text_with_ix_header(raw_submission)
+
+    with true <- sec_edgar_periodic_amendment?(record),
+         description when is_binary(description) <- sec_edgar_amendment_description(plain) do
+      form_type = sec_edgar_periodic_form_type(record)
+      issuer = sec_edgar_issuer_name(record, plain)
+
+      headline =
+        "#{issuer}의 #{form_type}/A 수정보고서는 재무제표 수치보다 수정 범위 확인이 필요한 항목입니다"
+
+      details = [
+        "수정 내용: #{description}",
+        "재무 수치: 이 수정보고서 본문에서는 매출액, 영업이익, 순이익/순손실, EPS가 별도 XBRL 수치로 확인되지 않음"
+      ]
+
+      {:ok, sec_edgar_summary_with_details(headline, details)}
+    else
+      _reason -> {:error, :sec_edgar_periodic_amendment_summary_unavailable}
+    end
+  end
+
+  defp sec_edgar_periodic_amendment_summary(_raw_submission, _record) do
+    {:error, :sec_edgar_periodic_amendment_summary_unavailable}
+  end
+
+  defp sec_edgar_amendment_description(plain) when is_binary(plain) do
+    [
+      ~r/Amendment Description\s+(.+?)(?=\s+(?:Entity Central Index Key|Current Fiscal Year End Date|Document Fiscal Year Focus|X\s+-\s+Definition|References)\b)/i,
+      ~r/((?:is filing|filed)\s+this\s+Amendment\s+No\.\s+\d+.{0,520}?\.)(?=\s|$)/i,
+      ~r/(?:is filing|filed)\s+this\s+Amendment\s+No\.\s+\d+\s+(.+?)(?=\s+(?:Entity Central Index Key|Current Fiscal Year End Date|Document Fiscal Year Focus|X\s+-\s+Definition|References)\b)/i
+    ]
+    |> Enum.find_value(fn pattern ->
+      case Regex.run(pattern, plain) do
+        [_match, description] ->
+          description
+          |> sec_edgar_clean_sentence()
+          |> sec_edgar_amendment_description_label()
+
+        _match ->
+          nil
+      end
+    end)
+  end
+
+  defp sec_edgar_amendment_description(_plain), do: nil
+
+  defp sec_edgar_amendment_description_label(description) when is_binary(description) do
+    cond do
+      Regex.match?(~r/amend the Exhibit List|Exhibit List/i, description) ->
+        "Exhibit List 및 Part IV Item 15 관련 목록 수정"
+
+      Regex.match?(~r/audit|auditor|internal control/i, description) ->
+        "감사/내부통제 관련 수정"
+
+      Regex.match?(~r/restat|error correction|financial statement/i, description) ->
+        "재무제표 또는 오류 정정 관련 수정"
+
+      true ->
+        String.slice(description, 0, 260)
+    end
+  end
+
+  defp sec_edgar_amendment_description_label(_description), do: nil
+
+  defp sec_edgar_filing_ref(record) when is_map(record) do
+    url = Map.get(record, :url) || Map.get(record, "url")
+    title = Map.get(record, :title) || Map.get(record, "title")
+    summary = Map.get(record, :summary) || Map.get(record, "summary")
+
+    with cik when is_binary(cik) <-
+           sec_edgar_cik_from_url(url) || sec_edgar_cik_from_title(title),
+         accession when is_binary(accession) <-
+           sec_edgar_accession_from_summary(summary) || sec_edgar_accession_from_url(url) do
+      %{cik: cik, accession: accession}
+    else
+      _reason -> nil
+    end
+  end
+
+  defp sec_edgar_filing_ref(_record), do: nil
+
+  defp sec_edgar_cik_from_url(url) when is_binary(url) do
+    case Regex.run(~r|/Archives/edgar/data/(\d+)/|i, url) do
+      [_match, cik] -> cik
+      _match -> nil
+    end
+  end
+
+  defp sec_edgar_cik_from_url(_url), do: nil
+
+  defp sec_edgar_cik_from_title(title) when is_binary(title) do
+    case Regex.run(~r/\((\d{6,10})\)\s+\((?:Filer|Subject)\)/i, title) do
+      [_match, cik] -> cik
+      _match -> nil
+    end
+  end
+
+  defp sec_edgar_cik_from_title(_title), do: nil
+
+  defp sec_edgar_accession_from_summary(summary) when is_binary(summary) do
+    case Regex.run(~r/\bAccNo:\s*([0-9-]{18,24})\b/i, summary) do
+      [_match, accession] -> accession
+      _match -> nil
+    end
+  end
+
+  defp sec_edgar_accession_from_summary(_summary), do: nil
+
+  defp sec_edgar_accession_from_url(url) when is_binary(url) do
+    case Regex.run(~r|/([0-9]{10}-[0-9]{2}-[0-9]{6})-index\.html?$|i, url) do
+      [_match, accession] -> accession
+      _match -> nil
+    end
+  end
+
+  defp sec_edgar_accession_from_url(_url), do: nil
+
+  defp sec_edgar_padded_cik(cik) do
+    cik
+    |> to_string()
+    |> String.replace(~r/\D/, "")
+    |> String.pad_leading(10, "0")
+  end
+
+  defp sec_edgar_registration_statement_summary(raw_submission, record)
+       when is_binary(raw_submission) do
+    plain = sec_edgar_plain_text(raw_submission)
+    issuer = sec_edgar_issuer_name(record, plain)
+    form_type = sec_edgar_registration_form_type(record)
+
+    headline =
+      case form_type do
+        "F-1" -> "#{issuer}의 F-1 신규상장/IPO 등록서 핵심 조건을 확인했습니다"
+        "F-10" -> "#{issuer}의 F-10 외국기업 등록서 핵심 조건을 확인했습니다"
+        "S-1" -> "#{issuer}의 S-1 신규상장/IPO 등록서 핵심 조건을 확인했습니다"
+        _form_type -> "#{issuer}의 SEC 신규상장 등록서 핵심 조건을 확인했습니다"
+      end
+
+    details =
+      [
+        sec_edgar_registration_business_detail(plain),
+        sec_edgar_registration_amount_detail(plain),
+        sec_edgar_registration_use_of_proceeds_detail(plain),
+        sec_edgar_registration_price_detail(plain),
+        sec_edgar_registration_overhang_detail(plain)
+      ]
+
+    {:ok, sec_edgar_summary_with_details(headline, details)}
+  end
+
+  defp sec_edgar_registration_statement_summary(_raw_submission, _record) do
+    {:error, :sec_edgar_registration_summary_unavailable}
+  end
+
+  defp sec_edgar_plain_text(raw_submission) do
+    raw_submission
+    |> String.replace(~r/<ix:header[\s\S]*?<\/ix:header>/i, " ")
+    |> String.replace(~r/<script[\s\S]*?<\/script>/i, " ")
+    |> String.replace(~r/<style[\s\S]*?<\/style>/i, " ")
+    |> String.replace(~r/<[^>]+>/, " ")
+    |> sec_edgar_decode_entities()
+    |> String.replace(~r/<[^>]+>/, " ")
+    |> String.replace(~r/\s+/u, " ")
+    |> String.trim()
+  end
+
+  defp sec_edgar_plain_text_with_ix_header(raw_submission) do
+    raw_submission
+    |> String.replace(~r/<script[\s\S]*?<\/script>/i, " ")
+    |> String.replace(~r/<style[\s\S]*?<\/style>/i, " ")
+    |> String.replace(~r/<[^>]+>/, " ")
+    |> sec_edgar_decode_entities()
+    |> String.replace(~r/<[^>]+>/, " ")
+    |> String.replace(~r/\s+/u, " ")
+    |> String.trim()
+  end
+
+  defp sec_edgar_preferred_item_section(plain, record) do
+    preferred_items =
+      record
+      |> sec_edgar_item_codes_from_record()
+      |> Enum.reject(&(&1 == "9.01"))
+
+    preferred_items
+    |> Enum.find_value(&sec_edgar_section_for_item(plain, &1))
+    |> case do
+      nil -> sec_edgar_first_item_section(plain)
+      section -> section
+    end
+  end
+
+  defp sec_edgar_item_codes_from_record(record) do
+    [Map.get(record, :title), Map.get(record, :summary), Map.get(record, :category)]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.join(" ")
+    |> then(&Regex.scan(~r/\b(?:Item\s*)?([1-9]\.\d{2})\b/i, &1))
+    |> Enum.map(fn [_match, code] -> code end)
+    |> Enum.uniq()
+  end
+
+  defp sec_edgar_first_item_section(plain) do
+    case Regex.run(@sec_edgar_item_heading_regex, plain, return: :index) do
+      [{start, _length}] -> sec_edgar_section_from_offset(plain, start, 0)
+      _match -> nil
+    end
+  end
+
+  defp sec_edgar_section_for_item(plain, item_code) do
+    item_pattern = Regex.compile!("\\bItem\\s+#{Regex.escape(item_code)}\\b", "i")
+
+    case Regex.run(item_pattern, plain, return: :index) do
+      [{start, _length}] ->
+        sec_edgar_section_from_offset(plain, start, String.length(item_code) + 6)
+
+      _match ->
+        nil
+    end
+  end
+
+  defp sec_edgar_section_from_offset(plain, start, skip_bytes) do
+    tail = binary_part(plain, start, byte_size(plain) - start)
+    search_offset = min(max(skip_bytes, 24), byte_size(tail))
+    searchable = binary_part(tail, search_offset, byte_size(tail) - search_offset)
+
+    end_offset =
+      case Regex.run(@sec_edgar_item_heading_regex, searchable, return: :index) do
+        [{next_start, _length}] -> search_offset + next_start
+        _match -> min(byte_size(tail), 6_000)
+      end
+
+    tail
+    |> String.slice(0, min(end_offset, 6_000))
+    |> String.replace(~r/\s+/u, " ")
+    |> String.trim()
+  end
+
+  defp sec_edgar_section_summary(section, record) do
+    cond do
+      Regex.match?(~r/\bItem\s+1\.01\b/i, section) ->
+        sec_edgar_item_101_summary(section, record) ||
+          sec_edgar_generic_body_summary(section, record)
+
+      Regex.match?(~r/\bItem\s+2\.02\b/i, section) ->
+        sec_edgar_item_202_summary(section, record) ||
+          sec_edgar_generic_body_summary(section, record)
+
+      Regex.match?(~r/\bItem\s+2\.01\b/i, section) ->
+        sec_edgar_item_201_summary(section, record) ||
+          sec_edgar_generic_body_summary(section, record)
+
+      Regex.match?(~r/\bItem\s+2\.03\b/i, section) ->
+        sec_edgar_item_203_summary(section, record) ||
+          sec_edgar_generic_body_summary(section, record)
+
+      Regex.match?(~r/\bItem\s+3\.02\b/i, section) ->
+        sec_edgar_item_302_summary(section, record) ||
+          sec_edgar_generic_body_summary(section, record)
+
+      Regex.match?(~r/\bItem\s+5\.01\b/i, section) ->
+        sec_edgar_item_501_summary(section, record) ||
+          sec_edgar_generic_body_summary(section, record)
+
+      Regex.match?(~r/\bItem\s+5\.02\b/i, section) ->
+        sec_edgar_item_502_summary(section, record) ||
+          sec_edgar_generic_body_summary(section, record)
+
+      Regex.match?(~r/\bItem\s+7\.01\b/i, section) ->
+        sec_edgar_item_701_summary(section, record) ||
+          sec_edgar_generic_body_summary(section, record)
+
+      Regex.match?(~r/\bItem\s+8\.01\b/i, section) ->
+        sec_edgar_item_801_strategy_summary(section, record) ||
+          sec_edgar_item_801_summary(section, record) ||
+          sec_edgar_generic_body_summary(section, record)
+
+      true ->
+        sec_edgar_generic_body_summary(section, record)
+    end
+  end
+
+  defp sec_edgar_item_101_summary(section, record) do
+    issuer = sec_edgar_issuer_name(record, section)
+    date = sec_edgar_first_date(section)
+    agreement = sec_edgar_agreement_label(section)
+    strategic_signal = sec_edgar_item_101_strategic_contract_signal(section)
+
+    headline =
+      cond do
+        strategic_signal ->
+          "#{issuer} filed an Item 1.01 strategic contract/order signal: #{strategic_signal}"
+
+        date && agreement ->
+          "#{issuer}는 #{date}에 #{agreement}을 체결했다고 공시했습니다"
+
+        agreement ->
+          "#{issuer}는 #{agreement}을 체결했다고 공시했습니다"
+
+        true ->
+          "#{issuer}는 중요한 계약 체결 사항을 공시했습니다"
+      end
+
+    counterparty = sec_edgar_counterparty(section)
+
+    finance_contract? = sec_edgar_debt_contract_section?(section)
+
+    details =
+      [
+        strategic_signal && "신호: #{strategic_signal}",
+        counterparty && "상대방: #{counterparty}",
+        sec_edgar_item_101_customer_order_detail(section),
+        sec_edgar_item_101_supply_agreement_detail(section),
+        sec_edgar_item_101_minimum_commitment_detail(section),
+        sec_edgar_item_101_exclusivity_detail(section),
+        not finance_contract? && sec_edgar_item_101_contract_duration_detail(section),
+        not finance_contract? &&
+          (sec_edgar_equity_offering_amount_detail(section) ||
+             sec_edgar_first_money_detail(section)),
+        not finance_contract? && sec_edgar_agreement_purpose(section),
+        sec_edgar_order_backlog_detail(section)
+      ] ++ sec_edgar_item_101_financing_details(section, finance_contract?)
+
+    sec_edgar_summary_with_details(headline, details)
+  end
+
+  defp sec_edgar_item_201_summary(section, record) do
+    issuer = sec_edgar_issuer_name(record, section)
+    transaction = sec_edgar_transaction_label(section)
+    target = sec_edgar_transaction_target(section)
+    counterparty = sec_edgar_transaction_counterparty(section)
+
+    headline =
+      case transaction do
+        nil -> "#{issuer}는 자산 인수 또는 처분 완료 사항을 공시했습니다"
+        label -> "#{issuer}는 #{label} 완료 사항을 공시했습니다"
+      end
+
+    details =
+      [
+        target && "거래 대상은 #{target}",
+        counterparty && "거래 상대방은 #{counterparty}",
+        sec_edgar_first_money_detail(section),
+        sec_edgar_transaction_terms_detail(section)
+      ]
+
+    sec_edgar_summary_with_details(headline, details)
+  end
+
+  defp sec_edgar_item_202_summary(section, record) do
+    issuer = sec_edgar_issuer_name(record, section)
+    period = sec_edgar_results_period(section)
+
+    headline =
+      if period do
+        "#{issuer}는 #{period} 실적과 재무상태를 발표했습니다"
+      else
+        "#{issuer}는 실적과 재무상태 관련 자료를 발표했습니다"
+      end
+
+    details =
+      [
+        sec_edgar_metric_detail(
+          section,
+          "매출",
+          ~r/(?:total\s+)?revenues?[^$]{0,80}\$([\d,.]+)\s*(million|billion)?/i
+        ),
+        sec_edgar_net_income_detail(section),
+        sec_edgar_eps_detail(section),
+        sec_edgar_earnings_release_detail(section)
+      ]
+
+    sec_edgar_summary_with_details(headline, details)
+  end
+
+  defp sec_edgar_item_203_summary(section, record) do
+    issuer = sec_edgar_issuer_name(record, section)
+    contract = sec_edgar_debt_contract_label(section)
+
+    headline =
+      if contract do
+        "#{issuer}는 #{contract}에 따른 직접 금융부채 또는 부외부채 발생을 공시했습니다"
+      else
+        "#{issuer}는 직접 금융부채 또는 부외부채 발생을 공시했습니다"
+      end
+
+    details =
+      [
+        sec_edgar_debt_amount_detail(section),
+        sec_edgar_refinancing_purpose_detail(section),
+        sec_edgar_interest_terms_detail(section),
+        sec_edgar_interest_rate_detail(section),
+        sec_edgar_relative_maturity_detail(section),
+        sec_edgar_maturity_detail(section),
+        sec_edgar_agent_change_detail(section),
+        sec_edgar_debt_security_detail(section)
+      ]
+
+    sec_edgar_summary_with_details(headline, details)
+  end
+
+  defp sec_edgar_item_302_summary(section, record) do
+    issuer = sec_edgar_issuer_name(record, section)
+    date = sec_edgar_first_date(section)
+    offering = sec_edgar_offering_terms(section)
+    security = sec_edgar_security_description(section)
+    par_value = sec_edgar_per_share_value(section, ~r/par value of\s+\$([\d,.]+)/i)
+    liquidation = sec_edgar_per_share_value(section, ~r/liquidation preference of\s+\$([\d,.]+)/i)
+    net_proceeds = sec_edgar_net_proceeds(section)
+    settlement = sec_edgar_settlement_date(section)
+
+    main_parts =
+      [
+        date && "#{date}에",
+        offering.amount && "#{offering.amount} 규모",
+        offering.shares && "(#{offering.shares})",
+        security
+      ]
+      |> Enum.reject(&is_nil/1)
+      |> Enum.join(" ")
+
+    detail_parts =
+      [
+        sec_edgar_private_placement_investor_detail(section),
+        sec_edgar_private_placement_structure_detail(section),
+        sec_edgar_private_placement_price_detail(section),
+        sec_edgar_private_placement_warrant_detail(section),
+        sec_edgar_private_placement_use_detail(section),
+        par_value && "주당 액면가는 #{par_value}",
+        liquidation && "청산 우선권은 주당 #{liquidation}",
+        net_proceeds && "비용 차감 전 예상 순수익은 #{net_proceeds}",
+        sec_edgar_general_corporate_purposes?(section) && "순수익은 일반적인 기업 운영 자금으로 사용할 예정",
+        sec_edgar_non_convertible?(section) && "다른 주식으로 전환 또는 교환되지 않음",
+        settlement && "결제 예정일은 #{settlement}",
+        sec_edgar_section_3a2_exemption?(section) && "증권법 3(a)(2) 등록 면제를 근거로 발행"
+      ]
+      |> Enum.reject(&is_nil/1)
+
+    cond do
+      main_parts != "" and detail_parts != [] ->
+        "원문 본문 기준, #{issuer}는 #{main_parts} 발행 가격을 확정했다고 공시했습니다. #{Enum.join(detail_parts, "; ")}."
+
+      main_parts != "" ->
+        "원문 본문 기준, #{issuer}는 #{main_parts} 발행 가격을 확정했다고 공시했습니다."
+
+      true ->
+        nil
+    end
+  end
+
+  defp sec_edgar_item_501_summary(section, record) do
+    issuer = sec_edgar_issuer_name(record, section)
+    acquirer = sec_edgar_control_acquirer(section)
+    mechanism = sec_edgar_control_mechanism(section)
+
+    headline =
+      cond do
+        acquirer && mechanism ->
+          "#{issuer}는 #{mechanism}을 통해 지배권이 #{acquirer}에게 이전됐다고 공시했습니다"
+
+        acquirer ->
+          "#{issuer}는 지배권이 #{acquirer}에게 이전됐다고 공시했습니다"
+
+        true ->
+          "#{issuer}는 지배권 변경 사항을 공시했습니다"
+      end
+
+    details =
+      [
+        sec_edgar_control_percentage_detail(section),
+        sec_edgar_control_consideration_detail(section),
+        sec_edgar_control_terms_detail(section)
+      ]
+
+    sec_edgar_summary_with_details(headline, details)
+  end
+
+  defp sec_edgar_item_502_summary(section, record) do
+    issuer = sec_edgar_issuer_name(record, section)
+    actions = sec_edgar_governance_actions(section)
+    people = sec_edgar_named_people(section)
+    roles = sec_edgar_roles(section)
+
+    headline =
+      cond do
+        actions != [] ->
+          "#{issuer}는 임원/이사회 관련 #{Enum.join(actions, ", ")} 사항을 공시했습니다"
+
+        true ->
+          "#{issuer}는 임원, 이사회 또는 보상계약 관련 변동을 공시했습니다"
+      end
+
+    details =
+      [
+        people != [] && "관련 인물은 #{Enum.join(people, ", ")}",
+        roles != [] && "관련 직책은 #{Enum.join(roles, ", ")}",
+        sec_edgar_compensation_detail(section)
+      ]
+
+    sec_edgar_summary_with_details(headline, details)
+  end
+
+  defp sec_edgar_item_701_summary(section, record) do
+    with signal when is_binary(signal) <- sec_edgar_strategic_update_signal(section) do
+      issuer = sec_edgar_issuer_name(record, section)
+
+      details =
+        [
+          "신호: #{signal}",
+          sec_edgar_strategic_update_sentence_detail(section),
+          sec_edgar_partnership_detail(section),
+          sec_edgar_guidance_raise_detail(section),
+          sec_edgar_order_backlog_detail(section),
+          sec_edgar_first_money_detail(section)
+        ]
+
+      sec_edgar_summary_with_details(
+        "#{issuer}는 Item 7.01 투자자 발표 또는 전략 업데이트를 공시했습니다",
+        details
+      )
+    else
+      _reason -> nil
+    end
+  end
+
+  defp sec_edgar_item_801_strategy_summary(section, record) do
+    with signal when is_binary(signal) <- sec_edgar_strategic_update_signal(section) do
+      issuer = sec_edgar_issuer_name(record, section)
+
+      details =
+        [
+          "신호: #{signal}",
+          sec_edgar_strategic_update_sentence_detail(section),
+          sec_edgar_partnership_detail(section),
+          sec_edgar_guidance_raise_detail(section),
+          sec_edgar_order_backlog_detail(section),
+          sec_edgar_first_money_detail(section)
+        ]
+
+      sec_edgar_summary_with_details(
+        "#{issuer}는 긍정 촉매 신호가 있는 Item 8.01 전략 업데이트를 공시했습니다",
+        details
+      )
+    else
+      _reason -> nil
+    end
+  end
+
+  defp sec_edgar_item_801_summary(section, record) do
+    issuer = sec_edgar_issuer_name(record, section)
+    topic = sec_edgar_other_event_topic(section)
+    date = sec_edgar_first_date(section)
+
+    headline =
+      if topic do
+        "#{issuer}는 기타 주요 사건으로 #{topic}을 공시했습니다"
+      else
+        "#{issuer}는 기타 주요 사건을 공시했습니다"
+      end
+
+    details =
+      [
+        date && "본문 기준일은 #{date}",
+        sec_edgar_first_money_detail(section)
+      ]
+
+    sec_edgar_summary_with_details(headline, details)
+  end
+
+  defp sec_edgar_generic_body_summary(section, record) do
+    issuer = sec_edgar_issuer_name(record, section)
+
+    excerpt =
+      section
+      |> String.replace(@sec_edgar_item_heading_regex, "")
+      |> String.split(~r/(?<=[.!?])\s+/u)
+      |> Enum.reject(&(String.trim(&1) == ""))
+      |> Enum.take(2)
+      |> Enum.join(" ")
+      |> String.slice(0, 520)
+      |> String.trim()
+
+    case excerpt do
+      "" -> nil
+      value -> "원문 본문 기준, #{issuer}의 8-K에서 확인된 핵심 내용입니다: #{value}"
+    end
+  end
+
+  defp sec_edgar_summary_with_details(headline, details) do
+    details =
+      details
+      |> Enum.flat_map(fn
+        detail when is_binary(detail) -> [String.trim(detail)]
+        _detail -> []
+      end)
+      |> Enum.reject(&(&1 == ""))
+
+    case details do
+      [] -> "원문 본문 기준, #{headline}."
+      values -> "원문 본문 기준, #{headline}. #{Enum.join(values, "; ")}."
+    end
+  end
+
+  defp sec_edgar_agreement_label(section) do
+    cond do
+      section =~
+          ~r/customer agreement|customer contract|commercial agreement|master services agreement/i ->
+        "고객/상업 계약"
+
+      section =~
+          ~r/supply agreement|offtake agreement|manufacturing agreement|production agreement/i ->
+        "공급/오프테이크 계약"
+
+      section =~ ~r/purchase order|customer order|order backlog|bookings?/i ->
+        "고객 주문/백로그"
+
+      section =~
+          ~r/strategic partnership|strategic alliance|collaboration agreement|cooperation agreement/i ->
+        "전략적 파트너십/협업 계약"
+
+      section =~ ~r/underwriting agreement/i ->
+        "인수계약"
+
+      section =~ ~r/at-the-market|ATM Program|sales agreement|equity distribution agreement/i and
+          section =~ ~r/common stock|shares|offering/i ->
+        "시장가 주식매각 또는 공모계약"
+
+      section =~ ~r/merger agreement|business combination agreement/i ->
+        "합병 또는 사업결합 계약"
+
+      section =~ ~r/credit agreement|loan agreement|financing agreement/i ->
+        "신용공여 또는 대출계약"
+
+      section =~ ~r/purchase agreement|securities purchase agreement|asset purchase agreement/i ->
+        "매매계약"
+
+      section =~ ~r/employment agreement|consulting agreement/i ->
+        "고용 또는 자문계약"
+
+      section =~ ~r/license agreement|collaboration agreement|cooperation agreement/i ->
+        "라이선스 또는 협력계약"
+
+      section =~ ~r/material definitive agreement/i ->
+        "중요한 확정계약"
+
+      section =~ ~r/\bagreement\b/i ->
+        "중요한 계약"
+
+      true ->
+        nil
+    end
+  end
+
+  defp sec_edgar_counterparty(section) do
+    [
+      ~r/(?:agreement|contract|order|arrangement|partnership|collaboration)[^.]{0,180}?\s+with\s+([^.;]+?)(?:,|\sto\s|\sfor\s|\.|$)/i,
+      ~r/entered into (?:a|an|the)?[^.]{0,180}?\s+with\s+([^.;]+?)(?:,|\sto\s|\sfor\s|\.|$)/i,
+      ~r/(?:customer|client|counterparty)\s+(?:is|was|will be)\s+([^.;]+?)(?:,|\.|$)/i
+    ]
+    |> sec_edgar_first_capture(section)
+  end
+
+  defp sec_edgar_agreement_purpose(section) do
+    cond do
+      section =~ ~r/acquisition|acquire|purchase of assets|asset purchase/i ->
+        "주요 목적은 인수 또는 자산 매입"
+
+      section =~ ~r/sale of assets|disposition|divestiture/i ->
+        "주요 목적은 자산 매각 또는 처분"
+
+      section =~ ~r/financing|credit facility|loan|borrowings/i ->
+        "주요 목적은 자금 조달 또는 신용공여 확보"
+
+      section =~ ~r/license|commercialization|collaboration/i ->
+        "주요 목적은 라이선스, 상업화 또는 협력"
+
+      true ->
+        nil
+    end
+  end
+
+  defp sec_edgar_item_101_strategic_contract_signal(section) do
+    cond do
+      section =~
+          ~r/order backlog|backlog|purchase order|customer order|awarded (?:a )?contract|bookings?/i ->
+        "고객 주문/백로그"
+
+      section =~
+          ~r/minimum (?:purchase|volume|revenue|commitment|annual)|take-or-pay|committed to purchase|must purchase/i ->
+        "최소구매/최소물량 약정"
+
+      section =~
+          ~r/customer agreement|customer contract|master services agreement|commercial agreement/i ->
+        "고객/상업 계약"
+
+      section =~
+          ~r/supply agreement|offtake agreement|manufacturing agreement|production agreement|long-term supply/i ->
+        "공급/오프테이크 계약"
+
+      section =~
+          ~r/strategic partnership|strategic alliance|collaboration agreement|cooperation agreement/i ->
+        "전략적 파트너십/협업"
+
+      section =~ ~r/exclusive|sole supplier|preferred supplier|right of first refusal/i ->
+        "독점/우선공급 조건"
+
+      true ->
+        nil
+    end
+  end
+
+  defp sec_edgar_item_101_customer_order_detail(section) do
+    section
+    |> sec_edgar_sentence_matching(
+      ~r/(customer agreement|customer contract|customer order|purchase order|awarded (?:a )?contract|bookings?|master services agreement|commercial agreement)/i,
+      420
+    )
+    |> sec_edgar_labeled_detail("고객/수주")
+  end
+
+  defp sec_edgar_item_101_supply_agreement_detail(section) do
+    section
+    |> sec_edgar_sentence_matching(
+      ~r/(supply agreement|offtake agreement|manufacturing agreement|production agreement|long-term supply|commercial supply)/i,
+      420
+    )
+    |> sec_edgar_labeled_detail("공급/오프테이크")
+  end
+
+  defp sec_edgar_item_101_minimum_commitment_detail(section) do
+    section
+    |> sec_edgar_sentence_matching(
+      ~r/(minimum (?:purchase|volume|revenue|commitment|annual)|take-or-pay|committed to purchase|must purchase|at least\s+\$[\d,.]+\s*(?:million|billion)?)/i,
+      420
+    )
+    |> sec_edgar_labeled_detail("최소 약정")
+  end
+
+  defp sec_edgar_item_101_exclusivity_detail(section) do
+    section
+    |> sec_edgar_sentence_matching(
+      ~r/(exclusive|sole supplier|preferred supplier|right of first refusal|non-exclusive|territory|global rights)/i,
+      420
+    )
+    |> sec_edgar_labeled_detail("독점/우선공급 조건")
+  end
+
+  defp sec_edgar_item_101_contract_duration_detail(section) do
+    section
+    |> sec_edgar_sentence_matching(
+      ~r/(multi-year|long-term|initial term|maturity|expires|through\s+(?:January|February|March|April|May|June|July|August|September|October|November|December|\d{4})|until|renewal|renewable|\d+\s+year|\d+\s+month)/i,
+      420
+    )
+    |> sec_edgar_labeled_detail("계약 기간")
+  end
+
+  defp sec_edgar_item_101_financing_details(_section, false), do: []
+
+  defp sec_edgar_item_101_financing_details(section, true) do
+    [
+      sec_edgar_debt_amount_detail(section),
+      sec_edgar_refinancing_purpose_detail(section),
+      sec_edgar_interest_terms_detail(section),
+      sec_edgar_relative_maturity_detail(section),
+      sec_edgar_maturity_detail(section),
+      sec_edgar_agent_change_detail(section),
+      sec_edgar_debt_security_detail(section)
+    ]
+  end
+
+  defp sec_edgar_equity_offering_amount_detail(section) do
+    if section =~ ~r/at-the-market|ATM Program|sales agreement|equity distribution agreement/i and
+         section =~ ~r/common stock|shares|offering/i do
+      case sec_edgar_material_money_match(section) do
+        {amount, scale} -> "주식매각 또는 공모 한도는 #{sec_edgar_money_label(amount, scale)}"
+        nil -> nil
+      end
+    end
+  end
+
+  defp sec_edgar_debt_contract_section?(section) do
+    Regex.match?(
+      ~r/(credit agreement|credit facility|term loan|loan agreement|financing agreement|indenture|notes?|debenture|borrowings?)/i,
+      section
+    )
+  end
+
+  defp sec_edgar_transaction_label(section) do
+    cond do
+      section =~ ~r/business combination|merger/i ->
+        "사업결합 또는 합병 거래"
+
+      section =~ ~r/acquisition|acquired|purchase of/i ->
+        "자산 또는 사업 인수 거래"
+
+      section =~ ~r/disposition|divestiture|sale of|sold substantially/i ->
+        "자산 또는 사업 처분 거래"
+
+      true ->
+        nil
+    end
+  end
+
+  defp sec_edgar_transaction_target(section) do
+    [
+      ~r/(?:acquisition|purchase)\s+of\s+([^.;]+?)(?:,|\sfrom\s|\sfor\s|\.|$)/i,
+      ~r/(?:sale|disposition|divestiture)\s+of\s+([^.;]+?)(?:,|\sto\s|\sfor\s|\.|$)/i,
+      ~r/(?:merged\s+with|business combination\s+with)\s+([^.;]+?)(?:,|\.|$)/i
+    ]
+    |> sec_edgar_first_capture(section)
+  end
+
+  defp sec_edgar_transaction_counterparty(section) do
+    sec_edgar_counterparty(section) ||
+      [
+        ~r/(?:acquisition|purchase)[^.]{0,180}?\s+from\s+([^.;]+?)(?:,|\sfor\s|\.|$)/i,
+        ~r/(?:sale|disposition|divestiture)[^.]{0,180}?\s+to\s+([^.;]+?)(?:,|\sfor\s|\.|$)/i,
+        ~r/(?:merger|business combination)[^.]{0,180}?\s+with\s+([^.;]+?)(?:,|\.|$)/i
+      ]
+      |> sec_edgar_first_capture(section)
+  end
+
+  defp sec_edgar_transaction_terms_detail(section) do
+    cond do
+      section =~ ~r/cash consideration|cash purchase price|paid in cash/i ->
+        "거래 조건에는 현금 대가가 포함됨"
+
+      section =~ ~r/stock consideration|shares of common stock|equity consideration/i ->
+        "거래 조건에는 주식 또는 지분 대가가 포함됨"
+
+      section =~ ~r/subject to customary closing conditions|closing conditions/i ->
+        "거래는 통상적인 종결 조건을 전제로 함"
+
+      true ->
+        nil
+    end
+  end
+
+  defp sec_edgar_debt_contract_label(section) do
+    cond do
+      section =~ ~r/revolving credit agreement|revolving credit facility/i ->
+        "회전 신용공여 계약"
+
+      section =~ ~r/credit agreement|credit facility/i ->
+        "신용공여 계약"
+
+      section =~ ~r/loan agreement|term loan/i ->
+        "대출계약"
+
+      section =~ ~r/indenture|supplemental indenture/i ->
+        "사채 발행 관련 신탁계약"
+
+      section =~ ~r/note purchase agreement|promissory note/i ->
+        "어음 또는 노트 매입계약"
+
+      section =~ ~r/convertible notes?|senior notes?|debentures/i ->
+        "전환사채, 선순위채 또는 회사채 계약"
+
+      true ->
+        nil
+    end
+  end
+
+  defp sec_edgar_debt_amount_detail(section) do
+    case Regex.run(
+           ~r/(?:principal amount|aggregate principal amount|aggregate offering price|aggregate amount|gross proceeds|net proceeds|commitment|facility)[^$]{0,160}\$([\d,.]+)\s*(million|billion)?/i,
+           section
+         ) do
+      [_match, amount, scale] ->
+        "계약 또는 부채 규모는 #{sec_edgar_money_label(amount, scale)}"
+
+      [_match, amount] ->
+        "계약 또는 부채 규모는 #{sec_edgar_money_label(amount, nil)}"
+
+      _match ->
+        sec_edgar_first_money_detail(section)
+    end
+  end
+
+  defp sec_edgar_refinancing_purpose_detail(section) do
+    cond do
+      section =~ ~r/used to refinance|refinancing|refinance/i ->
+        "자금 사용/목적은 기존 대출 또는 신용공여 refinancing"
+
+      section =~ ~r/repay|repayment/i ->
+        "자금 사용/목적은 기존 부채 상환"
+
+      true ->
+        nil
+    end
+  end
+
+  defp sec_edgar_interest_terms_detail(section) do
+    cond do
+      Regex.match?(
+        ~r/SOFR[^.]{0,120}?(\d+)\s*bps[^.]{0,180}?base rate[^.]{0,120}?(\d+)\s*bps/i,
+        section
+      ) ->
+        [_, sofr_bps, base_bps] =
+          Regex.run(
+            ~r/SOFR[^.]{0,120}?(\d+)\s*bps[^.]{0,180}?base rate[^.]{0,120}?(\d+)\s*bps/i,
+            section
+          )
+
+        "금리 조건은 term SOFR+#{sofr_bps}bp 또는 base rate+#{base_bps}bp"
+
+      Regex.match?(~r/SOFR[^.]{0,120}?(\d+)\s*bps/i, section) ->
+        [_, bps] = Regex.run(~r/SOFR[^.]{0,120}?(\d+)\s*bps/i, section)
+        "금리 조건은 SOFR+#{bps}bp"
+
+      Regex.match?(~r/base rate[^.]{0,120}?(\d+)\s*bps/i, section) ->
+        [_, bps] = Regex.run(~r/base rate[^.]{0,120}?(\d+)\s*bps/i, section)
+        "금리 조건은 base rate+#{bps}bp"
+
+      true ->
+        nil
+    end
+  end
+
+  defp sec_edgar_interest_rate_detail(section) do
+    case Regex.run(~r/(?:interest|bears interest)[^.]{0,100}?(\d+(?:\.\d+)?)%/i, section) do
+      [_match, rate] -> "이자율은 #{rate}%로 언급됨"
+      _match -> nil
+    end
+  end
+
+  defp sec_edgar_relative_maturity_detail(section) do
+    cond do
+      Regex.match?(
+        ~r/(?:extends?|extended)[^.]{0,120}?maturity[^.]{0,120}?(\d+)\s+years?\s+following\s+the\s+(?:closing\s+date|effective\s+date)/i,
+        section
+      ) ->
+        [_, years] =
+          Regex.run(
+            ~r/(?:extends?|extended)[^.]{0,120}?maturity[^.]{0,120}?(\d+)\s+years?\s+following\s+the\s+(?:closing\s+date|effective\s+date)/i,
+            section
+          )
+
+        "만기는 closing/effective date 이후 #{years}년으로 연장"
+
+      Regex.match?(
+        ~r/(\d+)\s+years?\s+following\s+the\s+(?:closing\s+date|effective\s+date)/i,
+        section
+      ) ->
+        [_, years] =
+          Regex.run(
+            ~r/(\d+)\s+years?\s+following\s+the\s+(?:closing\s+date|effective\s+date)/i,
+            section
+          )
+
+        "만기는 closing/effective date 이후 #{years}년"
+
+      true ->
+        nil
+    end
+  end
+
+  defp sec_edgar_maturity_detail(section) do
+    case Regex.run(
+           ~r/(?:maturity date|matures|due)[^.]{0,80}?(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2}),\s+(\d{4})/i,
+           section
+         ) do
+      [_match, month, day, year] ->
+        "만기 또는 상환 예정일은 #{year}년 #{sec_edgar_month_number(month)}월 #{day}일"
+
+      _match ->
+        nil
+    end
+  end
+
+  defp sec_edgar_agent_change_detail(section) do
+    cond do
+      section =~ ~r/MUFG Bank/i and section =~ ~r/U\.S\. Bank/i and
+          section =~ ~r/administrative agent|collateral agent/i ->
+        "관리/담보 agent는 MUFG Bank와 U.S. Bank로 변경 또는 지정"
+
+      section =~ ~r/JPMorgan Chase Bank.{0,160}administrative agent/is ->
+        "행정대리인은 JPMorgan Chase Bank"
+
+      section =~ ~r/Bank of America.{0,160}administrative agent/is ->
+        "행정대리인은 Bank of America"
+
+      section =~ ~r/administrative agent|collateral agent/i ->
+        section
+        |> sec_edgar_sentence_matching(~r/(administrative agent|collateral agent)/i, 360)
+        |> sec_edgar_labeled_detail("Agent 변경/지정")
+
+      true ->
+        nil
+    end
+  end
+
+  defp sec_edgar_debt_security_detail(section) do
+    cond do
+      section =~ ~r/secured by|collateral/i ->
+        "담보 또는 collateral 조건이 언급됨"
+
+      section =~ ~r/unsecured/i ->
+        "무담보 조건이 언급됨"
+
+      section =~ ~r/covenants|financial covenant/i ->
+        "재무약정 또는 covenant 조건이 언급됨"
+
+      true ->
+        nil
+    end
+  end
+
+  defp sec_edgar_control_acquirer(section) do
+    [
+      ~r/(?:control|controlling interest)[^.]{0,160}?\s+(?:was|were)?\s*(?:acquired by|transferred to|obtained by)\s+([^.;]+?)(?:,|\.|$)/i,
+      ~r/([^.;]+?)\s+(?:acquired|obtained)\s+(?:control|a controlling interest)[^.]{0,80}(?:,|\.|$)/i,
+      ~r/(?:became|become)\s+the\s+beneficial\s+owner[^.]{0,180}?\s+of\s+([^.;]+?)(?:,|\.|$)/i
+    ]
+    |> sec_edgar_first_capture(section)
+  end
+
+  defp sec_edgar_control_mechanism(section) do
+    cond do
+      section =~ ~r/stock purchase agreement|share purchase agreement/i ->
+        "주식매매계약"
+
+      section =~ ~r/voting agreement|voting power|proxy/i ->
+        "의결권 또는 위임계약"
+
+      section =~ ~r/tender offer/i ->
+        "공개매수"
+
+      section =~ ~r/merger|business combination/i ->
+        "합병 또는 사업결합"
+
+      section =~ ~r/private placement|securities purchase agreement/i ->
+        "사모 발행 또는 증권매매계약"
+
+      true ->
+        nil
+    end
+  end
+
+  defp sec_edgar_control_percentage_detail(section) do
+    case Regex.run(
+           ~r/(\d+(?:\.\d+)?)%\s+(?:of\s+)?(?:the\s+)?(?:voting power|outstanding|common stock|equity)/i,
+           section
+         ) do
+      [_match, percent] -> "변경 후 지분 또는 의결권 비율은 #{percent}%로 언급됨"
+      _match -> nil
+    end
+  end
+
+  defp sec_edgar_control_consideration_detail(section) do
+    case sec_edgar_first_money_detail(section) do
+      nil -> nil
+      value -> String.replace(value, "본문에 언급된 금액/규모는", "거래 대가 또는 관련 금액은")
+    end
+  end
+
+  defp sec_edgar_control_terms_detail(section) do
+    cond do
+      section =~ ~r/board of directors|director designee|nominate/i ->
+        "이사회 구성 또는 지명권 변화가 언급됨"
+
+      section =~ ~r/rights agreement|shareholder agreement|stockholders agreement/i ->
+        "주주권리 또는 주주계약 조건이 언급됨"
+
+      section =~ ~r/change in control/i ->
+        "본문이 명시적으로 change in control을 언급함"
+
+      true ->
+        nil
+    end
+  end
+
+  defp sec_edgar_results_period(section) do
+    case Regex.run(
+           ~r/\b(quarter|three months|six months|nine months|year|fiscal year)[^.]{0,90}?ended\s+(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2}),\s+(\d{4})/i,
+           section
+         ) do
+      [_match, period, month, day, year] ->
+        date = "#{year}년 #{sec_edgar_month_number(month)}월 #{day}일"
+
+        if period =~ ~r/year/i do
+          "#{date} 종료 회계연도"
+        else
+          "#{date} 종료 기간"
+        end
+
+      _match ->
+        nil
+    end
+  end
+
+  defp sec_edgar_metric_detail(section, label, pattern) do
+    case Regex.run(pattern, section) do
+      [_match, amount, scale] -> "#{label}은 #{sec_edgar_money_label(amount, scale)}"
+      [_match, amount] -> "#{label}은 #{sec_edgar_money_label(amount, nil)}"
+      _match -> nil
+    end
+  end
+
+  defp sec_edgar_net_income_detail(section) do
+    case Regex.run(~r/net\s+(income|loss)[^$]{0,90}\$([\d,.]+)\s*(million|billion)?/i, section) do
+      [_match, kind, amount, scale] ->
+        sec_edgar_income_or_loss_detail(kind, amount, scale)
+
+      [_match, kind, amount] ->
+        sec_edgar_income_or_loss_detail(kind, amount, nil)
+
+      _match ->
+        nil
+    end
+  end
+
+  defp sec_edgar_income_or_loss_detail(kind, amount, scale) do
+    if String.downcase(kind) == "loss" do
+      "순손실은 #{sec_edgar_money_label(amount, scale)}"
+    else
+      "순이익은 #{sec_edgar_money_label(amount, scale)}"
+    end
+  end
+
+  defp sec_edgar_eps_detail(section) do
+    case Regex.run(
+           ~r/(?:diluted\s+)?(?:earnings|loss|income)\s+per\s+(?:common\s+)?share[^$]{0,60}\$([\d,.]+)/i,
+           section
+         ) do
+      [_match, value] -> "주당 지표는 #{sec_edgar_money_label(value, nil)}"
+      _match -> nil
+    end
+  end
+
+  defp sec_edgar_earnings_release_detail(section) do
+    if section =~ ~r/earnings release|press release/i do
+      "관련 실적 보도자료 또는 첨부자료가 함께 제공됨"
+    end
+  end
+
+  defp sec_edgar_governance_actions(section) do
+    [
+      {~r/resign|resignation|departure/i, "사임/퇴임"},
+      {~r/appoint|appointment|elected|election/i, "선임/임명"},
+      {~r/terminate|termination|dismiss/i, "해임 또는 계약 종료"},
+      {~r/compensatory|compensation|employment agreement|equity award|bonus/i, "보상 또는 고용조건 변경"}
+    ]
+    |> Enum.filter(fn {pattern, _label} -> section =~ pattern end)
+    |> Enum.map(fn {_pattern, label} -> label end)
+  end
+
+  defp sec_edgar_named_people(section) do
+    ~r/\b(?:Mr\.|Ms\.|Mrs\.|Dr\.)\s+[A-Z][A-Za-z'.-]+(?:\s+[A-Z][A-Za-z'.-]+){0,3}/
+    |> Regex.scan(section)
+    |> Enum.map(fn [name] -> sec_edgar_clean_phrase(name) end)
+    |> Enum.uniq()
+    |> Enum.take(3)
+  end
+
+  defp sec_edgar_roles(section) do
+    [
+      {~r/Chief Executive Officer|\bCEO\b/i, "CEO"},
+      {~r/Chief Financial Officer|\bCFO\b/i, "CFO"},
+      {~r/Chief Operating Officer|\bCOO\b/i, "COO"},
+      {~r/President/i, "President"},
+      {~r/director|board of directors/i, "이사/이사회"},
+      {~r/principal accounting officer/i, "회계책임자"}
+    ]
+    |> Enum.filter(fn {pattern, _label} -> section =~ pattern end)
+    |> Enum.map(fn {_pattern, label} -> label end)
+  end
+
+  defp sec_edgar_compensation_detail(section) do
+    if section =~ ~r/compensatory|compensation|employment agreement|equity award|bonus|salary/i do
+      "보상, 고용계약 또는 주식보상 조건이 언급됨"
+    end
+  end
+
+  defp sec_edgar_other_event_topic(section) do
+    cond do
+      section =~ ~r/dividend|distribution/i ->
+        "배당 또는 분배 관련 사항"
+
+      section =~ ~r/offering|underwriting|senior notes|convertible notes|debentures/i ->
+        "증권 발행 또는 자금 조달 관련 사항"
+
+      section =~ ~r/acquisition|merger|business combination|strategic transaction/i ->
+        "인수합병 또는 전략적 거래 관련 사항"
+
+      section =~ ~r/litigation|settlement|regulatory|investigation/i ->
+        "소송, 합의 또는 규제 관련 사항"
+
+      section =~ ~r/press release/i ->
+        "보도자료 공개"
+
+      section =~ ~r/shareholder|stockholder|annual meeting|special meeting/i ->
+        "주주총회 또는 주주 관련 사항"
+
+      true ->
+        nil
+    end
+  end
+
+  defp sec_edgar_private_placement_investor_detail(section) do
+    [
+      ~r/(?:sold|issued|agreed to sell|entered into[^.]{0,80}purchase agreement with)\s+(?:to\s+)?([^.;]{3,180}?)(?:\s+an aggregate|\s+for aggregate|\s+in a private placement|\.|;|,)/i,
+      ~r/(?:investor(?:s)?|purchaser(?:s)?|buyer(?:s)?)(?:\s+include(?:s)?|\s+were|\s+are|:)\s*([^.;]{3,180})(?:\.|;|,|$)/i,
+      ~r/(?:strategic investment|PIPE financing)[^.]{0,120}\s+by\s+([^.;]{3,160})(?:\.|;|,|$)/i
+    ]
+    |> sec_edgar_first_capture(section)
+    |> sec_edgar_labeled_detail("Investor/buyer")
+  end
+
+  defp sec_edgar_private_placement_structure_detail(section) do
+    cond do
+      section =~ ~r/\bPIPE\b|private investment in public equity/i ->
+        "Structure: PIPE/private investment in public equity"
+
+      section =~ ~r/convertible preferred|preferred stock/i ->
+        "Structure: convertible/preferred stock financing"
+
+      section =~ ~r/convertible note|convertible debenture/i ->
+        "Structure: convertible debt financing"
+
+      section =~ ~r/warrant/i ->
+        "Structure: securities issuance includes warrant exposure"
+
+      section =~ ~r/private placement|securities purchase agreement/i ->
+        "Structure: private placement / securities purchase agreement"
+
+      true ->
+        nil
+    end
+  end
+
+  defp sec_edgar_private_placement_price_detail(section) do
+    [
+      ~r/(?:purchase price|offering price|price per share|sold at)[^$]{0,140}\$([\d,.]+)/i,
+      ~r/(?:conversion price|initial conversion price|convertible at)[^$]{0,140}\$([\d,.]+)/i,
+      ~r/\$([\d,.]+)\s+per\s+(?:share|unit|pre-funded warrant|common share)/i
+    ]
+    |> sec_edgar_money_capture(section)
+    |> sec_edgar_labeled_detail("Price/conversion price")
+  end
+
+  defp sec_edgar_private_placement_warrant_detail(section) do
+    section
+    |> sec_edgar_sentence_matching(
+      ~r/(warrant|exercise price|exercisable|pre-funded warrant|common warrant)/i,
+      420
+    )
+    |> sec_edgar_labeled_detail("Warrant terms")
+  end
+
+  defp sec_edgar_private_placement_use_detail(section) do
+    section
+    |> sec_edgar_sentence_matching(
+      ~r/(use(?:d)? (?:the )?(?:net )?proceeds|intends? to use|working capital|general corporate purposes|research and development|commercialization|acquisition|repay|debt)/i,
+      420
+    )
+    |> sec_edgar_labeled_detail("Use of proceeds")
+  end
+
+  defp sec_edgar_strategic_update_signal(section) do
+    cond do
+      section =~ ~r/investor presentation|presentation materials|investor deck/i ->
+        "투자자 발표 자료"
+
+      section =~ ~r/strategic update|strategic review|strategic alternatives/i ->
+        "전략 업데이트/검토"
+
+      section =~ ~r/partnership|collaboration|commercial agreement|strategic alliance/i ->
+        "파트너십/협업"
+
+      section =~
+          ~r/raises? (?:its )?(?:full[- ]year )?guidance|raised guidance|guidance raise|increased outlook/i ->
+        "가이던스 상향/전망 개선"
+
+      section =~ ~r/order backlog|backlog|purchase order|awarded (?:a )?contract|booking/i ->
+        "수주/백로그 신호"
+
+      section =~ ~r/artificial intelligence|\bAI\b|data center|datacenter|cloud infrastructure/i ->
+        "AI/데이터센터 테마"
+
+      section =~
+          ~r/clinical|phase\s+[123]|FDA|NDA|BLA|trial data|product launch|commercial launch/i ->
+        "임상/제품 출시 촉매"
+
+      true ->
+        nil
+    end
+  end
+
+  defp sec_edgar_strategic_update_sentence_detail(section) do
+    section
+    |> sec_edgar_sentence_matching(
+      ~r/(investor presentation|strategic update|strategic review|partnership|collaboration|guidance|outlook|order backlog|backlog|purchase order|artificial intelligence|\bAI\b|data center|clinical|phase\s+[123]|product launch|commercial launch)/i,
+      460
+    )
+    |> sec_edgar_labeled_detail("전략 업데이트")
+  end
+
+  defp sec_edgar_partnership_detail(section) do
+    section
+    |> sec_edgar_sentence_matching(
+      ~r/(partnership|collaboration|strategic alliance|commercial agreement|supply agreement|license agreement)/i,
+      420
+    )
+    |> sec_edgar_labeled_detail("파트너십")
+  end
+
+  defp sec_edgar_guidance_raise_detail(section) do
+    section
+    |> sec_edgar_sentence_matching(
+      ~r/(raises? (?:its )?(?:full[- ]year )?guidance|raised guidance|increase[sd]? (?:its )?(?:full[- ]year )?outlook|expects? (?:higher|increased)|reaffirmed guidance)/i,
+      420
+    )
+    |> sec_edgar_labeled_detail("가이던스/전망")
+  end
+
+  defp sec_edgar_order_backlog_detail(section) do
+    section
+    |> sec_edgar_sentence_matching(
+      ~r/(order backlog|backlog|purchase order|awarded (?:a )?contract|bookings?|customer order)/i,
+      420
+    )
+    |> sec_edgar_labeled_detail("수주/백로그")
+  end
+
+  defp sec_edgar_first_money_detail(section) do
+    case sec_edgar_material_money_match(section) do
+      {amount, scale} -> "본문에 언급된 금액/규모는 #{sec_edgar_money_label(amount, scale)}"
+      nil -> nil
+    end
+  end
+
+  defp sec_edgar_material_money_match(section) do
+    ~r/\$([\d,.]+)\s*(million|billion)?/i
+    |> Regex.scan(section)
+    |> Enum.map(fn
+      [_match, amount, scale] ->
+        {amount, scale, sec_edgar_money_numeric_value(amount, scale)}
+
+      [_match, amount] ->
+        {amount, nil, sec_edgar_money_numeric_value(amount, nil)}
+    end)
+    |> Enum.reject(fn {_amount, _scale, numeric_value} ->
+      is_nil(numeric_value) or numeric_value < 1
+    end)
+    |> Enum.sort_by(fn {_amount, _scale, numeric_value} -> numeric_value end, :desc)
+    |> case do
+      [{amount, scale, _numeric_value} | _rest] -> {amount, scale}
+      [] -> nil
+    end
+  end
+
+  defp sec_edgar_money_numeric_value(amount, scale) when is_binary(amount) do
+    normalized_amount = String.replace(amount, ",", "")
+
+    multiplier =
+      case String.downcase(scale || "") do
+        "billion" -> 1_000_000_000
+        "million" -> 1_000_000
+        _scale -> 1
+      end
+
+    case Float.parse(normalized_amount) do
+      {parsed, _rest} -> parsed * multiplier
+      _error -> nil
+    end
+  end
+
+  defp sec_edgar_money_numeric_value(_amount, _scale), do: nil
+
+  defp sec_edgar_first_capture(patterns, section) when is_list(patterns) do
+    patterns
+    |> Enum.find_value(fn pattern ->
+      case Regex.run(pattern, section) do
+        [_match, value] ->
+          value
+          |> sec_edgar_clean_phrase()
+          |> String.slice(0, 140)
+          |> String.trim()
+          |> case do
+            "" -> nil
+            cleaned -> cleaned
+          end
+
+        _match ->
+          nil
+      end
+    end)
+  end
+
+  defp sec_edgar_clean_phrase(value) do
+    value
+    |> String.replace(~r/\s+/u, " ")
+    |> String.replace(~r/^\s*(?:the|a|an)\s+/i, "")
+    |> String.trim(" ,.;:")
+  end
+
+  defp sec_edgar_issuer_name(record, section) do
+    title = Map.get(record, :title) || ""
+
+    cond do
+      match = Regex.run(~r/8-K\s*-\s*(.+?)\s+\(\d{6,10}\)/i, title) ->
+        match |> Enum.at(1) |> sec_edgar_title_case()
+
+      match =
+          Regex.run(
+            ~r/^(?:10-Q|10-K)(?:\/A)?\s*-\s*(.+?)\s+\(\d{6,10}\)\s+\((?:Subject|Filer)\)/i,
+            title
+          ) ->
+        match |> Enum.at(1) |> sec_edgar_title_case()
+
+      match =
+          Regex.run(
+            ~r/^(?:SC\s+13D(?:\/A)?|SC\s+13G(?:\/A)?|S-1(?:\/A)?|F-1(?:\/A)?|F-10(?:\/A)?|S-4(?:\/A)?|F-4(?:\/A)?|SC\s+TO(?:-[A-Z])?(?:\/A)?)\s*-\s*(.+?)\s+\(\d{6,10}\)\s+\((?:Subject|Filer)\)/i,
+            title
+          ) ->
+        match |> Enum.at(1) |> sec_edgar_title_case()
+
+      match = Regex.run(~r/EntityRegistrantName\s+([A-Z0-9 .,&'-]+?)(?:\s|Exact name)/i, section) ->
+        match |> Enum.at(1) |> sec_edgar_title_case()
+
+      true ->
+        "해당 회사"
+    end
+  end
+
+  defp sec_edgar_first_date(section) do
+    case Regex.run(
+           ~r/\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2}),\s+(\d{4})\b/i,
+           section
+         ) do
+      [_, month, day, year] -> "#{year}년 #{sec_edgar_month_number(month)}월 #{day}일"
+      _match -> nil
+    end
+  end
+
+  defp sec_edgar_settlement_date(section) do
+    case Regex.run(
+           ~r/settlement date[^.]*?(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2}),\s+(\d{4})/i,
+           section
+         ) do
+      [_, month, day, year] -> "#{year}년 #{sec_edgar_month_number(month)}월 #{day}일"
+      _match -> nil
+    end
+  end
+
+  defp sec_edgar_month_number(month) do
+    %{
+      "january" => 1,
+      "february" => 2,
+      "march" => 3,
+      "april" => 4,
+      "may" => 5,
+      "june" => 6,
+      "july" => 7,
+      "august" => 8,
+      "september" => 9,
+      "october" => 10,
+      "november" => 11,
+      "december" => 12
+    }
+    |> Map.fetch!(String.downcase(month))
+  end
+
+  defp sec_edgar_offering_terms(section) do
+    case Regex.run(
+           ~r/offering of\s+\$([\d,.]+)\s*(million|billion)?(?:\s+\(([\d,]+)\s+shares\))?/i,
+           section
+         ) do
+      [_match, amount, scale, shares] ->
+        %{
+          amount: sec_edgar_money_label(amount, scale),
+          shares: sec_edgar_share_label(shares)
+        }
+
+      [_match, amount, scale] ->
+        %{amount: sec_edgar_money_label(amount, scale), shares: nil}
+
+      _match ->
+        %{amount: nil, shares: nil}
+    end
+  end
+
+  defp sec_edgar_security_description(section) do
+    case Regex.run(~r/\)\s+of\s+([\d.]+%\s+[^.]*?Preferred Stock[^.]*?)(?:\s+\(|\.)/i, section) do
+      [_match, security] ->
+        security
+        |> String.replace(~r/\s+/, " ")
+        |> String.replace(~r/\s+the\s+$/i, "")
+        |> String.replace(~r/Non-Cumulative Preferred Stock/i, "비누적 우선주")
+        |> String.replace(~r/Preferred Stock/i, "우선주")
+        |> String.replace(~r/Series\s+([A-Z])/i, "시리즈 \\1")
+        |> String.trim()
+
+      _match ->
+        nil
+    end
+  end
+
+  defp sec_edgar_per_share_value(section, pattern) do
+    case Regex.run(pattern, section) do
+      [_match, value] -> sec_edgar_money_label(value, nil)
+      _match -> nil
+    end
+  end
+
+  defp sec_edgar_net_proceeds(section) do
+    case Regex.run(
+           ~r/net proceeds[^.]*?approximately\s+\$([\d,.]+)\s*(million|billion)?/i,
+           section
+         ) do
+      [_match, amount, scale] -> sec_edgar_money_label(amount, scale)
+      [_match, amount] -> sec_edgar_money_label(amount, nil)
+      _match -> nil
+    end
+  end
+
+  defp sec_edgar_general_corporate_purposes?(section) do
+    section =~ ~r/general corporate purposes/i
+  end
+
+  defp sec_edgar_non_convertible?(section) do
+    section =~ ~r/not convertible or exchangeable/i
+  end
+
+  defp sec_edgar_section_3a2_exemption?(section) do
+    section =~ ~r/Section\s+3\(a\)\(2\)/i
+  end
+
+  defp sec_edgar_money_label(amount, scale) when is_binary(amount) do
+    normalized_amount = String.replace(amount, ",", "")
+
+    english_scale =
+      if is_binary(scale) and scale != "", do: " #{String.downcase(scale)}", else: ""
+
+    case Float.parse(normalized_amount) do
+      {parsed, _rest} when english_scale == " million" ->
+        "#{sec_edgar_kr_million_usd(parsed)}($#{amount}#{english_scale})"
+
+      {parsed, _rest} when english_scale == " billion" ->
+        "#{sec_edgar_kr_billion_usd(parsed)}($#{amount}#{english_scale})"
+
+      {parsed, _rest} ->
+        "#{sec_edgar_money_number(parsed)}달러"
+
+      _error ->
+        "$#{amount}#{english_scale}"
+    end
+  end
+
+  defp sec_edgar_money_label(_amount, _scale), do: nil
+
+  defp sec_edgar_kr_million_usd(value) when value >= 100 do
+    "#{sec_edgar_money_number(value / 100)}억 달러"
+  end
+
+  defp sec_edgar_kr_million_usd(value) do
+    "#{sec_edgar_money_number(value * 100)}만 달러"
+  end
+
+  defp sec_edgar_kr_billion_usd(value) do
+    "#{sec_edgar_money_number(value * 10)}억 달러"
+  end
+
+  defp sec_edgar_share_label(nil), do: nil
+  defp sec_edgar_share_label(""), do: nil
+
+  defp sec_edgar_share_label(value) do
+    parsed =
+      value
+      |> String.replace(",", "")
+      |> Integer.parse()
+
+    case parsed do
+      {shares, _rest} when shares >= 10_000 ->
+        "#{sec_edgar_trim_number(shares / 10_000)}만 주"
+
+      {shares, _rest} ->
+        "#{shares}주"
+
+      _error ->
+        "#{value}주"
+    end
+  end
+
+  defp sec_edgar_title_case(value) do
+    value
+    |> String.downcase()
+    |> String.split(" ", trim: true)
+    |> Enum.map(fn word ->
+      case word do
+        "corp" -> "Corp"
+        "corporation" -> "Corporation"
+        "inc" -> "Inc"
+        "llc" -> "LLC"
+        "ltd" -> "Ltd"
+        _ -> String.capitalize(word)
+      end
+    end)
+    |> Enum.join(" ")
+  end
+
+  defp sec_edgar_trim_number(value) when is_float(value) do
+    if value == Float.round(value, 0) do
+      value |> round() |> Integer.to_string()
+    else
+      value
+      |> Float.round(2)
+      |> :erlang.float_to_binary(decimals: 2)
+      |> String.trim_trailing("0")
+      |> String.trim_trailing(".")
+    end
+  end
+
+  defp sec_edgar_money_number(value) when is_float(value) do
+    value
+    |> sec_edgar_trim_number()
+    |> sec_edgar_group_number()
+  end
+
+  defp sec_edgar_group_number(number) when is_binary(number) do
+    case String.split(number, ".", parts: 2) do
+      [integer, decimal] -> "#{sec_edgar_group_integer(integer)}.#{decimal}"
+      [integer] -> sec_edgar_group_integer(integer)
+    end
+  end
+
+  defp sec_edgar_group_integer("-" <> integer) do
+    "-" <> sec_edgar_group_integer(integer)
+  end
+
+  defp sec_edgar_group_integer(integer) do
+    integer
+    |> String.reverse()
+    |> String.graphemes()
+    |> Enum.chunk_every(3)
+    |> Enum.map(&Enum.join/1)
+    |> Enum.join(",")
+    |> String.reverse()
+  end
+
+  defp sec_edgar_decode_entities(value) do
+    value
+    |> String.replace("&quot;", "\"")
+    |> String.replace("&apos;", "'")
+    |> String.replace("&#039;", "'")
+    |> String.replace("&amp;", "&")
+    |> String.replace("&nbsp;", " ")
+    |> String.replace("&lt;", "<")
+    |> String.replace("&gt;", ">")
+    |> then(
+      &Regex.replace(~r/&#(\d+);/, &1, fn _match, codepoint ->
+        sec_edgar_codepoint_to_string(codepoint, 10)
+      end)
+    )
+    |> then(
+      &Regex.replace(~r/&#x([0-9a-f]+);/i, &1, fn _match, codepoint ->
+        sec_edgar_codepoint_to_string(codepoint, 16)
+      end)
+    )
+  end
+
+  defp sec_edgar_codepoint_to_string(codepoint, base) do
+    case Integer.parse(codepoint, base) do
+      {value, ""} ->
+        try do
+          <<value::utf8>>
+        rescue
+          _error -> " "
+        end
+
+      _error ->
+        " "
+    end
+  end
+
+  defp sec_edgar_detail_fetch_limit(%SourceRegistry{source_key: source_key} = source)
+       when source_key in @sec_edgar_periodic_report_source_keys do
+    source
+    |> sec_edgar_detail_fetch_limit_config()
+    |> max(@sec_edgar_periodic_report_detail_fetch_min_limit)
+  end
+
+  defp sec_edgar_detail_fetch_limit(source) do
+    sec_edgar_detail_fetch_limit_config(source)
+  end
+
+  defp sec_edgar_detail_fetch_limit_config(source) do
+    source_config_positive_integer(
+      source,
+      "detail_fetch_limit",
+      :detail_fetch_limit,
+      @sec_edgar_detail_fetch_default_limit
+    )
+  end
+
+  defp sec_edgar_detail_fetch_timeout(%SourceRegistry{source_key: source_key} = source)
+       when source_key in @sec_edgar_periodic_report_source_keys do
+    source
+    |> sec_edgar_detail_fetch_timeout_config()
+    |> max(@sec_edgar_periodic_report_detail_fetch_min_timeout_ms)
+  end
+
+  defp sec_edgar_detail_fetch_timeout(source) do
+    sec_edgar_detail_fetch_timeout_config(source)
+  end
+
+  defp sec_edgar_detail_fetch_timeout_config(source) do
+    source_config_positive_integer(
+      source,
+      "detail_fetch_timeout_ms",
+      :detail_fetch_timeout_ms,
+      @sec_edgar_detail_fetch_default_timeout_ms
+    )
+  end
+
+  defp sec_edgar_detail_fetch_max_bytes(%SourceRegistry{source_key: source_key} = source)
+       when source_key in @sec_edgar_periodic_report_source_keys do
+    source
+    |> sec_edgar_detail_fetch_max_bytes_config()
+    |> max(@sec_edgar_periodic_report_detail_fetch_min_max_bytes)
+  end
+
+  defp sec_edgar_detail_fetch_max_bytes(
+         %SourceRegistry{source_key: @sec_edgar_current_8k_source_key} = source
+       ) do
+    source
+    |> sec_edgar_detail_fetch_max_bytes_config()
+    |> max(@sec_edgar_current_8k_detail_fetch_min_max_bytes)
+  end
+
+  defp sec_edgar_detail_fetch_max_bytes(source) do
+    sec_edgar_detail_fetch_max_bytes_config(source)
+  end
+
+  defp sec_edgar_detail_fetch_max_bytes_config(source) do
+    source_config_positive_integer(
+      source,
+      "detail_fetch_max_bytes",
+      :detail_fetch_max_bytes,
+      @sec_edgar_detail_fetch_default_max_bytes
+    )
+  end
+
+  defp load_payload(source, opts) do
+    prefer_live_fetch = Keyword.get(opts, :use_live_fetch, true)
+
+    case maybe_load_live_payload(source, prefer_live_fetch) do
+      {:ok, payload} ->
+        {:ok, payload}
+
+      {:error, reason} when prefer_live_fetch ->
+        if disable_live_fixture_fallback?(source) do
+          {:error, reason}
+        else
+          load_fixture_payload(source)
+        end
+
+      :skip ->
+        load_fixture_payload(source)
+    end
+  end
+
+  defp maybe_load_live_payload(
+         %SourceRegistry{parser_key: "germany_company_register_capital_market_flight_v1"} =
+           source,
+         true
+       ) do
+    with {:ok, support_response, support_cookie} <-
+           fetch_de_company_register_support_page(source),
+         {:ok, token, token_response, token_cookie} <-
+           fetch_de_company_register_search_token(source, support_cookie),
+         cookie <- merge_cookie_headers(support_cookie, token_cookie),
+         {:ok, page_responses} <- fetch_de_company_register_search_pages(source, token, cookie) do
+      raw_payload =
+        Jason.encode!(%{
+          "strategy" => @de_company_register_strategy,
+          "source_date_from" => de_company_register_source_date_from(source),
+          "source_date_to" => de_company_register_source_date_to(source),
+          "page_size" => de_company_register_page_size(source),
+          "max_pages_per_poll" => de_company_register_max_pages_per_poll(source),
+          "pages_fetched" => length(page_responses),
+          "total_pages" => de_company_register_first_meta(page_responses, "total_pages"),
+          "total_results" => de_company_register_first_meta(page_responses, "total_results"),
+          "over_page_cap" =>
+            de_company_register_over_page_cap?(
+              page_responses,
+              de_company_register_max_pages_per_poll(source)
+            ),
+          "responses" => page_responses
+        })
+
+      {:ok,
+       %{
+         raw_payload: raw_payload,
+         http_status: 200,
+         fetch_info: %{
+           "mode" => "live",
+           "loaded" => true,
+           "strategy" => @de_company_register_strategy,
+           "url" => source.base_url,
+           "support_status_code" => support_response.status_code,
+           "token_status_code" => token_response.status_code,
+           "search_status_code" => de_company_register_first_meta(page_responses, "status_code"),
+           "status_code" => 200,
+           "bytes" => byte_size(raw_payload),
+           "source_date_from" => de_company_register_source_date_from(source),
+           "source_date_to" => de_company_register_source_date_to(source),
+           "page_size" => de_company_register_page_size(source),
+           "max_pages_per_poll" => de_company_register_max_pages_per_poll(source),
+           "pages_fetched" => length(page_responses),
+           "total_pages" => de_company_register_first_meta(page_responses, "total_pages"),
+           "total_results" => de_company_register_first_meta(page_responses, "total_results"),
+           "records_seen" => de_company_register_records_seen(page_responses),
+           "records_kept" =>
+             min(
+               de_company_register_records_seen(page_responses),
+               source_config_positive_integer(
+                 source,
+                 "max_items_per_poll",
+                 :max_items_per_poll,
+                 25
+               )
+             ),
+           "over_page_cap" =>
+             de_company_register_over_page_cap?(
+               page_responses,
+               de_company_register_max_pages_per_poll(source)
+             ),
+           "fixture_fallback" => false
+         }
+       }}
+    end
+  end
+
+  defp maybe_load_live_payload(
+         %SourceRegistry{parser_key: "blse_multi_issuer_news_rss_v1"} = source,
+         true
+       ) do
+    with {:ok, ticker_response, universe} <- fetch_blse_issuer_universe(source),
+         issuer_window <- blse_issuer_window(source, universe),
+         selected_universe <- issuer_window.selected_universe,
+         {:ok, responses} <- fetch_blse_issuer_news_responses(source, selected_universe) do
+      raw_payload =
+        Jason.encode!(%{
+          "strategy" => @blse_strategy,
+          "universe" => universe,
+          "issuer_window" => blse_issuer_window_payload(issuer_window),
+          "selected_codes" => Enum.map(selected_universe, & &1["code"]),
+          "responses" => responses
+        })
+
+      {:ok,
+       %{
+         raw_payload: raw_payload,
+         http_status: 200,
+         fetch_info: %{
+           "mode" => "live",
+           "loaded" => true,
+           "strategy" => @blse_strategy,
+           "url" => source.base_url,
+           "ticker_status_code" => ticker_response.status_code,
+           "status_code" => 200,
+           "bytes" => byte_size(raw_payload),
+           "universe_count" => length(universe),
+           "selected_issuer_count" => length(selected_universe),
+           "selected_issuer_window_strategy" => issuer_window.strategy,
+           "selected_issuer_window_offset" => issuer_window.offset,
+           "selected_issuer_window_size" => issuer_window.size,
+           "selected_issuer_window_universe_count" => issuer_window.universe_count,
+           "issuer_request_count" => length(responses),
+           "records_seen" => blse_response_records_seen(responses),
+           "fixture_fallback" => false
+         }
+       }}
+    end
+  end
+
+  defp maybe_load_live_payload(
+         %SourceRegistry{parser_key: "sase_multi_issuer_announcements_xml_v1"} = source,
+         true
+       ) do
+    selected_codes = sase_selected_issuer_codes(source)
+
+    with {:ok, responses} <- fetch_sase_issuer_announcement_responses(source, selected_codes) do
+      raw_payload =
+        Jason.encode!(%{
+          "strategy" => @sase_strategy,
+          "selected_codes" => selected_codes,
+          "responses" => responses
+        })
+
+      {:ok,
+       %{
+         raw_payload: raw_payload,
+         http_status: 200,
+         fetch_info: %{
+           "mode" => "live",
+           "loaded" => true,
+           "strategy" => @sase_strategy,
+           "url" => source.base_url,
+           "status_code" => 200,
+           "bytes" => byte_size(raw_payload),
+           "selected_issuer_count" => length(selected_codes),
+           "issuer_request_count" => length(responses),
+           "records_seen" => sase_response_records_seen(responses),
+           "fixture_fallback" => false
+         }
+       }}
+    end
+  end
+
+  defp maybe_load_live_payload(
+         %SourceRegistry{parser_key: "pse_multi_isin_issuer_news_json_v1"} = source,
+         true
+       ) do
+    with {:ok, universe_pages} <- fetch_pse_issuer_universe_pages(source),
+         {:ok, universe} <- pse_issuer_universe(universe_pages),
+         issuer_window <- pse_issuer_window(source, universe),
+         selected_universe <- issuer_window.selected_universe,
+         {:ok, responses} <- fetch_pse_issuer_news_responses(source, selected_universe) do
+      raw_payload =
+        Jason.encode!(%{
+          "strategy" => "pse_multi_isin_news_v1",
+          "universe" => universe,
+          "issuer_window" => pse_issuer_window_payload(issuer_window),
+          "selected_isins" => Enum.map(selected_universe, & &1["isin"]),
+          "responses" => responses
+        })
+
+      {:ok,
+       %{
+         raw_payload: raw_payload,
+         http_status: 200,
+         fetch_info: %{
+           "mode" => "live",
+           "loaded" => true,
+           "strategy" => "pse_multi_isin_news_v1",
+           "url" => source.base_url,
+           "status_code" => 200,
+           "bytes" => byte_size(raw_payload),
+           "universe_count" => length(universe),
+           "selected_issuer_count" => length(selected_universe),
+           "selected_issuer_window_strategy" => issuer_window.strategy,
+           "selected_issuer_window_offset" => issuer_window.offset,
+           "selected_issuer_window_size" => issuer_window.size,
+           "selected_issuer_window_universe_count" => issuer_window.universe_count,
+           "issuer_request_count" => length(responses)
+         }
+       }}
+    end
+  end
+
+  defp maybe_load_live_payload(
+         %SourceRegistry{parser_key: "pse_multi_isin_issuer_report_calendar_json_v1"} = source,
+         true
+       ) do
+    with {:ok, universe_pages} <- fetch_pse_issuer_universe_pages(source),
+         {:ok, universe} <- pse_issuer_universe(universe_pages),
+         issuer_window <- pse_issuer_window(source, universe),
+         selected_universe <- issuer_window.selected_universe,
+         {:ok, responses} <- fetch_pse_issuer_calendar_responses(source, selected_universe) do
+      raw_payload =
+        Jason.encode!(%{
+          "strategy" => "pse_multi_isin_report_calendar_v1",
+          "universe" => universe,
+          "issuer_window" => pse_issuer_window_payload(issuer_window),
+          "selected_isins" => Enum.map(selected_universe, & &1["isin"]),
+          "responses" => responses
+        })
+
+      {:ok,
+       %{
+         raw_payload: raw_payload,
+         http_status: 200,
+         fetch_info: %{
+           "mode" => "live",
+           "loaded" => true,
+           "strategy" => "pse_multi_isin_report_calendar_v1",
+           "url" => source.base_url,
+           "status_code" => 200,
+           "bytes" => byte_size(raw_payload),
+           "universe_count" => length(universe),
+           "selected_issuer_count" => length(selected_universe),
+           "selected_issuer_window_strategy" => issuer_window.strategy,
+           "selected_issuer_window_offset" => issuer_window.offset,
+           "selected_issuer_window_size" => issuer_window.size,
+           "selected_issuer_window_universe_count" => issuer_window.universe_count,
+           "calendar_request_count" => length(responses)
+         }
+       }}
+    end
+  end
+
+  defp maybe_load_live_payload(
+         %SourceRegistry{parser_key: "set_thailand_company_news_json_v1"} = source,
+         true
+       ) do
+    query_date = set_thailand_query_date(source)
+    url = set_thailand_company_news_live_url(source, query_date)
+
+    with {:ok, response} <-
+           Http.fetch(url,
+             timeout: source_live_timeout(source),
+             headers: source_live_headers(source)
+           ),
+         true <- response.status_code in 200..299,
+         :ok <- validate_live_payload(source, response) do
+      {:ok,
+       %{
+         raw_payload: response.body,
+         http_status: response.status_code,
+         fetch_info: %{
+           "mode" => "live",
+           "loaded" => true,
+           "strategy" => @set_thailand_company_news_strategy,
+           "url" => url,
+           "status_code" => response.status_code,
+           "bytes" => response.bytes,
+           "query_date" => Date.to_iso8601(query_date),
+           "records_seen" => set_thailand_company_news_records_seen(response.body),
+           "fixture_fallback" => false
+         }
+       }}
+    else
+      false -> {:error, :unexpected_status}
+      {:error, _reason} = error -> error
+    end
+  end
+
+  defp maybe_load_live_payload(
+         %SourceRegistry{parser_key: "tw_mops_daily_material_info_json_v1"} = source,
+         true
+       ) do
+    if tw_mops_openapi_source?(source) do
+      maybe_load_tw_mops_openapi_payload(source)
+    else
+      maybe_load_tw_mops_api_payload(source)
+    end
+  end
+
+  defp maybe_load_live_payload(
+         %SourceRegistry{parser_key: "tdnet_public_list_html_v1"} = source,
+         true
+       ) do
+    url = tdnet_public_list_url(source)
+
+    with {:ok, response} <-
+           Http.fetch(url,
+             timeout: source_live_timeout(source),
+             headers: source_live_headers(source)
+           ),
+         true <- response.status_code in 200..299,
+         :ok <- validate_live_payload(source, response) do
+      {:ok,
+       %{
+         raw_payload: response.body,
+         http_status: response.status_code,
+         fetch_info: %{
+           "mode" => "live",
+           "loaded" => true,
+           "strategy" => @tdnet_public_list_strategy,
+           "url" => url,
+           "status_code" => response.status_code,
+           "bytes" => response.bytes,
+           "query_date" => tdnet_public_query_date(source) |> Date.to_iso8601(),
+           "records_seen" => tdnet_public_list_records_seen(response.body),
+           "fixture_fallback" => false
+         }
+       }}
+    else
+      false -> {:error, :unexpected_status}
+      {:error, _reason} = error -> error
+    end
+  end
+
+  defp maybe_load_live_payload(source, true) do
+    with {:ok, response} <-
+           Http.fetch(source.base_url,
+             timeout: source_live_timeout(source),
+             headers: source_live_headers(source),
+             method: source_live_method(source),
+             body: source_live_body(source),
+             content_type: source_live_content_type(source),
+             ssl: source_live_ssl_options(source)
+           ),
+         true <- response.status_code in 200..299,
+         :ok <- validate_live_payload(source, response) do
+      {:ok,
+       %{
+         raw_payload: response.body,
+         http_status: response.status_code,
+         fetch_info: %{
+           "mode" => "live",
+           "loaded" => true,
+           "url" => source.base_url,
+           "status_code" => response.status_code,
+           "bytes" => response.bytes
+         }
+       }}
+    else
+      false -> {:error, :unexpected_status}
+      {:error, _reason} = error -> error
+    end
+  end
+
+  defp maybe_load_live_payload(_source, false), do: :skip
+
+  defp maybe_load_tw_mops_openapi_payload(source) do
+    with {:ok, response} <-
+           Http.fetch(source.base_url,
+             timeout: source_live_timeout(source),
+             headers: source_live_headers(source)
+           ),
+         true <- response.status_code in 200..299,
+         :ok <- validate_live_payload(source, response) do
+      {:ok,
+       %{
+         raw_payload: response.body,
+         http_status: response.status_code,
+         fetch_info: %{
+           "mode" => "live",
+           "loaded" => true,
+           "strategy" => @tw_mops_material_info_strategy,
+           "url" => source.base_url,
+           "status_code" => response.status_code,
+           "bytes" => response.bytes,
+           "records_seen" => tw_mops_daily_material_info_records_seen(response.body),
+           "fixture_fallback" => false
+         }
+       }}
+    else
+      false -> {:error, :unexpected_status}
+      {:error, _reason} = error -> error
+    end
+  end
+
+  defp maybe_load_tw_mops_api_payload(source) do
+    query_date = tw_mops_query_date(source)
+    request_body = tw_mops_daily_material_info_request_body(query_date)
+
+    with {:ok, response} <-
+           Http.fetch(source.base_url,
+             timeout: source_live_timeout(source),
+             headers: source_live_headers(source),
+             method: :post,
+             body: Jason.encode!(request_body),
+             content_type: source_live_content_type(source)
+           ),
+         true <- response.status_code in 200..299,
+         :ok <- validate_live_payload(source, response) do
+      {:ok,
+       %{
+         raw_payload: response.body,
+         http_status: response.status_code,
+         fetch_info: %{
+           "mode" => "live",
+           "loaded" => true,
+           "strategy" => @tw_mops_material_info_strategy,
+           "url" => source.base_url,
+           "status_code" => response.status_code,
+           "bytes" => response.bytes,
+           "query_date" => Date.to_iso8601(query_date),
+           "roc_year" => Map.fetch!(request_body, "year"),
+           "month" => Map.fetch!(request_body, "month"),
+           "day" => Map.fetch!(request_body, "day"),
+           "records_seen" => tw_mops_daily_material_info_records_seen(response.body),
+           "fixture_fallback" => false
+         }
+       }}
+    else
+      false -> {:error, :unexpected_status}
+      {:error, _reason} = error -> error
+    end
+  end
+
+  defp fetch_de_company_register_support_page(source) do
+    url =
+      source_config_value(
+        source,
+        "support_url",
+        :support_url,
+        @de_company_register_support_url
+      )
+
+    case Http.fetch(url,
+           timeout: source_live_timeout(source),
+           headers: source_live_headers(source)
+         ) do
+      {:ok, %{status_code: status_code} = response} when status_code in 200..299 ->
+        cond do
+          not html_content_type?(response.headers) ->
+            {:error,
+             {:de_company_register_support_unsupported_content_type,
+              content_type(response.headers)}}
+
+          not de_company_register_support_page?(response.body) ->
+            {:error, :de_company_register_unexpected_support_page}
+
+          true ->
+            {:ok, response, response_cookie_header(response.headers)}
+        end
+
+      {:ok, response} ->
+        {:error, {:de_company_register_support_unexpected_status, response.status_code}}
+
+      {:error, reason} ->
+        {:error, {:de_company_register_support_fetch_failed, reason}}
+    end
+  end
+
+  defp fetch_de_company_register_search_token(source, cookie) do
+    url =
+      source_config_value(
+        source,
+        "token_url",
+        :token_url,
+        @de_company_register_token_url
+      )
+
+    case Http.fetch(url,
+           timeout: source_live_timeout(source),
+           headers: source_live_headers(source) |> add_cookie_header(cookie)
+         ) do
+      {:ok, %{status_code: status_code} = response} when status_code in 200..299 ->
+        with {:ok, decoded} <- Jason.decode(response.body),
+             token when is_binary(token) <- Map.get(decoded, "token"),
+             200 <- Map.get(decoded, "status") do
+          {:ok, token, response, response_cookie_header(response.headers)}
+        else
+          {:error, reason} -> {:error, {:de_company_register_token_invalid_json, reason}}
+          _ -> {:error, :de_company_register_token_unexpected_shape}
+        end
+
+      {:ok, response} ->
+        {:error, {:de_company_register_token_unexpected_status, response.status_code}}
+
+      {:error, reason} ->
+        {:error, {:de_company_register_token_fetch_failed, reason}}
+    end
+  end
+
+  defp fetch_de_company_register_search_pages(source, token, cookie) do
+    max_pages = de_company_register_max_pages_per_poll(source)
+    page_size = de_company_register_page_size(source)
+
+    1..max_pages
+    |> Enum.reduce_while({:ok, []}, fn page_number, {:ok, pages} ->
+      from = (page_number - 1) * page_size
+      url = de_company_register_search_url(source, token, from)
+
+      case fetch_de_company_register_search_page(source, url, cookie) do
+        {:ok, page} ->
+          page =
+            page
+            |> Map.put("from", from)
+            |> Map.put("url", redact_de_company_register_token(url))
+
+          pages = pages ++ [page]
+          total_pages = de_company_register_total_pages(page, page_number)
+
+          if page_number >= total_pages or Map.get(page, "records_seen", 0) == 0 do
+            {:halt, {:ok, pages}}
+          else
+            {:cont, {:ok, pages}}
+          end
+
+        {:error, reason} ->
+          {:halt, {:error, reason}}
+      end
+    end)
+  end
+
+  defp fetch_de_company_register_search_page(source, url, cookie) do
+    case Http.fetch(url,
+           timeout: source_live_timeout(source),
+           headers: source_live_headers(source) |> add_cookie_header(cookie)
+         ) do
+      {:ok, %{status_code: status_code} = response} when status_code in 200..299 ->
+        cond do
+          not html_content_type?(response.headers) ->
+            {:error,
+             {:de_company_register_search_unsupported_content_type,
+              content_type(response.headers)}}
+
+          true ->
+            with {:ok, payload} <- de_company_register_extract_search_payload(response.body) do
+              rows = Map.get(payload, "rows", [])
+
+              {:ok,
+               %{
+                 "status_code" => response.status_code,
+                 "bytes" => response.bytes,
+                 "records_seen" => length(rows),
+                 "current_page" => Map.get(payload, "current_page"),
+                 "total_pages" => Map.get(payload, "total_pages"),
+                 "total_results" => Map.get(payload, "total_results"),
+                 "has_reached_results_limit" => Map.get(payload, "has_reached_results_limit"),
+                 "is_restricted_search" => Map.get(payload, "is_restricted_search"),
+                 "data" => rows
+               }}
+            end
+        end
+
+      {:ok, response} ->
+        {:error, {:de_company_register_search_unexpected_status, response.status_code}}
+
+      {:error, reason} ->
+        {:error, {:de_company_register_search_fetch_failed, reason}}
+    end
+  end
+
+  defp de_company_register_extract_search_payload(html) when is_binary(html) do
+    with {:ok, escaped_payload} <- de_company_register_escaped_search_results(html),
+         {:ok, json_text} <- Jason.decode("\"" <> escaped_payload <> "\""),
+         {:ok, decoded} <- Jason.decode(json_text),
+         %{"searchResults" => search_results} when is_map(search_results) <- decoded,
+         entries when is_list(entries) <- Map.get(search_results, "elasticSearchDtos") do
+      rows =
+        entries
+        |> Enum.map(&Map.get(&1, "publicationDto"))
+        |> Enum.reject(&is_nil/1)
+
+      {:ok,
+       %{
+         "rows" => rows,
+         "current_page" => Map.get(search_results, "currentPage"),
+         "total_pages" => Map.get(search_results, "totalPages"),
+         "total_results" => get_in(search_results, ["drilldown", "totalResults"]),
+         "has_reached_results_limit" => Map.get(search_results, "hasReachedResultsLimit"),
+         "is_restricted_search" => Map.get(search_results, "isRestrictedSearch")
+       }}
+    else
+      {:error, reason} -> {:error, {:de_company_register_search_invalid_payload, reason}}
+      _ -> {:error, :de_company_register_search_unexpected_payload}
+    end
+  end
+
+  defp de_company_register_escaped_search_results(html) do
+    marker = "\\\"searchResults\\\":"
+    suffix = ",\\\"formType\\\":\\\"CAPITAL_MARKET\\\"}"
+
+    with {start, _length} <- :binary.match(html, marker),
+         rest <- binary_part(html, start, byte_size(html) - start),
+         {end_offset, suffix_length} <- :binary.match(rest, suffix) do
+      {:ok, "{" <> binary_part(rest, 0, end_offset + suffix_length)}
+    else
+      :nomatch -> {:error, :missing_search_results_marker}
+    end
+  end
+
+  defp de_company_register_support_page?(body) when is_binary(body) do
+    body =~ "Company Register" and
+      (body =~ "capital-market" or body =~ "CAPITAL_MARKET" or body =~ "issuer")
+  end
+
+  defp de_company_register_support_page?(_body), do: false
+
+  defp de_company_register_search_url(source, token, from) do
+    source
+    |> source_config_value(
+      "search_url_template",
+      :search_url_template,
+      @de_company_register_search_url_template
+    )
+    |> to_string()
+    |> String.replace("{token}", URI.encode_www_form(token))
+    |> String.replace("{searchToken}", URI.encode_www_form(token))
+    |> String.replace("{source_date_from}", de_company_register_source_date_from(source))
+    |> String.replace("{source_date_to}", de_company_register_source_date_to(source))
+    |> String.replace("{from}", to_string(from))
+  end
+
+  defp de_company_register_source_date_from(source) do
+    source_config_value(
+      source,
+      "source_date_from",
+      :source_date_from,
+      Date.utc_today() |> Date.add(-1) |> Date.to_iso8601()
+    )
+    |> to_string()
+  end
+
+  defp de_company_register_source_date_to(source) do
+    source_config_value(
+      source,
+      "source_date_to",
+      :source_date_to,
+      Date.utc_today() |> Date.to_iso8601()
+    )
+    |> to_string()
+  end
+
+  defp de_company_register_page_size(source) do
+    source_config_positive_integer(source, "page_size", :page_size, 30)
+  end
+
+  defp de_company_register_max_pages_per_poll(source) do
+    source_config_positive_integer(source, "max_pages_per_poll", :max_pages_per_poll, 1)
+  end
+
+  defp de_company_register_first_meta([page | _pages], key), do: Map.get(page, key)
+  defp de_company_register_first_meta(_pages, _key), do: nil
+
+  defp de_company_register_total_pages(page, default) do
+    case Map.get(page, "total_pages") do
+      value when is_integer(value) and value > 0 -> value
+      _ -> default
+    end
+  end
+
+  defp de_company_register_records_seen(pages) do
+    Enum.reduce(pages, 0, fn page, count -> count + (Map.get(page, "records_seen") || 0) end)
+  end
+
+  defp de_company_register_over_page_cap?(pages, max_pages) do
+    case de_company_register_first_meta(pages, "total_pages") do
+      total_pages when is_integer(total_pages) -> total_pages > max_pages
+      _ -> false
+    end
+  end
+
+  defp redact_de_company_register_token(url) do
+    String.replace(url, ~r/searchToken=[^&]+/, "searchToken=<redacted>")
+  end
+
+  defp response_cookie_header(headers) do
+    headers
+    |> Enum.filter(fn {key, _value} -> String.downcase(to_string(key)) == "set-cookie" end)
+    |> Enum.map(fn {_key, value} ->
+      value
+      |> to_string()
+      |> String.split(";", parts: 2)
+      |> List.first()
+      |> String.trim()
+    end)
+    |> Enum.reject(&(&1 == ""))
+    |> case do
+      [] -> nil
+      cookies -> Enum.join(cookies, "; ")
+    end
+  end
+
+  defp merge_cookie_headers(nil, nil), do: nil
+  defp merge_cookie_headers(cookie, nil), do: cookie
+  defp merge_cookie_headers(nil, cookie), do: cookie
+
+  defp merge_cookie_headers(first_cookie, second_cookie) do
+    [first_cookie, second_cookie]
+    |> Enum.join("; ")
+    |> String.split("; ")
+    |> Enum.uniq()
+    |> Enum.join("; ")
+  end
+
+  defp add_cookie_header(headers, nil), do: headers
+
+  defp add_cookie_header(headers, cookie) do
+    headers
+    |> Enum.reject(fn {key, _value} -> String.downcase(to_string(key)) == "cookie" end)
+    |> Kernel.++([{~c"cookie", String.to_charlist(cookie)}])
+  end
+
+  defp fetch_blse_issuer_universe(source) do
+    url =
+      source
+      |> source_config_value("blse_ticker_url", :blse_ticker_url, @blse_ticker_url)
+      |> to_string()
+
+    case Http.fetch(url,
+           timeout: source_live_timeout(source),
+           headers: source_live_headers(source)
+         ) do
+      {:ok, %{status_code: status_code} = response} when status_code in 200..299 ->
+        cond do
+          not xml_content_type?(response.headers) ->
+            {:error, {:blse_ticker_unsupported_content_type, content_type(response.headers)}}
+
+          true ->
+            case blse_issuer_universe(response.body) do
+              [] -> {:error, :blse_empty_issuer_universe}
+              universe -> {:ok, response, universe}
+            end
+        end
+
+      {:ok, response} ->
+        {:error, {:blse_ticker_unexpected_status, response.status_code}}
+
+      {:error, reason} ->
+        {:error, {:blse_ticker_fetch_failed, reason}}
+    end
+  end
+
+  defp blse_issuer_universe(body) when is_binary(body) do
+    ~r/<TickerItem>(.*?)<\/TickerItem>/s
+    |> Regex.scan(body, capture: :all_but_first)
+    |> Enum.map(fn [row] ->
+      code = blse_xml_tag(row, "Code")
+      issuer = blse_xml_tag(row, "Issuer")
+      url = blse_xml_tag(row, "Url")
+
+      %{
+        "code" => blse_security_code(code, url),
+        "issuer" => issuer,
+        "ticker_url" => url
+      }
+    end)
+    |> Enum.filter(&blse_listed_equity_universe_entry?/1)
+    |> Enum.uniq_by(& &1["code"])
+  end
+
+  defp blse_issuer_universe(_body), do: []
+
+  defp blse_xml_tag(row, tag) do
+    case Regex.run(~r/<#{tag}>(.*?)<\/#{tag}>/s, row, capture: :all_but_first) do
+      [value] ->
+        value
+        |> String.replace("&amp;", "&")
+        |> String.trim()
+
+      _ ->
+        nil
+    end
+  end
+
+  defp blse_security_code(code, url) do
+    cond do
+      is_binary(url) ->
+        case Regex.run(~r/[?&]code=([^&]+)/i, url, capture: :all_but_first) do
+          [url_code] -> URI.decode_www_form(url_code)
+          _ -> code
+        end
+
+      true ->
+        code
+    end
+  end
+
+  defp blse_listed_equity_universe_entry?(%{"code" => code, "issuer" => issuer})
+       when is_binary(code) and is_binary(issuer) do
+    String.ends_with?(code, "-R-A")
+  end
+
+  defp blse_listed_equity_universe_entry?(_entry), do: false
+
+  defp blse_issuer_window(source, universe) do
+    universe_count = length(universe)
+    window_size = min(blse_max_issuers_per_poll(source), universe_count)
+    offset = blse_issuer_window_offset(source, universe_count)
+
+    %{
+      strategy: blse_issuer_window_strategy(source),
+      offset: offset,
+      size: window_size,
+      universe_count: universe_count,
+      selected_universe: blse_take_issuer_window(universe, offset, window_size)
+    }
+  end
+
+  defp blse_issuer_window_payload(issuer_window) do
+    %{
+      "strategy" => issuer_window.strategy,
+      "offset" => issuer_window.offset,
+      "size" => issuer_window.size,
+      "universe_count" => issuer_window.universe_count
+    }
+  end
+
+  defp blse_issuer_window_strategy(source) do
+    source_config_value(
+      source,
+      "blse_issuer_window_strategy",
+      :blse_issuer_window_strategy,
+      "static_offset"
+    )
+  end
+
+  defp blse_issuer_window_offset(_source, 0), do: 0
+
+  defp blse_issuer_window_offset(source, universe_count) do
+    source
+    |> source_config_non_negative_integer(
+      "blse_issuer_window_offset",
+      :blse_issuer_window_offset,
+      0
+    )
+    |> rem(universe_count)
+  end
+
+  defp blse_take_issuer_window(_universe, _offset, 0), do: []
+
+  defp blse_take_issuer_window(universe, offset, window_size) do
+    universe
+    |> Enum.drop(offset)
+    |> Kernel.++(Enum.take(universe, offset))
+    |> Enum.take(window_size)
+  end
+
+  defp blse_max_issuers_per_poll(source) do
+    source_config_positive_integer(source, "max_issuers_per_poll", :max_issuers_per_poll, 5)
+  end
+
+  defp fetch_blse_issuer_news_responses(source, selected_universe) do
+    selected_universe
+    |> Enum.reduce_while({:ok, []}, fn %{"code" => code} = universe_entry, {:ok, responses} ->
+      url = blse_issuer_news_url(source, code)
+
+      case Http.fetch(url,
+             timeout: source_live_timeout(source),
+             headers: source_live_headers(source)
+           ) do
+        {:ok, %{status_code: status_code} = response}
+        when status_code in 200..299 ->
+          cond do
+            not xml_content_type?(response.headers) ->
+              {:halt,
+               {:error,
+                {:blse_issuer_news_unsupported_content_type, code, content_type(response.headers)}}}
+
+            not blse_issuer_news_payload?(response.body) ->
+              {:halt, {:error, {:blse_issuer_news_unexpected_payload, code}}}
+
+            true ->
+              records_seen = blse_rss_item_count(response.body)
+
+              {:cont,
+               {:ok,
+                responses ++
+                  [
+                    %{
+                      "code" => code,
+                      "issuer" => Map.get(universe_entry, "issuer"),
+                      "url" => url,
+                      "status_code" => status_code,
+                      "bytes" => response.bytes,
+                      "records_seen" => records_seen,
+                      "records_kept" => min(records_seen, blse_max_news_items_per_issuer(source)),
+                      "data" => response.body
+                    }
+                  ]}}
+          end
+
+        {:ok, response} ->
+          {:halt, {:error, {:blse_issuer_news_unexpected_status, code, response.status_code}}}
+
+        {:error, reason} ->
+          {:halt, {:error, {:blse_issuer_news_fetch_failed, code, reason}}}
+      end
+    end)
+  end
+
+  defp blse_issuer_news_url(source, code) do
+    source
+    |> source_config_value(
+      "blse_issuer_news_url_template",
+      :blse_issuer_news_url_template,
+      @blse_issuer_news_url_template
+    )
+    |> to_string()
+    |> String.replace("{code}", URI.encode_www_form(code))
+    |> String.replace("<CODE>", URI.encode_www_form(code))
+  end
+
+  defp blse_max_news_items_per_issuer(source) do
+    source_config_positive_integer(
+      source,
+      "max_news_items_per_issuer",
+      :max_news_items_per_issuer,
+      5
+    )
+  end
+
+  defp blse_response_records_seen(responses) do
+    Enum.reduce(responses, 0, fn response, count ->
+      count + (Map.get(response, "records_seen") || 0)
+    end)
+  end
+
+  defp blse_rss_item_count(body) when is_binary(body) do
+    Regex.scan(~r/<item>/i, body) |> length()
+  end
+
+  defp blse_rss_item_count(_body), do: 0
+
+  defp tw_mops_daily_material_info_records_seen(body) when is_binary(body) do
+    with {:ok, decoded} <- body |> trim_utf8_bom() |> Jason.decode(),
+         rows <- tw_mops_daily_material_info_records_seen_rows(decoded),
+         true <- is_list(rows) do
+      length(rows)
+    else
+      _ -> 0
+    end
+  end
+
+  defp tw_mops_daily_material_info_records_seen(_body), do: 0
+
+  defp tw_mops_daily_material_info_records_seen_rows(%{"result" => %{"data" => rows}})
+       when is_list(rows),
+       do: rows
+
+  defp tw_mops_daily_material_info_records_seen_rows(rows) when is_list(rows), do: rows
+  defp tw_mops_daily_material_info_records_seen_rows(_decoded), do: nil
+
+  defp tw_mops_openapi_source?(%SourceRegistry{base_url: base_url}) when is_binary(base_url) do
+    String.contains?(base_url, "openapi.twse.com.tw")
+  end
+
+  defp tw_mops_openapi_source?(_source), do: false
+
+  defp set_thailand_company_news_records_seen(body) when is_binary(body) do
+    with {:ok, decoded} <- body |> trim_utf8_bom() |> Jason.decode() do
+      decoded
+      |> set_thailand_company_news_live_records()
+      |> length()
+    else
+      _ -> 0
+    end
+  end
+
+  defp set_thailand_company_news_records_seen(_body), do: 0
+
+  defp set_thailand_company_news_live_records(%{} = decoded) do
+    group_records =
+      decoded
+      |> Map.get("newsGroups", [])
+      |> case do
+        groups when is_list(groups) ->
+          groups
+          |> Enum.flat_map(fn
+            %{"newsInfoList" => records} when is_list(records) -> records
+            _group -> []
+          end)
+          |> Enum.filter(&is_map/1)
+
+        _groups ->
+          []
+      end
+
+    paginated_records =
+      decoded
+      |> get_in(["paginateNews", "newsInfoList"])
+      |> case do
+        records when is_list(records) -> Enum.filter(records, &is_map/1)
+        _records -> []
+      end
+
+    group_records ++ paginated_records
+  end
+
+  defp set_thailand_query_date(source) do
+    case source_config_value(source, "live_query_date", :live_query_date, nil) do
+      value when is_binary(value) ->
+        case Date.from_iso8601(value) do
+          {:ok, date} -> date
+          _ -> thailand_today()
+        end
+
+      _value ->
+        thailand_today()
+    end
+  end
+
+  defp thailand_today do
+    DateTime.utc_now()
+    |> DateTime.add(7 * 60 * 60, :second)
+    |> DateTime.to_date()
+  end
+
+  defp set_thailand_company_news_live_url(source, %Date{} = query_date) do
+    from_date =
+      source
+      |> set_thailand_query_window_days()
+      |> then(&Date.add(query_date, -1 * &1))
+
+    query =
+      URI.encode_query(%{
+        "sourceId" => "company",
+        "securityTypeIds" => "S",
+        "fromDate" => set_thailand_date_param(from_date),
+        "toDate" => set_thailand_date_param(query_date),
+        "orderBy" => "date",
+        "lang" => "en"
+      })
+
+    @set_thailand_base_url <> "/api/cms/v1/news/set?" <> query
+  end
+
+  defp set_thailand_query_window_days(source) do
+    source_config_non_negative_integer(
+      source,
+      "live_query_window_days",
+      :live_query_window_days,
+      1
+    )
+  end
+
+  defp set_thailand_date_param(%Date{} = date) do
+    [set_thailand_pad2(date.day), set_thailand_pad2(date.month), date.year]
+    |> Enum.join("/")
+  end
+
+  defp set_thailand_pad2(value) when is_integer(value) and value < 10, do: "0#{value}"
+  defp set_thailand_pad2(value), do: to_string(value)
+
+  defp tdnet_public_list_records_seen(body) when is_binary(body) do
+    Regex.scan(~r/<td[^>]*\bkjTime\b[^>]*>/u, body) |> length()
+  end
+
+  defp tdnet_public_list_records_seen(_body), do: 0
+
+  defp tw_mops_query_date(source) do
+    case source_config_value(source, "live_query_date", :live_query_date, nil) do
+      value when is_binary(value) ->
+        case Date.from_iso8601(value) do
+          {:ok, date} -> date
+          _ -> taiwan_today()
+        end
+
+      _value ->
+        taiwan_today()
+    end
+  end
+
+  defp taiwan_today do
+    DateTime.utc_now()
+    |> DateTime.add(8 * 60 * 60, :second)
+    |> DateTime.to_date()
+  end
+
+  defp tw_mops_daily_material_info_request_body(%Date{} = date) do
+    %{
+      "year" => to_string(date.year - 1911),
+      "month" => to_string(date.month),
+      "day" => to_string(date.day)
+    }
+  end
+
+  defp blse_issuer_news_payload?(body) when is_binary(body) do
+    body =~ "<rss" and body =~ "<channel>"
+  end
+
+  defp blse_issuer_news_payload?(_body), do: false
+
+  defp sase_selected_issuer_codes(source) do
+    source
+    |> source_config_string_list(
+      "sase_issuer_codes",
+      :sase_issuer_codes,
+      ["BHTS", "JPES", "BSNL", "ASA", "ALUM"]
+    )
+    |> Enum.take(sase_max_issuers_per_poll(source))
+  end
+
+  defp sase_max_issuers_per_poll(source) do
+    source_config_positive_integer(source, "max_issuers_per_poll", :max_issuers_per_poll, 5)
+  end
+
+  defp fetch_sase_issuer_announcement_responses(source, selected_codes) do
+    selected_codes
+    |> Enum.reduce_while({:ok, []}, fn issuer_code, {:ok, responses} ->
+      body = sase_issuer_announcement_body(source, issuer_code)
+
+      case Http.fetch(source.base_url,
+             timeout: source_live_timeout(source),
+             headers: source_live_headers(source),
+             method: :post,
+             body: body,
+             content_type: "application/x-www-form-urlencoded; charset=UTF-8"
+           ) do
+        {:ok, %{status_code: status_code} = response}
+        when status_code in 200..299 ->
+          if sase_issuer_announcements_payload?(response.body) do
+            records_seen = sase_announcement_count(response.body)
+
+            {:cont,
+             {:ok,
+              responses ++
+                [
+                  %{
+                    "issuer_code" => issuer_code,
+                    "issuer" => sase_known_issuer_name(source, issuer_code),
+                    "url" => source.base_url,
+                    "status_code" => status_code,
+                    "bytes" => response.bytes,
+                    "records_seen" => records_seen,
+                    "records_kept" => min(records_seen, sase_max_items_per_issuer(source)),
+                    "data" => response.body
+                  }
+                ]}}
+          else
+            {:halt, {:error, {:sase_issuer_announcements_unexpected_payload, issuer_code}}}
+          end
+
+        {:ok, response} ->
+          {:halt,
+           {:error,
+            {:sase_issuer_announcements_unexpected_status, issuer_code, response.status_code}}}
+
+        {:error, reason} ->
+          {:halt, {:error, {:sase_issuer_announcements_fetch_failed, issuer_code, reason}}}
+      end
+    end)
+  end
+
+  defp sase_issuer_announcement_body(source, issuer_code) do
+    URI.encode_query(%{
+      "id" => "0",
+      "type" => "24",
+      "dateFrom" => "",
+      "dateTo" => "",
+      "cssClass" => "",
+      "symbol" => issuer_code,
+      "Months" => "0",
+      "lng" => sase_language_id(source),
+      "start" => "0",
+      "end" => Integer.to_string(sase_max_items_per_issuer(source))
+    })
+  end
+
+  defp sase_language_id(source),
+    do: source_config_value(source, "sase_language_id", :sase_language_id, "1")
+
+  defp sase_max_items_per_issuer(source) do
+    source_config_positive_integer(source, "max_items_per_issuer", :max_items_per_issuer, 5)
+  end
+
+  defp sase_known_issuer_name(source, issuer_code) do
+    known_issuers =
+      source
+      |> source_config_value("sase_known_issuers", :sase_known_issuers, %{})
+      |> case do
+        value when is_map(value) -> value
+        _ -> %{}
+      end
+
+    Map.get(known_issuers, issuer_code)
+  end
+
+  defp sase_response_records_seen(responses) do
+    Enum.reduce(responses, 0, fn response, count ->
+      count + (Map.get(response, "records_seen") || 0)
+    end)
+  end
+
+  defp sase_announcement_count(body) when is_binary(body) do
+    Regex.scan(~r/<ANNOUNCEMENT>/i, body) |> length()
+  end
+
+  defp sase_announcement_count(_body), do: 0
+
+  defp sase_issuer_announcements_payload?(body) when is_binary(body) do
+    body =~ "<ANNOUNCEMENTS" and (body =~ "<ANNOUNCEMENT>" or body =~ "<ANNOUNCEMENTS />")
+  end
+
+  defp sase_issuer_announcements_payload?(_body), do: false
+
+  defp fetch_pse_issuer_universe_pages(source) do
+    source
+    |> source_config_string_list(
+      "pse_issuer_universe_urls",
+      :pse_issuer_universe_urls,
+      @pse_default_issuer_universe_urls
+    )
+    |> Enum.reduce_while({:ok, []}, fn url, {:ok, pages} ->
+      case Http.fetch(url,
+             timeout: source_live_timeout(source),
+             headers: source_live_headers(source)
+           ) do
+        {:ok, %{status_code: status_code} = response}
+        when status_code in 200..299 ->
+          if html_content_type?(response.headers) do
+            {:cont,
+             {:ok,
+              pages ++
+                [
+                  %{
+                    url: url,
+                    market: pse_market_from_url(url),
+                    body: response.body,
+                    bytes: response.bytes
+                  }
+                ]}}
+          else
+            {:halt,
+             {:error,
+              {:pse_universe_unsupported_content_type, url, content_type(response.headers)}}}
+          end
+
+        {:ok, response} ->
+          {:halt, {:error, {:pse_universe_unexpected_status, url, response.status_code}}}
+
+        {:error, reason} ->
+          {:halt, {:error, {:pse_universe_fetch_failed, url, reason}}}
+      end
+    end)
+  end
+
+  defp pse_issuer_universe(pages) when is_list(pages) do
+    universe =
+      pages
+      |> Enum.flat_map(&pse_issuer_universe_entries/1)
+      |> Enum.uniq_by(& &1["isin"])
+
+    case universe do
+      [] -> {:error, :pse_empty_issuer_universe}
+      entries -> {:ok, entries}
+    end
+  end
+
+  defp pse_issuer_universe_entries(%{url: url, market: market, body: body}) do
+    ~r/\/en\/detail\/([A-Z0-9]{12})/
+    |> Regex.scan(body, capture: :all_but_first)
+    |> Enum.map(fn [isin] ->
+      %{
+        "market" => market,
+        "isin" => isin,
+        "detail_url" => "https://www.pse.cz/en/detail/" <> isin,
+        "source_url" => url
+      }
+    end)
+  end
+
+  defp pse_market_from_url(url) do
+    url
+    |> URI.parse()
+    |> Map.get(:path, "")
+    |> String.split("/", trim: true)
+    |> List.last()
+    |> case do
+      nil -> "unknown"
+      "" -> "unknown"
+      market -> market
+    end
+  end
+
+  defp fetch_pse_issuer_news_responses(source, selected_universe) do
+    selected_universe
+    |> Enum.reduce_while({:ok, []}, fn %{"isin" => isin} = universe_entry, {:ok, responses} ->
+      url = pse_issuer_news_url(source, isin)
+
+      case Http.fetch(url,
+             timeout: source_live_timeout(source),
+             headers: source_live_headers(source)
+           ) do
+        {:ok, %{status_code: status_code} = response}
+        when status_code in 200..299 ->
+          with true <- json_content_type?(response.headers),
+               {:ok, decoded} <- Jason.decode(response.body),
+               data when is_list(data) <- Map.get(decoded, "data") do
+            limited_data = Enum.take(data, pse_max_news_items_per_issuer(source))
+
+            {:cont,
+             {:ok,
+              responses ++
+                [
+                  %{
+                    "isin" => isin,
+                    "market" => Map.get(universe_entry, "market"),
+                    "url" => url,
+                    "status_code" => status_code,
+                    "bytes" => response.bytes,
+                    "records_seen" => length(data),
+                    "records_kept" => length(limited_data),
+                    "data" => limited_data
+                  }
+                ]}}
+          else
+            false ->
+              {:halt,
+               {:error,
+                {:pse_news_unsupported_content_type, isin, content_type(response.headers)}}}
+
+            {:error, reason} ->
+              {:halt, {:error, {:pse_news_invalid_json, isin, reason}}}
+
+            _shape ->
+              {:halt, {:error, {:pse_news_unexpected_json_shape, isin}}}
+          end
+
+        {:ok, response} ->
+          {:halt, {:error, {:pse_news_unexpected_status, isin, response.status_code}}}
+
+        {:error, reason} ->
+          {:halt, {:error, {:pse_news_fetch_failed, isin, reason}}}
+      end
+    end)
+  end
+
+  defp fetch_pse_issuer_calendar_responses(source, selected_universe) do
+    selected_universe
+    |> Enum.reduce_while({:ok, []}, fn %{"isin" => isin} = universe_entry, {:ok, responses} ->
+      url = pse_issuer_calendar_url(source, isin)
+
+      case Http.fetch(url,
+             timeout: source_live_timeout(source),
+             headers: source_live_headers(source)
+           ) do
+        {:ok, %{status_code: status_code} = response}
+        when status_code in 200..299 ->
+          with true <- json_content_type?(response.headers),
+               {:ok, decoded} <- Jason.decode(response.body),
+               %{"data" => data} when is_list(data) <- Map.get(decoded, "result") do
+            limited_data = Enum.take(data, pse_max_calendar_items_per_issuer(source))
+
+            {:cont,
+             {:ok,
+              responses ++
+                [
+                  %{
+                    "isin" => isin,
+                    "market" => Map.get(universe_entry, "market"),
+                    "url" => url,
+                    "status_code" => status_code,
+                    "bytes" => response.bytes,
+                    "records_seen" => length(data),
+                    "records_kept" => length(limited_data),
+                    "data" => limited_data
+                  }
+                ]}}
+          else
+            false ->
+              {:halt,
+               {:error,
+                {:pse_calendar_unsupported_content_type, isin, content_type(response.headers)}}}
+
+            {:error, reason} ->
+              {:halt, {:error, {:pse_calendar_invalid_json, isin, reason}}}
+
+            _shape ->
+              {:halt, {:error, {:pse_calendar_unexpected_json_shape, isin}}}
+          end
+
+        {:ok, response} ->
+          {:halt, {:error, {:pse_calendar_unexpected_status, isin, response.status_code}}}
+
+        {:error, reason} ->
+          {:halt, {:error, {:pse_calendar_fetch_failed, isin, reason}}}
+      end
+    end)
+  end
+
+  defp pse_issuer_news_url(source, isin) do
+    source
+    |> source_config_value(
+      "pse_news_url_template",
+      :pse_news_url_template,
+      @pse_news_url_template
+    )
+    |> to_string()
+    |> String.replace("{isin}", URI.encode(isin))
+    |> String.replace("<ISIN>", URI.encode(isin))
+  end
+
+  defp pse_issuer_calendar_url(source, isin) do
+    source
+    |> source_config_value(
+      "pse_calendar_url_template",
+      :pse_calendar_url_template,
+      @pse_calendar_url_template
+    )
+    |> to_string()
+    |> String.replace("{isin}", URI.encode(isin))
+    |> String.replace("<ISIN>", URI.encode(isin))
+  end
+
+  defp pse_max_issuers_per_poll(source) do
+    source_config_positive_integer(source, "max_issuers_per_poll", :max_issuers_per_poll, 10)
+  end
+
+  defp pse_issuer_window(source, universe) do
+    universe_count = length(universe)
+    window_size = min(pse_max_issuers_per_poll(source), universe_count)
+    offset = pse_issuer_window_offset(source, universe_count)
+
+    %{
+      strategy: pse_issuer_window_strategy(source),
+      offset: offset,
+      size: window_size,
+      universe_count: universe_count,
+      selected_universe: pse_take_issuer_window(universe, offset, window_size)
+    }
+  end
+
+  defp pse_issuer_window_payload(issuer_window) do
+    %{
+      "strategy" => issuer_window.strategy,
+      "offset" => issuer_window.offset,
+      "size" => issuer_window.size,
+      "universe_count" => issuer_window.universe_count
+    }
+  end
+
+  defp pse_issuer_window_strategy(source) do
+    source_config_value(
+      source,
+      "pse_issuer_window_strategy",
+      :pse_issuer_window_strategy,
+      "static_offset"
+    )
+  end
+
+  defp pse_issuer_window_offset(_source, 0), do: 0
+
+  defp pse_issuer_window_offset(source, universe_count) do
+    source
+    |> source_config_non_negative_integer(
+      "pse_issuer_window_offset",
+      :pse_issuer_window_offset,
+      0
+    )
+    |> rem(universe_count)
+  end
+
+  defp pse_take_issuer_window(_universe, _offset, 0), do: []
+
+  defp pse_take_issuer_window(universe, offset, window_size) do
+    universe
+    |> Enum.drop(offset)
+    |> Kernel.++(Enum.take(universe, offset))
+    |> Enum.take(window_size)
+  end
+
+  defp pse_max_news_items_per_issuer(source) do
+    source_config_positive_integer(
+      source,
+      "max_news_items_per_issuer",
+      :max_news_items_per_issuer,
+      5
+    )
+  end
+
+  defp pse_max_calendar_items_per_issuer(source) do
+    source_config_positive_integer(
+      source,
+      "max_calendar_items_per_issuer",
+      :max_calendar_items_per_issuer,
+      8
+    )
+  end
+
+  defp tdnet_public_list_url(source) do
+    source
+    |> source_config_value(
+      "list_url_template",
+      :list_url_template,
+      @tdnet_public_list_url_template
+    )
+    |> String.replace("{date}", tdnet_public_query_date(source) |> Calendar.strftime("%Y%m%d"))
+  end
+
+  defp tdnet_public_query_date(source) do
+    case source_config_value(source, "query_date", :query_date, nil) do
+      value when is_binary(value) ->
+        case Date.from_iso8601(value) do
+          {:ok, date} -> date
+          {:error, _reason} -> tdnet_public_today_jst()
+        end
+
+      _value ->
+        tdnet_public_today_jst()
+    end
+  end
+
+  defp tdnet_public_today_jst do
+    DateTime.utc_now()
+    |> DateTime.add(9 * 60 * 60, :second)
+    |> DateTime.to_date()
+  end
+
+  defp disable_live_fixture_fallback?(source) do
+    source_config_boolean(
+      source,
+      "disable_live_fixture_fallback",
+      :disable_live_fixture_fallback,
+      false
+    )
+  end
+
+  defp source_config_value(%SourceRegistry{config: config}, string_key, atom_key, default)
+       when is_map(config) do
+    Map.get(config, string_key) || Map.get(config, atom_key) || default
+  end
+
+  defp source_config_value(_source, _string_key, _atom_key, default), do: default
+
+  defp source_config_string_list(source, string_key, atom_key, default) do
+    case source_config_value(source, string_key, atom_key, default) do
+      values when is_list(values) ->
+        values
+        |> Enum.filter(&is_binary/1)
+        |> case do
+          [] -> default
+          filtered -> filtered
+        end
+
+      value when is_binary(value) ->
+        [value]
+
+      _value ->
+        default
+    end
+  end
+
+  defp source_config_positive_integer(source, string_key, atom_key, default) do
+    source
+    |> source_config_value(string_key, atom_key, default)
+    |> case do
+      value when is_integer(value) and value > 0 -> value
+      value when is_binary(value) -> parse_positive_integer(value, default)
+      _value -> default
+    end
+  end
+
+  defp source_config_non_negative_integer(source, string_key, atom_key, default) do
+    source
+    |> source_config_value(string_key, atom_key, default)
+    |> case do
+      value when is_integer(value) and value >= 0 -> value
+      value when is_binary(value) -> parse_non_negative_integer(value, default)
+      _value -> default
+    end
+  end
+
+  defp parse_positive_integer(value, default) do
+    case Integer.parse(value) do
+      {parsed, ""} when parsed > 0 -> parsed
+      _ -> default
+    end
+  end
+
+  defp parse_non_negative_integer(value, default) do
+    case Integer.parse(value) do
+      {parsed, ""} when parsed >= 0 -> parsed
+      _ -> default
+    end
+  end
+
+  defp source_config_boolean(source, string_key, atom_key, default) do
+    case source_config_value(source, string_key, atom_key, default) do
+      value when is_boolean(value) -> value
+      value when is_binary(value) -> String.downcase(value) == "true"
+      _value -> default
+    end
+  end
+
+  defp validate_live_payload(%SourceRegistry{parser_key: parser_key}, response)
+       when parser_key in ["rss_v1", "euronext_company_pr_rss_v1"] do
+    cond do
+      html_content_type?(response.headers) ->
+        {:error, {:unsupported_live_content_type, parser_key, content_type(response.headers)}}
+
+      html_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, parser_key, :html}}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_live_payload(%SourceRegistry{parser_key: "info_financiere_oam_v1"}, response) do
+    cond do
+      html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "info_financiere_oam_v1",
+          content_type(response.headers)}}
+
+      html_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "info_financiere_oam_v1", :html}}
+
+      not json_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "info_financiere_oam_v1",
+          content_type(response.headers)}}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_live_payload(
+         %SourceRegistry{parser_key: "afm_financial_reporting_csv_v1"},
+         response
+       ) do
+    cond do
+      html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "afm_financial_reporting_csv_v1",
+          content_type(response.headers)}}
+
+      html_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "afm_financial_reporting_csv_v1", :html}}
+
+      not afm_reporting_csv_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "afm_financial_reporting_csv_v1", :unexpected_csv}}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_live_payload(%SourceRegistry{parser_key: "emarket_storage_html_v1"}, response) do
+    cond do
+      not html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "emarket_storage_html_v1",
+          content_type(response.headers)}}
+
+      not emarket_storage_html_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "emarket_storage_html_v1", :unexpected_html}}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_live_payload(%SourceRegistry{parser_key: "luxse_oam_graphql_v1"}, response) do
+    cond do
+      html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "luxse_oam_graphql_v1", content_type(response.headers)}}
+
+      html_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "luxse_oam_graphql_v1", :html}}
+
+      not json_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "luxse_oam_graphql_v1", content_type(response.headers)}}
+
+      not luxse_oam_graphql_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "luxse_oam_graphql_v1", :unexpected_json}}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_live_payload(%SourceRegistry{parser_key: "fsma_stori_api_v1"}, response) do
+    cond do
+      html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "fsma_stori_api_v1", content_type(response.headers)}}
+
+      html_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "fsma_stori_api_v1", :html}}
+
+      not json_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "fsma_stori_api_v1", content_type(response.headers)}}
+
+      not fsma_stori_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "fsma_stori_api_v1", :unexpected_json}}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_live_payload(%SourceRegistry{parser_key: "fca_nsm_search_api_v1"}, response) do
+    cond do
+      html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "fca_nsm_search_api_v1", content_type(response.headers)}}
+
+      html_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "fca_nsm_search_api_v1", :html}}
+
+      not json_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "fca_nsm_search_api_v1", content_type(response.headers)}}
+
+      not fca_nsm_search_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "fca_nsm_search_api_v1", :unexpected_json}}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_live_payload(
+         %SourceRegistry{parser_key: "cmvm_portal_info_privi_json_v1"},
+         response
+       ) do
+    cond do
+      html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "cmvm_portal_info_privi_json_v1",
+          content_type(response.headers)}}
+
+      html_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "cmvm_portal_info_privi_json_v1", :html}}
+
+      not json_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "cmvm_portal_info_privi_json_v1",
+          content_type(response.headers)}}
+
+      not cmvm_portal_info_privi_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "cmvm_portal_info_privi_json_v1", :unexpected_json}}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_live_payload(
+         %SourceRegistry{parser_key: "oekb_oam_issuer_info_json_v1"},
+         response
+       ) do
+    cond do
+      html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "oekb_oam_issuer_info_json_v1",
+          content_type(response.headers)}}
+
+      html_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "oekb_oam_issuer_info_json_v1", :html}}
+
+      not json_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "oekb_oam_issuer_info_json_v1",
+          content_type(response.headers)}}
+
+      not oekb_oam_issuer_info_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "oekb_oam_issuer_info_json_v1", :unexpected_json}}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_live_payload(
+         %SourceRegistry{parser_key: "cse_oam_listing_versions_json_v1"},
+         response
+       ) do
+    cond do
+      html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "cse_oam_listing_versions_json_v1",
+          content_type(response.headers)}}
+
+      html_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "cse_oam_listing_versions_json_v1", :html}}
+
+      not json_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "cse_oam_listing_versions_json_v1",
+          content_type(response.headers)}}
+
+      not cse_oam_listing_versions_payload?(response.body) ->
+        {:error,
+         {:unsupported_live_payload, "cse_oam_listing_versions_json_v1", :unexpected_json}}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_live_payload(%SourceRegistry{parser_key: "nasdaq_nordic_cns_jsonp_v1"}, response) do
+    cond do
+      html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "nasdaq_nordic_cns_jsonp_v1",
+          content_type(response.headers)}}
+
+      html_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "nasdaq_nordic_cns_jsonp_v1", :html}}
+
+      not javascript_or_json_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "nasdaq_nordic_cns_jsonp_v1",
+          content_type(response.headers)}}
+
+      not nasdaq_nordic_cns_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "nasdaq_nordic_cns_jsonp_v1", :unexpected_jsonp}}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_live_payload(%SourceRegistry{parser_key: "oslo_newsweb_json_v1"}, response) do
+    cond do
+      html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "oslo_newsweb_json_v1", content_type(response.headers)}}
+
+      html_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "oslo_newsweb_json_v1", :html}}
+
+      not json_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "oslo_newsweb_json_v1", content_type(response.headers)}}
+
+      not oslo_newsweb_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "oslo_newsweb_json_v1", :unexpected_json}}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_live_payload(%SourceRegistry{parser_key: "gpw_espi_ebi_html_v1"}, response) do
+    cond do
+      not html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "gpw_espi_ebi_html_v1", content_type(response.headers)}}
+
+      not gpw_espi_ebi_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "gpw_espi_ebi_html_v1", :unexpected_html}}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_live_payload(%SourceRegistry{parser_key: "bse_issuers_news_html_v1"}, response) do
+    cond do
+      not html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "bse_issuers_news_html_v1",
+          content_type(response.headers)}}
+
+      not bse_issuers_news_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "bse_issuers_news_html_v1", :unexpected_html}}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_live_payload(%SourceRegistry{parser_key: "bvb_current_reports_html_v1"}, response) do
+    cond do
+      not html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "bvb_current_reports_html_v1",
+          content_type(response.headers)}}
+
+      not bvb_current_reports_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "bvb_current_reports_html_v1", :unexpected_html}}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_live_payload(
+         %SourceRegistry{parser_key: "ceri_regulated_information_html_v1"},
+         response
+       ) do
+    cond do
+      not html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "ceri_regulated_information_html_v1",
+          content_type(response.headers)}}
+
+      not ceri_regulated_information_payload?(response.body) ->
+        {:error,
+         {:unsupported_live_payload, "ceri_regulated_information_html_v1", :unexpected_html}}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_live_payload(
+         %SourceRegistry{parser_key: "ee_oam_market_announcements_html_v1"},
+         response
+       ) do
+    cond do
+      not html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "ee_oam_market_announcements_html_v1",
+          content_type(response.headers)}}
+
+      not ee_oam_market_announcements_payload?(response.body) ->
+        {:error,
+         {:unsupported_live_payload, "ee_oam_market_announcements_html_v1", :unexpected_html}}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_live_payload(
+         %SourceRegistry{parser_key: "lt_oam_regulated_information_html_v1"},
+         response
+       ) do
+    cond do
+      not html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "lt_oam_regulated_information_html_v1",
+          content_type(response.headers)}}
+
+      not lt_oam_regulated_information_payload?(response.body) ->
+        {:error,
+         {:unsupported_live_payload, "lt_oam_regulated_information_html_v1", :unexpected_html}}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_live_payload(
+         %SourceRegistry{parser_key: "lv_csri_regulated_information_html_v1"},
+         response
+       ) do
+    cond do
+      not html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "lv_csri_regulated_information_html_v1",
+          content_type(response.headers)}}
+
+      not lv_csri_regulated_information_payload?(response.body) ->
+        {:error,
+         {:unsupported_live_payload, "lv_csri_regulated_information_html_v1", :unexpected_html}}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_live_payload(
+         %SourceRegistry{parser_key: "wiener_borse_announcements_html_v1"},
+         response
+       ) do
+    cond do
+      not html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "wiener_borse_announcements_html_v1",
+          content_type(response.headers)}}
+
+      not wiener_borse_announcements_payload?(response.body) ->
+        {:error,
+         {:unsupported_live_payload, "wiener_borse_announcements_html_v1", :unexpected_html}}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_live_payload(%SourceRegistry{parser_key: "xetra_newsboard_html_v1"}, response) do
+    cond do
+      not html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "xetra_newsboard_html_v1",
+          content_type(response.headers)}}
+
+      not xetra_newsboard_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "xetra_newsboard_html_v1", :unexpected_html}}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_live_payload(
+         %SourceRegistry{parser_key: "malta_mse_announcements_html_v1"},
+         response
+       ) do
+    cond do
+      not html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "malta_mse_announcements_html_v1",
+          content_type(response.headers)}}
+
+      not malta_mse_announcements_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "malta_mse_announcements_html_v1", :unexpected_html}}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_live_payload(
+         %SourceRegistry{parser_key: "bg_x3news_issuer_disclosures_html_v1"},
+         response
+       ) do
+    cond do
+      not html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "bg_x3news_issuer_disclosures_html_v1",
+          content_type(response.headers)}}
+
+      not x3news_issuer_disclosures_payload?(response.body) ->
+        {:error,
+         {:unsupported_live_payload, "bg_x3news_issuer_disclosures_html_v1", :unexpected_html}}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_live_payload(
+         %SourceRegistry{parser_key: "kap_company_notifications_html_v1"},
+         response
+       ) do
+    cond do
+      not html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "kap_company_notifications_html_v1",
+          content_type(response.headers)}}
+
+      not kap_company_notifications_payload?(response.body) ->
+        {:error,
+         {:unsupported_live_payload, "kap_company_notifications_html_v1", :unexpected_html}}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_live_payload(
+         %SourceRegistry{parser_key: "mse_free_market_announcements_html_v1"},
+         response
+       ) do
+    cond do
+      not html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "mse_free_market_announcements_html_v1",
+          content_type(response.headers)}}
+
+      not mse_free_market_announcements_payload?(response.body) ->
+        {:error,
+         {:unsupported_live_payload, "mse_free_market_announcements_html_v1", :unexpected_html}}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_live_payload(
+         %SourceRegistry{parser_key: "seinet_public_documents_json_v1"},
+         response
+       ) do
+    cond do
+      not json_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "seinet_public_documents_json_v1",
+          content_type(response.headers)}}
+
+      not seinet_public_documents_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "seinet_public_documents_json_v1", :unexpected_json}}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_live_payload(
+         %SourceRegistry{parser_key: "mnse_corporate_news_html_v1"},
+         response
+       ) do
+    cond do
+      not html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "mnse_corporate_news_html_v1",
+          content_type(response.headers)}}
+
+      not mnse_corporate_news_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "mnse_corporate_news_html_v1", :unexpected_html}}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_live_payload(
+         %SourceRegistry{parser_key: "md_msi_regulated_information_html_v1"},
+         response
+       ) do
+    cond do
+      not html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "md_msi_regulated_information_html_v1",
+          content_type(response.headers)}}
+
+      not md_msi_regulated_information_payload?(response.body) ->
+        {:error,
+         {:unsupported_live_payload, "md_msi_regulated_information_html_v1", :unexpected_html}}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_live_payload(
+         %SourceRegistry{parser_key: "dfsa_oam_company_announcements_json_v1"},
+         response
+       ) do
+    cond do
+      not json_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "dfsa_oam_company_announcements_json_v1",
+          content_type(response.headers)}}
+
+      not dfsa_oam_company_announcements_payload?(response.body) ->
+        {:error,
+         {:unsupported_live_payload, "dfsa_oam_company_announcements_json_v1", :unexpected_json}}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_live_payload(
+         %SourceRegistry{parser_key: "set_thailand_company_news_json_v1"},
+         response
+       ) do
+    cond do
+      not json_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "set_thailand_company_news_json_v1",
+          content_type(response.headers)}}
+
+      not set_thailand_company_news_payload?(response.body) ->
+        {:error,
+         {:unsupported_live_payload, "set_thailand_company_news_json_v1", :unexpected_json}}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_live_payload(
+         %SourceRegistry{parser_key: "tw_mops_daily_material_info_json_v1"},
+         response
+       ) do
+    cond do
+      twse_security_blocked_payload?(response.body) ->
+        {:error,
+         {:upstream_security_blocked, "tw_mops_daily_material_info_json_v1", "twse_security_page"}}
+
+      not json_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "tw_mops_daily_material_info_json_v1",
+          content_type(response.headers)}}
+
+      not tw_mops_daily_material_info_payload?(response.body) ->
+        {:error,
+         {:unsupported_live_payload, "tw_mops_daily_material_info_json_v1", :unexpected_json}}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_live_payload(
+         %SourceRegistry{parser_key: "tdnet_public_list_html_v1"},
+         response
+       ) do
+    cond do
+      not html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "tdnet_public_list_html_v1",
+          content_type(response.headers)}}
+
+      not tdnet_public_list_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "tdnet_public_list_html_v1", :unexpected_html}}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_live_payload(
+         %SourceRegistry{parser_key: "hkex_latest_listed_company_info_json_v1"},
+         response
+       ) do
+    cond do
+      not json_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "hkex_latest_listed_company_info_json_v1",
+          content_type(response.headers)}}
+
+      not hkex_latest_listed_company_info_payload?(response.body) ->
+        {:error,
+         {:unsupported_live_payload, "hkex_latest_listed_company_info_json_v1", :unexpected_json}}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_live_payload(%SourceRegistry{parser_key: "belex_issuer_news_html_v1"}, response) do
+    cond do
+      not html_content_type?(response.headers) ->
+        {:error,
+         {:unsupported_live_content_type, "belex_issuer_news_html_v1",
+          content_type(response.headers)}}
+
+      not belex_issuer_news_payload?(response.body) ->
+        {:error, {:unsupported_live_payload, "belex_issuer_news_html_v1", :unexpected_html}}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_live_payload(_source, _response), do: :ok
+
+  defp source_live_headers(%SourceRegistry{config: config}) when is_map(config) do
+    config
+    |> source_config_headers()
+    |> Enum.reduce(@default_live_headers, fn {key, value}, headers ->
+      header_key = String.downcase(to_string(key))
+
+      existing =
+        Enum.reject(headers, fn {existing_key, _existing_value} ->
+          String.downcase(to_string(existing_key)) == header_key
+        end)
+
+      existing ++ [{to_string(key), to_string(value)}]
+    end)
+    |> Enum.map(fn {key, value} -> {String.to_charlist(key), String.to_charlist(value)} end)
+  end
+
+  defp source_live_headers(_source) do
+    Enum.map(@default_live_headers, fn {key, value} ->
+      {String.to_charlist(key), String.to_charlist(value)}
+    end)
+  end
+
+  defp source_config_headers(config) do
+    case Map.get(config, "live_headers") || Map.get(config, :live_headers) do
+      headers when is_map(headers) -> headers
+      _ -> %{}
+    end
+  end
+
+  defp source_live_method(%SourceRegistry{config: config}) when is_map(config) do
+    config
+    |> Map.get("live_method", Map.get(config, :live_method))
+    |> case do
+      method when is_binary(method) -> method
+      _method -> "get"
+    end
+  end
+
+  defp source_live_method(_source), do: "get"
+
+  defp source_live_body(%SourceRegistry{config: config}) when is_map(config) do
+    case Map.get(config, "live_body") || Map.get(config, :live_body) do
+      body when is_binary(body) -> body
+      body when is_map(body) -> Jason.encode!(body)
+      _body -> ""
+    end
+  end
+
+  defp source_live_body(_source), do: ""
+
+  defp source_live_content_type(%SourceRegistry{config: config}) when is_map(config) do
+    config
+    |> Map.get("live_content_type", Map.get(config, :live_content_type))
+    |> case do
+      content_type when is_binary(content_type) -> content_type
+      _content_type -> "application/json"
+    end
+  end
+
+  defp source_live_content_type(_source), do: "application/json"
+
+  defp source_live_timeout(%SourceRegistry{config: config}) when is_map(config) do
+    config
+    |> Map.get("live_timeout_ms", Map.get(config, :live_timeout_ms))
+    |> positive_live_timeout()
+  end
+
+  defp source_live_timeout(_source), do: 8_000
+
+  defp positive_live_timeout(value) when is_integer(value) and value > 0, do: value
+
+  defp positive_live_timeout(value) when is_binary(value) do
+    case Integer.parse(value) do
+      {parsed, ""} when parsed > 0 -> parsed
+      _ -> 8_000
+    end
+  end
+
+  defp positive_live_timeout(_value), do: 8_000
+
+  defp source_live_ssl_options(source) do
+    case source_config_string_list(source, "live_tls_versions", :live_tls_versions, []) do
+      [] ->
+        [verify: :verify_none]
+
+      versions ->
+        [verify: :verify_none, versions: Enum.map(versions, &source_live_tls_version!/1)]
+    end
+  end
+
+  defp source_live_tls_version!("tlsv1"), do: :tlsv1
+  defp source_live_tls_version!("tlsv1.1"), do: :"tlsv1.1"
+  defp source_live_tls_version!("tlsv1.2"), do: :"tlsv1.2"
+  defp source_live_tls_version!("tlsv1.3"), do: :"tlsv1.3"
+  defp source_live_tls_version!(_version), do: :"tlsv1.2"
+
+  defp html_content_type?(headers) do
+    headers
+    |> content_type()
+    |> String.downcase()
+    |> String.contains?("text/html")
+  end
+
+  defp xml_content_type?(headers) do
+    headers
+    |> content_type()
+    |> String.downcase()
+    |> String.contains?("xml")
+  end
+
+  defp content_type(headers) do
+    Enum.find_value(headers, "", fn {key, value} ->
+      if String.downcase(to_string(key)) == "content-type" do
+        to_string(value)
+      end
+    end)
+  end
+
+  defp json_content_type?(headers) do
+    headers
+    |> content_type()
+    |> String.downcase()
+    |> String.contains?("json")
+  end
+
+  defp javascript_or_json_content_type?(headers) do
+    content_type = headers |> content_type() |> String.downcase()
+
+    String.contains?(content_type, "javascript") or String.contains?(content_type, "json")
+  end
+
+  defp html_payload?(body) when is_binary(body) do
+    body
+    |> String.trim_leading()
+    |> String.downcase()
+    |> then(&(String.starts_with?(&1, "<!doctype html") or String.starts_with?(&1, "<html")))
+  end
+
+  defp html_payload?(_body), do: false
+
+  defp afm_reporting_csv_payload?(body) when is_binary(body) do
+    body
+    |> String.trim_leading()
+    |> String.starts_with?("\"Datum deponering\";\"Uitgevende instelling\"")
+  end
+
+  defp afm_reporting_csv_payload?(_body), do: false
+
+  defp emarket_storage_html_payload?(body) when is_binary(body) do
+    body =~ "Comunicati Regolamentati" and
+      body =~ "azienda-wrapper" and
+      body =~ "/sites/default/files/comunicati/"
+  end
+
+  defp emarket_storage_html_payload?(_body), do: false
+
+  defp luxse_oam_graphql_payload?(body) when is_binary(body) do
+    body =~ "\"oamSubmissionsSearch\"" and body =~ "\"submissions\""
+  end
+
+  defp luxse_oam_graphql_payload?(_body), do: false
+
+  defp fsma_stori_payload?(body) when is_binary(body) do
+    body =~ "\"storiResultItems\"" and body =~ "\"resultCount\""
+  end
+
+  defp fsma_stori_payload?(_body), do: false
+
+  defp fca_nsm_search_payload?(body) when is_binary(body) do
+    body =~ "\"hits\"" and body =~ "\"_source\"" and body =~ "\"download_link\""
+  end
+
+  defp fca_nsm_search_payload?(_body), do: false
+
+  defp cmvm_portal_info_privi_payload?(body) when is_binary(body) do
+    body =~ "\"InfoPrivi\"" and body =~ "\"List\"" and body =~ "\"Desc\"" and body =~ "\"Tipo\""
+  end
+
+  defp cmvm_portal_info_privi_payload?(_body), do: false
+
+  defp oekb_oam_issuer_info_payload?(body) when is_binary(body) do
+    body =~ "\"anzahlTreffer\"" and body =~ "\"dokumente\"" and
+      body =~ "\"uploadzeitpunkt\"" and body =~ "\"emittent\""
+  end
+
+  defp oekb_oam_issuer_info_payload?(_body), do: false
+
+  defp cse_oam_listing_versions_payload?(body) when is_binary(body) do
+    body =~ "\"content\"" and body =~ "\"listedCompanyEnglish\"" and
+      body =~ "\"publicationTimestamp\"" and body =~ "\"infoCategoriesNameEnglish\""
+  end
+
+  defp cse_oam_listing_versions_payload?(_body), do: false
+
+  defp nasdaq_nordic_cns_payload?(body) when is_binary(body) do
+    body =~ "handleResponse(" and body =~ "\"results\"" and body =~ "\"item\""
+  end
+
+  defp nasdaq_nordic_cns_payload?(_body), do: false
+
+  defp oslo_newsweb_payload?(body) when is_binary(body) do
+    body =~ "\"messages\"" and body =~ "\"messageId\"" and body =~ "\"publishedTime\"" and
+      body =~ "\"issuerName\""
+  end
+
+  defp oslo_newsweb_payload?(_body), do: false
+
+  defp gpw_espi_ebi_payload?(body) when is_binary(body) do
+    body =~ "ESPI/EBI Company reports" and body =~ "espi-union-reports" and
+      body =~ "espi-ebi-report?geru_id="
+  end
+
+  defp gpw_espi_ebi_payload?(_body), do: false
+
+  defp bse_issuers_news_payload?(body) when is_binary(body) do
+    body =~ "Issuers News" and body =~ "bet-newkib-list" and
+      body =~ "/site/newkib/"
+  end
+
+  defp bse_issuers_news_payload?(_body), do: false
+
+  defp bvb_current_reports_payload?(body) when is_binary(body) do
+    body =~ "BVB - Rapoarte si informari" and
+      body =~ "CurrentReports" and
+      body =~ "FinancialInstruments/SelectedData/NewsItem"
+  end
+
+  defp bvb_current_reports_payload?(_body), do: false
+
+  defp ceri_regulated_information_payload?(body) when is_binary(body) do
+    body =~ "Centr" and
+      body =~ "evidencia regulovan" and
+      body =~ "Aktu" and
+      body =~ "class=\"ceridoc\"" and
+      body =~ "prijatia"
+  end
+
+  defp ceri_regulated_information_payload?(_body), do: false
+
+  defp ee_oam_market_announcements_payload?(body) when is_binary(body) do
+    body =~ "Market announcements" and
+      body =~ "/en/borsiteated/" and
+      body =~ "text-nowrap" and
+      body =~ "Category"
+  end
+
+  defp ee_oam_market_announcements_payload?(_body), do: false
+
+  defp lt_oam_regulated_information_payload?(body) when is_binary(body) do
+    body =~ "OAM, Officially Appointed Mechanism" and
+      body =~ "Nasdaq Vilnius listed issuers" and
+      body =~ "<nef-table-row class=\"message-row\"" and
+      body =~ "/view/"
+  end
+
+  defp lt_oam_regulated_information_payload?(_body), do: false
+
+  defp lv_csri_regulated_information_payload?(body) when is_binary(body) do
+    body =~ "LATEST DOCUMENTS" and
+      body =~ "csridocumentsdetails" and
+      body =~ "Date Time" and
+      body =~ "Issuer"
+  end
+
+  defp lv_csri_regulated_information_payload?(_body), do: false
+
+  defp wiener_borse_announcements_payload?(body) when is_binary(body) do
+    body =~ "Announcements Found" and body =~ "filter-announcements" and
+      body =~ "kv-grid-table" and body =~ "<tr data-key="
+  end
+
+  defp wiener_borse_announcements_payload?(_body), do: false
+
+  defp xetra_newsboard_payload?(body) when is_binary(body) do
+    body =~ "Xetra-Frankfurt-Newsboard" and body =~ "teasable-search-result-link" and
+      body =~ "search-result-description"
+  end
+
+  defp xetra_newsboard_payload?(_body), do: false
+
+  defp malta_mse_announcements_payload?(body) when is_binary(body) do
+    body =~ "Announcements - Malta Stock Exchange" and
+      body =~ "box event-box" and
+      body =~ "cdn.borzamalta.com.mt/download/announcements/"
+  end
+
+  defp malta_mse_announcements_payload?(_body), do: false
+
+  defp x3news_issuer_disclosures_payload?(body) when is_binary(body) do
+    body =~ "x3news_logo" and
+      body =~ "class=\"news-row\"" and
+      body =~ "newsHeaderLink show-date-on-right" and
+      body =~ "javascript:showNews"
+  end
+
+  defp x3news_issuer_disclosures_payload?(_body), do: false
+
+  defp kap_company_notifications_payload?(body) when is_binary(body) do
+    body =~ "kap.org.tr" and
+      body =~ ~s(\\"data\\":[) and
+      body =~ ~s(\\"disclosureBasic\\") and
+      body =~ ~s(\\"SERVER_BASE_URL\\":\\"https://kapsitebackend.mkk.com.tr\\")
+  end
+
+  defp kap_company_notifications_payload?(_body), do: false
+
+  defp mse_free_market_announcements_payload?(body) when is_binary(body) do
+    body =~ "Macedonian Stock Exchange" and
+      body =~ "Announcements from companies on the Free Market" and
+      body =~ "container-announcement166b"
+  end
+
+  defp mse_free_market_announcements_payload?(_body), do: false
+
+  defp seinet_public_documents_payload?(body) when is_binary(body) do
+    body =~ "\"isSuccess\":true" and
+      body =~ "\"data\":[" and
+      body =~ "\"documentId\"" and
+      body =~ "\"publishedDate\"" and
+      body =~ "\"issuer\""
+  end
+
+  defp seinet_public_documents_payload?(_body), do: false
+
+  defp mnse_corporate_news_payload?(body) when is_binary(body) do
+    body =~ "Korporativne novosti" and
+      body =~ "novostiDate" and
+      body =~ "/upload/documents/issuer/"
+  end
+
+  defp mnse_corporate_news_payload?(_body), do: false
+
+  defp md_msi_regulated_information_payload?(body) when is_binary(body) do
+    body =~ "Company name" and body =~ "Document type" and body =~ "displayfile"
+  end
+
+  defp md_msi_regulated_information_payload?(_body), do: false
+
+  defp dfsa_oam_company_announcements_payload?(body) when is_binary(body) do
+    with {:ok, %{"data" => %{"rows" => rows}}} <- Jason.decode(body) do
+      Enum.any?(rows, fn
+        %{
+          "id" => _id,
+          "HeadlineColumn" => _headline,
+          "IssuerColumn" => _issuer,
+          "PublicationDateColumn" => _published_at
+        } ->
+          true
+
+        _row ->
+          false
+      end)
+    else
+      _ -> false
+    end
+  end
+
+  defp dfsa_oam_company_announcements_payload?(_body), do: false
+
+  defp set_thailand_company_news_payload?(body) when is_binary(body) do
+    with {:ok, decoded} when is_map(decoded) <- body |> trim_utf8_bom() |> Jason.decode() do
+      decoded
+      |> set_thailand_company_news_live_records()
+      |> Enum.any?(fn
+        %{
+          "id" => _id,
+          "datetime" => _datetime,
+          "symbol" => _symbol,
+          "headline" => _headline,
+          "url" => _url
+        } ->
+          true
+
+        _record ->
+          false
+      end)
+    else
+      _ -> false
+    end
+  end
+
+  defp set_thailand_company_news_payload?(_body), do: false
+
+  defp tw_mops_daily_material_info_payload?(body) when is_binary(body) do
+    with {:ok, decoded} <- body |> trim_utf8_bom() |> Jason.decode(),
+         rows <- tw_mops_daily_material_info_records_seen_rows(decoded),
+         true <- is_list(rows) do
+      tw_mops_openapi_payload_rows?(rows) or
+        Enum.any?(rows, fn
+          [date_text, time_text, company_id, company_name, headline | _rest] ->
+            live_present?(date_text) and live_present?(time_text) and live_present?(company_id) and
+              live_present?(company_name) and live_present?(headline)
+
+          %{} = row ->
+            live_present?(Map.get(row, "發言日期")) and live_present?(Map.get(row, "發言時間")) and
+              live_present?(Map.get(row, "公司代號")) and live_present?(Map.get(row, "公司名稱")) and
+              (live_present?(Map.get(row, "主旨 ")) or live_present?(Map.get(row, "主旨")))
+
+          _row ->
+            false
+        end)
+    else
+      _ -> false
+    end
+  end
+
+  defp tw_mops_daily_material_info_payload?(_body), do: false
+
+  defp twse_security_blocked_payload?(body) when is_binary(body) do
+    String.contains?(body, "FOR SECURITY REASONS, THIS PAGE CAN NOT BE ACCESSED")
+  end
+
+  defp twse_security_blocked_payload?(_body), do: false
+
+  defp live_present?(value) when is_binary(value), do: String.trim(value) != ""
+  defp live_present?(value) when is_integer(value) or is_float(value), do: true
+  defp live_present?(_value), do: false
+
+  defp tw_mops_openapi_payload_rows?(rows) when is_list(rows) do
+    Enum.any?(rows, fn
+      %{} = row ->
+        live_present?(Map.get(row, tw_mops_live_openapi_key(:speech_date))) and
+          live_present?(Map.get(row, tw_mops_live_openapi_key(:speech_time))) and
+          live_present?(Map.get(row, tw_mops_live_openapi_key(:company_id))) and
+          live_present?(Map.get(row, tw_mops_live_openapi_key(:company_name))) and
+          (live_present?(Map.get(row, tw_mops_live_openapi_key(:subject_with_space))) or
+             live_present?(Map.get(row, tw_mops_live_openapi_key(:subject))))
+
+      _row ->
+        false
+    end)
+  end
+
+  defp tw_mops_openapi_payload_rows?(_rows), do: false
+
+  defp tw_mops_live_openapi_key(:speech_date),
+    do: <<0x767C::utf8, 0x8A00::utf8, 0x65E5::utf8, 0x671F::utf8>>
+
+  defp tw_mops_live_openapi_key(:speech_time),
+    do: <<0x767C::utf8, 0x8A00::utf8, 0x6642::utf8, 0x9593::utf8>>
+
+  defp tw_mops_live_openapi_key(:company_id),
+    do: <<0x516C::utf8, 0x53F8::utf8, 0x4EE3::utf8, 0x865F::utf8>>
+
+  defp tw_mops_live_openapi_key(:company_name),
+    do: <<0x516C::utf8, 0x53F8::utf8, 0x540D::utf8, 0x7A31::utf8>>
+
+  defp tw_mops_live_openapi_key(:subject), do: <<0x4E3B::utf8, 0x65E8::utf8>>
+
+  defp tw_mops_live_openapi_key(:subject_with_space),
+    do: tw_mops_live_openapi_key(:subject) <> " "
+
+  defp tdnet_public_list_payload?(body) when is_binary(body) do
+    body =~ "kaiji-date-1" and body =~ "main-list-table" and body =~ "kjTime" and
+      body =~ "kjCode" and body =~ "kjName" and body =~ "kjTitle"
+  end
+
+  defp tdnet_public_list_payload?(_body), do: false
+
+  defp hkex_latest_listed_company_info_payload?(body) when is_binary(body) do
+    with {:ok, %{"newsInfo" => records}} when is_list(records) <- Jason.decode(body) do
+      Enum.any?(records, fn
+        %{
+          "relY" => _year,
+          "relM" => _month,
+          "relD" => _day,
+          "relTime" => _time,
+          "title" => _title,
+          "sTxt" => _summary,
+          "webPath" => _web_path
+        } ->
+          true
+
+        _record ->
+          false
+      end)
+    else
+      _ -> false
+    end
+  end
+
+  defp hkex_latest_listed_company_info_payload?(_body), do: false
+
+  defp trim_utf8_bom(<<0xEF, 0xBB, 0xBF, rest::binary>>), do: rest
+  defp trim_utf8_bom(value), do: value
+
+  defp belex_issuer_news_payload?(body) when is_binary(body) do
+    body =~ "News from Issuers" and
+      body =~ ~s(id="t5") and
+      body =~ ~s(class="vest") and
+      body =~ "/eng/trgovanje/vesti/hartija/"
+  end
+
+  defp belex_issuer_news_payload?(_body), do: false
+
+  defp load_fixture_payload(source) do
+    fixture_path =
+      source.config["fixture_path"] ||
+        source.config[:fixture_path]
+
+    with {:ok, payload} <- Fixtures.load_source_payload(fixture_path) do
+      {:ok,
+       %{
+         raw_payload: payload.raw,
+         http_status: nil,
+         fetch_info: %{
+           "mode" => "fixture",
+           "loaded" => true,
+           "relative_path" => payload.relative_path,
+           "bytes" => payload.bytes
+         }
+       }}
+    end
+  end
+
+  defp upsert_raw_document(run, source, record) do
+    now = DateTime.utc_now()
+
+    attrs = %{
+      ingestion_run_id: run.id,
+      source_registry_id: source.id,
+      external_id: record.external_id || record.url,
+      content_hash: hash_record(record),
+      fetched_at: now,
+      published_at: record.published_at,
+      url: record.url,
+      title: record.title,
+      raw_text: record.summary,
+      payload: %{
+        "title" => record.title,
+        "summary" => record.summary,
+        "url" => record.url,
+        "published_at" => record.published_at && DateTime.to_iso8601(record.published_at),
+        "category" => record.category
+      },
+      status: "parsed"
+    }
+
+    changeset = RawDocument.changeset(%RawDocument{}, attrs)
+
+    Repo.insert(
+      changeset,
+      conflict_target: [:source_registry_id, :external_id],
+      on_conflict: [
+        set: [
+          ingestion_run_id: run.id,
+          content_hash: attrs.content_hash,
+          fetched_at: now,
+          published_at: record.published_at,
+          url: record.url,
+          title: record.title,
+          raw_text: record.summary,
+          payload: attrs.payload,
+          status: "parsed",
+          updated_at: now
+        ]
+      ],
+      returning: true
+    )
+  end
+
+  defp upsert_canonical_item(raw_document, source, record, edition, priority_rank, fetch_info) do
+    canonical_attrs =
+      record
+      |> Canonicalizer.canonicalize_document(source,
+        edition: edition,
+        fetch_mode: fetch_info["mode"]
+      )
+      |> Map.merge(%{
+        raw_document_id: raw_document.id,
+        source_registry_id: source.id,
+        priority_rank: priority_rank
+      })
+
+    changeset = CanonicalFeedItem.changeset(%CanonicalFeedItem{}, canonical_attrs)
+
+    Repo.insert(
+      changeset,
+      conflict_target: [:story_key],
+      on_conflict: [
+        set: [
+          raw_document_id: canonical_attrs.raw_document_id,
+          source_registry_id: canonical_attrs.source_registry_id,
+          digest_date: canonical_attrs.digest_date,
+          edition: canonical_attrs.edition,
+          headline: canonical_attrs.headline,
+          summary: canonical_attrs.summary,
+          canonical_url: canonical_attrs.canonical_url,
+          published_at: canonical_attrs.published_at,
+          tickers: canonical_attrs.tickers,
+          regions: canonical_attrs.regions,
+          sectors: canonical_attrs.sectors,
+          sentiment_label: canonical_attrs.sentiment_label,
+          relevance_score: canonical_attrs.relevance_score,
+          priority_rank: canonical_attrs.priority_rank,
+          duplicate_group_key: canonical_attrs.duplicate_group_key,
+          status: canonical_attrs.status,
+          metadata: canonical_attrs.metadata,
+          updated_at: DateTime.utc_now()
+        ]
+      ],
+      returning: true
+    )
+  end
+
+  defp hash_record(record) do
+    :sha256
+    |> :crypto.hash("#{record.external_id}|#{record.url}|#{record.title}|#{record.published_at}")
+    |> Base.encode16(case: :lower)
+  end
+
+  defp parser_cache do
+    Application.get_env(:disclosure_automation, :parser_capabilities_cache, %{})
+  end
+
+  defp source_max_items_per_poll(%SourceRegistry{config: config}) when is_map(config) do
+    config["max_items_per_poll"] || config[:max_items_per_poll]
+  end
+
+  defp source_max_items_per_poll(_source), do: nil
+end
+
+defmodule DisclosureAutomation.Digest do
+  @moduledoc false
+
+  @regional_business_summary_version "regional_business_area_v2"
+  @regional_profile_source_version "regional_profile_source_v1"
+
+  import Ecto.Query
+
+  alias DisclosureAutomation.Canonicalizer
+  alias DisclosureAutomation.Fixtures
+  alias DisclosureAutomation.Repo
+  alias DisclosureAutomation.Schema.CanonicalFeedItem
+
+  def get_latest_digest(edition, opts \\ []) when is_binary(edition) do
+    recent_date_limit = positive_int(Keyword.get(opts, :recent_date_limit)) || 5
+
+    case recent_digest_dates_for_edition(edition, recent_date_limit) do
+      [] ->
+        fallback_to_fixture(edition, nil, opts)
+
+      [digest_date | _rest] = digest_dates ->
+        get_digest_from_dates(digest_dates, digest_date, edition, opts)
+    end
+  end
+
+  def get_digest_by_date_and_edition(digest_date, edition, opts \\ [])
+      when is_binary(digest_date) and is_binary(edition) do
+    with {:ok, digest_date} <- Date.from_iso8601(digest_date) do
+      get_digest_from_dates([digest_date], digest_date, edition, opts)
+    else
+      {:error, _reason} -> {:error, :not_found}
+    end
+  end
+
+  defp get_digest_from_dates(digest_dates, digest_date, edition, opts) do
+    timezone = Keyword.get(opts, :timezone, "UTC")
+    limit = Keyword.get(opts, :limit, 12)
+    candidate_limit = max(positive_int(Keyword.get(opts, :candidate_limit)) || limit * 8, limit)
+    region_scope = normalize_region_scope(Keyword.get(opts, :region_scope))
+    source_scope = normalize_source_scope(Keyword.get(opts, :source_scope))
+    excluded_source_keys = normalize_source_scope(Keyword.get(opts, :excluded_source_keys))
+
+    max_per_source =
+      positive_int(Keyword.get(opts, :max_per_source)) || default_max_per_source(limit)
+
+    max_per_region =
+      positive_int(Keyword.get(opts, :max_per_region)) || default_max_per_region(limit)
+
+    query =
+      from(item in CanonicalFeedItem,
+        join: source in assoc(item, :source),
+        where:
+          item.digest_date in ^digest_dates and item.edition == ^edition and
+            item.status in ["ready", "published"],
+        order_by: [
+          desc: item.digest_date,
+          desc: item.relevance_score,
+          asc: item.priority_rank,
+          desc: item.published_at
+        ],
+        limit: ^candidate_limit,
+        select: {item, source}
+      )
+
+    query =
+      case region_scope do
+        [] ->
+          query
+
+        regions ->
+          from([item, source] in query,
+            where: fragment("? && ?", item.regions, ^regions)
+          )
+      end
+
+    query =
+      case source_scope do
+        [] ->
+          query
+
+        source_keys ->
+          from([item, source] in query, where: source.source_key in ^source_keys)
+      end
+
+    query =
+      case excluded_source_keys do
+        [] ->
+          query
+
+        source_keys ->
+          from([item, source] in query, where: source.source_key not in ^source_keys)
+      end
+
+    candidates =
+      query
+      |> Repo.all()
+
+    items = select_diverse_items(candidates, limit, max_per_source, max_per_region)
+    prewarm_present_item_entity_profiles(items)
+
+    if items == [] do
+      fallback_to_fixture(edition, digest_date, opts)
+    else
+      {:ok,
+       %{
+         "digest_date" => Date.to_iso8601(digest_date),
+         "edition" => edition,
+         "timezone" => timezone,
+         "generated_at" =>
+           DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.to_iso8601(),
+         "generated_by" => "repo",
+         "item_count" => length(items),
+         "items" => Enum.map(items, &present_item/1),
+         "metadata" => %{
+           "fallback_to_fixture" => false,
+           "top_n" => limit
+         }
+       }}
+    end
+  end
+
+  defp select_diverse_items(candidates, limit, max_per_source, max_per_region) do
+    {selected_reversed, _source_counts, _region_counts} =
+      Enum.reduce(candidates, {[], %{}, %{}}, fn candidate,
+                                                 {selected, source_counts, region_counts} ->
+        if length(selected) >= limit or
+             over_diversity_cap?(
+               candidate,
+               source_counts,
+               region_counts,
+               max_per_source,
+               max_per_region
+             ) do
+          {selected, source_counts, region_counts}
+        else
+          {[candidate | selected], increment_source(candidate, source_counts),
+           increment_region(candidate, region_counts)}
+        end
+      end)
+
+    selected = Enum.reverse(selected_reversed)
+    selected_ids = MapSet.new(selected, fn {item, _source} -> item.id end)
+
+    backfill =
+      candidates
+      |> Enum.reject(fn {item, _source} -> MapSet.member?(selected_ids, item.id) end)
+      |> Enum.take(max(limit - length(selected), 0))
+
+    selected ++ backfill
+  end
+
+  defp over_diversity_cap?(
+         candidate,
+         source_counts,
+         region_counts,
+         max_per_source,
+         max_per_region
+       ) do
+    source_key = source_key(candidate)
+    region_key = primary_region(candidate)
+
+    Map.get(source_counts, source_key, 0) >= max_per_source or
+      Map.get(region_counts, region_key, 0) >= max_per_region
+  end
+
+  defp increment_source(candidate, source_counts) do
+    Map.update(source_counts, source_key(candidate), 1, &(&1 + 1))
+  end
+
+  defp increment_region(candidate, region_counts) do
+    Map.update(region_counts, primary_region(candidate), 1, &(&1 + 1))
+  end
+
+  defp source_key({_item, source}), do: source.source_key || "unknown"
+
+  defp primary_region({item, _source}) do
+    case item.regions || [] do
+      [region | _rest] -> region
+      _empty -> "global"
+    end
+  end
+
+  defp default_max_per_source(limit), do: max(2, ceil(limit / 3))
+  defp default_max_per_region(limit), do: max(3, ceil(limit / 2))
+
+  defp positive_int(value) when is_integer(value) and value > 0, do: value
+
+  defp positive_int(value) when is_binary(value) do
+    case Integer.parse(value) do
+      {parsed, ""} when parsed > 0 -> parsed
+      _ -> nil
+    end
+  end
+
+  defp positive_int(_value), do: nil
+
+  defp normalize_region_scope(nil), do: []
+  defp normalize_region_scope(""), do: []
+
+  defp normalize_region_scope(region) when is_binary(region) do
+    region
+    |> canonical_region()
+    |> expand_region_scope()
+  end
+
+  defp normalize_region_scope(regions) when is_list(regions) do
+    regions
+    |> Enum.flat_map(&normalize_region_scope/1)
+    |> Enum.uniq()
+  end
+
+  defp normalize_region_scope(_value), do: []
+
+  defp normalize_source_scope(nil), do: []
+  defp normalize_source_scope(""), do: []
+
+  defp normalize_source_scope(source_key) when is_binary(source_key) do
+    source_key
+    |> String.split(",", trim: true)
+    |> Enum.map(&String.trim/1)
+    |> Enum.filter(&Regex.match?(~r/^[a-z0-9_:-]+$/, &1))
+    |> Enum.uniq()
+  end
+
+  defp normalize_source_scope(source_keys) when is_list(source_keys) do
+    source_keys
+    |> Enum.flat_map(&normalize_source_scope/1)
+    |> Enum.uniq()
+  end
+
+  defp normalize_source_scope(_value), do: []
+
+  defp canonical_region(region) do
+    region
+    |> String.trim()
+    |> String.downcase()
+    |> String.replace(~r/[\s-]+/, "_")
+    |> case do
+      "europe" -> "eu"
+      "europe_north" -> "eu_north"
+      "northern_europe" -> "eu_north"
+      "europe_central" -> "eu_central"
+      "central_europe" -> "eu_central"
+      "europe_south" -> "eu_south"
+      "southern_europe" -> "eu_south"
+      "gb" -> "uk"
+      "great_britain" -> "uk"
+      "united_kingdom" -> "uk"
+      "switzerland" -> "ch"
+      "turkey" -> "tr"
+      "turkiye" -> "tr"
+      "americas" -> "us"
+      "usa" -> "us"
+      "united_states" -> "us"
+      "united_states_of_america" -> "us"
+      "cn_tw" -> "greater_china"
+      "greaterchina" -> "greater_china"
+      "hong_kong" -> "hk"
+      "hongkong" -> "hk"
+      "in" -> "india"
+      value -> value
+    end
+  end
+
+  defp expand_region_scope("eu"), do: ~w(eu eu_north eu_central eu_south uk ch tr)
+  defp expand_region_scope(region), do: [region]
+
+  defp recent_digest_dates_for_edition(edition, limit) do
+    from(item in CanonicalFeedItem,
+      where: item.edition == ^edition and item.status in ["ready", "published"],
+      group_by: item.digest_date,
+      order_by: [desc: item.digest_date],
+      limit: ^limit,
+      select: item.digest_date
+    )
+    |> Repo.all()
+  end
+
+  defp fallback_to_fixture(edition, digest_date, opts) do
+    if filtered_digest_query?(opts) do
+      {:error, :not_found}
+    else
+      maybe_fallback_to_fixture(edition, digest_date, opts)
+    end
+  end
+
+  defp maybe_fallback_to_fixture(edition, digest_date, opts) do
+    if Keyword.get(opts, :fallback_to_fixture, false) do
+      with {:ok, digest} <- Fixtures.load_daily_digest(),
+           true <- digest["edition"] == edition,
+           true <- is_nil(digest_date) or digest["digest_date"] == Date.to_iso8601(digest_date) do
+        {:ok, digest}
+      else
+        _ -> {:error, :not_found}
+      end
+    else
+      {:error, :not_found}
+    end
+  end
+
+  defp filtered_digest_query?(opts) do
+    normalize_source_scope(Keyword.get(opts, :source_scope)) != [] or
+      normalize_source_scope(Keyword.get(opts, :excluded_source_keys)) != []
+  end
+
+  defp prewarm_present_item_entity_profiles(items) do
+    items
+    |> Enum.filter(fn {item, _source} ->
+      entity_profile_needs_enrichment?(item.metadata || %{})
+    end)
+    |> Enum.group_by(fn {_item, source} -> source.source_key end)
+    |> Enum.each(fn {_source_key, source_items} ->
+      [{_item, source} | _rest] = source_items
+
+      records =
+        Enum.map(source_items, fn {item, _source} ->
+          canonicalizer_document(item)
+        end)
+
+      Canonicalizer.prewarm_entity_profiles(records, source)
+    end)
+  end
+
+  defp present_item({item, source}) do
+    metadata =
+      item
+      |> enriched_present_metadata(source)
+
+    %{
+      "story_key" => item.story_key,
+      "priority_rank" => item.priority_rank,
+      "headline" => item.headline,
+      "summary" => item.summary,
+      "canonical_url" => item.canonical_url,
+      "published_at" => DateTime.to_iso8601(item.published_at),
+      "source" => %{
+        "source_key" => source.source_key,
+        "display_name" => source.display_name
+      },
+      "tickers" => present_tickers(item, metadata),
+      "regions" => item.regions || [],
+      "sectors" => item.sectors || [],
+      "sentiment_label" => item.sentiment_label,
+      "relevance_score" => decimal_to_number(item.relevance_score),
+      "duplicate_group_key" => item.duplicate_group_key,
+      "metadata" => metadata
+    }
+  end
+
+  defp enriched_present_metadata(item, source) do
+    metadata = item.metadata || %{}
+
+    if not entity_profile_needs_enrichment?(metadata) do
+      metadata
+    else
+      enriched =
+        item
+        |> canonicalizer_document()
+        |> Canonicalizer.canonicalize_document(source,
+          fetch_mode: Map.get(metadata, "fetch_mode")
+        )
+        |> get_in([:metadata, "entity_profile"])
+
+      if is_map(enriched) and map_size(enriched) > 0 do
+        Map.put(metadata, "entity_profile", enriched)
+      else
+        metadata
+      end
+    end
+  end
+
+  defp canonicalizer_document(item) do
+    %{
+      title: item.headline,
+      summary: item.summary,
+      url: item.canonical_url,
+      published_at: item.published_at,
+      category: get_in(item.metadata || %{}, ["category"])
+    }
+  end
+
+  defp present_tickers(item, metadata) do
+    profile = Map.get(metadata || %{}, "entity_profile") || %{}
+
+    [
+      item.tickers || [],
+      [
+        Map.get(profile, "ticker") || Map.get(profile, "identifier_label"),
+        digest_prefixed_identifier("CIK", Map.get(profile, "cik")),
+        digest_prefixed_identifier("ISIN", Map.get(profile, "isin")),
+        digest_prefixed_identifier("LEI", Map.get(profile, "lei")),
+        if(Map.get(profile, "ticker") || Map.get(profile, "identifier_label"),
+          do: nil,
+          else: digest_prefixed_identifier("Code", Map.get(profile, "local_code"))
+        )
+      ]
+    ]
+    |> List.flatten()
+    |> Enum.filter(&digest_present?/1)
+    |> Enum.uniq()
+    |> Enum.take(3)
+  end
+
+  defp entity_profile_has_identifier?(metadata) when is_map(metadata) do
+    profile = Map.get(metadata, "entity_profile")
+
+    is_map(profile) and
+      Enum.any?(["identifier_label", "ticker", "local_code", "isin", "lei", "cik"], fn key ->
+        digest_present?(Map.get(profile, key))
+      end)
+  end
+
+  defp entity_profile_has_identifier?(_metadata), do: false
+
+  defp entity_profile_needs_enrichment?(metadata) when is_map(metadata) do
+    not entity_profile_has_identifier?(metadata) or generic_business_summary?(metadata) or
+      stale_regional_business_summary?(metadata) or stale_profile_source?(metadata)
+  end
+
+  defp entity_profile_needs_enrichment?(_metadata), do: true
+
+  defp generic_business_summary?(metadata) do
+    summary = get_in(metadata, ["entity_profile", "business_summary_ko"]) || ""
+
+    String.contains?(summary, "공시 기준으로 식별된 상장사") or
+      String.contains?(summary, "공시 기준 상장사입니다")
+  end
+
+  defp stale_regional_business_summary?(metadata) do
+    profile = Map.get(metadata || %{}, "entity_profile") || %{}
+    summary = Map.get(profile, "business_summary_ko") || ""
+    version = Map.get(profile, "business_summary_version")
+
+    String.contains?(summary, "회사명/공시 키워드 기준") and
+      version != @regional_business_summary_version
+  end
+
+  defp stale_profile_source?(metadata) do
+    profile = Map.get(metadata || %{}, "entity_profile") || %{}
+    Map.get(profile, "profile_source_version") != @regional_profile_source_version
+  end
+
+  defp digest_prefixed_identifier(_prefix, nil), do: nil
+  defp digest_prefixed_identifier(_prefix, ""), do: nil
+  defp digest_prefixed_identifier(prefix, value), do: "#{prefix}:#{value}"
+
+  defp digest_present?(value), do: is_binary(value) and String.trim(value) != ""
+
+  defp decimal_to_number(nil), do: nil
+  defp decimal_to_number(%Decimal{} = value), do: Decimal.to_float(value)
+end
+
+defmodule DisclosureAutomation.Workers.RecomputeSourceHealthWorker do
+  @moduledoc false
+
+  use Oban.Worker, queue: :health_checks, max_attempts: 5
+
+  alias DisclosureAutomation.Sources
+
+  @impl Oban.Worker
+  def perform(%Oban.Job{args: %{"source_key" => source_key}}) do
+    case Sources.recompute_source_health(source_key) do
+      {:ok, _source} -> :ok
+      {:error, :not_found} -> {:cancel, :source_not_found}
+      {:error, reason} -> {:error, inspect(reason)}
+    end
+  end
+end
+
+defmodule DisclosureAutomation.Workers.PollSourceWorker do
+  @moduledoc false
+
+  use Oban.Worker, queue: :source_polling, max_attempts: 5
+
+  alias DisclosureAutomation.Ingestion
+
+  @impl Oban.Worker
+  def perform(%Oban.Job{args: %{"source_key" => source_key} = args}) do
+    trigger_kind = Map.get(args, "trigger_kind", "scheduled")
+    edition = Map.get(args, "edition", "breaking")
+    use_live_fetch = Map.get(args, "use_live_fetch", true)
+
+    case Ingestion.poll_source(source_key,
+           trigger_kind: trigger_kind,
+           edition: edition,
+           use_live_fetch: use_live_fetch
+         ) do
+      {:ok, _result} -> :ok
+      {:error, :not_found} -> {:cancel, :source_not_found}
+      {:error, reason} -> {:error, inspect(reason)}
+    end
+  end
+end

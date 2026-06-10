@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>NYSE Press Room</title>
+    <link>https://www.nyse.com/rss/nyse-press-room</link>
+    <description>NYSE listings and corporate actions updates</description>
+    <item>
+      <guid>nyse-2026-03-30-listings</guid>
+      <title>NYSE highlights stronger second-quarter listings pipeline</title>
+      <link>https://www.nyse.com/press/2026/03/listings-pipeline</link>
+      <description>Exchange commentary pointed to healthier issuance activity heading into the quarter.</description>
+      <pubDate>Mon, 30 Mar 2026 03:45:00 GMT</pubDate>
+      <category>listings</category>
+    </item>
+    <item>
+      <guid>nyse-2026-03-30-corp-actions</guid>
+      <title>NYSE operational notice covers upcoming corporate action processing window</title>
+      <link>https://www.nyse.com/press/2026/03/corporate-actions-window</link>
+      <description>Members received updated timing guidance for end-of-day action processing.</description>
+      <pubDate>Mon, 30 Mar 2026 07:05:00 GMT</pubDate>
+      <category>corporate-actions</category>
+    </item>
+  </channel>
+</rss>

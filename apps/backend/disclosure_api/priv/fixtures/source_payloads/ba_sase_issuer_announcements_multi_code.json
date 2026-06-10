@@ -1,0 +1,26 @@
+{
+  "strategy": "sase_multi_issuer_announcements_xml_v1",
+  "selected_codes": ["BHTS", "ASA"],
+  "responses": [
+    {
+      "issuer_code": "BHTS",
+      "issuer": "BH Telecom d.d. Sarajevo",
+      "url": "https://www.sase.ba/FeedServices/HandlerChart.ashx",
+      "status_code": 200,
+      "bytes": 2200,
+      "records_seen": 2,
+      "records_kept": 2,
+      "data": "<ANNOUNCEMENTS><ANNOUNCEMENT><Id>29066</Id><Subject>Cancellation of the Shareholders' Assembly of BH Telecom d.d. Sarajevo</Subject><Description>&amp;lt;div&amp;gt;The 92nd extraordinary Assembly is cancelled.&amp;lt;/div&amp;gt;</Description><Link>BHTS-23_01_2026-BD_1.pdf;</Link><AnnouncementDate>2026-01-21T11:13:46.133+01:00</AnnouncementDate><DateOfEvent>2026-01-23T10:00:00+01:00</DateOfEvent><CompanyId>BHTS</CompanyId><AnnouncementTypeId>20</AnnouncementTypeId><Published>1</Published><Lang>1</Lang></ANNOUNCEMENT><ANNOUNCEMENT><Id>29034</Id><Subject>Convening of the Shareholders' Assembly of BH Telecom d.d. Sarajevo</Subject><Description>&amp;lt;div&amp;gt;The Supervisory Board convenes the 92nd extraordinary shareholder assembly.&amp;lt;/div&amp;gt;</Description><AnnouncementDate>2026-01-07T11:24:46.027+01:00</AnnouncementDate><DateOfEvent>2026-01-23T10:00:00+01:00</DateOfEvent><CompanyId>BHTS</CompanyId><AnnouncementTypeId>20</AnnouncementTypeId><Published>1</Published><Lang>1</Lang></ANNOUNCEMENT></ANNOUNCEMENTS>"
+    },
+    {
+      "issuer_code": "ASA",
+      "issuer": "ASA Central Osiguranje d.d. Sarajevo",
+      "url": "https://www.sase.ba/FeedServices/HandlerChart.ashx",
+      "status_code": 200,
+      "bytes": 1200,
+      "records_seen": 1,
+      "records_kept": 1,
+      "data": "<ANNOUNCEMENTS><ANNOUNCEMENT><Id>29049</Id><Subject>Convening of the Shareholders' Assembly of ASA CENTRAL OSIGURANJE d.d. Sarajevo</Subject><Description>&amp;lt;div&amp;gt;Issuer notice on shareholder assembly convening.&amp;lt;/div&amp;gt;</Description><AnnouncementDate>2026-01-12T10:32:14.000+01:00</AnnouncementDate><DateOfEvent>2026-02-05T10:00:00+01:00</DateOfEvent><CompanyId>ASA</CompanyId><AnnouncementTypeId>20</AnnouncementTypeId><Published>1</Published><Lang>1</Lang></ANNOUNCEMENT></ANNOUNCEMENTS>"
+    }
+  ]
+}

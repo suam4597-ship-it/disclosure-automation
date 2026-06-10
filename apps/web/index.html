@@ -1,61 +1,2622 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="ko" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Disclosure Automation</title>
-  <link rel="stylesheet" href="./styles.css" />
+  <title>GlobalPulse</title>
+  <script src="./config.js"></script>
+  <style>
+    :root {
+      --bg: #0b0f14;
+      --surface: #161d27;
+      --surface2: #1c2530;
+      --border: #2a3544;
+      --text: #e8ecf1;
+      --sub: #8b95a5;
+      --muted: #5c6878;
+      --blue: #3b82f6;
+      --green: #22c55e;
+      --amber: #f59e0b;
+      --red: #ef4444;
+      --violet: #8b5cf6;
+      --r: 12px;
+    }
+
+    html[data-theme="light"] {
+      --bg: #f3f4f6;
+      --surface: #ffffff;
+      --surface2: #f0f2f5;
+      --border: #e2e5ea;
+      --text: #111827;
+      --sub: #5f6b7a;
+      --muted: #9ca3af;
+      --blue: #2563eb;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    }
+
+    a { color: inherit; text-decoration: none; }
+
+    .app { min-height: 100vh; }
+
+    .header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 14px 22px;
+      background: rgba(22, 29, 39, 0.92);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(16px);
+    }
+
+    html[data-theme="light"] .header { background: rgba(255, 255, 255, 0.9); }
+
+    .brand { display: flex; gap: 10px; align-items: center; }
+    .brand-mark { width: 28px; height: 28px; color: var(--blue); }
+    .brand h1 { font-size: 24px; margin: 0; letter-spacing: -0.04em; }
+    .brand span { color: var(--blue); }
+
+    .actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+    .time, .api, .link-pill { font-size: 12px; color: var(--sub); white-space: nowrap; }
+
+    .api, .link-pill {
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 4px 10px;
+      background: var(--surface2);
+    }
+
+    .api.online { color: var(--green); border-color: rgba(34, 197, 94, 0.35); background: rgba(34, 197, 94, 0.1); }
+    .api.offline { color: var(--amber); border-color: rgba(245, 158, 11, 0.35); background: rgba(245, 158, 11, 0.1); }
+    .link-pill:hover { border-color: rgba(59, 130, 246, 0.6); color: #93c5fd; }
+
+    button { font: inherit; }
+    .icon, .toggle {
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--text);
+      border-radius: 10px;
+      cursor: pointer;
+    }
+
+    .icon { min-width: 36px; width: auto; height: 36px; padding: 0 10px; }
+    .toggle { width: 52px; height: 28px; border-radius: 999px; position: relative; }
+    .toggle::after {
+      content: "";
+      position: absolute;
+      left: 3px;
+      top: 3px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--blue);
+      transition: 0.2s;
+    }
+
+    html[data-theme="light"] .toggle::after { transform: translateX(24px); }
+
+    .main { max-width: 1440px; margin: 0 auto; padding: 24px; }
+    .status, .tabs { display: flex; gap: 8px; margin-bottom: 24px; }
+    .status { flex-wrap: wrap; }
+    .chip, .tab {
+      white-space: nowrap;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      border-radius: 999px;
+      padding: 6px 14px;
+      color: var(--sub);
+      font-size: 13px;
+    }
+
+    a.chip { display: inline-flex; align-items: center; }
+    a.chip:hover, a.chip.active { border-color: rgba(59, 130, 246, 0.6); color: #bfdbfe; background: rgba(59, 130, 246, 0.12); }
+
+    .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 7px; }
+    .done { background: var(--muted); }
+    .live { background: var(--green); }
+    .pending { background: var(--amber); }
+
+    .tabs { overflow: auto; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 4px; }
+    .tab { border: 0; border-radius: 8px; cursor: pointer; }
+    .tab.active { background: rgba(59, 130, 246, 0.14); color: #93c5fd; font-weight: 700; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 18px;
+      height: 18px;
+      border-radius: 9px;
+      padding: 0 5px;
+      background: var(--blue);
+      color: #fff;
+      margin-left: 6px;
+      font-size: 11px;
+    }
+
+    .insight {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 24px;
+      padding: 10px 24px;
+      background: linear-gradient(90deg, rgba(59, 130, 246, 0.16), rgba(34, 197, 94, 0.08));
+      border: 1px solid rgba(59, 130, 246, 0.22);
+      border-radius: 8px;
+      font-size: 13px;
+    }
+
+    .insight strong { color: #93c5fd; }
+    .region-page {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 24px;
+      padding: 16px 24px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+
+    .region-page.open { display: flex; }
+    .region-page h2 { margin: 0; font-size: 20px; letter-spacing: -0.02em; }
+    .region-page p { margin: 2px 0 0; color: var(--sub); font-size: 13px; }
+    .back-link, .region-link {
+      border: 1px solid rgba(59, 130, 246, 0.45);
+      border-radius: 999px;
+      padding: 4px 10px;
+      color: #93c5fd;
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .region-link:hover, .back-link:hover { background: rgba(59, 130, 246, 0.12); }
+    .grid { display: grid; grid-template-columns: minmax(0, 61.8%) minmax(320px, 1fr); gap: 40px; }
+    .feed { display: flex; flex-direction: column; gap: 24px; }
+    .region, .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+
+    .region-head, .card h3 {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 0;
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .region-head { cursor: pointer; }
+    .region-title { font-size: 16px; font-weight: 800; letter-spacing: -0.02em; }
+    .region-meta { display: flex; gap: 12px; align-items: center; color: var(--muted); font-size: 13px; flex-wrap: wrap; }
+
+    .delivery {
+      border-radius: 999px;
+      padding: 3px 10px;
+      background: rgba(245, 158, 11, 0.12);
+      color: var(--amber);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .delivery.ok { background: rgba(34, 197, 94, 0.12); color: var(--green); }
+    .delivery.live { background: rgba(59, 130, 246, 0.12); color: #93c5fd; }
+
+    .item { display: flex; gap: 16px; padding: 16px 24px; border-bottom: 1px solid rgba(42, 53, 68, 0.65); }
+    .item:last-child { border-bottom: 0; }
+    .bar { width: 3px; border-radius: 3px; flex: 0 0 3px; background: var(--blue); }
+    .bar.disclosure { background: var(--amber); }
+    .bar.news { background: var(--blue); }
+    .bar.regulatory { background: var(--violet); }
+    .bar.markets { background: var(--green); }
+    .bar.high { background: var(--red); }
+
+    .headline { font-weight: 800; line-height: 1.35; margin-bottom: 5px; letter-spacing: -0.015em; }
+    .headline-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .headline-link { color: inherit; text-decoration: none; }
+    .headline-link:hover, .headline-link:focus-visible { color: #bfdbfe; text-decoration: underline; text-underline-offset: 3px; }
+    .title-identifier {
+      display: inline-flex;
+      align-items: center;
+      min-height: 20px;
+      border: 1px solid rgba(14, 165, 233, 0.35);
+      border-radius: 6px;
+      padding: 1px 7px;
+      background: rgba(14, 165, 233, 0.12);
+      color: #7dd3fc;
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 0;
+    }
+    .entity-card-line {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin: 4px 0 8px;
+      color: var(--sub);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+    .entity-card-line span {
+      display: inline-flex;
+      gap: 5px;
+      align-items: center;
+      border: 1px solid rgba(42, 53, 68, 0.85);
+      border-radius: 6px;
+      padding: 3px 8px;
+      background: rgba(8, 13, 20, 0.22);
+    }
+    .entity-card-line b { color: #bfdbfe; }
+    .entity-card-line a { color: #93c5fd; text-decoration: underline; text-underline-offset: 2px; }
+    .entity-card-line .entity-description-chip {
+      flex: 1 1 280px;
+      align-items: flex-start;
+    }
+    .summary { color: var(--sub); font-size: 13px; line-height: 1.55; margin-bottom: 8px; }
+    .meta { display: flex; gap: 10px; align-items: center; color: var(--muted); font-size: 12px; flex-wrap: wrap; }
+    .source { color: var(--sub); font-weight: 700; }
+    .detail-body { padding: 24px; }
+    .detail-title { margin: 0 0 10px; font-size: 22px; line-height: 1.35; letter-spacing: -0.02em; }
+    .entity-intro {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+      margin: 0 0 14px;
+      padding: 10px 12px;
+      border: 1px solid rgba(59, 130, 246, 0.22);
+      border-radius: 8px;
+      background: rgba(59, 130, 246, 0.07);
+      color: var(--sub);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+    .entity-intro b { color: #bfdbfe; white-space: nowrap; }
+    .entity-intro-list {
+      display: grid;
+      gap: 7px;
+      margin: 0 0 14px;
+      padding: 12px;
+      border: 1px solid rgba(59, 130, 246, 0.28);
+      border-radius: 8px;
+      background: rgba(59, 130, 246, 0.07);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .entity-intro-list div { display: flex; gap: 8px; }
+    .entity-intro-list b { min-width: 68px; color: #bfdbfe; }
+    .entity-intro-list span { color: var(--sub); }
+    .detail-summary { margin: 0 0 18px; color: var(--text); line-height: 1.65; }
+    .detail-summary p { margin: 0 0 10px; }
+    .detail-summary-list { margin: 8px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+    .detail-summary-list li {
+      padding: 9px 11px;
+      border: 1px solid rgba(42, 53, 68, 0.72);
+      border-radius: 8px;
+      background: rgba(8, 13, 20, 0.22);
+      color: var(--sub);
+    }
+    .detail-summary-list b { color: var(--text); }
+    .detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 18px 0; }
+    .detail-box { border: 1px solid rgba(42, 53, 68, 0.85); border-radius: 8px; padding: 12px; background: rgba(8, 13, 20, 0.24); }
+    .detail-box b { display: block; margin-bottom: 6px; color: var(--muted); font-size: 12px; text-transform: uppercase; }
+    .periodic-financial-box { border-color: rgba(59, 130, 246, 0.34); background: rgba(59, 130, 246, 0.07); }
+    .periodic-financial-box span { font-weight: 850; }
+    .detail-list { margin: 8px 0 0; padding-left: 18px; color: var(--sub); line-height: 1.65; }
+    .detail-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+    .detail-note { margin-top: 14px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .detail-action {
+      border: 1px solid rgba(59, 130, 246, 0.45);
+      border-radius: 999px;
+      padding: 7px 12px;
+      color: #93c5fd;
+      text-decoration: none;
+      font-weight: 800;
+      font-size: 13px;
+    }
+    .detail-action.primary { background: rgba(59, 130, 246, 0.14); }
+    .detail-action:hover { background: rgba(59, 130, 246, 0.2); }
+    .tag {
+      border-radius: 5px;
+      padding: 2px 8px;
+      background: rgba(59, 130, 246, 0.12);
+      color: #93c5fd;
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .tag.disclosure { background: rgba(245, 158, 11, 0.12); color: var(--amber); }
+    .tag.news { background: rgba(59, 130, 246, 0.12); color: #93c5fd; }
+    .tag.regulatory { background: rgba(139, 92, 246, 0.12); color: #a78bfa; }
+    .tag.markets { background: rgba(34, 197, 94, 0.12); color: var(--green); }
+    .tag.high { background: rgba(239, 68, 68, 0.12); color: var(--red); }
+    .tag.composite { background: rgba(245, 158, 11, 0.14); color: #fbbf24; }
+    .tag.identifier { background: rgba(14, 165, 233, 0.14); color: #7dd3fc; }
+    .composite-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      border: 1px solid rgba(245, 158, 11, 0.32);
+      border-radius: 999px;
+      padding: 2px 8px;
+      background: rgba(245, 158, 11, 0.1);
+      color: #fbbf24;
+      font-size: 11px;
+      font-weight: 900;
+    }
+    .composite-box { border-color: rgba(245, 158, 11, 0.35); background: rgba(245, 158, 11, 0.06); }
+
+    .sidebar { display: flex; flex-direction: column; gap: 24px; }
+    .card h3 {
+      justify-content: flex-start;
+      color: var(--sub);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-size: 13px;
+    }
+
+    .card-body { padding: 16px 24px; }
+    .row { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid rgba(42, 53, 68, 0.65); font-size: 13px; }
+    .row:last-child { border-bottom: 0; }
+    .row b { max-width: 70%; }
+    .blue { color: #93c5fd; font-weight: 800; }
+    .muted { color: var(--muted); }
+    .legend { display: flex; align-items: center; gap: 8px; }
+    .square { width: 10px; height: 10px; border-radius: 3px; }
+
+    .modal { display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6); z-index: 50; align-items: center; justify-content: center; padding: 24px; }
+    .modal.open { display: flex; }
+    .modal-box { width: min(640px, 100%); max-height: 80vh; overflow: auto; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; }
+    .modal-box header { display: flex; justify-content: space-between; padding: 20px 24px; border-bottom: 1px solid var(--border); }
+    .modal-box section { padding: 24px; }
+    .modal-box input { background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 6px 10px; }
+    .setting { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; }
+
+    @media (max-width: 1024px) {
+      .grid { grid-template-columns: 1fr; }
+      .main { padding: 16px; }
+      .actions { gap: 8px; }
+    }
+
+    @media (max-width: 640px) {
+      .header { padding: 10px 12px; }
+      .brand h1 { font-size: 19px; }
+      .grid { gap: 20px; }
+      .detail-grid { grid-template-columns: 1fr; }
+      .item, .region-head, .card-body { padding-left: 16px; padding-right: 16px; }
+      .time { display: none; }
+    }
+  </style>
 </head>
 <body>
-  <header class="hero">
-    <div class="container">
-      <p class="eyebrow">Investment Event Intelligence</p>
-      <h1>해외 공시 · 실적 · M&A · 산업 변화 모니터링</h1>
-      <p class="subtitle">
-        미국, 유럽, 일본, 대만, 중국의 공식 공시와 주요 외신을 기반으로
-        중복 없이 정리된 이벤트 중심 피드를 만드는 프로젝트입니다.
-      </p>
-      <div class="actions">
-        <a class="button primary" href="./global-pulse-dashboard.html">대시보드 열기</a>
-        <a class="button secondary" href="../../docs/blueprint/investment_news_blueprint_v2.md">설계서 보기</a>
-        <button class="button secondary" id="show-status">현재 상태 확인</button>
-      </div>
+<div class="app">
+  <header class="header">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline>
+        <polyline points="16 7 22 7 22 13"></polyline>
+      </svg>
+      <h1>Global<span>Pulse</span></h1>
+    </div>
+    <div class="actions">
+      <span class="time" id="currentTime">KST</span>
+      <span class="api" id="backendStatus">백엔드 확인 중</span>
+      <a class="link-pill" id="operator-source-health-link" href="/api/admin/source-health" target="_blank" rel="noopener">소스 상태</a>
+      <button class="icon" onclick="openSettings()" aria-label="전송 시간 설정 열기">설정</button>
+      <button class="toggle" onclick="toggleTheme()" title="테마 전환" aria-label="테마 전환"></button>
     </div>
   </header>
 
-  <main class="container grid">
-    <section class="card">
-      <h2>현재 진행 단계</h2>
-      <ol>
-        <li>리포지토리 기본 구조 생성</li>
-        <li>프론트엔드 초안 배치</li>
-        <li>백엔드 소스 레지스트리 설계</li>
-        <li>이벤트 정규화/중복 제거 파이프라인 구현</li>
-        <li>웹 배포 및 API 연결</li>
-      </ol>
-    </section>
+  <main class="main">
+    <div class="status" id="statusRail"></div>
+    <div class="tabs" id="tabs"></div>
+    <div class="insight" id="insightBanner">
+      <span>[LIVE]</span>
+      <span>백엔드 digest를 불러와 지역별 공시와 뉴스를 <strong>최신순</strong>으로 정리합니다.</span>
+    </div>
+    <div class="region-page" id="regionDetailHeader"></div>
 
-    <section class="card">
-      <h2>핵심 이벤트 범주</h2>
-      <ul>
-        <li>기업 실적 발표</li>
-        <li>M&A / 대규모 자금 이동</li>
-        <li>수요 급증 / 공급 부족</li>
-        <li>기술 혁신 / 제품 출시</li>
-        <li>원자재·에너지·반도체 등 산업 변화</li>
-      </ul>
-    </section>
+    <div class="grid">
+      <section class="feed" id="feed"></section>
 
-    <section class="card">
-      <h2>권장 다음 작업</h2>
-      <p>
-        네가 따로 만든 HTML이 있다면 이 파일을 교체하거나, 같은 디렉터리에 추가한 뒤
-        메인 엔트리 구조를 정리하면 됩니다.
-      </p>
-      <p id="status-text">현재는 초기 스캐폴딩만 완료된 상태입니다.</p>
-    </section>
+      <aside class="sidebar">
+        <div class="card">
+          <h3>백엔드 상태</h3>
+          <div class="card-body" id="backendSnapshot"></div>
+        </div>
+
+        <div class="card">
+          <h3>지역 구성</h3>
+          <div class="card-body" id="regionSummary"></div>
+        </div>
+
+        <div class="card">
+          <h3>최신 항목</h3>
+          <div class="card-body" id="topPriority"></div>
+        </div>
+
+        <div class="card">
+          <h3>전송 일정 (KST)</h3>
+          <div class="card-body">
+            <div class="row"><b>일본</b><span><span class="blue">18:30</span> <span class="time">JST</span></span></div>
+            <div class="row"><b>중국/대만</b><span><span class="blue">20:00</span> <span class="time">KST</span></span></div>
+            <div class="row"><b>유럽</b><span><span class="blue">04:30+1</span></span></div>
+            <div class="row"><b>미국</b><span><span class="blue">11:00+1</span></span></div>
+          </div>
+        </div>
+      </aside>
+    </div>
   </main>
+</div>
 
-  <script src="./script.js"></script>
+<div class="modal" id="settingsModal">
+  <div class="modal-box">
+    <header>
+      <h2>전송 시간 설정</h2>
+      <button class="icon" onclick="closeSettings()" aria-label="설정 닫기">X</button>
+    </header>
+    <section>
+      <div class="setting"><span>일본 (JST)</span><input type="time" value="18:30"></div>
+      <div class="setting"><span>중국/대만</span><input type="time" value="20:00"></div>
+      <div class="setting"><span>유럽</span><input type="time" value="04:30"></div>
+      <div class="setting"><span>미국</span><input type="time" value="11:00"></div>
+    </section>
+  </div>
+</div>
+
+<script>
+const REGION_LABELS = Object.assign({
+  global: "전체",
+  us: "미국",
+  americas: "미국",
+  eu: "유럽",
+  europe: "유럽",
+  eu_north: "북유럽",
+  eu_central: "중부 유럽",
+  eu_south: "남유럽",
+  uk: "영국",
+  ch: "스위스",
+  tr: "튀르키예",
+  kr: "한국",
+  korea: "한국",
+  jp: "일본",
+  japan: "일본",
+  greater_china: "중국/대만",
+  cn: "중국 본토",
+  tw: "대만",
+  hk: "홍콩",
+  apac: "아시아/태평양",
+  asean: "ASEAN",
+  india: "인도",
+  anz: "호주/뉴질랜드",
+  other: "기타 지역"
+}, window.GLOBALPULSE_REGION_LABELS || {});
+
+const REGION_ALIASES = Object.assign({
+  americas: "us",
+  usa: "us",
+  united_states: "us",
+  united_states_of_america: "us",
+  europe: "eu",
+  europe_north: "eu_north",
+  northern_europe: "eu_north",
+  europe_central: "eu_central",
+  central_europe: "eu_central",
+  europe_south: "eu_south",
+  southern_europe: "eu_south",
+  gb: "uk",
+  great_britain: "uk",
+  united_kingdom: "uk",
+  switzerland: "ch",
+  turkey: "tr",
+  turkiye: "tr",
+  korea: "kr",
+  south_korea: "kr",
+  japan: "jp",
+  cn_tw: "greater_china",
+  greaterchina: "greater_china",
+  china: "cn",
+  mainland_china: "cn",
+  taiwan: "tw",
+  hong_kong: "hk",
+  hongkong: "hk",
+  southeast_asia: "asean",
+  south_east_asia: "asean",
+  in: "india",
+  australia_nz: "anz",
+  australia: "anz",
+  new_zealand: "anz"
+}, window.GLOBALPULSE_REGION_ALIASES || {});
+
+const REGION_ORDER = window.GLOBALPULSE_REGION_ORDER || [
+  "us",
+  "jp",
+  "greater_china",
+  "cn",
+  "tw",
+  "hk",
+  "apac",
+  "asean",
+  "india",
+  "anz",
+  "eu",
+  "global",
+  "other"
+];
+
+const REGION_SHORTCUTS = window.GLOBALPULSE_REGION_SHORTCUTS || ["us", "jp", "greater_china", "india", "eu"];
+const EUROPE_DISPLAY_REGIONS = new Set(["eu", "eu_north", "eu_central", "eu_south", "uk", "ch", "tr"]);
+const HIDDEN_REGIONS = new Set((window.GLOBALPULSE_HIDDEN_REGIONS || ["kr"]).map(displayRegion));
+const REGION_EXCLUSION_RULES = normalizeRegionExclusionRules(window.GLOBALPULSE_REGION_EXCLUSION_RULES || {});
+const FILTERS = [
+  ["all", "전체"],
+  ["disclosure", "공시"],
+  ["news", "뉴스"],
+  ["sec_strategy", "전략/계약"],
+  ["sec_mna", "M&A/공개매수"],
+  ["sec_ownership", "지분/기관"],
+  ["sec_financials", "실적"]
+];
+
+const TAG_LABELS = {
+  global: "전체",
+  us: "미국",
+  americas: "미국",
+  eu: "유럽",
+  eu_north: "유럽",
+  eu_central: "유럽",
+  eu_south: "유럽",
+  uk: "유럽",
+  ch: "유럽",
+  tr: "유럽",
+  kr: "한국",
+  jp: "일본",
+  greater_china: "중국/대만",
+  cn: "중국",
+  tw: "대만",
+  hk: "홍콩",
+  apac: "아시아",
+  asean: "ASEAN",
+  india: "인도",
+  anz: "호주/NZ",
+  disclosure: "공시",
+  exchange: "거래소",
+  listed_companies: "상장사",
+  issuer_announcement: "발행사 공시",
+  latest_submissions: "최신 제출",
+  markets: "시장",
+  regulatory: "규제",
+  rss: "RSS",
+  api: "API"
+};
+
+const SOURCE_LABELS = {
+  sec_press_releases: "SEC 보도자료",
+  sec_edgar_current_8k_filings: "SEC EDGAR 8-K 공시",
+  sec_edgar_form4_clustered_insider_buys: "SEC Form 4 내부자 매수 클러스터",
+  sec_edgar_13f_institutional_accumulation: "SEC 13F 기관 포트폴리오 누적 매수",
+  sec_edgar_current_10q_reports: "SEC 10-Q 분기보고서",
+  sec_edgar_current_10k_reports: "SEC 10-K 연차보고서",
+  sec_edgar_current_s1_registration_statements: "SEC S-1 IPO 등록서",
+  sec_edgar_current_f1_registration_statements: "SEC F-1 IPO 등록서",
+  sec_edgar_current_13d_activist_ownership: "SEC 13D 전략/행동주의 지분",
+  sec_edgar_current_13g_increased_ownership: "SEC 13G 지분 증가",
+  sec_edgar_current_s4_merger_registration_statements: "SEC S-4 합병/교환 등록서",
+  sec_edgar_current_f4_merger_registration_statements: "SEC F-4 합병/교환 등록서",
+  sec_edgar_current_schedule_to_tender_offers: "SEC Schedule TO 공개매수",
+  jp_tdnet_disclosures: "일본 TDnet 공시",
+  india_nse_announcements: "인도 NSE 공시",
+  hkex_latest_listed_company_information: "홍콩거래소 상장사 공시",
+  eu_belgium_fsma_stori: "벨기에 FSMA STORI",
+  eu_france_info_financiere_oam: "프랑스 OAM 공시",
+  eu_spain_cnmv_inside_information: "스페인 CNMV 내부정보",
+  eu_spain_cnmv_other_relevant_information: "스페인 CNMV 기타 중요정보",
+  uk_fca_nsm_regulated_information: "영국 FCA NSM",
+  ch_six_ser_official_notices: "스위스 SIX 공시",
+  dk_dfsa_oam_company_announcements: "덴마크 DFSA OAM"
+};
+
+const DEFAULT_EXCLUDED_SOURCE_KEYS = ["sec_press_releases"];
+const REGION_SOURCE_KEYS = {
+  jp: [
+    "jp_tdnet_disclosures"
+  ],
+  us: [
+    "sec_edgar_current_8k_filings",
+    "sec_edgar_form4_clustered_insider_buys",
+    "sec_edgar_13f_institutional_accumulation",
+    "sec_edgar_current_10q_reports",
+    "sec_edgar_current_10k_reports",
+    "sec_edgar_current_s1_registration_statements",
+    "sec_edgar_current_f1_registration_statements",
+    "sec_edgar_current_13d_activist_ownership",
+    "sec_edgar_current_13g_increased_ownership",
+    "sec_edgar_current_s4_merger_registration_statements",
+    "sec_edgar_current_f4_merger_registration_statements",
+    "sec_edgar_current_schedule_to_tender_offers"
+  ]
+};
+const DASHBOARD_SUPPLEMENT_REGIONS = REGION_SHORTCUTS;
+const DASHBOARD_SUPPLEMENT_LIMIT = 5;
+
+const STATIC_ITEMS = [
+  {
+    headline: "Broadcom Nears $85B Deal to Acquire Cloud Software Giant VMware",
+    summary: "백엔드가 연결되지 않았을 때 표시하는 정적 데모 항목입니다.",
+    source: "Reuters",
+    regions: ["us"],
+    relevance_score: 0.82,
+    priority_rank: 3,
+    metadata: { category: "markets", coverage_tags: ["markets"] },
+    kind: "news",
+    published_at: new Date().toISOString()
+  },
+  {
+    headline: "ASML Reports Record Backlog as Advanced EUV Demand Exceeds Capacity",
+    summary: "백엔드가 연결되지 않았을 때 표시하는 정적 데모 항목입니다.",
+    source: "Financial Times",
+    regions: ["eu"],
+    relevance_score: 0.78,
+    priority_rank: 4,
+    metadata: { category: "markets", coverage_tags: ["markets"] },
+    kind: "news",
+    published_at: new Date().toISOString()
+  }
+];
+
+let currentFilter = "all";
+let currentItems = [];
+let currentDigest = null;
+
+function toggleTheme() {
+  const h = document.documentElement;
+  h.dataset.theme = h.dataset.theme === "dark" ? "light" : "dark";
+  localStorage.setItem("theme", h.dataset.theme);
+}
+
+(function restoreTheme() {
+  const stored = localStorage.getItem("theme");
+  if (stored) document.documentElement.dataset.theme = stored;
+})();
+
+function openSettings() { document.getElementById("settingsModal").classList.add("open"); }
+function closeSettings() { document.getElementById("settingsModal").classList.remove("open"); }
+
+document.getElementById("settingsModal").addEventListener("click", event => {
+  if (event.target.id === "settingsModal") closeSettings();
+});
+
+function updateClock() {
+  const now = new Date();
+  const kst = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Seoul" }));
+  const f = value => String(value).padStart(2, "0");
+  document.getElementById("currentTime").textContent =
+    `${kst.getFullYear()}-${f(kst.getMonth() + 1)}-${f(kst.getDate())} KST ${f(kst.getHours())}:${f(kst.getMinutes())}`;
+}
+
+updateClock();
+setInterval(updateClock, 30000);
+
+function toggleRegion(header) {
+  const body = header.nextElementSibling;
+  body.style.display = body.style.display === "none" ? "block" : "none";
+}
+
+function apiBaseUrl() {
+  const params = new URLSearchParams(location.search);
+  return (params.get("apiBase") || window.DISCLOSURE_API_BASE_URL || "").replace(/\/$/, "");
+}
+
+const API_BASE_URL = apiBaseUrl();
+
+function digestEdition() {
+  return new URLSearchParams(location.search).get("edition") || "breaking";
+}
+
+function selectedRegionFromUrl() {
+  const region = new URLSearchParams(location.search).get("region");
+  if (!region) return null;
+
+  const selected = displayRegion(canonicalRegion(region));
+  return isHiddenRegion(selected) ? null : selected;
+}
+
+function selectedItemKeyFromUrl() {
+  return new URLSearchParams(location.search).get("item");
+}
+
+function regionPageUrl(region) {
+  const url = new URL(location.href);
+  url.searchParams.set("region", displayRegion(region));
+  url.searchParams.set("edition", digestEdition());
+  url.searchParams.delete("item");
+  return `${url.pathname}${url.search}${url.hash}`;
+}
+
+function dashboardUrl() {
+  const url = new URL(location.href);
+  url.searchParams.delete("region");
+  url.searchParams.delete("item");
+  return `${url.pathname}${url.search}${url.hash}`;
+}
+
+function itemBackUrl() {
+  const url = new URL(location.href);
+  url.searchParams.delete("item");
+  return `${url.pathname}${url.search}${url.hash}`;
+}
+
+function itemDetailUrl(item) {
+  const url = new URL(location.href);
+  url.searchParams.set("edition", digestEdition());
+  url.searchParams.set("item", item.storyKey);
+  return `${url.pathname}${url.search}${url.hash}`;
+}
+
+function digestPath() {
+  const params = new URLSearchParams({ edition: digestEdition() });
+  const region = selectedRegionFromUrl();
+
+  if (DEFAULT_EXCLUDED_SOURCE_KEYS.length) {
+    params.set("exclude_source_keys", DEFAULT_EXCLUDED_SOURCE_KEYS.join(","));
+  }
+
+  if (region) {
+    params.set("region", region);
+    params.set("limit", "100");
+    params.set("recent_date_limit", "60");
+
+    const sourceKeys = REGION_SOURCE_KEYS[region] || [];
+    if (sourceKeys.length) {
+      params.set("source_keys", sourceKeys.join(","));
+      params.delete("exclude_source_keys");
+    }
+  }
+
+  return `/api/feed/digest/latest?${params.toString()}`;
+}
+
+function regionDigestPath(region, limit = "100") {
+  const display = displayRegion(region);
+  const params = new URLSearchParams({
+    edition: digestEdition(),
+    region: display,
+    limit: String(limit),
+    recent_date_limit: "60"
+  });
+  const sourceKeys = REGION_SOURCE_KEYS[display] || [];
+
+  if (sourceKeys.length) {
+    params.set("source_keys", sourceKeys.join(","));
+  } else if (DEFAULT_EXCLUDED_SOURCE_KEYS.length) {
+    params.set("exclude_source_keys", DEFAULT_EXCLUDED_SOURCE_KEYS.join(","));
+  }
+
+  return `/api/feed/digest/latest?${params.toString()}`;
+}
+
+function setOperatorLink() {
+  const link = document.getElementById("operator-source-health-link");
+  link.href = `${API_BASE_URL || location.origin}/api/admin/source-health`;
+}
+
+setOperatorLink();
+
+function pruneHiddenRegionStaticChrome() {
+  if (HIDDEN_REGIONS.has("kr")) {
+    document.querySelectorAll(".setting, .card-body .row").forEach(row => {
+      const text = row.textContent || "";
+
+      if (text.includes("한국")) {
+        row.remove();
+      }
+    });
+  }
+
+  const scheduleBody = Array.from(document.querySelectorAll(".card-body"))
+    .find(body => Array.from(body.querySelectorAll(".blue"))
+      .some(node => (node.textContent || "").includes("11:00")));
+
+  if (!scheduleBody) return;
+
+  const order = ["11:00", "18:30", "20:00", "04:30"];
+  const rows = Array.from(scheduleBody.querySelectorAll(".row"));
+  rows
+    .sort((a, b) => scheduleRowIndex(a, order) - scheduleRowIndex(b, order))
+    .forEach(row => scheduleBody.appendChild(row));
+}
+
+function scheduleRowIndex(row, order) {
+  const text = row.textContent || "";
+  const index = order.findIndex(token => text.includes(token));
+  return index === -1 ? order.length : index;
+}
+
+pruneHiddenRegionStaticChrome();
+
+async function fetchJson(path) {
+  const response = await fetch(`${API_BASE_URL}${path}`, { headers: { Accept: "application/json" } });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return response.json();
+}
+
+function setBackend(text, state) {
+  const el = document.getElementById("backendStatus");
+  el.textContent = text;
+  el.classList.remove("online", "offline");
+  if (state) el.classList.add(state);
+}
+
+function digestItems(payload) {
+  if (Array.isArray(payload?.items)) return payload.items;
+  if (Array.isArray(payload?.data?.items)) return payload.data.items;
+  if (Array.isArray(payload?.digest?.items)) return payload.digest.items;
+  if (Array.isArray(payload?.data)) return payload.data;
+  return [];
+}
+
+function sourceLabel(source) {
+  if (!source) return "백엔드";
+  if (typeof source === "string") return SOURCE_LABELS[source] || source;
+  return SOURCE_LABELS[source.source_key] || source.display_name || source.source_key || "백엔드";
+}
+
+function sourceKey(source) {
+  if (!source) return "";
+  if (typeof source === "string") return source;
+  return source.source_key || source.display_name || "";
+}
+
+function canonicalRegion(value) {
+  const raw = String(value || "global")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+  if (REGION_ALIASES[raw]) return REGION_ALIASES[raw];
+  return REGION_LABELS[raw] ? raw : "other";
+}
+
+function displayRegion(value) {
+  const region = canonicalRegion(value);
+  return EUROPE_DISPLAY_REGIONS.has(region) ? "eu" : region;
+}
+
+function regionLabel(code) {
+  return REGION_LABELS[displayRegion(code)] || "기타 지역";
+}
+
+function isHiddenRegion(region) {
+  return HIDDEN_REGIONS.has(displayRegion(region));
+}
+
+function normalizeRegionExclusionRules(rules) {
+  return Object.fromEntries(Object.entries(rules || {}).map(([region, rule]) => [
+    displayRegion(region),
+    {
+      categories: normalizeRuleTerms(rule?.categories || rule?.category),
+      tags: normalizeRuleTerms(rule?.tags || rule?.coverage_tags),
+      sources: normalizeRuleTerms(rule?.sources || rule?.source_keys),
+      titleIncludes: normalizeRuleTerms(rule?.titleIncludes || rule?.title_includes),
+      summaryIncludes: normalizeRuleTerms(rule?.summaryIncludes || rule?.summary_includes),
+      textIncludes: normalizeRuleTerms(rule?.textIncludes || rule?.text_includes)
+    }
+  ]));
+}
+
+function normalizeRuleTerms(value) {
+  const values = Array.isArray(value) ? value : (value ? [value] : []);
+  return values
+    .map(term => String(term).trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function itemPolicyFields(item) {
+  const raw = item.raw || {};
+  const metadata = raw.metadata || {};
+  const rawTags = [
+    ...(metadata.coverage_tags || []),
+    ...(raw.coverage_tags || []),
+    ...(raw.tags || [])
+  ];
+
+  return {
+    categories: normalizeRuleTerms([
+      item.kind,
+      item.category,
+      raw.kind,
+      raw.type,
+      raw.category,
+      metadata.category,
+      metadata.source_type,
+      ...(raw.sectors || [])
+    ]),
+    tags: normalizeRuleTerms(rawTags),
+    sources: normalizeRuleTerms([
+      item.source,
+      sourceKey(raw.source || raw.source_key || raw.provider),
+      raw.source_key,
+      raw.provider
+    ]),
+    title: String(item.title || "").toLowerCase(),
+    summary: String(item.summary || "").toLowerCase()
+  };
+}
+
+function matchesAnyField(values, terms) {
+  if (!terms.length) return false;
+  return values.some(value => terms.some(term => value === term || value.includes(term)));
+}
+
+function textIncludesAny(text, terms) {
+  return terms.length > 0 && terms.some(term => text.includes(term));
+}
+
+function matchesRegionExclusionRule(item, rule) {
+  const fields = itemPolicyFields(item);
+  const allText = `${fields.title} ${fields.summary} ${fields.categories.join(" ")} ${fields.tags.join(" ")} ${fields.sources.join(" ")}`;
+
+  return (
+    matchesAnyField(fields.categories, rule.categories) ||
+    matchesAnyField(fields.tags, rule.tags) ||
+    matchesAnyField(fields.sources, rule.sources) ||
+    textIncludesAny(fields.title, rule.titleIncludes) ||
+    textIncludesAny(fields.summary, rule.summaryIncludes) ||
+    textIncludesAny(allText, rule.textIncludes)
+  );
+}
+
+function excludedByRegionPolicy(item) {
+  if (item.displayRegions.some(isHiddenRegion)) return true;
+
+  return item.displayRegions.some(region => {
+    const rule = REGION_EXCLUSION_RULES[region];
+    return rule && matchesRegionExclusionRule(item, rule);
+  });
+}
+
+function applyItemPolicy(items) {
+  return items.filter(item => !excludedByRegionPolicy(item));
+}
+
+function itemKind(item) {
+  const src = sourceKey(item.source || item.source_key || item.provider).toLowerCase();
+  const url = String(item.canonical_url || item.url || "").toLowerCase();
+  const sourceType = String(item.metadata?.source_type || item.source_type || "").toLowerCase();
+  const explicit = String(item.kind || item.type || "").toLowerCase();
+  const tags = (item.metadata?.coverage_tags || item.coverage_tags || [])
+    .map(tag => String(tag).toLowerCase());
+
+  if (explicit.includes("disclosure") || explicit.includes("filing") || explicit.includes("공시")) return "disclosure";
+  if (tags.includes("disclosure") || tags.includes("filing")) return "disclosure";
+  if (src.includes("sec") || url.includes("sec.gov") || sourceType.includes("filing")) return "disclosure";
+  return "news";
+}
+
+function categoryKey(item, kind, importance) {
+  const haystack = [
+    item.metadata?.category,
+    item.category,
+    item.sentiment_label,
+    item.headline,
+    item.title,
+    ...(item.metadata?.coverage_tags || []),
+    ...(item.sectors || [])
+  ].filter(Boolean).join(" ").toLowerCase();
+
+  if (haystack.includes("regulatory") || haystack.includes("enforcement")) return "regulatory";
+  if (haystack.includes("market")) return "markets";
+  return kind;
+}
+
+function isSecItem(item) {
+  const source = itemSourceKey(item).toLowerCase();
+  const url = String(item.url || item.raw?.canonical_url || item.raw?.url || "").toLowerCase();
+  const tags = [
+    ...(item.metadata?.coverage_tags || []),
+    ...(item.raw?.coverage_tags || [])
+  ].join(" ").toLowerCase();
+
+  return source.includes("sec") || url.includes("sec.gov") || tags.includes("sec_edgar");
+}
+
+function secSignalHaystack(item) {
+  return [
+    item.title,
+    item.summary,
+    rawSummaryText(item),
+    item.metadata?.category,
+    ...(item.metadata?.coverage_tags || [])
+  ].filter(Boolean).join(" ").toLowerCase();
+}
+
+function secSignalBuckets(item) {
+  if (!isSecItem(item)) return [];
+
+  const source = itemSourceKey(item).toLowerCase();
+  const text = secSignalHaystack(item);
+  const buckets = new Set();
+
+  if (source.includes("form4")) buckets.add("sec_insider");
+  if (source.includes("13f") || source.includes("13d") || source.includes("13g")) buckets.add("sec_ownership");
+  if (source.includes("10q") || source.includes("10k") || /item 2\.02|revenue|net income|eps|guidance/.test(text)) buckets.add("sec_financials");
+  if (source.includes("s1_registration") || source.includes("f1_registration") || /ipo|initial public offering|use of proceeds|price range/.test(text)) buckets.add("sec_ipo");
+  if (source.includes("schedule_to") || source.includes("s4_merger") || source.includes("f4_merger") || /item 2\.01|item 5\.01|merger|tender offer|exchange ratio|change in control|acquisition/.test(text)) buckets.add("sec_mna");
+  if (source.includes("8k") || /item 1\.01|item 3\.02|item 7\.01|item 8\.01|strategic|partnership|collaboration|customer|backlog|contract|order/.test(text)) buckets.add("sec_strategy");
+
+  return [...buckets];
+}
+
+function itemFilterKeys(item) {
+  const keys = new Set([item.kind, item.category]);
+  if (item.importance >= 85) keys.add("high");
+  for (const key of secSignalBuckets(item)) keys.add(key);
+  return keys;
+}
+
+function secCompositeCategory(item) {
+  if (!isSecItem(item)) return "";
+
+  const source = itemSourceKey(item).toLowerCase();
+  const text = secSignalHaystack(item);
+
+  if (source.includes("form4")) return "내부자 매수";
+  if (source.includes("13f")) return "기관 매수";
+  if (source.includes("13d") || source.includes("13g")) return "지분 변화";
+  if (source.includes("schedule_to") || source.includes("s4_merger") || source.includes("f4_merger") || /item 2\.01|item 5\.01|merger|tender offer|exchange ratio|change in control/.test(text)) return "M&A/공개매수";
+  if (source.includes("s1_registration") || source.includes("f1_registration")) return "IPO";
+  if (source.includes("10q") || source.includes("10k") || /item 2\.02|revenue|net income|eps|guidance/.test(text)) return "실적";
+  if (source.includes("8k") || /item 1\.01|item 3\.02|item 7\.01|item 8\.01|strategic|partnership|customer|backlog|contract|order/.test(text)) return "8-K 촉매";
+
+  return "";
+}
+
+function compositeIssuerKey(item) {
+  const value = detailTarget(item)
+    .toLowerCase()
+    .replace(/\b(incorporated|inc|corp|corporation|ltd|limited|plc|sa|nv|ag|co|company|class a|common stock)\b/g, "")
+    .replace(/[^a-z0-9가-힣]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return value.length >= 3 ? value : "";
+}
+
+function applyCompositeSignals(items) {
+  const decorated = items.map(item => ({ ...item, compositeSignals: [] }));
+  const groups = new Map();
+
+  for (const item of decorated) {
+    const issuerKey = compositeIssuerKey(item);
+    const category = secCompositeCategory(item);
+    if (!issuerKey || !category) continue;
+    if (!groups.has(issuerKey)) groups.set(issuerKey, { categories: new Set(), items: [] });
+    groups.get(issuerKey).categories.add(category);
+    groups.get(issuerKey).items.push(item);
+  }
+
+  for (const group of groups.values()) {
+    if (group.categories.size < 2) continue;
+    const categories = [...group.categories];
+    for (const item of group.items) {
+      item.compositeSignals = categories;
+    }
+  }
+
+  return decorated;
+}
+
+function compositePillHtml(item) {
+  if (!item.compositeSignals?.length) return "";
+  return `<span class="composite-pill">${escapeHtml(`복합 시그널 ${item.compositeSignals.length}개`)}</span>`;
+}
+
+function compositeDetailBoxHtml(item) {
+  if (!item.compositeSignals?.length) return "";
+  return `
+    <div class="detail-box composite-box">
+      <b>복합 시그널</b>
+      <span>${escapeHtml(item.compositeSignals.join(" + "))}</span>
+    </div>
+  `;
+}
+
+const SEC_8K_ITEM_LABELS = {
+  "1.01": "중요 계약 체결",
+  "1.02": "중요 계약 종료",
+  "2.01": "인수/처분 완료",
+  "2.02": "실적 발표",
+  "2.03": "부채 또는 차입",
+  "2.05": "구조조정 비용",
+  "2.06": "자산 손상",
+  "3.01": "상장 기준 미준수",
+  "3.02": "증권 발행",
+  "3.03": "주주권 변동",
+  "4.01": "회계법인 변경",
+  "4.02": "재무제표 신뢰성 문제",
+  "5.01": "지배권 변경",
+  "5.02": "임원/이사회 변경",
+  "5.03": "정관 변경",
+  "5.07": "주주총회 표결 결과",
+  "7.01": "투자자 대상 주요 정보 공개",
+  "8.01": "기타 중요 이벤트",
+  "9.01": "재무제표 또는 첨부자료"
+};
+
+function simpleSummary(item, title, kind, category) {
+  const source = sourceKey(item.source || item.source_key || item.provider).toLowerCase();
+  const rawSummary = cleanText(item.summary || item.description || "");
+  const headline = cleanText(title);
+  const combined = `${headline} ${rawSummary}`.toLowerCase();
+
+  if (source.includes("form4") || combined.includes("form 4 insider buy cluster")) {
+    return rawSummary || "1주일 이내 여러 내부자/대주주 매수가 겹친 Form 4 클러스터입니다.";
+  }
+
+  if (source.includes("13f_institutional")) {
+    return localizeSecSummaryText(rawSummary) || "SEC 13F에서 유명 기관의 신규 편입, 큰 비중 증가, 여러 기관 동시 매수 신호만 추린 아이디어 소싱 항목입니다.";
+  }
+
+  if (source.includes("10q") || source.includes("10k") || combined.includes("10-q") || combined.includes("10-k")) {
+    return localizeSecSummaryText(rawSummary) || "SEC 정기보고서에서 매출, 순이익/순손실, EPS와 가이던스 문구를 요약한 항목입니다.";
+  }
+
+  if (source.includes("s1_registration") || source.includes("f1_registration") || combined.includes(" ipo ")) {
+    return localizeSecSummaryText(rawSummary) || "SEC IPO/신규상장 등록서에서 사업 설명, 조달 규모, 자금 사용 목적, 공모 가격과 lock-up 문구를 요약한 항목입니다.";
+  }
+
+  if (source.includes("13d_activist")) {
+    return localizeSecSummaryText(rawSummary) || "SEC Schedule 13D에서 5% 이상 전략 지분, 행동주의 가능성, 목적 문구를 요약한 항목입니다.";
+  }
+
+  if (source.includes("13g_increased")) {
+    return localizeSecSummaryText(rawSummary) || "SEC Schedule 13G에서 신규 또는 증가한 5% 이상 보유지분 신호만 추린 항목입니다.";
+  }
+
+  if (source.includes("s4_merger") || source.includes("f4_merger")) {
+    return localizeSecSummaryText(rawSummary) || "SEC S-4/F-4에서 주식교환·합병 대상, 교환/합병 비율과 전략적 목적을 요약한 항목입니다.";
+  }
+
+  if (source.includes("schedule_to")) {
+    return localizeSecSummaryText(rawSummary) || "SEC Schedule TO에서 공개매수 조건, 수량, 주당 가액과 공개매수 목적을 요약한 항목입니다.";
+  }
+
+  if (source.includes("sec_edgar") || combined.includes("8-k") || combined.includes("item ")) {
+    return secEdgarSummary(headline, rawSummary);
+  }
+
+  if (source.includes("jp_tdnet") || combined.includes("tdnet")) {
+    return tdnetSummary(headline);
+  }
+
+  if (source.includes("hkex_latest")) {
+    return hkexSummary(headline, rawSummary);
+  }
+
+  if (source.includes("tw_mops")) {
+    return taiwanMopsSummary(headline, rawSummary);
+  }
+
+  if (source.includes("india_nse")) {
+    return indiaNseSummary(headline, rawSummary);
+  }
+
+  if (isEuropeSource(source, item)) {
+    return europeSummary(headline, rawSummary, item);
+  }
+
+  const patternSummary = disclosurePatternSummary(headline, rawSummary);
+  if (patternSummary) return patternSummary;
+
+  if (kind === "disclosure") return category === "markets" ? "시장에 영향을 줄 수 있는 상장사 공시입니다." : "상장사가 공개한 최신 공시입니다.";
+  return "시장 흐름을 확인할 수 있는 최신 뉴스입니다.";
+}
+
+function secEdgarSummary(title, rawSummary) {
+  if (isSecEdgarBodySummary(rawSummary)) return localizeSecSummaryText(rawSummary);
+
+  const company = title
+    .replace(/^8-K\s*-\s*/i, "")
+    .replace(/\s*\(\d+\)\s*\(Filer\).*$/i, "")
+    .trim();
+  const codes = unique([...rawSummary.matchAll(/Item\s+([0-9]+\.[0-9]+)/gi)].map(match => match[1]));
+  const primaryCodes = codes.filter(code => code !== "9.01");
+  const labels = (primaryCodes.length ? primaryCodes : codes)
+    .map(code => SEC_8K_ITEM_LABELS[code] || `SEC Item ${code}`)
+    .slice(0, 2);
+
+  if (labels.length) {
+    return `${company || "해당 회사"}의 ${labels.join(", ")} 관련 8-K 공시입니다.`;
+  }
+
+  return `${company || "해당 회사"}가 SEC에 제출한 최신 8-K 공시입니다.`;
+}
+
+function isSecEdgarBodySummary(rawSummary) {
+  return /^원문 본문 기준[,，]/.test(cleanText(rawSummary));
+}
+
+function isSecStrategicContractSummary(rawSummary) {
+  return /Item 1\.01 strategic contract\/order signal|Customer\/order|Supply\/offtake|Minimum commitment|Exclusivity\/preferred terms|Duration\/term|전략적 계약|고객\/수주|공급\/오프테이크|최소 약정|독점\/우선공급|계약 기간/i.test(rawSummary || "");
+}
+
+function secSignalLabel(value) {
+  const key = cleanText(value).toLowerCase();
+  const labels = {
+    "multiple institutions buying/increasing": "여러 기관의 동시 매수/비중 증가",
+    "increased_position": "보유지분 증가",
+    "new_position": "신규 편입",
+    "investor presentation": "투자자 발표 자료",
+    "strategic update/review": "전략 업데이트/검토",
+    "partnership/collaboration": "파트너십/협업",
+    "guidance raise / improved outlook": "가이던스 상향/전망 개선",
+    "order/backlog signal": "수주/백로그 신호",
+    "ai/data-center theme": "AI/데이터센터 테마",
+    "clinical/product catalyst": "임상/제품 출시 촉매",
+    "customer order/backlog": "고객 주문/백로그",
+    "minimum purchase/volume commitment": "최소구매/최소물량 약정",
+    "customer/commercial agreement": "고객/상업 계약",
+    "supply/offtake agreement": "공급/오프테이크 계약",
+    "strategic partnership/collaboration": "전략적 파트너십/협업",
+    "exclusive/preferred supplier terms": "독점/우선공급 조건",
+    "positive_signal": "긍정 시그널",
+    "sec_8k_positive_catalyst": "8-K 긍정 촉매",
+    "insider_buy_cluster": "내부자 매수 클러스터",
+    "institutional_accumulation": "기관 누적 매수",
+    "quarterly_financials": "분기 실적",
+    "annual_financials": "연간 실적",
+    "ipo_registration": "IPO 등록",
+    "foreign_issuer_ipo_registration": "해외기업 IPO 등록",
+    "strategic_ownership": "전략/행동주의 지분",
+    "increased_ownership": "보유지분 증가",
+    "merger_exchange_registration": "합병/주식교환 등록",
+    "foreign_merger_exchange_registration": "해외기업 합병/주식교환 등록",
+    "tender_offer": "공개매수"
+  };
+  return labels[key] || value;
+}
+
+function localizeSecSummaryText(rawText) {
+  let text = cleanText(rawText);
+  if (!text) return "";
+
+  text = text.replace(
+    /원문 본문 기준,\s*(.+?) showed simultaneous 13F accumulation across (\d+) notable managers\./i,
+    "원문 본문 기준, $1에서 유명 기관 $2곳의 13F 동시 매수/비중 증가 신호가 확인됐습니다."
+  );
+
+  text = text.replace(
+    /원문 본문 기준,\s*(.+?) showed 13F accumulation in (.+?)\./i,
+    "원문 본문 기준, $2에서 $1의 13F 보유지분 증가 신호가 확인됐습니다."
+  );
+
+  text = text.replace(
+    /Increased position:\s*(.+?) raised shares by ([^;]+?) from ([^;]+?) to ([^;.]+)(?=\.|;|$)/gi,
+    "보유지분 증가: $1가 보유 주식 수를 $2 늘렸습니다. 기존 $3 → 현재 $4"
+  );
+
+  text = text.replace(
+    /New position:\s*(.+?) reported ([^;]+?) of ([^;.]+)(?=\.|;|$)/gi,
+    "신규 편입: $1가 $3 $2 보유를 보고했습니다"
+  );
+
+  text = text
+    .replace(
+      /원문 본문 기준,\s*(.+?) filed Schedule 13D showing a 5%\+ strategic or activist ownership position\./gi,
+      "원문 본문 기준, $1의 Schedule 13D에서 5% 이상 전략적/행동주의 보유지분 신호가 확인됐습니다."
+    )
+    .replace(
+      /원문 본문 기준,\s*(.+?) filed Schedule 13G with a new or increased 5%\+ beneficial ownership signal\./gi,
+      "원문 본문 기준, $1의 Schedule 13G에서 신규 또는 증가한 5% 이상 보유지분 신호가 확인됐습니다."
+    )
+    .replace(
+      /원문 본문 기준,\s*(.+?) filed (S-4|F-4) for a stock-exchange, merger, or business-combination registration\./gi,
+      "원문 본문 기준, $1의 $2 주식교환/합병 등록서 핵심 조건을 확인했습니다."
+    )
+    .replace(
+      /원문 본문 기준,\s*(.+?) filed Schedule TO for a tender offer or buyout-style transaction\./gi,
+      "원문 본문 기준, $1의 Schedule TO 공개매수 또는 인수성 거래 조건을 확인했습니다."
+    );
+
+  text = text
+    .replace(/Managers:/g, "기관:")
+    .replace(/Signal:\s*([^;.]*)/g, (_match, value) => `신호: ${secSignalLabel(value)}`)
+    .replace(/신호:\s*([^;.]*)/g, (_match, value) => `신호: ${secSignalLabel(value)}`)
+    .replace(/Current 13F value:/g, "현재 13F 평가액:")
+    .replace(/Reporting owner:/g, "신고자/보유자:")
+    .replace(/Beneficially owned shares:/g, "보유 주식 수:")
+    .replace(/Beneficial ownership:/g, "보유 지분율:")
+    .replace(/Purpose\/engagement:/g, "목적/관여:")
+    .replace(/Signal focus:/g, "신호 초점:")
+    .replace(/Increase filter:/g, "필터 조건:")
+    .replace(/Merger\/exchange target:/g, "교환/합병 대상:")
+    .replace(/Exchange\/merger ratio:/g, "교환/합병 비율:")
+    .replace(/Transaction value\/consideration:/g, "거래가치/대가:")
+    .replace(/Strategic purpose:/g, "전략적 목적:")
+    .replace(/Offeror\/buyer:/g, "공개매수자/인수자:")
+    .replace(/Tender price per share:/g, "주당 공개매수가:")
+    .replace(/Tender quantity:/g, "공개매수 수량:")
+    .replace(/Tender terms:/g, "공개매수 조건:")
+    .replace(/Tender purpose:/g, "공개매수 목적:")
+    .replace(/potential activist or strategic engagement/gi, "행동주의 또는 전략적 관여 가능성")
+    .replace(/potential control, M&A, or ownership-change angle/gi, "지배권, M&A 또는 보유지분 변화 가능성")
+    .replace(/13D is treated as active\/strategic ownership, not a passive 13G holding/gi, "13D는 단순 패시브 13G 보유가 아닌 적극적/전략적 지분으로 분류")
+    .replace(/initial 13G treated as a newly disclosed 5%\+ ownership position/gi, "최초 13G는 신규 5% 이상 보유지분 공시로 간주")
+    .replace(/any and all outstanding shares\/securities/gi, "발행주식/증권 전부")
+    .replace(/shares\/ADSs\/units/gi, "주/ADS/units")
+    .replace(/Business description:/g, "사업 설명:")
+    .replace(/Business:/g, "사업 설명:")
+    .replace(/Offering amount:/g, "상장/공모 조달 규모:")
+    .replace(/Offering size:/g, "상장/공모 조달 규모:")
+    .replace(/Use of proceeds:/g, "조달자금 사용 목적:")
+    .replace(/Price range:/g, "공모 가격:")
+    .replace(/Offering price:/g, "공모 가격:")
+    .replace(/Lock-up\/overhang:/g, "오버행/lock-up 일정:")
+    .replace(/Revenue:/g, "매출:")
+    .replace(/Net income\/loss:/g, "순이익/순손실:")
+    .replace(/Net income:/g, "순이익:")
+    .replace(/Guidance:/g, "가이던스:")
+    .replace(/Strategic update:/g, "전략 업데이트:")
+    .replace(/Partnership:/g, "파트너십:")
+    .replace(/Guidance\/outlook:/g, "가이던스/전망:")
+    .replace(/Order\/backlog:/g, "수주/백로그:")
+    .replace(/Customer\/order:/g, "고객/수주:")
+    .replace(/Supply\/offtake:/g, "공급/오프테이크:")
+    .replace(/Minimum commitment:/g, "최소 약정:")
+    .replace(/Exclusivity\/preferred terms:/g, "독점/우선공급 조건:")
+    .replace(/Duration\/term:/g, "계약 기간:")
+    .replace(/Counterparty:/g, "상대방:")
+    .replace(/Item 1\.01 strategic contract\/order signal:\s*([^.;]*)/gi, (_match, value) => `Item 1.01 전략적 계약/수주 신호: ${secSignalLabel(value)}`)
+    .replace(/filed an Item 7\.01 investor presentation or strategic update/gi, "는 Item 7.01 투자자 발표 또는 전략 업데이트를 공시했습니다")
+    .replace(/filed an Item 8\.01 strategic update with a positive catalyst signal/gi, "는 긍정 촉매 신호가 있는 Item 8.01 전략 업데이트를 공시했습니다");
+
+  return formatMoneyText(text);
+}
+
+function detailSummaryLines(item) {
+  const localized = formatMoneyText(localizeSecSummaryText(detailNarrative(item)))
+    .replace(/\.\s+(기관|신호|CUSIP|현재 13F 평가액|매출|순이익\/순손실|순이익|EPS|가이던스|사업 설명|상장\/공모 조달 규모|조달자금 사용 목적|주당\/ADS 공모 가격|공모 가격|오버행\/lock-up 일정|신고자\/보유자|보유 주식 수|보유 지분율|목적\/관여|신호 초점|필터 조건|교환\/합병 대상|교환\/합병 비율|거래가치\/대가|전략적 목적|공개매수자\/인수자|주당 공개매수가|공개매수 수량|공개매수 조건|공개매수 목적|전략 업데이트|파트너십|가이던스\/전망|수주\/백로그|고객\/수주|공급\/오프테이크|최소 약정|독점\/우선공급 조건|계약 기간|상대방):/g, "; $1:");
+  if (!localized) return [];
+  return localized.split(/\s*;\s*/).map(part => cleanText(part)).filter(Boolean);
+}
+
+function detailSummaryLineHtml(line, index) {
+  if (index === 0) return `<p>${escapeHtml(line)}</p>`;
+
+  const match = line.match(/^([^:：]{1,32})[:：]\s*(.*)$/);
+  if (match) {
+    return `<li><b>${escapeHtml(match[1])}:</b> ${escapeHtml(match[2])}</li>`;
+  }
+
+  const sentenceMatch = secDetailSentenceLabel(line);
+  if (sentenceMatch) {
+    return `<li><b>${escapeHtml(sentenceMatch.label)}</b> ${escapeHtml(sentenceMatch.value)}</li>`;
+  }
+
+  return `<li>${escapeHtml(line)}</li>`;
+}
+
+function secDetailSentenceLabel(line) {
+  const patterns = [
+    [/^(거래 대상은)\s+(.+)$/, "거래 대상:"],
+    [/^(거래 상대방은)\s+(.+)$/, "거래 상대방:"],
+    [/^(계약 또는 부채 규모는)\s+(.+)$/, "계약/부채 규모:"],
+    [/^(이자율은)\s+(.+)$/, "이자율:"],
+    [/^(만기 또는 상환 예정일은)\s+(.+)$/, "만기/상환 예정일:"],
+    [/^(담보 또는 collateral 조건이)\s+(.+)$/, "담보 조건:"],
+    [/^(무담보 조건이)\s+(.+)$/, "담보 조건:"],
+    [/^(재무약정 또는 covenant 조건이)\s+(.+)$/, "재무약정:"],
+    [/^(변경 후 지분 또는 의결권 비율은)\s+(.+)$/, "변경 후 지분/의결권:"],
+    [/^(거래 대가 또는 관련 금액은)\s+(.+)$/, "거래 대가:"],
+    [/^(거래 조건에는)\s+(.+)$/, "거래 조건:"],
+    [/^(거래는)\s+(.+)$/, "거래 조건:"],
+    [/^(이사회 구성 또는 지명권 변화가)\s+(.+)$/, "이사회/지명권:"],
+    [/^(주주권리 또는 주주계약 조건이)\s+(.+)$/, "주주계약:"],
+    [/^(본문이 명시적으로)\s+(.+)$/, "본문 신호:"],
+    [/^(관련 실적 보도자료 또는 첨부자료가)\s+(.+)$/, "첨부자료:"]
+  ];
+
+  for (const [pattern, label] of patterns) {
+    const match = line.match(pattern);
+    if (match) return { label, value: match[2] };
+  }
+
+  return null;
+}
+
+function detailSummaryHtml(item) {
+  const lines = detailSummaryLines(item);
+  if (!lines.length) return "";
+  const [lead, ...details] = lines;
+  const leadHtml = detailSummaryLineHtml(lead, 0);
+  const detailHtml = details.length
+    ? `<ul class="detail-summary-list">${details.map((line, index) => detailSummaryLineHtml(line, index + 1)).join("")}</ul>`
+    : "";
+  return `<div class="detail-summary">${leadHtml}${detailHtml}</div>`;
+}
+
+function tdnetSummary(title) {
+  const [companyPart, subjectPart] = title.split(/\s+-\s+/, 2);
+  const company = cleanText(companyPart);
+  const subject = cleanText(subjectPart || title);
+
+  if (/決算短信|決算説明|financial results|earnings/i.test(subject)) return `${company}의 실적/결산 발표 공시입니다.`;
+  if (/配当|dividend/i.test(subject)) return `${company}의 배당 관련 공시입니다.`;
+  if (/業績予想|forecast|guidance/i.test(subject)) return `${company}의 실적 전망 관련 공시입니다.`;
+  if (/自己株式|share buyback|treasury/i.test(subject)) return `${company}의 자사주 관련 공시입니다.`;
+  if (/役員|取締役|director|officer|人事/i.test(subject)) return `${company}의 임원/이사회 관련 공시입니다.`;
+  if (/株式取得|acquisition|取得|譲渡/i.test(subject)) return `${company}의 지분 취득 또는 자산 거래 관련 공시입니다.`;
+
+  return `${company || "해당 회사"}의 TDnet 상장사 공시입니다.`;
+}
+
+function hkexSummary(title, rawSummary) {
+  const issuer = issuerFromSummary(rawSummary) || companyFromTitle(title);
+  const topic = textAfter(rawSummary, "Category:") || title;
+  const text = `${title} ${topic}`.toLowerCase();
+
+  if (/profit warning|positive profit|inside information|trading/.test(text)) return `${issuer}의 실적 전망 또는 내부정보 관련 홍콩거래소 공시입니다.`;
+  if (/connected transaction/.test(text)) return `${issuer}의 특수관계자 거래 관련 홍콩거래소 공시입니다.`;
+  if (/change in directors|list of directors|director/.test(text)) return `${issuer}의 이사회 또는 임원 구성 관련 홍콩거래소 공시입니다.`;
+  if (/change in auditors|auditor/.test(text)) return `${issuer}의 감사인 변경 관련 홍콩거래소 공시입니다.`;
+  if (/notice of egm|notice of agm|general meeting|proxy forms|form of proxy/.test(text)) return `${issuer}의 주주총회 또는 위임장 관련 홍콩거래소 공시입니다.`;
+  if (/circular|notification letter|documents on display/.test(text)) return `${issuer}의 주주 안내문 또는 참고문서 공시입니다.`;
+  if (/overseas regulatory announcement/.test(text)) return `${issuer}의 해외 규제 공시 또는 참고 공시입니다.`;
+  if (/constitutional documents|amendment/.test(text)) return `${issuer}의 정관 또는 회사 문서 변경 관련 공시입니다.`;
+
+  return `${issuer}의 홍콩거래소 상장사 공시입니다.`;
+}
+
+function taiwanMopsSummary(title, rawSummary) {
+  const company = issuerFromSummary(rawSummary) || companyFromTitle(title);
+  const text = `${title} ${rawSummary}`.toLowerCase();
+
+  if (/澄清|clarif/.test(text)) return `${company}의 언론 보도 해명 또는 정정 관련 대만 MOPS 공시입니다.`;
+  if (/解除|終止|termination|cancel/.test(text)) return `${company}의 계약 해지 또는 거래 조건 변경 관련 대만 MOPS 공시입니다.`;
+  if (/股權|acquisition|transfer|取得|讓與/.test(text)) return `${company}의 지분 거래 또는 자산 거래 관련 대만 MOPS 공시입니다.`;
+
+  return `${company}의 중요사항 관련 대만 MOPS 공시입니다.`;
+}
+
+function indiaNseSummary(title, rawSummary) {
+  const company = companyFromTitle(title);
+  const subject = subjectFromSummary(rawSummary);
+  const text = `${title} ${rawSummary} ${subject}`.toLowerCase();
+
+  if (/newspaper publication/.test(text)) return `${company}의 신문 공고 게재 관련 NSE 공시입니다.`;
+  if (/resignation|appointment|director|kmp|smp|auditor|rta|secretarial auditor|cost auditor|tax and gst auditor/.test(text)) return `${company}의 임원, KMP 또는 감사인 변경 관련 NSE 공시입니다.`;
+  if (/press release/.test(text) && /financial results|audited|quarter|year ended/.test(text)) return `${company}의 실적 발표 보도자료 관련 NSE 공시입니다.`;
+  if (/press release/.test(text)) return `${company}의 보도자료 공개 관련 NSE 공시입니다.`;
+  if (/annual disclosure/.test(text)) return `${company}의 연례 공시 자료 제출 관련 NSE 공시입니다.`;
+  if (/credit rating|rating/.test(text)) return `${company}의 신용등급 변경 또는 평가 관련 NSE 공시입니다.`;
+  if (/product launch|launch of product/.test(text)) return `${company}의 신제품 출시 관련 NSE 공시입니다.`;
+  if (/investor presentation|analysts|institutional investor|con\. call|recording|schedule of meet/.test(text)) return `${company}의 IR 자료 또는 투자자 미팅 관련 NSE 공시입니다.`;
+  if (/acquisition|completion|merger|sale|disposal/.test(text)) return `${company}의 인수, 매각 또는 거래 완료 관련 NSE 공시입니다.`;
+  if (/corrigendum/.test(text)) return `${company}의 기존 공시 정정 관련 NSE 공시입니다.`;
+  if (/dividend|record date/.test(text)) return `${company}의 배당 또는 기준일 관련 NSE 공시입니다.`;
+  if (/shareholders meeting|postal ballot|general meeting|agm/.test(text)) return `${company}의 주주총회 또는 주주 의사결정 관련 NSE 공시입니다.`;
+  if (/monitoring agency report|ipo proceeds/.test(text)) return `${company}의 IPO 자금 사용 점검 보고 관련 NSE 공시입니다.`;
+  if (/regulation 30|general updates|updates/.test(text)) return `${company}의 일반 업데이트 또는 규정상 수시공시입니다.`;
+
+  return `${company}의 NSE 상장사 공시입니다.`;
+}
+
+function europeSummary(title, rawSummary, item) {
+  const source = sourceKey(item.source || item.source_key || item.provider).toLowerCase();
+  const issuer = issuerFromSummary(rawSummary) || companyFromTitle(title);
+  const category = cleanText(item.metadata?.category || textAfter(rawSummary, "Category:"));
+  const disclosure = cleanText(textAfter(rawSummary, "Disclosure:"));
+  const topic = `${title} ${rawSummary} ${category} ${disclosure}`.toLowerCase();
+
+  if (/annual financial report|annual report|quarterly information|financial statements|operating revenues|operating profit|strong profitability|rapport annuel/.test(topic)) return `${issuer}의 실적 또는 재무보고 관련 유럽 공시입니다.`;
+  if (/final terms|covered bond|new bonds|notes due|bond issue|issuance of new bonds|issue size|senior secured/.test(topic)) return `${issuer}의 채권 또는 증권 발행 조건 관련 유럽 공시입니다.`;
+  if (/own shares|share buyback|rachat|acquisition or disposal of the issuer/.test(topic)) return `${issuer}의 자사주 취득 또는 처분 관련 유럽 공시입니다.`;
+  if (/dividend/.test(topic)) return `${issuer}의 배당 지급 또는 배당 절차 관련 유럽 공시입니다.`;
+  if (/capital increase|warrant exercise/.test(topic)) return `${issuer}의 자본금 증가 또는 워런트 행사 관련 유럽 공시입니다.`;
+  if (/general meeting|extraordinary general meeting|notice of.*meeting|written resolution|agm|egm/.test(topic)) return `${issuer}의 주주총회 또는 서면결의 관련 유럽 공시입니다.`;
+  if (/share investment program|share options|option grants/.test(topic)) return `${issuer}의 임직원 주식보상 또는 옵션 부여 관련 유럽 공시입니다.`;
+  if (/form 8\.3|form 8\.5|holding\(s\)|public offer|ofertas públicas/.test(topic)) return `${issuer}의 지분 보유 또는 공개매수 관련 유럽 공시입니다.`;
+  if (/rating upgrade|ratings by one notch|calificaciones crediticias|fitch|dbrs/.test(topic)) return `${issuer}의 신용등급 변경 관련 유럽 공시입니다.`;
+  if (/strategic partnership|partnership/.test(topic)) return `${issuer}의 전략적 제휴 또는 사업 협력 관련 유럽 공시입니다.`;
+  if (/acquisition|sold|disposal|completion|merger|fusiones|adquisiciones|cessão|cession/.test(topic)) return `${issuer}의 인수, 매각 또는 자산 거래 관련 유럽 공시입니다.`;
+  if (/voting rights|capital|derechos de voto|article 223-16/.test(topic)) return `${issuer}의 의결권 또는 자본 현황 관련 유럽 공시입니다.`;
+  if (/rule based parameter adjustment|official notice/.test(topic)) return `${issuer}의 상장 상품 조건 또는 거래소 공식 공지입니다.`;
+  if (/inside information|material information|regulated information|informacion privilegiada|información privilegiada/.test(topic)) return `${issuer}의 내부정보 또는 중요정보 관련 유럽 공시입니다.`;
+  if (source.includes("fca_nsm")) return `${issuer}의 영국 FCA NSM 규제공시입니다.`;
+  if (source.includes("cmvm")) return `${issuer}의 포르투갈 CMVM 중요정보 공시입니다.`;
+  if (source.includes("cnmv")) return `${issuer}의 스페인 CNMV 중요정보 공시입니다.`;
+  if (source.includes("fsma")) return `${issuer}의 벨기에 FSMA 규제정보 공시입니다.`;
+  if (source.includes("dfsa")) return `${issuer}의 덴마크 DFSA OAM 회사공시입니다.`;
+  if (source.includes("euronext")) return `${issuer}의 Euronext 상장사 공시입니다.`;
+
+  return `${issuer}의 유럽 상장사 공시입니다.`;
+}
+
+function disclosurePatternSummary(title, rawSummary) {
+  const text = `${title} ${rawSummary}`.toLowerCase();
+
+  if (/dividend|配当|배당/.test(text)) return "배당 지급 또는 배당 기준일 관련 공시입니다.";
+  if (/appointment|director|officer|auditor|kmp|役員|取締役|감사|임원/.test(text)) return "임원, 이사회 또는 감사인 변경 관련 공시입니다.";
+  if (/investor presentation|presentation|설명자료/.test(text)) return "투자자 설명 자료 또는 IR 관련 공시입니다.";
+  if (/shareholder|general meeting|postal ballot|agm|주주총회/.test(text)) return "주주총회 또는 주주 의사결정 관련 공시입니다.";
+  if (/financial result|earnings|annual report|quarterly|決算|실적|재무/.test(text)) return "실적 또는 재무 결과 관련 공시입니다.";
+  if (/acquisition|disposal|merger|合併|取得|처분|인수/.test(text)) return "인수, 처분 또는 지분 거래 관련 공시입니다.";
+  if (/credit rating|rating upgrade|신용/.test(text)) return "신용등급 변경 또는 평가 관련 공시입니다.";
+  if (/bond|notes|final terms|채권/.test(text)) return "채권 또는 증권 발행 조건 관련 공시입니다.";
+
+  return null;
+}
+
+function isEuropeSource(source, item) {
+  const regions = item.regions || [];
+  const tags = item.metadata?.coverage_tags || item.coverage_tags || [];
+  const haystack = [source, ...regions, ...tags].join(" ").toLowerCase();
+  return /\beu\b|europe|euronext|fca|cnmv|cmvm|fsma|dfsa|six|france|spain|portugal|belgium|denmark|switzerland|uk/.test(haystack);
+}
+
+function issuerFromSummary(rawSummary) {
+  const issuer = rawSummary.match(/\bIssuer:\s*([^|]+)/i)?.[1] ||
+    rawSummary.match(/\bCompany:\s*([^|]+)/i)?.[1] ||
+    rawSummary.match(/^([^|]+?)\s+-\s+/)?.[1];
+
+  return issuer ? cleanIssuer(issuer) : "";
+}
+
+function subjectFromSummary(rawSummary) {
+  return cleanText(rawSummary.match(/\|SUBJECT:\s*([^|]+)/i)?.[1] || "");
+}
+
+function textAfter(value, label) {
+  const index = String(value || "").toLowerCase().indexOf(label.toLowerCase());
+  if (index === -1) return "";
+  return cleanText(String(value).slice(index + label.length).split("|")[0]);
+}
+
+function companyFromTitle(title) {
+  const cleaned = cleanText(title)
+    .replace(/^(?:8-K|10-Q|10-K|10-Q\/A|10-K\/A|S-1|S-1\/A|F-1|F-1\/A|F-10|F-10\/A|S-4|S-4\/A|F-4|F-4\/A|Schedule TO)\s*-\s*/i, "")
+    .replace(/\s*\(\d+\)\s*\(Filer\).*$/i, "");
+
+  const secIdeaMatch = cleaned.match(/^(?:13F institutional accumulation|Form 4 insider purchase cluster|Schedule 13D strategic ownership|Schedule 13G increased ownership|S-4 merger\/exchange registration|F-4 merger\/exchange registration|Schedule TO tender offer)\s+-\s+(.+)$/i);
+  if (secIdeaMatch) return cleanIssuer(secIdeaMatch[1]);
+
+  const parts = cleaned.split(/\s+-\s+/).map(cleanText).filter(Boolean);
+
+  if (parts.length >= 2 && /^\d{3,6}[A-Z]*$/i.test(parts[0])) return cleanIssuer(parts[1]);
+  if (parts.length >= 2) return cleanIssuer(parts[0]);
+
+  const colonParts = cleaned.split(/\s*:\s+/).map(cleanText).filter(Boolean);
+  if (colonParts.length >= 2 && colonParts[0].length <= 40) return cleanIssuer(colonParts[0]);
+
+  return cleanIssuer(parts[0] || cleaned || "해당 회사");
+}
+
+function cleanIssuer(value) {
+  return cleanText(value || "해당 회사")
+    .replace(/\s+/g, " ")
+    .replace(/\s*;\s*$/, "")
+    .trim() || "해당 회사";
+}
+
+function cleanText(value) {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function entityProfile(item) {
+  return item.metadata?.entity_profile || item.raw?.metadata?.entity_profile || {};
+}
+
+function itemTickers(item) {
+  const values = [
+    ...(Array.isArray(item.tickers) ? item.tickers : []),
+    ...(Array.isArray(item.raw?.tickers) ? item.raw.tickers : [])
+  ];
+  return unique(values.map(cleanText).filter(Boolean));
+}
+
+function entityIdentifierText(item) {
+  const profile = entityProfile(item);
+  const fromProfile = profile.identifier_label || profile.ticker || profile.local_code || profile.isin || profile.lei || profile.cik;
+  if (fromProfile) return cleanText(fromProfile);
+
+  const [firstTicker] = itemTickers(item);
+  if (firstTicker) return firstTicker;
+
+  const summary = rawSummaryText(item);
+  const source = itemSourceKey(item).toLowerCase();
+  const ticker = entityPrefixedText(summary, "Ticker") || entityPrefixedText(summary, "Trading symbol");
+  if (ticker) return ticker;
+
+  const rawSymbol = textAfter(summary, "Symbol:");
+  if (rawSymbol) return entityPrefixedMarketCode(source, "Symbol", rawSymbol);
+
+  const rawCode = textAfter(summary, "Code:");
+  if (rawCode) return entityPrefixedMarketCode(source, "Code", rawCode);
+
+  const rawIssuer = textAfter(summary, "Issuer:");
+  const issuerCode = rawIssuer.match(/^([0-9A-Z.\-]{2,12})\s+/)?.[1];
+  if (issuerCode) return entityPrefixedMarketCode(source, "Code", issuerCode);
+
+  const labeled =
+    entityPrefixedText(summary, "ISIN") ||
+    entityPrefixedText(summary, "LEI") ||
+    entityPrefixedText(summary, "CUSIP");
+  if (labeled) return labeled;
+
+  const secCik = item.title.match(/\((\d{6,10})\)\s*\((?:Filer|Subject)\)/i)?.[1];
+  if (secCik) return `CIK:${secCik.padStart(10, "0")}`;
+
+  const leadingCode = item.title.match(/^([0-9A-Z.\-]{2,12})\s+-\s+/)?.[1];
+  return leadingCode ? entityPrefixedMarketCode(source, "Code", leadingCode) : "";
+}
+
+function entityPrefixedMarketCode(source, label, value) {
+  const cleaned = cleanText(value).split("|")[0].trim();
+  if (!cleaned) return "";
+  if (cleaned.includes(":")) return cleaned;
+  if (source.includes("hkex")) return `HKEX:${cleaned}`;
+  if (source.includes("tw_mops")) return `TW:${cleaned}`;
+  if (source.includes("india_nse")) return `NSE:${cleaned}`;
+  if (source.includes("jp_tdnet")) return `JP:${cleaned.replace(/^(\d{4})0$/, "$1")}`;
+  return `${label}:${cleaned}`;
+}
+
+function entityDescriptionText(item) {
+  const profile = entityProfile(item);
+  if (profile.business_summary_ko) return cleanText(profile.business_summary_ko);
+
+  const target = detailTarget(item);
+  const source = itemSourceKey(item).toLowerCase();
+
+  if (source.includes("sec_edgar")) return `${target}는 SEC EDGAR 공시 기준으로 식별된 미국 상장 또는 보고 기업입니다.`;
+  if (source.includes("hkex")) return `${target}는 홍콩거래소 공시 기준으로 식별된 상장사입니다.`;
+  if (source.includes("jp_tdnet")) return `${target}는 TDnet 공시 기준으로 식별된 일본 상장사입니다.`;
+  if (source.includes("tw_mops")) return `${target}는 대만 MOPS 공시 기준으로 식별된 상장사입니다.`;
+  if (source.includes("india_nse")) return `${target}는 인도 NSE 공시 기준으로 식별된 상장사입니다.`;
+  if (item.displayRegions.includes("eu")) return `${target}는 유럽 규제공시/OAM 기준으로 식별된 상장사입니다.`;
+
+  return `${target}는 현재 공시 제목과 원문 요약 기준으로 식별된 발행사입니다.`;
+}
+
+function entityProfileSource(item) {
+  const profile = entityProfile(item);
+  const label = cleanText(profile.profile_source_label || "");
+  const url = cleanText(profile.profile_source_url || "");
+  const basis = cleanText(profile.profile_source_basis || "");
+  const kind = cleanText(profile.profile_source_kind || "");
+
+  if (!label && !url && !basis) return null;
+  return { label: label || "공식 공시/거래소 출처", url, basis, kind };
+}
+
+function entityProfileSourceText(item) {
+  const source = entityProfileSource(item);
+  if (!source) return "프로필 출처가 아직 연결되지 않았습니다.";
+  return source.basis ? `${source.label} · ${source.basis}` : source.label;
+}
+
+function entityProfileSourceInlineHtml(item) {
+  const source = entityProfileSource(item);
+  if (!source) return "";
+  const label = escapeHtml(source.label);
+  const sourceBody = source.url
+    ? `<a href="${escapeHtml(source.url)}" target="_blank" rel="noopener noreferrer">${label}</a>`
+    : label;
+  return `<span class="profile-source-chip"><b>프로필 출처</b>${sourceBody}</span>`;
+}
+
+function entityIdentifierTagHtml(item) {
+  const identifier = entityIdentifierText(item);
+  return identifier ? `<span class="tag identifier">${escapeHtml(identifier)}</span>` : "";
+}
+
+function entityCardInfoHtml(item) {
+  const identifier = entityIdentifierText(item);
+  const description = entityDescriptionText(item);
+  const profileSourceChip = entityProfileSourceInlineHtml(item);
+  const identifierChip = identifier
+    ? `<span><b>종목/코드</b>${escapeHtml(identifier)}</span>`
+    : "";
+  const descriptionChip = description
+    ? `<span class="entity-description-chip"><b>회사 설명</b>${escapeHtml(truncate(description, 96))}</span>`
+    : "";
+
+  if (!identifierChip && !descriptionChip && !profileSourceChip) return "";
+  return `<div class="entity-card-line">${identifierChip}${descriptionChip}${profileSourceChip}</div>`;
+}
+
+function entityPrefixedText(text, label) {
+  const value = textAfter(text, `${label}:`);
+  if (!value) return "";
+  if (value.includes(":")) return value;
+  return `${label}:${value}`;
+}
+
+function entityDisplayName(item) {
+  return cleanText(entityProfile(item).display_name || "");
+}
+
+function formatMoneyText(value) {
+  return String(value || "").replace(
+    /(-?\d{4,})(\.\d+)?(?=(?:백만|만|억)?\s*달러)/g,
+    (_match, integer, decimal = "") => `${formatIntegerThousands(integer)}${decimal}`
+  );
+}
+
+function formatIntegerThousands(value) {
+  const text = String(value || "");
+  const sign = text.startsWith("-") ? "-" : "";
+  const digits = sign ? text.slice(1) : text;
+
+  return `${sign}${digits.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
+}
+
+function conciseSentence(value) {
+  const text = cleanText(value);
+  if (!text) return "공시 요약이 아직 제공되지 않았습니다.";
+  const sentence = text.split(/(?<=[.!?。])\s+/)[0] || text;
+  return truncate(sentence, 120);
+}
+
+function itemSourceKey(item) {
+  return item.sourceKey || sourceKey(item.raw?.source || item.raw?.source_key || item.raw?.provider);
+}
+
+function rawSummaryText(item) {
+  return cleanText(item.raw?.summary || item.raw?.description || item.summary || "");
+}
+
+function secFormType(item) {
+  return cleanText(item.raw?.metadata?.category || item.raw?.category || item.metadata?.category || "").toUpperCase();
+}
+
+function isSecRegistrationStatement(item) {
+  const source = itemSourceKey(item).toLowerCase();
+  const form = secFormType(item);
+  return /^(S-1|F-1|F-10)(\/A)?$/.test(form) ||
+    source.includes("s1_registration") ||
+    source.includes("f1_registration");
+}
+
+function sourceDisplayName(item) {
+  return sourceLabel(item.raw?.source || item.raw?.source_key || item.raw?.provider || item.source);
+}
+
+function isRegionalDisclosure(item) {
+  return item.kind === "disclosure" && !itemSourceKey(item).toLowerCase().includes("sec");
+}
+
+function regionalDisclosureTopic(item) {
+  const text = `${item.title} ${rawSummaryText(item)} ${item.summary}`.toLowerCase();
+
+  if (/financial result|earnings|annual report|quarterly|revenue|profit|loss|決算|業績|실적|재무/.test(text)) return "실적/재무";
+  if (/dividend|distribution|record date|配当|분배|배당/.test(text)) return "배당/분배";
+  if (/share buyback|treasury|own shares|自己株式|자사주/.test(text)) return "자사주";
+  if (/director|officer|auditor|appointment|resignation|kmp|取締役|監査|임원|이사|감사/.test(text)) return "임원/이사회";
+  if (/general meeting|agm|egm|postal ballot|proxy|株主総会|주주총회/.test(text)) return "주주총회";
+  if (/capital increase|new shares|warrant|rights issue|bond|notes|新株|新株予約権|資本|증권 발행|채권/.test(text)) return "자본/증권발행";
+  if (/acquisition|disposal|merger|tender offer|public offer|business combination|買収|譲渡|合併|인수|매각|합병|공개매수/.test(text)) return "M&A/거래";
+  if (/holding|voting rights|substantial shareholder|ownership|major shareholder|지분|의결권|대량보유/.test(text)) return "지분/의결권";
+  if (/rating|credit rating|신용등급/.test(text)) return "신용등급";
+  if (/partnership|collaboration|contract|order|supply|offtake|中期経営計画|strategic|전략|계약|수주/.test(text)) return "전략/계약";
+  if (/clarification|corrigendum|amendment|update|開示事項の経過|정정|해명|업데이트/.test(text)) return "정정/진행상황";
+
+  return "일반 공시";
+}
+
+function regionalDisclosureFocus(item) {
+  const topic = regionalDisclosureTopic(item);
+  const focusByTopic = {
+    "실적/재무": "매출, 이익, 손실, 전망 변화와 다음 분기 가이던스가 있는지 확인",
+    "배당/분배": "주당 배당/분배금, 기준일, 지급일, 일회성 여부 확인",
+    "자사주": "매입/처분 규모, 기간, 목적, 발행주식 대비 비중 확인",
+    "임원/이사회": "변경 인물, 직책, 사임/선임 사유, 지배구조 영향 확인",
+    "주주총회": "결의 안건, 기준일, 표결 결과와 주주권 영향 확인",
+    "자본/증권발행": "발행 규모, 가격/전환가, 희석 가능성, 자금 사용 목적 확인",
+    "M&A/거래": "대상 회사/자산, 거래 금액, 조건, 완료 일정과 전략적 목적 확인",
+    "지분/의결권": "보유자, 보유 비율, 증가/감소 방향과 지배권 영향 확인",
+    "신용등급": "등급 변화 방향, 전망, 차입 비용 또는 유동성 영향 확인",
+    "전략/계약": "상대방, 계약 규모, 기간, 독점/최소구매 조건과 매출 기여 가능성 확인",
+    "정정/진행상황": "기존 공시 대비 바뀐 부분, 일정 변경, 조건 충족 여부 확인",
+    "일반 공시": "공시 제목, 원문 요약, 금액/비율/일정 같은 핵심 조건 확인"
+  };
+
+  return focusByTopic[topic] || focusByTopic["일반 공시"];
+}
+
+function regionalSourceLanguage(item) {
+  const source = itemSourceKey(item).toLowerCase();
+  if (source.includes("jp_tdnet")) return "일본어 원문";
+  if (source.includes("tw_mops")) return "중국어 원문";
+  if (source.includes("hkex")) return "영어/중국어 공시";
+  if (source.includes("india_nse")) return "영어 공시";
+  if (isEuropeSource(source, item)) return "영어 또는 현지어 공시";
+  return "현지 공시 원문";
+}
+
+function regionalCardTopicHtml(item) {
+  if (!isRegionalDisclosure(item)) return "";
+  return `<div class="entity-card-line regional-topic-line"><span><b>공시 주제</b>${escapeHtml(regionalDisclosureTopic(item))}</span><span><b>확인 포인트</b>${escapeHtml(truncate(regionalDisclosureFocus(item), 82))}</span></div>`;
+}
+
+function regionalDisclosureBoxesHtml(item) {
+  if (!isRegionalDisclosure(item)) return "";
+
+  const boxes = [
+    ["공시 주제", regionalDisclosureTopic(item)],
+    ["확인 포인트", regionalDisclosureFocus(item)],
+    ["공시망", sourceDisplayName(item)],
+    ["원문 언어", regionalSourceLanguage(item)]
+  ];
+
+  return boxes.map(([label, value]) => `
+    <div class="detail-box regional-detail-box">
+      <b>${escapeHtml(label)}</b>
+      <span>${escapeHtml(value)}</span>
+    </div>
+  `).join("");
+}
+
+function extractDetailValues(item) {
+  const text = `${item.title} ${rawSummaryText(item)}`;
+  const patterns = [
+    /(?:US\$|HK\$|NT\$|RMB|USD|EUR|GBP|JPY|Rs\.?|₹|\$)\s?[\d,.]+(?:\s?(?:million|billion|trillion|m|bn|crore|lakh))?/gi,
+    /-?[\d,.]+\s*(?:\uB2EC\uB7EC|\uC6D0|\uC5D4|\uC720\uB85C|\uC704\uC548)/gi,
+    /\b[\d,.]+\s?(?:million|billion|trillion|crore|lakh|shares|equity shares|KB|MB)\b/gi,
+    /\b\d+(?:\.\d+)?%\b/g,
+    /\b\d{4}-\d{2}-\d{2}\b/g
+  ];
+
+  return unique(patterns.flatMap(pattern =>
+    [...text.matchAll(pattern)].map(match => cleanText(match[0]))
+  ))
+    .filter(value => !/^Item\s+\d+\.\d{2}$/i.test(value))
+    .slice(0, 8);
+}
+
+function isSecPeriodicReport(item) {
+  const source = itemSourceKey(item).toLowerCase();
+  return source.includes("10q") || source.includes("10k");
+}
+
+function periodicFinancialMetrics(item) {
+  if (!isSecPeriodicReport(item)) return [];
+
+  const text = rawSummaryText(item);
+  const specs = [
+    ["매출액", /(?:매출액|매출\/영업수익|영업수익|투자수익|이자수익|매출|revenue|revenues|sales|investment income|interest income)(?:은|는|:)\s*([^;]+)/i],
+    ["영업이익", /(?:영업이익|영업손익|영업손실|operating income|operating loss|operating profit|loss from operations)(?:은|는|:)\s*([^;]+)/i],
+    ["순이익/순손실", /(?:순이익\/순손실|순이익|순손실|순손익|net income\/loss|net income|net loss|profit loss)(?:은|는|:)\s*([^;]+)/i],
+    ["EPS", /(?:EPS|earnings per share)(?:은|는|:)\s*([^;]+)/i],
+    ["가이던스/전망", /(?:매출\/이익 가이던스 문구|가이던스\/전망 문구|가이던스\/전망|guidance|outlook|forecast)(?::|은|는)?\s*([^;]+)/i]
+  ];
+
+  return specs.flatMap(([label, pattern]) => {
+    const match = text.match(pattern);
+    const value = formatMoneyText(cleanText(match?.[1] || ""));
+    return value ? [{ label, value: truncate(value, label === "가이던스/전망" ? 170 : 80) }] : [];
+  });
+}
+
+function periodicFinancialBoxesHtml(item) {
+  if (!isSecPeriodicReport(item)) return "";
+
+  const metrics = periodicFinancialMetrics(item);
+
+  if (!metrics.length) {
+    const text = rawSummaryText(item);
+    const amendmentWithoutMetrics = /수정보고서|10-[QK]\/A/i.test(`${item.title || ""} ${text}`) &&
+      /별도 .*재무수치|매출액, 영업이익, 순이익\/순손실, EPS가 .*확인되지 않음|재무 수치:/i.test(text);
+    const message = amendmentWithoutMetrics
+      ? "이 수정보고서는 재무제표 수치보다 수정 범위 확인이 핵심입니다. 본문에서 매출액, 영업이익, 순이익/순손실, EPS가 별도 XBRL 수치로 확인되지 않았습니다."
+      : "아직 이 digest 항목에는 매출액, 영업이익, EPS, 가이던스 추출값이 없습니다. 최신 SEC refresh에서 원문 XBRL 상세 추출이 필요합니다.";
+
+    return `
+      <div class="detail-box">
+        <b>재무 수치</b>
+        <span>${escapeHtml(message)}</span>
+      </div>
+    `;
+  }
+
+  return metrics.map(metric => `
+    <div class="detail-box periodic-financial-box">
+      <b>${escapeHtml(metric.label)}</b>
+      <span>${escapeHtml(metric.value)}</span>
+    </div>
+  `).join("");
+}
+
+function secItemDetails(rawSummary) {
+  return [...rawSummary.matchAll(/Item\s+([0-9]+\.[0-9]+):\s*([\s\S]*?)(?=\s+Item\s+[0-9]+\.[0-9]+:|$)/gi)]
+    .map(match => {
+      const code = match[1];
+      const label = SEC_8K_ITEM_LABELS[code] || `SEC Item ${code}`;
+      const detail = cleanText(match[2]);
+      return `${code} ${label}${detail ? ` (${truncate(detail, 80)})` : ""}`;
+    })
+    .slice(0, 5);
+}
+
+function accNoFromSummary(rawSummary) {
+  return rawSummary.match(/\bAccNo:\s*([A-Z0-9-]+)/i)?.[1] || "";
+}
+
+function filedDateFromSummary(rawSummary) {
+  return rawSummary.match(/\bFiled:\s*(\d{4}-\d{2}-\d{2})/i)?.[1] || "";
+}
+
+function fileSizeFromSummary(rawSummary) {
+  return rawSummary.match(/\bSize:\s*([^|]+?)(?=\s+Item\b|$)/i)?.[1]?.trim() || "";
+}
+
+function detailTarget(item) {
+  return entityDisplayName(item) || issuerFromSummary(rawSummaryText(item)) || companyFromTitle(item.title);
+}
+
+function detailCategoryLabel(item) {
+  const source = itemSourceKey(item).toLowerCase();
+  const rawSummary = rawSummaryText(item);
+  const form = secFormType(item);
+  if (/^F-10(\/A)?$/.test(form)) return "SEC F-10 외국기업 등록서";
+  if (/^F-1(\/A)?$/.test(form)) return "SEC F-1 IPO 등록서";
+  if (/^S-1(\/A)?$/.test(form)) return "SEC S-1 IPO 등록서";
+  if (source.includes("form4")) return "SEC Form 4 내부자 매수 클러스터";
+  if (source.includes("13f_institutional")) return "SEC 13F 기관 포트폴리오 누적 매수";
+  if (source.includes("10q")) return "SEC 10-Q 정기보고서";
+  if (source.includes("10k")) return "SEC 10-K 연차보고서";
+  if (source.includes("s1_registration")) return "SEC S-1 IPO 등록서";
+  if (source.includes("f1_registration")) return "SEC F-1 IPO 등록서";
+  if (source.includes("13d_activist")) return "SEC 13D 전략/행동주의 지분";
+  if (source.includes("13g_increased")) return "SEC 13G 지분 증가";
+  if (source.includes("s4_merger")) return "SEC S-4 합병/교환 등록서";
+  if (source.includes("f4_merger")) return "SEC F-4 합병/교환 등록서";
+  if (source.includes("schedule_to")) return "SEC Schedule TO 공개매수";
+  if (source.includes("sec_edgar") && isSecStrategicContractSummary(rawSummary)) {
+    return "SEC 8-K 전략적 계약/수주";
+  }
+  if (source.includes("sec_edgar")) return "SEC 8-K 상장사 공시";
+  if (source.includes("jp_tdnet")) return "일본 TDnet 상장사 공시";
+  if (source.includes("hkex")) return "홍콩거래소 상장사 공시";
+  if (source.includes("tw_mops")) return "대만 MOPS 중대정보 공시";
+  if (source.includes("india_nse")) return "인도 NSE 상장사 공시";
+  if (item.displayRegions.includes("eu")) return "유럽 상장사 규제공시";
+  return item.kind === "disclosure" ? "상장사 공시" : "시장 뉴스";
+}
+
+function detailNarrative(item) {
+  const source = itemSourceKey(item).toLowerCase();
+  const rawSummary = rawSummaryText(item);
+  const target = detailTarget(item);
+  const values = extractDetailValues(item);
+
+  if (source.includes("form4")) {
+    return rawSummary || `${target}에서 1주일 이내 여러 내부자/임원/10% 이상 보유자의 Form 4 매수가 겹친 클러스터입니다.`;
+  }
+
+  if (source.includes("13f_institutional")) {
+    return rawSummary || `${target}에 대해 유명 기관의 13F 신규 편입, 전분기 대비 보유수량/가치 증가, 여러 기관 동시 매수 여부를 확인하는 아이디어 소싱 항목입니다.`;
+  }
+
+  if (source.includes("10q") || source.includes("10k")) {
+    return rawSummary || `${target}의 SEC 정기보고서에서 매출, 순이익/순손실, EPS와 가이던스 문구를 확인하는 항목입니다.`;
+  }
+
+  if (isSecRegistrationStatement(item)) {
+    return rawSummary || `${target}의 SEC IPO/신규상장 등록서에서 사업 설명, 조달 규모, 자금 사용 목적, 공모 가격과 lock-up 문구를 확인하는 항목입니다.`;
+  }
+
+  if (source.includes("13d_activist")) {
+    return rawSummary || `${target}의 SEC Schedule 13D에서 5% 이상 전략 지분, 행동주의 가능성, 목적 문구를 확인하는 항목입니다.`;
+  }
+
+  if (source.includes("13g_increased")) {
+    return rawSummary || `${target}의 SEC Schedule 13G에서 신규 또는 증가한 5% 이상 보유지분 신호만 확인하는 항목입니다.`;
+  }
+
+  if (source.includes("s4_merger") || source.includes("f4_merger")) {
+    return rawSummary || `${target}의 SEC S-4/F-4에서 주식교환·합병 대상, 교환/합병 비율과 전략적 목적을 확인하는 항목입니다.`;
+  }
+
+  if (source.includes("schedule_to")) {
+    return rawSummary || `${target}의 SEC Schedule TO에서 공개매수 조건, 수량, 주당 가액과 공개매수 목적을 확인하는 항목입니다.`;
+  }
+
+  if (source.includes("sec_edgar")) {
+    if (isSecEdgarBodySummary(rawSummary)) return rawSummary;
+
+    const items = secItemDetails(rawSummary);
+    const filed = filedDateFromSummary(rawSummary);
+    const accNo = accNoFromSummary(rawSummary);
+    const size = fileSizeFromSummary(rawSummary);
+    const parts = [];
+    if (items.length) parts.push(`주요 SEC 항목은 ${items.join(", ")}입니다`);
+    if (filed) parts.push(`제출일은 ${filed}입니다`);
+    if (accNo) parts.push(`접수번호는 ${accNo}입니다`);
+    if (size) parts.push(`파일 규모는 ${size}입니다`);
+    return `${target}가 SEC에 제출한 8-K 공시입니다.${parts.length ? ` ${parts.join(". ")}.` : ""}`;
+  }
+
+  if (source.includes("jp_tdnet")) {
+    return `${target}가 TDnet에 제출한 공시입니다. 제목과 원문 요약 기준으로 ${item.summary}`;
+  }
+
+  if (source.includes("hkex")) {
+    return `${target}가 홍콩거래소에 제출한 상장사 공시입니다. ${item.summary}`;
+  }
+
+  if (source.includes("tw_mops")) {
+    return `${target}가 대만 MOPS에 제출한 중대정보 공시입니다. ${item.summary}`;
+  }
+
+  if (source.includes("india_nse")) {
+    const subject = subjectFromSummary(rawSummary);
+    const amountText = values.length ? ` 확인된 주요 수치/조건은 ${values.join(", ")}입니다.` : "";
+    return `${target}가 인도 NSE에 제출한 공시입니다. ${subject || item.summary}.${amountText}`;
+  }
+
+  if (item.displayRegions.includes("eu")) {
+    const amountText = values.length ? ` 문서에서 확인되는 주요 수치/조건은 ${values.join(", ")}입니다.` : "";
+    return `${target}의 유럽 상장사 규제공시입니다. ${item.summary}${amountText}`;
+  }
+
+  return `${target} 관련 항목입니다. ${item.summary}`;
+}
+
+function detailBullets(item) {
+  const rawSummary = rawSummaryText(item);
+  const source = itemSourceKey(item).toLowerCase();
+  const bullets = [
+    `대상: ${detailTarget(item)}`,
+    `분류: ${detailCategoryLabel(item)}`,
+    `출처: ${sourceDisplayName(item)}`
+  ];
+
+  if (item.publishedAt) bullets.push(`공시 시각: ${new Date(item.publishedAt).toLocaleString()}`);
+
+  if (source.includes("form4")) {
+    bullets.push("조건: 7일 이내 서로 다른 신고자 3명 이상이 P/A 매수 신고");
+  }
+
+  if (source.includes("13f_institutional")) {
+    bullets.push("조건: 유명 기관의 신규 편입, 전분기 대비 25% 이상 보유수량 증가, 또는 여러 기관 동시 매수 신호");
+  }
+
+  if (source.includes("10q") || source.includes("10k")) {
+    const metrics = periodicFinancialMetrics(item);
+
+    if (metrics.length) {
+      for (const metric of metrics) {
+        bullets.push(`${metric.label}: ${metric.value}`);
+      }
+    } else {
+      bullets.push("재무 수치: 매출액, 영업이익, EPS, 매출/이익 가이던스 추출 대기");
+    }
+  }
+
+  if (isSecRegistrationStatement(item)) {
+    bullets.push("확인 항목: 사업 설명, 조달 규모, 자금 사용 목적, 주당/ADS 공모 가격, lock-up/오버행 일정");
+  }
+
+  if (source.includes("13d_activist")) {
+    bullets.push("확인 항목: 5% 이상 보유자, 보유지분/지분율, 목적 문구, 행동주의·전략적 관여 가능성");
+  }
+
+  if (source.includes("13g_increased")) {
+    bullets.push("필터 조건: 신규 5% 이상 보유 또는 보유지분 증가 문구가 확인된 13G/13G-A만 표시");
+  }
+
+  if (source.includes("s4_merger") || source.includes("f4_merger")) {
+    bullets.push("확인 항목: 교환/합병 대상, 교환·합병 비율, 거래가치/대가, 전략적 목적");
+  }
+
+  if (source.includes("schedule_to")) {
+    bullets.push("확인 항목: 공개매수 조건, 수량, 주당/ADS 매수가격, 공개매수 목적");
+  }
+
+  if (source.includes("sec_edgar")) {
+    if (isSecStrategicContractSummary(rawSummary)) {
+      bullets.push("확인 항목: 고객/공급 계약, 대형 주문·백로그, 최소구매 조건, 독점/우선공급 조건, 계약 기간");
+    }
+    const secItems = secItemDetails(rawSummary);
+    if (secItems.length) bullets.push(`SEC 항목: ${secItems.join(" / ")}`);
+    const accNo = accNoFromSummary(rawSummary);
+    if (accNo) bullets.push(`접수번호: ${accNo}`);
+  }
+
+  if (isRegionalDisclosure(item)) {
+    bullets.push(`공시 주제: ${regionalDisclosureTopic(item)}`);
+    bullets.push(`확인 포인트: ${regionalDisclosureFocus(item)}`);
+    bullets.push(`공시망/원문 언어: ${sourceDisplayName(item)} · ${regionalSourceLanguage(item)}`);
+  }
+
+  const values = extractDetailValues(item);
+  if (values.length && !isSecPeriodicReport(item)) bullets.push(`주요 수치/조건: ${values.join(", ")}`);
+
+  return bullets;
+}
+
+function normalizeItem(item, index) {
+  const metadata = item.metadata || {};
+  const regions = (Array.isArray(item.regions) && item.regions.length ? item.regions : [item.region_code || item.region || "global"])
+    .map(canonicalRegion);
+  const displayRegions = unique(regions.map(displayRegion));
+  const relevance = Number(item.relevance_score ?? item.importance_score ?? item.score ?? 0);
+  const importance = Math.round((relevance <= 1 ? relevance * 100 : relevance) || 0);
+  const priority = Number(item.priority_rank ?? item.priority ?? index + 1);
+  const kind = itemKind(item);
+  const category = categoryKey(item, kind, importance);
+  const url = item.canonical_url || item.url || item.link || item.href || "";
+  const title = item.headline || item.title || item.display_title || "Untitled";
+  const rawSourceKey = sourceKey(item.source || item.source_key || item.provider);
+
+  return {
+    raw: item,
+    metadata,
+    tickers: Array.isArray(item.tickers) ? item.tickers : [],
+    sourceKey: rawSourceKey,
+    title,
+    summary: simpleSummary(item, title, kind, category),
+    source: sourceLabel(item.source || item.source_key || item.provider),
+    regions,
+    displayRegions,
+    primaryRegion: displayRegions[0] || "global",
+    relevance: Number.isFinite(relevance) ? relevance : 0,
+    importance,
+    priority,
+    kind,
+    category,
+    url,
+    publishedAt: item.published_at || item.date || item.digest_date || null,
+    storyKey: item.story_key || url || item.duplicate_group_key || `${index}`,
+    tags: tagList(item, kind, category, importance)
+  };
+}
+
+function tagList(item, kind, category, importance) {
+  const tags = [];
+  tags.push(kind === "disclosure" ? ["disclosure", "공시"] : ["news", "뉴스"]);
+  if (category === "regulatory") tags.push(["regulatory", "규제"]);
+  if (category === "markets") tags.push(["markets", "시장"]);
+  if (category === "high" || importance >= 85) tags.push(["high", "중요"]);
+  for (const tag of item.metadata?.coverage_tags || []) {
+    const lower = String(tag).toLowerCase();
+    if (lower !== "regulatory" && lower !== "markets") tags.push(["news", tagLabel(tag)]);
+    if (tags.length >= 4) break;
+  }
+  return tags;
+}
+
+function tagLabel(tag) {
+  const key = String(tag || "").toLowerCase().replace(/[\s-]+/g, "_");
+  return TAG_LABELS[key] || String(tag);
+}
+
+function itemTimeValue(item) {
+  const time = Date.parse(item.publishedAt || "");
+  return Number.isFinite(time) ? time : 0;
+}
+
+function shortDateTime(value) {
+  if (!value) return "latest";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "latest";
+  return date.toLocaleString();
+}
+
+function sortedItems(items) {
+  return items.slice().sort((a, b) =>
+    (itemTimeValue(b) - itemTimeValue(a)) ||
+    (a.priority - b.priority) ||
+    (b.importance - a.importance)
+  );
+}
+
+function filterItems(items) {
+  if (currentFilter === "all") return items;
+  return items.filter(item => itemFilterKeys(item).has(currentFilter));
+}
+
+function regionScopedItems(items) {
+  const region = selectedRegionFromUrl();
+  if (!region) return items;
+  return items.filter(item => item.displayRegions.includes(region));
+}
+
+function groupedByRegion(items) {
+  const groups = new Map();
+  for (const item of items) {
+    const key = item.primaryRegion;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(item);
+  }
+
+  return Array.from(groups.entries())
+    .sort(([a], [b]) =>
+      regionOrderIndex(a) - regionOrderIndex(b) || regionLabel(a).localeCompare(regionLabel(b))
+    )
+    .map(([region, values]) => [region, sortedItems(values)]);
+}
+
+function regionOrderIndex(region) {
+  const index = REGION_ORDER.indexOf(canonicalRegion(region));
+  return index === -1 ? REGION_ORDER.length : index;
+}
+
+function renderTabs(items) {
+  const counts = Object.fromEntries(FILTERS.map(([key]) => [key, 0]));
+  counts.all = items.length;
+  for (const item of items) {
+    const keys = itemFilterKeys(item);
+    for (const key of keys) counts[key] = (counts[key] || 0) + 1;
+  }
+
+  document.getElementById("tabs").innerHTML = FILTERS.map(([key, label]) => `
+    <button class="tab ${key === currentFilter ? "active" : ""}" onclick="switchTab('${key}')">
+      ${escapeHtml(label)}<span class="badge">${counts[key] || 0}</span>
+    </button>
+  `).join("");
+}
+
+function switchTab(key) {
+  currentFilter = key;
+  renderDashboard(currentItems, currentDigest);
+}
+
+function renderStatusRail(items, mode) {
+  const groups = groupedByRegion(items);
+  const selected = selectedRegionFromUrl();
+  const presentRegions = new Set(groups.map(([region]) => region));
+  const regionChips = groups.map(([region, values]) => {
+    const avg = average(values.map(item => item.importance));
+    return {
+      region,
+      html: `<a class="chip ${selected === region ? "active" : ""}" href="${escapeHtml(regionPageUrl(region))}"><i class="dot live"></i>${escapeHtml(regionLabel(region))} <span class="time">${values.length}건 / 평균 ${avg}</span></a>`
+    };
+  });
+  const shortcutChips = unique(REGION_SHORTCUTS.map(displayRegion))
+    .filter(region => !isHiddenRegion(region))
+    .filter(region => !presentRegions.has(region))
+    .filter(region => !selected || selected === region)
+    .map(region => ({
+      region,
+      html: `<a class="chip ${selected === region ? "active" : ""}" href="${escapeHtml(regionPageUrl(region))}"><i class="dot pending"></i>${escapeHtml(regionLabel(region))} 전체 보기</a>`
+    }));
+
+  const chips = regionChips
+    .concat(shortcutChips)
+    .sort((a, b) => regionOrderIndex(a.region) - regionOrderIndex(b.region))
+    .map(chip => chip.html);
+
+  if (!chips.length) {
+    chips.push(`<span class="chip"><i class="dot pending"></i>표시할 백엔드 항목 없음</span>`);
+  }
+
+  chips.unshift(`<a class="chip ${selected ? "" : "active"}" href="${escapeHtml(dashboardUrl())}"><i class="dot ${mode === "backend" ? "live" : "pending"}"></i>${mode === "backend" ? "전체 보기" : "정적 데모 전체 보기"}</a>`);
+  document.getElementById("statusRail").innerHTML = chips.join("");
+}
+
+function renderFeed(items) {
+  const filtered = filterItems(items);
+  const groups = groupedByRegion(filtered);
+  const feed = document.getElementById("feed");
+  const selected = selectedRegionFromUrl();
+
+  if (!groups.length) {
+    feed.innerHTML = `
+      <article class="region">
+        <div class="region-head"><span class="region-title">조건에 맞는 항목 없음</span><span class="region-meta"><span class="delivery">필터 결과 없음</span></span></div>
+        <div class="region-body"><div class="item"><i class="bar"></i><div><div class="headline">이 필터에 해당하는 backend item이 아직 없습니다.</div><div class="summary">다른 탭을 선택하거나 다음 poll 이후 다시 확인하세요.</div></div></div></div>
+      </article>
+    `;
+    return;
+  }
+
+  feed.innerHTML = groups.map(([region, values]) => {
+    const avg = average(values.map(item => item.importance));
+    const detailLink = selected
+      ? ""
+      : `<a class="region-link" href="${escapeHtml(regionPageUrl(region))}" onclick="event.stopPropagation()">전체 보기</a>`;
+    return `
+      <article class="region" data-region="${escapeHtml(region)}">
+        <div class="region-head" onclick="toggleRegion(this)">
+          <span class="region-title">${escapeHtml(regionLabel(region))}</span>
+          <span class="region-meta"><span class="delivery live">백엔드 연결</span><span>${values.length}건</span><span>평균 중요도 ${avg}</span>${detailLink}</span>
+        </div>
+        <div class="region-body">${values.map(renderItem).join("")}</div>
+      </article>
+    `;
+  }).join("");
+}
+
+function renderItem(item) {
+  const date = shortDateTime(item.publishedAt);
+  const bar = item.importance >= 85 ? "high" : item.category;
+  const headline = `<a class="headline-link" href="${escapeHtml(itemDetailUrl(item))}">${escapeHtml(item.title)}</a>`;
+  const identifier = entityIdentifierText(item);
+  const identifierBadge = identifier ? `<span class="title-identifier">${escapeHtml(identifier)}</span>` : "";
+
+  return `
+    <div class="item" data-cat="${escapeHtml(item.category)}">
+      <i class="bar ${escapeHtml(bar)}"></i>
+      <div>
+        <div class="headline headline-row">${headline}${identifierBadge}</div>
+        ${entityCardInfoHtml(item)}
+        ${regionalCardTopicHtml(item)}
+        <div class="summary">${escapeHtml(formatMoneyText(item.summary))}</div>
+        <div class="meta">
+          <span class="source">${escapeHtml(item.source)}</span>
+          ${compositePillHtml(item)}
+          <span>${escapeHtml(date)}</span>
+          <span>중요도 ${escapeHtml(String(item.importance))}</span>
+          ${item.tags.map(([klass, label]) => `<span class="tag ${escapeHtml(klass)}">${escapeHtml(label)}</span>`).join("")}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderItemDetail(items, itemKey) {
+  const feed = document.getElementById("feed");
+  const item = items.find(value => value.storyKey === itemKey);
+
+  if (!item) {
+    feed.innerHTML = `
+      <article class="region">
+        <div class="region-head"><span class="region-title">공시를 찾을 수 없음</span><span class="region-meta"><a class="region-link" href="${escapeHtml(itemBackUrl())}">목록으로</a></span></div>
+        <div class="detail-body">
+          <p class="detail-summary">현재 digest 범위에서 선택한 공시를 찾지 못했습니다. 최신 데이터가 갱신되었을 수 있으니 목록에서 다시 선택해 주세요.</p>
+        </div>
+      </article>
+    `;
+    return;
+  }
+
+  const date = shortDateTime(item.publishedAt);
+  const bullets = detailBullets(item);
+  const values = extractDetailValues(item);
+  const periodicReport = isSecPeriodicReport(item);
+  const entityIdentifier = entityIdentifierText(item);
+  const entityDescription = entityDescriptionText(item);
+  const profileSource = entityProfileSource(item);
+  const profileSourceText = entityProfileSourceText(item);
+  const profileSourceLink = profileSource?.url
+    ? `<a href="${escapeHtml(profileSource.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(profileSource.label)}</a>`
+    : escapeHtml(profileSourceText);
+  const originalLink = item.url
+    ? `<a class="detail-action primary" href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">원문 보기</a>`
+    : "";
+
+  feed.innerHTML = `
+    <article class="region" data-region="${escapeHtml(item.primaryRegion)}">
+      <div class="region-head">
+        <span class="region-title">${escapeHtml(regionLabel(item.primaryRegion))} 공시 상세</span>
+        <span class="region-meta"><a class="region-link" href="${escapeHtml(itemBackUrl())}">목록으로</a></span>
+      </div>
+      <div class="detail-body">
+        <h2 class="detail-title">${escapeHtml(item.title)}</h2>
+        <div class="entity-intro-list">
+          <div><b>종목/코드</b><span>${escapeHtml(entityIdentifier || "공시 원문에서 별도 티커/종목코드를 확인하지 못했습니다.")}</span></div>
+          <div><b>회사 설명</b><span>${escapeHtml(entityDescription)}</span></div>
+          <div><b>프로필 출처</b><span>${profileSourceLink}</span></div>
+        </div>
+        ${detailSummaryHtml(item)}
+        <div class="detail-grid">
+          <div class="detail-box">
+            <b>대상</b>
+            <span>${escapeHtml(detailTarget(item))}</span>
+          </div>
+          <div class="detail-box">
+            <b>분류</b>
+            <span>${escapeHtml(detailCategoryLabel(item))}</span>
+          </div>
+          <div class="detail-box">
+            <b>식별자</b>
+            <span>${escapeHtml(entityIdentifier || "공시 원문에서 별도 티커/종목코드를 확인하지 못했습니다.")}</span>
+          </div>
+          <div class="detail-box">
+            <b>기업 개요</b>
+            <span>${escapeHtml(entityDescription)}</span>
+          </div>
+          <div class="detail-box">
+            <b>프로필 출처</b>
+            <span>${profileSourceLink}${profileSource?.basis ? `<br>${escapeHtml(profileSource.basis)}` : ""}</span>
+          </div>
+          <div class="detail-box">
+            <b>시각</b>
+            <span>${escapeHtml(date)}</span>
+          </div>
+          <div class="detail-box">
+            <b>주요 수치/조건</b>
+            <span>${periodicReport ? "아래 재무 지표 카드에서 매출, 영업이익, 순이익/순손실, EPS, 가이던스를 분리해 표시합니다." : values.length ? escapeHtml(values.join(", ")) : "원문 요약에서 별도 금액이나 비율을 찾지 못했습니다."}</span>
+          </div>
+          ${regionalDisclosureBoxesHtml(item)}
+          ${periodicFinancialBoxesHtml(item)}
+          ${compositeDetailBoxHtml(item)}
+        </div>
+        <ul class="detail-list">
+          ${bullets.map(bullet => `<li>${escapeHtml(bullet)}</li>`).join("")}
+        </ul>
+        <div class="detail-actions">
+          ${originalLink}
+          <a class="detail-action" href="${escapeHtml(itemBackUrl())}">목록으로 돌아가기</a>
+        </div>
+        <p class="detail-note">이 상세 요약은 현재 digest, 원문 본문 추출값, 공시 메타데이터에서 규칙 기반으로 정리한 내용입니다. 최종 판단은 반드시 원문 공시에서 확인하세요.</p>
+      </div>
+    </article>
+  `;
+}
+
+function renderSidebar(items, digest, mode) {
+  const sorted = sortedItems(items);
+  const regions = groupedByRegion(items);
+  const disclosureCount = items.filter(item => item.kind === "disclosure").length;
+  const newsCount = items.filter(item => item.kind === "news").length;
+
+  document.getElementById("backendSnapshot").innerHTML = [
+    row("모드", mode === "backend" ? "Fly staging" : "정적 데모"),
+    row("Digest 날짜", digest?.digest_date || "n/a"),
+    row("에디션", digest?.edition || "breaking"),
+    row("항목", String(items.length)),
+    row("공시 / 뉴스", `${disclosureCount} / ${newsCount}`)
+  ].join("");
+
+  document.getElementById("regionSummary").innerHTML = regions.map(([region, values]) =>
+    row(regionLabel(region), `${values.length}건 / 평균 ${average(values.map(item => item.importance))}`)
+  ).join("") || row("지역 없음", "0");
+
+  document.getElementById("topPriority").innerHTML = sorted.slice(0, 5).map(item =>
+    row(truncate(item.title, 56), shortDateTime(item.publishedAt))
+  ).join("") || row("최신 항목 없음", "n/a");
+}
+
+function renderInsight(items, digest, mode) {
+  const top = sortedItems(items)[0];
+  const selected = selectedRegionFromUrl();
+  const scope = selected ? `${regionLabel(selected)} 전체 화면에서 ` : "";
+  const compositeCount = items.filter(item => item.compositeSignals?.length).length;
+  const message = mode === "backend"
+    ? `${scope}Fly 백엔드 digest ${digest?.digest_date || "latest"} 기준, ${items.length}개 공시/뉴스를 지역별 최신순으로 묶고 ${compositeCount}개 복합 시그널을 표시합니다.`
+    : "백엔드에 연결할 수 없어 정적 데모 데이터를 같은 UI 구조로 표시합니다.";
+
+  document.getElementById("insightBanner").innerHTML = `
+    <span>${mode === "backend" ? "[LIVE]" : "[DEMO]"}</span>
+    <span>${escapeHtml(message)} ${top ? `<strong>Top: ${escapeHtml(truncate(top.title, 70))}</strong>` : ""}</span>
+  `;
+}
+
+function renderRegionDetailHeader(items) {
+  const selected = selectedRegionFromUrl();
+  const el = document.getElementById("regionDetailHeader");
+
+  if (!selected) {
+    el.classList.remove("open");
+    el.innerHTML = "";
+    return;
+  }
+
+  el.classList.add("open");
+  el.innerHTML = `
+    <div>
+      <h2>${escapeHtml(regionLabel(selected))} 전체</h2>
+      <p>이 지역 상세 화면은 최신 digest에서 ${items.length}건을 표시합니다. 유럽은 영국, 스위스, 북유럽, 중부 유럽, 남유럽을 한 화면으로 합칩니다.</p>
+    </div>
+    <a class="back-link" href="${escapeHtml(dashboardUrl())}">전체 대시보드</a>
+  `;
+}
+
+function renderDashboard(items, digest, mode = "backend") {
+  currentItems = sortedItems(applyCompositeSignals(applyItemPolicy(items)));
+  currentDigest = digest;
+  const visibleItems = regionScopedItems(currentItems);
+  const itemKey = selectedItemKeyFromUrl();
+  renderTabs(visibleItems);
+  renderStatusRail(visibleItems, mode);
+  renderRegionDetailHeader(visibleItems);
+  if (itemKey) {
+    renderItemDetail(visibleItems, itemKey);
+  } else {
+    renderFeed(visibleItems);
+  }
+  renderSidebar(visibleItems, digest, mode);
+  renderInsight(visibleItems, digest, mode);
+}
+
+function mergeItemsByStoryKey(baseItems, extraItems) {
+  const seen = new Set();
+  const merged = [];
+
+  for (const item of [...baseItems, ...extraItems]) {
+    const key = item.storyKey || `${item.primaryRegion}:${item.title}:${item.publishedAt || ""}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    merged.push(item);
+  }
+
+  return merged;
+}
+
+async function supplementDashboardItems(items) {
+  if (selectedRegionFromUrl()) return items;
+
+  const responses = await Promise.allSettled(
+    DASHBOARD_SUPPLEMENT_REGIONS.map(region =>
+      fetchJson(regionDigestPath(region, DASHBOARD_SUPPLEMENT_LIMIT))
+    )
+  );
+
+  const supplements = responses
+    .filter(result => result.status === "fulfilled")
+    .flatMap(result => digestItems(result.value).map(normalizeItem));
+
+  return mergeItemsByStoryKey(items, supplements);
+}
+
+async function loadBackend() {
+  let healthOk = false;
+
+  try {
+    const health = await fetchJson("/api/health");
+    setBackend(`백엔드 ${health.status || "ok"}`, "online");
+    healthOk = true;
+  } catch (_error) {
+    setBackend("정적 데모 모드", "offline");
+  }
+
+  try {
+    const digest = await fetchJson(digestPath());
+    const items = await supplementDashboardItems(digestItems(digest).map(normalizeItem));
+    if (items.length) {
+      renderDashboard(items, digest, "backend");
+      return;
+    }
+  } catch (_error) {
+    if (healthOk) setBackend("백엔드 ok / digest 대기 중", "online");
+  }
+
+  renderDashboard(STATIC_ITEMS.map(normalizeItem), { edition: "demo", digest_date: "static" }, "demo");
+}
+
+function row(label, value) {
+  return `<div class="row"><b>${escapeHtml(label)}</b><span class="blue">${escapeHtml(value)}</span></div>`;
+}
+
+function average(values) {
+  if (!values.length) return 0;
+  return Math.round(values.reduce((sum, value) => sum + value, 0) / values.length);
+}
+
+function unique(values) {
+  return Array.from(new Set(values));
+}
+
+function truncate(value, max) {
+  const text = String(value || "");
+  return text.length > max ? `${text.slice(0, max - 1)}...` : text;
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+loadBackend();
+</script>
 </body>
 </html>

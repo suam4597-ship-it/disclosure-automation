@@ -7,7 +7,7 @@ info:
   version: "2.0.0"
   description: >
     공시·뉴스 수집 백엔드의 공개/관리 API 계약.
-    데이터 모델 근거: docs/blueprint/investment_news_blueprint_v2.md,
+    데이터 모델 근거: docs/blueprint/data_model_blueprint.md,
     스키마: apps/backend/schema/0001_core_schema.sql.
 
 servers:

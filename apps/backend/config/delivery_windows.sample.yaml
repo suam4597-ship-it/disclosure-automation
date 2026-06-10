@@ -1,0 +1,76 @@
+version: 1
+defaults:
+  channel: dashboard
+  cutoff_minutes: 30
+  active: true
+
+windows:
+  - window_key: apac-open-dashboard
+    edition: apac-open
+    channel: dashboard
+    timezone: Asia/Seoul
+    weekdays: [1, 2, 3, 4, 5]
+    opens_at_local: "07:30"
+    closes_at_local: "09:00"
+    cutoff_minutes: 20
+    active: true
+    config:
+      top_n: 12
+      include_breaking: true
+      target_digest_date_strategy: market_day
+
+  - window_key: apac-open-email
+    edition: apac-open
+    channel: email
+    timezone: Asia/Seoul
+    weekdays: [1, 2, 3, 4, 5]
+    opens_at_local: "08:00"
+    closes_at_local: "08:30"
+    cutoff_minutes: 15
+    active: true
+    config:
+      top_n: 8
+      include_breaking: true
+      subject_prefix: "[Global Pulse]"
+
+  - window_key: europe-midday-dashboard
+    edition: europe-midday
+    channel: dashboard
+    timezone: Europe/London
+    weekdays: [1, 2, 3, 4, 5]
+    opens_at_local: "11:30"
+    closes_at_local: "13:00"
+    cutoff_minutes: 30
+    active: true
+    config:
+      top_n: 10
+      include_breaking: true
+      target_digest_date_strategy: market_day
+
+  - window_key: us-close-dashboard
+    edition: us-close
+    channel: dashboard
+    timezone: America/New_York
+    weekdays: [1, 2, 3, 4, 5]
+    opens_at_local: "15:30"
+    closes_at_local: "17:30"
+    cutoff_minutes: 30
+    active: true
+    config:
+      top_n: 12
+      include_breaking: true
+      target_digest_date_strategy: market_day
+
+  - window_key: breaking-slack
+    edition: breaking
+    channel: slack
+    timezone: UTC
+    weekdays: [1, 2, 3, 4, 5, 6, 7]
+    opens_at_local: "00:00"
+    closes_at_local: "23:59"
+    cutoff_minutes: 0
+    active: true
+    config:
+      minimum_relevance_score: 0.85
+      max_alerts_per_hour: 3
+      include_source_health: true

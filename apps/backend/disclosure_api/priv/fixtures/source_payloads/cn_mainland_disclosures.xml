@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Mainland China Disclosures</title>
+    <item>
+      <title>Shanghai-listed robotics supplier discloses capacity expansion plan</title>
+      <link>https://example.com/globalpulse/cn-mainland/robotics-capacity-expansion</link>
+      <guid>cn-disclosure-20260508-robotics-capacity-expansion</guid>
+      <description>Company filing highlights a phased production ramp for precision robotics components used in industrial automation lines.</description>
+      <pubDate>Fri, 08 May 2026 04:22:00 GMT</pubDate>
+      <category>disclosure</category>
+    </item>
+    <item>
+      <title>Shenzhen battery materials issuer files major customer contract update</title>
+      <link>https://example.com/globalpulse/cn-mainland/battery-materials-contract-update</link>
+      <guid>cn-disclosure-20260508-battery-materials-contract</guid>
+      <description>Disclosure notes a multi-year cathode materials supply agreement with staged delivery milestones and pricing adjustment clauses.</description>
+      <pubDate>Fri, 08 May 2026 03:58:00 GMT</pubDate>
+      <category>disclosure</category>
+    </item>
+  </channel>
+</rss>

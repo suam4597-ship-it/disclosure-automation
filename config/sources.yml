@@ -1,7 +1,9 @@
 # GlobalPulse 수집처 명단 (Source Registry)
 #
-# 새 수집처 추가 = 이 파일에 한 줄(블록) 추가. 워크플로우/코드 수정 불필요.
-# 설계 근거: docs/blueprint/investment_news_blueprint_v2.md 6장.
+# 운영 스케줄의 권위는 .github/workflows/globalpulse-live-staging-poll.yml 이며,
+# 이 파일은 그 매핑의 문서화·검증용 미러다. GlobalPulse CI가 두 파일의
+# cron ↔ schedule 일치를 검사하므로, 한쪽을 바꾸면 반드시 같이 바꾼다.
+# 설계 근거: docs/blueprint/data_model_blueprint.md 6장.
 #
 # status 승격 단계: disabled -> fixture -> canary -> production
 # records_seen_cap: 캐너리 단계에서 1회 폴 수집 상한 (폴 계약 검증에 사용)
@@ -12,22 +14,40 @@ defaults:
   records_seen_cap: 25
 
 sources:
+  - key: sec_edgar_current_8k_filings
+    name: "US SEC EDGAR current 8-K filings"
+    region: us
+    timezone: America/New_York
+    status: canary
+
   - key: sec_press_releases
     name: "US SEC press releases"
-    region: americas
+    region: us
     timezone: America/New_York
+    status: canary
+
+  - key: jp_tdnet_disclosures
+    name: "Japan TDnet disclosures"
+    region: jp
+    timezone: Asia/Tokyo
     status: canary
 
   - key: india_nse_announcements
     name: "India NSE corporate announcements"
-    region: asia_pacific
+    region: india
     timezone: Asia/Kolkata
     status: canary
 
   - key: hkex_latest_listed_company_information
     name: "HKEX latest listed company information"
-    region: greater_china
+    region: hk
     timezone: Asia/Hong_Kong
+    status: canary
+
+  - key: tw_mops_daily_material_information
+    name: "Taiwan MOPS daily material information"
+    region: tw
+    timezone: Asia/Taipei
     status: canary
 
   - key: eu_france_info_financiere_oam
@@ -56,13 +76,13 @@ sources:
 
   - key: uk_fca_nsm_regulated_information
     name: "UK FCA NSM regulated information"
-    region: eu_north
+    region: uk
     timezone: Europe/London
     status: canary
 
   - key: ch_six_ser_official_notices
     name: "Switzerland SIX SER official notices"
-    region: eu_central
+    region: ch
     timezone: Europe/Zurich
     status: canary
 
@@ -102,29 +122,40 @@ sources:
     timezone: Europe/Madrid
     status: fixture
 
-# 스케줄 그룹: live-staging-poll 워크플로우가 schedule cron 식 또는
-# workflow_dispatch의 source_key(그룹 별칭 허용)를 이 표에서 찾아 폴 대상을 정한다.
+# 스케줄 그룹: live-staging-poll 워크플로우의 cron ↔ 소스 매핑 미러.
+# alias 는 workflow_dispatch 의 source_key 별칭과 일치한다.
 groups:
-  - alias: hourly_default
-    schedule: "7 * * * *"
+  - alias: sec_edgar_10m
+    schedule: "*/10 * * * *"
     label: default
     sources:
-      - sec_press_releases
+      - sec_edgar_current_8k_filings
 
-  - alias: india_nse_staging
-    schedule: "37 */2 * * 1-5"
-    label: india_nse
+  - alias: jp_tdnet_15m
+    schedule: "*/15 * * * *"
+    label: jp_tdnet
     sources:
-      - india_nse_announcements
+      - jp_tdnet_disclosures
 
-  - alias: hkex_staging
-    schedule: "22 */2 * * 1-5"
-    label: hkex
+  - alias: regional_30m_cadence_staging_sources
+    schedule: "*/30 * * * *"
+    label: regional_30m
     sources:
       - hkex_latest_listed_company_information
+      - tw_mops_daily_material_information
+      - india_nse_announcements
+      - eu_france_info_financiere_oam
+      - eu_spain_cnmv_inside_information
+      - eu_spain_cnmv_other_relevant_information
+      - eu_belgium_fsma_stori
+      - uk_fca_nsm_regulated_information
+      - ch_six_ser_official_notices
+      - eu_euronext_company_press_releases
+      - pt_cmvm_portal_info_privi
+      - dk_dfsa_oam_company_announcements
 
+  # workflow_dispatch 전용 별칭 (cron 없음 → schedule 키 생략)
   - alias: eu_scheduled_staging_canary
-    schedule: "17 */4 * * 1-5"
     label: eu_canary
     sources:
       - eu_france_info_financiere_oam
@@ -137,7 +168,6 @@ groups:
       - pt_cmvm_portal_info_privi
 
   - alias: denmark_dfsa_oam_staging_canary
-    schedule: "47 */4 * * 1-5"
     label: denmark_dfsa_oam_canary
     sources:
       - dk_dfsa_oam_company_announcements

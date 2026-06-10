@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>ASEAN Market News</title>
+    <item>
+      <title>Singapore exchange liquidity program lifts ASEAN technology listings</title>
+      <link>https://example.com/globalpulse/asean/sgx-liquidity-technology-listings</link>
+      <guid>asean-news-20260508-sgx-technology-listings</guid>
+      <description>Regional exchange commentary points to stronger technology-sector listings and improved secondary-market liquidity across Southeast Asia.</description>
+      <pubDate>Fri, 08 May 2026 04:24:00 GMT</pubDate>
+      <category>markets</category>
+    </item>
+    <item>
+      <title>ASEAN supply-chain names rally after electronics export guidance</title>
+      <link>https://example.com/globalpulse/asean/electronics-export-guidance</link>
+      <guid>asean-news-20260508-electronics-export-guidance</guid>
+      <description>Export guidance supports electronics assembly, logistics, and component suppliers with exposure to regional manufacturing corridors.</description>
+      <pubDate>Fri, 08 May 2026 03:48:00 GMT</pubDate>
+      <category>markets</category>
+    </item>
+  </channel>
+</rss>

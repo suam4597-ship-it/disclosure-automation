@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0">
+  <channel>
+    <title>INFOSTORAGE/INFOHRAMBA</title>
+    <link>http://csi.ljse.si</link>
+    <description>INFO STORAGE/INFO HRAMBA</description>
+    <copyright>Ljubljanska borza, Ljubljana</copyright>
+    <managingEditor>infohramba@ljse.si</managingEditor>
+    <item>
+      <link>https://www.oam.si/?doc_id=39648</link>
+      <guid>https://www.oam.si/?doc_id=39648</guid>
+      <title>Vabilo na Dan odprtih vrat družbe EQUINOX NEPREMIČNINE d.d.</title>
+      <description></description>
+      <pubDate>Fri, 8 May 2026 08:30:00 </pubDate>
+      <author>Equinox d.d.</author>
+      <category>Equinox d.d.</category>
+    </item>
+    <item>
+      <link>https://www.oam.si/?doc_id=39644</link>
+      <guid>https://www.oam.si/?doc_id=39644</guid>
+      <title>Pridobivanje lastnih delnic</title>
+      <description>Na podlagi določil Pravil Ljubljanske borze, d. d., Ljubljana in člena 2 Delegirane uredbe komisije (EU) 2016/1052 Krka, d. d., Novo mesto objavlja naslednje sporočilo:</description>
+      <pubDate>Tue, 5 May 2026 08:30:00 </pubDate>
+      <author>KRKA, d. d., Novo mesto</author>
+      <category>KRKA, d. d., Novo mesto</category>
+    </item>
+  </channel>
+</rss>

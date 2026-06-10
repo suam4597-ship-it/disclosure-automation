@@ -12,14 +12,34 @@
       var override = new URLSearchParams(window.location.search).get("apiBase");
       if (override) return override.replace(/\/+$/, "");
     }
-    return (CONFIG.apiBase || "").replace(/\/+$/, "");
+    // 메인 config.js 는 apiBaseUrl 키를 쓴다 — 양쪽 모두 지원
+    var base = CONFIG.apiBase || CONFIG.apiBaseUrl || window.DISCLOSURE_API_BASE_URL || "";
+    return base.replace(/\/+$/, "");
   }
+
+  // 메인 config.js 에는 regions/categories 가 없으므로 이 보조 화면용 기본값을 둔다
+  var DEFAULT_REGIONS = [
+    { key: "jp",            name: "Japan",            flag: "JP",    timezone: "Asia/Tokyo",        deliveryLocalTime: "18:30" },
+    { key: "greater_china", name: "Greater China",    flag: "CN/TW", timezone: "Asia/Taipei",       deliveryLocalTime: "19:00" },
+    { key: "kr",            name: "Korea",            flag: "KR",    timezone: "Asia/Seoul",        deliveryLocalTime: "20:45" },
+    { key: "eu_north",      name: "Europe (North)",   flag: "EU",    timezone: "Europe/Copenhagen", deliveryLocalTime: "20:30" },
+    { key: "eu_central",    name: "Europe (Central)", flag: "EU",    timezone: "Europe/Paris",      deliveryLocalTime: "20:30" },
+    { key: "eu_south",      name: "Europe (South)",   flag: "EU",    timezone: "Europe/Madrid",     deliveryLocalTime: "20:30" },
+    { key: "us",            name: "Americas",         flag: "US",    timezone: "America/New_York",  deliveryLocalTime: "21:00" }
+  ];
+  var DEFAULT_CATEGORIES = [
+    { key: "supply_demand",   name: "Supply / Demand",    cssClass: "supply-demand",   color: "#3B82F6" },
+    { key: "tech_innovation", name: "Tech Innovation",    cssClass: "tech-innovation", color: "#8B5CF6" },
+    { key: "shortage_surge",  name: "Shortage / Surge",   cssClass: "shortage-surge",  color: "#EF4444" },
+    { key: "ma_capital_flow", name: "M&A / Capital Flow", cssClass: "ma",              color: "#F59E0B" },
+    { key: "earnings",        name: "Earnings",           cssClass: "earnings",        color: "#22C55E" }
+  ];
 
   var API_BASE = resolveApiBase();
   var EDITION = CONFIG.edition || "breaking";
   var DISPLAY_TZ = CONFIG.displayTimezone || "Asia/Seoul";
-  var REGIONS = CONFIG.regions || [];
-  var CATEGORIES = CONFIG.categories || [];
+  var REGIONS = CONFIG.regions || DEFAULT_REGIONS;
+  var CATEGORIES = CONFIG.categories || DEFAULT_CATEGORIES;
 
   var regionByKey = {};
   REGIONS.forEach(function (r) { regionByKey[r.key] = r; });

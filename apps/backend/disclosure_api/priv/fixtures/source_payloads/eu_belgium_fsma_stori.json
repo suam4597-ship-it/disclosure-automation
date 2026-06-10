@@ -1,0 +1,65 @@
+{
+  "resultCount": 2,
+  "storiResultItems": [
+    {
+      "requiredReportingTopicId": "globalpulse-fsma-stori-20260508-wdp-major-shareholding",
+      "companyName": "WDP",
+      "companyNumber": "0417042869",
+      "nationality": "BE",
+      "reportingTopicName": "Announcement of notification of major shareholding",
+      "datePublication": "2026-05-08T18:00:00",
+      "dateReceived": "2026-05-08T18:13:23.323",
+      "lei": "549300ZXUZC2R7V7BE48",
+      "documentTitle": "",
+      "mainDocuments": [
+        {
+          "fileDataId": "globalpulse-fsma-stori-wdp-pdf",
+          "language": "en",
+          "title": "",
+          "originalFileName": "WDP-major-shareholding-notification.pdf",
+          "size": 128,
+          "fileType": "pdf"
+        }
+      ],
+      "attachments": [],
+      "isinCodes": [
+        {
+          "code": "BE0974349814",
+          "startDate": "2011-01-01T00:00:00",
+          "isinType": "Shares",
+          "market": "Euronext Brussels"
+        }
+      ]
+    },
+    {
+      "requiredReportingTopicId": "globalpulse-fsma-stori-20260508-van-de-velde-own-shares",
+      "companyName": "VAN DE VELDE",
+      "companyNumber": "0448769900",
+      "nationality": "BE",
+      "reportingTopicName": "Announcement of acquisition of own shares",
+      "datePublication": "2026-05-08T18:00:00",
+      "dateReceived": "2026-05-08T18:22:28.567",
+      "lei": "549300GZQSWCW1EVQ155",
+      "documentTitle": "",
+      "mainDocuments": [
+        {
+          "fileDataId": "globalpulse-fsma-stori-van-de-velde-pdf",
+          "language": "en",
+          "title": "",
+          "originalFileName": "Van-De-Velde-acquisition-of-own-shares.pdf",
+          "size": 96,
+          "fileType": "pdf"
+        }
+      ],
+      "attachments": [],
+      "isinCodes": [
+        {
+          "code": "BE0003839561",
+          "startDate": "2011-01-01T00:00:00",
+          "isinType": "Shares",
+          "market": "Euronext Brussels"
+        }
+      ]
+    }
+  ]
+}

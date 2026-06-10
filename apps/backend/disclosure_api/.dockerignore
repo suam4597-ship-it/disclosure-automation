@@ -1,0 +1,10 @@
+_build/
+deps/
+erl_crash.dump
+*.ez
+*.beam
+*.log
+test/
+docs/
+tmp/
+.git/
