@@ -237,6 +237,10 @@ Digest
 3. ✅ 핵심 스키마 초안(`apps/backend/schema/0001_core_schema.sql`) — Issuer·이중 시간 포함
 4. ✅ 사건/증거 N:M + 3단계 dedup 명세 (이 문서 4장 + 스키마)
 5. ✅ 프론트엔드를 실제 digest API에 연결 (`apps/web/`)
-6. ⬜ 백엔드 구현을 이 스키마로 이전/정렬 (fly.dev 백엔드 저장소)
-7. ⬜ Issuer 명함첩 시드 데이터 구축 (LEI/ISIN 매핑)
-8. ⬜ 의미 기반(3단계) dedup 도입
+6. 🔶 백엔드 정렬 — API 계약 명세 완료(`apps/backend/openapi.yml`),
+   fly.dev 백엔드 구현의 실제 반영은 백엔드 저장소에서 진행
+7. ✅ Issuer 명함첩 시드 데이터 구축 (`apps/backend/schema/0002_issuer_seed.sql`,
+   GLEIF 검증 LEI 9건 + 미검증 NULL 사례 1건)
+8. ✅ 3단계 dedup 참조 구현 (`apps/backend/dedup/`, 테스트 8건 + CI) —
+   실서비스 임베딩 모델 연결은 백엔드 반영 시점에
+9. ⬜ 백엔드 저장소에 OpenAPI 계약·dedup 참조 구현 이식
