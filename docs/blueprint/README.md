@@ -16,6 +16,6 @@
 - 수집처 명단: [`config/sources.yml`](../../config/sources.yml)
 
 ## 다음 작업
-1. disclosure_api(Ecto 스키마)를 데이터 모델 설계서와 비교해 정렬 격차 목록화
-2. Issuer 명함첩 시드를 백엔드 마이그레이션으로 이식
-3. 의미 기반(3단계) dedup을 백엔드 병합 로직에 도입
+1. ✅ 정렬 격차 분석: [`schema_gap_analysis.md`](./schema_gap_analysis.md)
+2. ✅ Issuer 명함첩·증거 테이블을 백엔드 마이그레이션으로 이식 (20260610000100/000200)
+3. ⬜ 티커→issuer 해소, 교차 소스 병합(2·3단계)을 백엔드에 도입

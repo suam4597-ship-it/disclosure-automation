@@ -237,6 +237,7 @@ defmodule DisclosureAutomation.Schema.CanonicalFeedItem do
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias DisclosureAutomation.Schema.Issuer
   alias DisclosureAutomation.Schema.RawDocument
   alias DisclosureAutomation.Schema.SourceRegistry
 
@@ -246,6 +247,7 @@ defmodule DisclosureAutomation.Schema.CanonicalFeedItem do
   schema "canonical_feed_items" do
     belongs_to :raw_document, RawDocument
     belongs_to :source, SourceRegistry, foreign_key: :source_registry_id
+    belongs_to :issuer, Issuer
     field :digest_date, :date
     field :edition, :string
     field :story_key, :string
@@ -271,6 +273,7 @@ defmodule DisclosureAutomation.Schema.CanonicalFeedItem do
     |> cast(attrs, [
       :raw_document_id,
       :source_registry_id,
+      :issuer_id,
       :digest_date,
       :edition,
       :story_key,
@@ -299,5 +302,118 @@ defmodule DisclosureAutomation.Schema.CanonicalFeedItem do
       :published_at
     ])
     |> unique_constraint(:story_key)
+  end
+end
+
+defmodule DisclosureAutomation.Schema.Issuer do
+  @moduledoc false
+
+  use Ecto.Schema
+  import Ecto.Changeset
+
+  alias DisclosureAutomation.Schema.IssuerIdentifier
+
+  @primary_key {:id, :binary_id, autogenerate: true}
+  @foreign_key_type :binary_id
+
+  schema "issuers" do
+    field :canonical_name, :string
+    field :lei, :string
+
+    has_many :identifiers, IssuerIdentifier
+
+    timestamps(type: :utc_datetime_usec)
+  end
+
+  def changeset(issuer, attrs) do
+    issuer
+    |> cast(attrs, [:canonical_name, :lei])
+    |> validate_required([:canonical_name])
+    |> validate_format(:lei, ~r/^[A-Z0-9]{20}$/)
+    |> unique_constraint(:lei)
+  end
+end
+
+defmodule DisclosureAutomation.Schema.IssuerIdentifier do
+  @moduledoc false
+
+  use Ecto.Schema
+  import Ecto.Changeset
+
+  alias DisclosureAutomation.Schema.Issuer
+
+  @identifier_kinds ~w(ticker isin alias local_code)
+
+  @primary_key {:id, :binary_id, autogenerate: true}
+  @foreign_key_type :binary_id
+
+  schema "issuer_identifiers" do
+    belongs_to :issuer, Issuer
+    field :kind, :string
+    field :value, :string
+    field :exchange, :string
+    field :language, :string
+
+    timestamps(type: :utc_datetime_usec)
+  end
+
+  def changeset(identifier, attrs) do
+    identifier
+    |> cast(attrs, [:issuer_id, :kind, :value, :exchange, :language])
+    |> validate_required([:issuer_id, :kind, :value])
+    |> validate_inclusion(:kind, @identifier_kinds)
+    |> unique_constraint([:kind, :value, :exchange],
+      name: :issuer_identifiers_kind_value_exchange_uidx
+    )
+  end
+end
+
+defmodule DisclosureAutomation.Schema.CanonicalItemEvidence do
+  @moduledoc false
+
+  use Ecto.Schema
+  import Ecto.Changeset
+
+  alias DisclosureAutomation.Schema.CanonicalFeedItem
+  alias DisclosureAutomation.Schema.RawDocument
+
+  @match_methods ~w(exact_hash minhash_lsh semantic manual)
+
+  @primary_key {:id, :binary_id, autogenerate: true}
+  @foreign_key_type :binary_id
+
+  schema "canonical_item_evidence" do
+    belongs_to :canonical_feed_item, CanonicalFeedItem
+    belongs_to :raw_document, RawDocument
+    field :match_method, :string
+    field :confidence, :decimal
+    field :is_primary, :boolean, default: false
+
+    timestamps(type: :utc_datetime_usec)
+  end
+
+  def changeset(evidence, attrs) do
+    evidence
+    |> cast(attrs, [
+      :canonical_feed_item_id,
+      :raw_document_id,
+      :match_method,
+      :confidence,
+      :is_primary
+    ])
+    |> validate_required([
+      :canonical_feed_item_id,
+      :raw_document_id,
+      :match_method,
+      :confidence
+    ])
+    |> validate_inclusion(:match_method, @match_methods)
+    |> validate_number(:confidence, greater_than_or_equal_to: 0, less_than_or_equal_to: 1)
+    |> unique_constraint([:canonical_feed_item_id, :raw_document_id],
+      name: :canonical_item_evidence_pair_uidx
+    )
+    |> unique_constraint(:canonical_feed_item_id,
+      name: :canonical_item_evidence_one_primary_uidx
+    )
   end
 end

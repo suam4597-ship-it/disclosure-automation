@@ -21,12 +21,14 @@ cd apps/backend/dedup
 python3 -m unittest discover -s tests -t . -v
 ```
 
-## disclosure_api 정렬 작업 (다음 단계)
-1. `openapi.yml` 계약에 응답 형태 맞추기 (UTC 시각, 복수 카테고리, duplicates_removed)
-2. DB를 `schema/0001` 구조로 마이그레이션 (특히 event_evidence의 match_method/confidence)
-3. `dedup/pipeline.py`의 동작을 기준으로 병합 로직 구현, 3단계는 다국어 임베딩 연결
-4. 시드(`schema/0002`) 투입 후 수집 파이프라인의 issuer 해소 활성화
-5. 현 Ecto 스키마와 목표 스키마(`schema/0001`)의 격차 목록화부터 시작
+## disclosure_api 정렬 작업
+격차 분석: [`docs/blueprint/schema_gap_analysis.md`](../../docs/blueprint/schema_gap_analysis.md)
+
+1. ✅ 격차 목록화 + issuers/issuer_identifiers/canonical_item_evidence 테이블·시드 추가,
+   업서트 시 evidence(exact_hash) 자동 기록 (마이그레이션 20260610000100/000200)
+2. ⬜ 티커→issuer 해소로 `canonical_feed_items.issuer_id` 채우기
+3. ⬜ 교차 소스 병합(MinHash+LSH) — `dedup/pipeline.py` 동작 기준으로 이식
+4. ⬜ digest 응답에 duplicates_removed·issuer 노출 (이슈 #565 가드레일 해제 후, 운영자 승인 필요)
 
 ## 권장 기술
 - Elixir / Phoenix / Oban
