@@ -1,0 +1,197 @@
+# GlobalPulse backend API contract.
+# 백엔드(fly.dev) 구현이 따라야 할 단일 기준. 워크플로우의 계약 검증
+# (live-staging-poll, public-web-smoke)과 설계서 v2의 데이터 모델을 합친 명세다.
+openapi: 3.1.0
+info:
+  title: GlobalPulse Backend API
+  version: "2.0.0"
+  description: >
+    공시·뉴스 수집 백엔드의 공개/관리 API 계약.
+    데이터 모델 근거: docs/blueprint/investment_news_blueprint_v2.md,
+    스키마: apps/backend/schema/0001_core_schema.sql.
+
+servers:
+  - url: https://globalpulse-backend-staging.fly.dev
+    description: staging
+
+paths:
+  /api/health:
+    get:
+      summary: Health check
+      operationId: getHealth
+      responses:
+        "200":
+          description: 서비스 정상
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, service]
+                properties:
+                  status:
+                    type: string
+                    const: ok
+                  service:
+                    type: string
+                    const: disclosure_automation
+
+  /api/admin/sources/{source_key}/poll:
+    post:
+      summary: 수집처 1곳을 즉시 폴링 (관리용)
+      description: >
+        source_key는 config/sources.yml 명단에 있어야 한다.
+        멱등성: 동일 원문 재수집 시 records_inserted는 늘지 않는다.
+      operationId: pollSource
+      parameters:
+        - name: source_key
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: use_live_fetch
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: true면 실제 원천 호출, false면 fixture 사용
+        - name: edition
+          in: query
+          required: false
+          schema:
+            type: string
+            default: breaking
+      responses:
+        "200":
+          description: 폴 결과
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PollResult"
+
+  /api/feed/digest/latest:
+    get:
+      summary: 최신 다이제스트 (공개)
+      description: >
+        공개 응답에 인증·세션·내부 필드(authorization, token, raw_provider 등)가
+        포함되면 안 된다 — public-web-smoke가 검증한다.
+      operationId: getLatestDigest
+      parameters:
+        - name: edition
+          in: query
+          required: false
+          schema:
+            type: string
+            default: breaking
+      responses:
+        "200":
+          description: 최신 다이제스트
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Digest"
+
+components:
+  schemas:
+    PollResult:
+      type: object
+      required: [fetch, records_seen, records_inserted]
+      properties:
+        fetch:
+          type: object
+          required: [mode, status_code]
+          properties:
+            mode:
+              type: string
+              enum: [live, fixture]
+            status_code:
+              type: integer
+            fixture_fallback:
+              type: boolean
+              description: live 폴에서 true면 계약 위반으로 처리된다
+        records_seen:
+          type: integer
+          minimum: 0
+          description: 캐너리 단계에서는 records_seen_cap(기본 25) 이하여야 한다
+        records_inserted:
+          type: integer
+          minimum: 0
+          description: records_seen 이하여야 한다 (멱등성)
+        canonical_items:
+          type: array
+          items:
+            $ref: "#/components/schemas/DigestItem"
+        raw_documents:
+          type: array
+          items:
+            type: object
+            description: 새로 저장된 원본의 요약 (id, idempotency_key 등)
+
+    Digest:
+      type: object
+      required: [edition, items, metadata]
+      properties:
+        edition:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/DigestItem"
+        metadata:
+          type: object
+          required: [fallback_to_fixture]
+          properties:
+            fallback_to_fixture:
+              type: boolean
+              description: 공개 다이제스트에서는 false여야 한다
+            generated_at:
+              type: string
+              format: date-time
+              description: UTC
+
+    DigestItem:
+      type: object
+      description: >
+        canonical_event 1건의 공개 투영. 시각은 전부 UTC, 타임존 변환은
+        프론트엔드가 한다 (설계서 2장).
+      required: [headline, source, region, published_at_utc]
+      properties:
+        headline:
+          type: string
+        summary:
+          type: string
+        source:
+          type: string
+          description: 대표(primary) 증거의 수집처 표시명
+        url:
+          type: string
+          format: uri
+        region:
+          type: string
+          description: config/sources.yml 의 region 키
+        categories:
+          type: array
+          description: 복수 태그 (설계서 4-2장)
+          items:
+            type: string
+            enum: [earnings, ma_capital_flow, supply_demand, tech_innovation, shortage_surge]
+        published_at_utc:
+          type: string
+          format: date-time
+        duplicates_removed:
+          type: integer
+          minimum: 0
+          description: evidence_count - 1 (저장값이 아니라 계산값)
+        issuer:
+          type: object
+          description: 회사 명함첩 참조 (해소된 경우만)
+          properties:
+            canonical_name:
+              type: string
+            lei:
+              type: string
+              pattern: "^[A-Z0-9]{20}$"
+            tickers:
+              type: array
+              items:
+                type: string
