@@ -6491,6 +6491,7 @@ defmodule DisclosureAutomation.Ingestion do
   alias DisclosureAutomation.Parser
   alias DisclosureAutomation.Repo
   alias DisclosureAutomation.Schema.CanonicalFeedItem
+  alias DisclosureAutomation.Schema.CanonicalItemEvidence
   alias DisclosureAutomation.Schema.IngestionRun
   alias DisclosureAutomation.Schema.RawDocument
   alias DisclosureAutomation.Schema.SourceRegistry
@@ -14815,34 +14816,76 @@ defmodule DisclosureAutomation.Ingestion do
 
     changeset = CanonicalFeedItem.changeset(%CanonicalFeedItem{}, canonical_attrs)
 
-    Repo.insert(
-      changeset,
-      conflict_target: [:story_key],
-      on_conflict: [
-        set: [
-          raw_document_id: canonical_attrs.raw_document_id,
-          source_registry_id: canonical_attrs.source_registry_id,
-          digest_date: canonical_attrs.digest_date,
-          edition: canonical_attrs.edition,
-          headline: canonical_attrs.headline,
-          summary: canonical_attrs.summary,
-          canonical_url: canonical_attrs.canonical_url,
-          published_at: canonical_attrs.published_at,
-          tickers: canonical_attrs.tickers,
-          regions: canonical_attrs.regions,
-          sectors: canonical_attrs.sectors,
-          sentiment_label: canonical_attrs.sentiment_label,
-          relevance_score: canonical_attrs.relevance_score,
-          priority_rank: canonical_attrs.priority_rank,
-          duplicate_group_key: canonical_attrs.duplicate_group_key,
-          status: canonical_attrs.status,
-          metadata: canonical_attrs.metadata,
-          updated_at: DateTime.utc_now()
-        ]
-      ],
-      returning: true
-    )
+    insert_result =
+      Repo.insert(
+        changeset,
+        conflict_target: [:story_key],
+        on_conflict: [
+          set: [
+            raw_document_id: canonical_attrs.raw_document_id,
+            source_registry_id: canonical_attrs.source_registry_id,
+            digest_date: canonical_attrs.digest_date,
+            edition: canonical_attrs.edition,
+            headline: canonical_attrs.headline,
+            summary: canonical_attrs.summary,
+            canonical_url: canonical_attrs.canonical_url,
+            published_at: canonical_attrs.published_at,
+            tickers: canonical_attrs.tickers,
+            regions: canonical_attrs.regions,
+            sectors: canonical_attrs.sectors,
+            sentiment_label: canonical_attrs.sentiment_label,
+            relevance_score: canonical_attrs.relevance_score,
+            priority_rank: canonical_attrs.priority_rank,
+            duplicate_group_key: canonical_attrs.duplicate_group_key,
+            status: canonical_attrs.status,
+            metadata: canonical_attrs.metadata,
+            updated_at: DateTime.utc_now()
+          ]
+        ],
+        returning: true
+      )
+
+    case insert_result do
+      {:ok, item} -> record_canonical_evidence(item, raw_document)
+      _ -> :ok
+    end
+
+    insert_result
   end
+
+  # Provenance link for the dedup evidence model
+  # (docs/blueprint/schema_gap_analysis.md G1). The current pipeline only
+  # produces same-source exact matches, so every link is exact_hash at
+  # full confidence; cross-source merge stages will add their own methods.
+  # on_conflict: :nothing keeps re-polls and pre-existing primaries safe.
+  defp record_canonical_evidence(%CanonicalFeedItem{id: item_id}, %RawDocument{id: raw_id})
+       when is_binary(item_id) and is_binary(raw_id) do
+    now = DateTime.utc_now()
+
+    row = %{
+      canonical_feed_item_id: item_id,
+      raw_document_id: raw_id,
+      match_method: "exact_hash",
+      confidence: Decimal.new("1.000"),
+      is_primary: true,
+      inserted_at: now,
+      updated_at: now
+    }
+
+    case Repo.insert_all(CanonicalItemEvidence, [row], on_conflict: :nothing) do
+      {0, _} ->
+        # The pair already exists, or another evidence row already holds
+        # is_primary for this item; retry the pair as secondary evidence.
+        Repo.insert_all(CanonicalItemEvidence, [%{row | is_primary: false}],
+          on_conflict: :nothing
+        )
+
+      inserted ->
+        inserted
+    end
+  end
+
+  defp record_canonical_evidence(_item, _raw_document), do: :ok
 
   defp hash_record(record) do
     :sha256
